@@ -1,0 +1,9 @@
+# Single-package workspace for this plugin repo (same shape dsh writes into
+# its profiles). autoInstallPeers lets `pnpm install` pull the peer service
+# definition packages locally so `tsc` can type-check against them; at
+# runtime the dsh host supplies every peer itself (see README).
+packages:
+  - .
+
+nodeLinker: hoisted
+autoInstallPeers: true
