@@ -201,7 +201,13 @@ cd ~/.dsh/profiles/demo && node -e "import('dsh-smkit').then(m => m.apply({}))"
 
 #### 2.2 改码后的更新循环
 
-tarball 安装的更新流程：
+仓库根目录的辅助脚本可一步完成打包与装入：
+
+```sh
+pnpm smkit:install --profile demo
+```
+
+等价的手动流程：
 
 ```sh
 pnpm build                                  # 编译 src → lib
@@ -217,7 +223,7 @@ dsh plugin --profile demo install --force   # 在 profile 里重新拉取 tarbal
 dsh --profile demo
 ```
 
-插件在启动早期被加载，`apply` 里的 `console.log` 直接写入终端。注意：TUI 类 profile 需要真实终端，管道重定向下不回显；profile 首次启动会补装基础 bundle 的依赖链，耗时较长。确认插件行为后 Ctrl+C 退出。
+插件在启动早期被加载，`apply` 里的 `console.log` 直接写入终端。注意：TUI 类 profile 需要真实终端，管道重定向下不回显；profile 首次启动会补装基础 bundle 的依赖链，耗时较长。确认插件行为后 Ctrl+C 退出。若启动报 `EADDRINUSE`（端口被残留进程占用），用 `pnpm port:kill <port>` 查出占用进程并确认终止。
 
 #### 2.4 临时配置实验
 
@@ -227,16 +233,18 @@ dsh --profile demo
 dsh --profile demo --patch ./extra.yml
 ```
 
+profile 目录位于 `$DSH_HOME/profiles/<name>`，可用 `pnpm dsh:config` 在文件管理器中打开配置根目录。
+
 ### 3. Web UI 调试
 
-Web UI 由 web profile 独有的 `@deepseek-ai/dsh-web-app` bundle 提供（`dsh web` 等价于 `dsh --profile web`）。profile 之间互相隔离：插件装在其他 profile 时，`dsh web` 不会加载它。要把插件带进 Web UI，用 tarball 装进 web profile：
+Web UI 由 web profile 独有的 `@deepseek-ai/dsh-web-app` bundle 提供（`dsh web` 等价于 `dsh --profile web`）。profile 之间互相隔离：插件装在其他 profile 时，`dsh web` 不会加载它。要把插件带进 Web UI，运行辅助脚本（默认装入 web profile，`--profile` 可指定其他）：
 
 ```sh
-pnpm pack
-dsh plugin --profile web add E:\AI\dsh-smkit\dsh-smkit-0.1.0.tgz
+pnpm smkit:install     # 打包（pnpm pack）并用 tarball 装入
+pnpm smkit:uninstall   # 移除
 ```
 
-然后重启 `dsh web`，启动日志里即可看到插件的 `console.log` 输出。更新循环与「2.2 改码后的更新循环」相同；卸载用 `dsh plugin --profile web remove dsh-smkit`。
+然后重启 `dsh web`，启动日志里即可看到插件的 `console.log` 输出。改码后重新运行 `pnpm smkit:install` 即可更新；等价的手动操作与说明见「2.2 改码后的更新循环」。
 
 两点提示：
 

@@ -35,6 +35,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.json --watch",
     "verify": "node test/verify.mjs",
+    "smkit:install": "node scripts/dsh-smkit.mjs install",
+    "smkit:uninstall": "node scripts/dsh-smkit.mjs uninstall",
+    "dsh:kill-port": "node scripts/kill-port.mjs",
+    "dsh:open-config": "node scripts/open-dsh-config.mjs",
     "prepack": "tsc -p tsconfig.json && node test/verify.mjs",
     "prepare": "tsc -p tsconfig.json"
   },
