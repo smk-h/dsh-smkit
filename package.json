@@ -42,6 +42,7 @@
     "verify": "node test/verify.mjs",
     "smkit:install": "node scripts/dsh-smkit.mjs install",
     "smkit:uninstall": "node scripts/dsh-smkit.mjs uninstall",
+    "smkit:debug": "node scripts/dsh-smkit.mjs debug",
     "pack:tgz": "pnpm pack",
     "pack:list": "node scripts/pack-list.mjs",
     "dsh:kill-port": "node scripts/kill-port.mjs",
