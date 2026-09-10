@@ -1,10 +1,9 @@
 /**
  * Shared client-side types and the dependency bundle every factory receives.
  *
- * The browser half is compiled as CommonJS and bundled by
- * `scripts/build-client.mjs`; `react` arrives through `require("react")` in
- * `entry.ts` and is threaded down as an explicit dependency so no module needs
- * a global.
+ * The browser half is bundled into one script by tsdown; `react` arrives
+ * through `require("react")` in `entry.ts` and is threaded down as an explicit
+ * dependency, so no module needs a global.
  */
 
 /** Element returned by the injected `createElement`.

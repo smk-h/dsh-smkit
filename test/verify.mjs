@@ -1,7 +1,7 @@
 /**
  * Offline verification for dsh-smkit — run by `pnpm verify` and `prepack`,
- * after `tsc` has emitted `lib/index.js` and `scripts/build-client.mjs` has
- * written `lib/client.js`.
+ * after the build has emitted `lib/index.js` (tsc, host half) and
+ * `lib/client.js` (tsdown, browser half).
  *
  * Checks, in mounting order:
  *   1. the host half imports cleanly and exports `name` + function-form `apply`

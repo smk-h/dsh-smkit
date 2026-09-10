@@ -1,9 +1,20 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { it } from 'node:test'
 
 const source = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
+const clientDir = new URL('../src/client/', import.meta.url)
+
+/** Every source file under src/client, recursively. */
+function walk(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+    entry.isDirectory() ? walk(new URL(`${entry.name}/`, dir)) : [new URL(entry.name, dir)],
+  )
+}
+
+/** The only modules allowed to contain Han literals. */
+const I18N_MODULE = /i18n\.(zh|en)\.ts$/
 
 // Run the real module factory with a tiny hook harness; no browser or dependencies.
 function mount(fetch, language = 'en') {
@@ -81,9 +92,15 @@ it('registers balanced mcp dictionaries with effect cleanup and the locale slot 
   for (const key of [...source.matchAll(/\bt\(\s*["']([\w-]+)["']/g)].map((match) => match[1])) {
     for (const locale of ['zh', 'en']) assert.ok(app.dictionaries[locale][key], locale + ': ' + key)
   }
-  // i18n modules must precede `api` in the bundle, so nothing after the first
-  // component may carry a hardcoded Han literal.
-  assert.doesNotMatch(source.slice(source.indexOf('function api')), /\p{Script=Han}/u)
+  // Every user-visible string resolves through `t`, so no module outside the
+  // dictionaries may carry a Han literal. This scans the SOURCES rather than
+  // the bundle: the bundler owns module order and text layout, so a
+  // position-based check on the artifact would be testing the build rather
+  // than the code (and did break when the bundler changed).
+  for (const file of walk(clientDir)) {
+    if (!/\.tsx?$/.test(file.pathname) || I18N_MODULE.test(file.pathname)) continue
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /\p{Script=Han}/u, file.pathname)
+  }
   assert.doesNotMatch(source, /STRINGS|translator|systemLanguage|navigator|settings\/language|mm_language/)
   app.dispose()
 })

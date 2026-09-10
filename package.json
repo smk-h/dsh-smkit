@@ -32,19 +32,20 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && tsc -p src/client/tsconfig.json && node scripts/build-client.mjs",
+    "build": "tsc -p tsconfig.json && tsdown",
     "build:host": "tsc -p tsconfig.json",
-    "build:client": "tsc -p src/client/tsconfig.json && node scripts/build-client.mjs",
+    "build:client": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p src/client/tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.json --watch",
+    "dev:client": "tsdown --watch",
     "test": "node --test",
     "verify": "node test/verify.mjs",
     "smkit:install": "node scripts/dsh-smkit.mjs install",
     "smkit:uninstall": "node scripts/dsh-smkit.mjs uninstall",
     "dsh:kill-port": "node scripts/kill-port.mjs",
     "dsh:open-config": "node scripts/open-dsh-config.mjs",
-    "prepack": "tsc -p tsconfig.json && tsc -p src/client/tsconfig.json && node scripts/build-client.mjs && node test/verify.mjs",
-    "prepare": "tsc -p tsconfig.json && tsc -p src/client/tsconfig.json && node scripts/build-client.mjs"
+    "prepack": "tsc -p tsconfig.json && tsdown && node test/verify.mjs",
+    "prepare": "tsc -p tsconfig.json && tsdown"
   },
   "keywords": [
     "dsh",
@@ -62,6 +63,7 @@
   },
   "devDependencies": {
     "@types/node": "26.5.1",
+    "tsdown": "^0.23.0",
     "typescript": "7.0.2"
   },
   "dsh": {

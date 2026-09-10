@@ -1,15 +1,15 @@
 /*
  * Ambient declarations for the browser half.
  *
- * The client bundle is compiled as CommonJS so `tsc` performs the ESM→CJS
- * transform for us; `scripts/build-client.mjs` then only has to supply a
- * `require` shim (see that file for the contract). Two consequences:
+ * This project type-checks the browser half but does not emit it: `tsdown`
+ * bundles and emits `lib/client.js` (see `tsdown.config.ts`). Two consequences:
  *
  * 1. Relative imports in `src/client/**` are written **without** a `.js`
- *    extension (classic node10 resolution), because the emitted
- *    `require("./api")` specifier becomes the bundler's registry key.
- * 2. `require` itself is not declared by any `@types` package here (`types: []`
- *    keeps Node out of browser code), so it is declared once, below.
+ *    extension, which is what `moduleResolution: "bundler"` resolves.
+ * 2. `require` is not declared by any `@types` package here (`types: []` keeps
+ *    Node out of browser code), so it is declared once, below. It survives
+ *    bundling because tsdown marks `react` as never-bundled, leaving the call
+ *    for the factory's own `require` to resolve at runtime.
  *
  * JSX uses the **classic** runtime (`jsxFactory: "h"`) with `h` bound to the
  * injected `createElement` through `ClientDeps`. There is no module-level

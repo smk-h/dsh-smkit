@@ -1,15 +1,24 @@
 {
+  // The browser half. Type-check only: tsdown (see ../../tsdown.config.ts)
+  // bundles and emits `lib/client.js`, so nothing here produces files.
+  //
+  // It still lives inside src/client/ on purpose — being the *nearest* config is
+  // what stops an editor from falling back to an inferred project for the .tsx
+  // files (that fallback defaults to the automatic JSX runtime and reports
+  // TS2875 about a missing 'react/jsx-runtime').
+  //
+  // `jsx` + `jsxFactory` are load-bearing at build time as well: tsdown reads
+  // this file, so the classic runtime and the `h` factory must stay declared
+  // here or the bundle would start emitting react/jsx-runtime calls.
   "compilerOptions": {
     "target": "ES2022",
-    "module": "commonjs",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "jsx": "react",
     "jsxFactory": "h",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": [],
-    "rootDir": ".",
-    "outDir": "../../build/client-parts",
-    "declaration": false,
-    "sourceMap": false,
+    "noEmit": true,
     "strict": true,
     "noUnusedLocals": true,
     "noFallthroughCasesInSwitch": true,
