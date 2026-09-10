@@ -1,6 +1,6 @@
 {
   "name": "dsh-smkit",
-  "version": "0.11.0",
+  "version": "0.1.0",
   "description": "MCP server manager for DeepSeek Harness: Settings → MCP page, OAuth (PKCE + dynamic client registration) or static-token auth, local stdio servers, workspace isolation, and an opt-in on-demand tool broker.",
   "type": "module",
   "license": "MIT",
