@@ -27,6 +27,10 @@ const REFRESH_INTERVAL_MS = 3000
 
 type View = 'list' | 'add' | 'edit-global' | 'edit-ws'
 
+/** The plugin's own identity for the section header; the name links to the repo. */
+const PLUGIN_NAME = 'dsh-smkit'
+const PLUGIN_REPO_URL = 'https://github.com/smk-h/dsh-smkit'
+
 export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX.Element {
   const { h, react, api } = deps
   const ServerRow = createServerRow(deps)
@@ -47,6 +51,27 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     const [excludeBusy, setExcludeBusy] = react.useState(false)
     const [settingsBusy, setSettingsBusy] = react.useState(false)
     const [settingsError, setSettingsError] = react.useState('')
+
+    // The section's identity block, shown above every view: one intro line,
+    // then the plugin pill (clickable name + version tag), so the page stays
+    // attributable at a glance. `__PLUGIN_VERSION__` is a tsdown build-time
+    // define of package.json's version.
+    const identityHeader: JSX.Element[] = [
+      <p className="mm_intro" key="intro">
+        {t('sectionIntro')}
+      </p>,
+      <div className="mm_versionBadge" key="badge">
+        <a
+          className="mm_versionBadgeName"
+          href={PLUGIN_REPO_URL}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {PLUGIN_NAME}
+        </a>
+        <span className="mm_versionBadgeTag">v{__PLUGIN_VERSION__}</span>
+      </div>,
+    ]
 
     const refresh = react.useCallback(() => {
       Promise.all([api('/servers'), api('/workspaces'), api('/settings')])
@@ -126,6 +151,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     if (view === 'add') {
       return (
         <div className="mm_section">
+          {identityHeader}
           <div className="mm_catalogHeading">
             <h3>{t('addServer')}</h3>
           </div>
@@ -149,6 +175,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     if (view === 'edit-global' && globalEditing) {
       return (
         <div className="mm_section">
+          {identityHeader}
           <div className="mm_catalogHeading">
             <h3>{t('editGlobal')}</h3>
           </div>
@@ -173,6 +200,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     if (view === 'edit-ws' && selected && wsEditing) {
       return (
         <div className="mm_section">
+          {identityHeader}
           <div className="mm_catalogHeading">
             <h3>{t('editWorkspace')}</h3>
           </div>
@@ -278,6 +306,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
 
     return (
       <div className="mm_section">
+        {identityHeader}
         <div className="mm_catalogHeading">
           <h3>{t('servers')}</h3>
           <span>{selected ? servers.length + wsServers.length : servers.length}</span>

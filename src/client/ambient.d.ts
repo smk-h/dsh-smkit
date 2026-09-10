@@ -24,6 +24,10 @@
  * DSH client-runtime loader (`react`, injected service packages). */
 declare function require(id: string): any
 
+/** package.json version, injected at build time by tsdown `define`
+ * (see tsdown.config.ts); the settings section badges itself with it. */
+declare const __PLUGIN_VERSION__: string
+
 declare namespace JSX {
   /**
    * The element type produced by the injected `createElement`, kept opaque:
@@ -88,6 +92,14 @@ declare namespace JSX {
     disabled?: boolean
   }
 
+  interface AnchorProps extends CommonProps {
+    href?: string
+    target?: string
+    rel?: string
+  }
+
+  interface ParagraphProps extends CommonProps {}
+
   interface SvgProps extends CommonProps {
     width?: string | number
     height?: string | number
@@ -115,6 +127,8 @@ declare namespace JSX {
     span: CommonProps
     label: CommonProps
     h3: CommonProps
+    p: ParagraphProps
+    a: AnchorProps
     input: InputProps
     select: SelectProps
     option: OptionProps

@@ -26,6 +26,7 @@
  * compatibility range.
  */
 
+import { readFileSync } from 'node:fs'
 import type { UserConfig } from 'tsdown'
 
 /**
@@ -38,7 +39,17 @@ const CLIENT_EXTERNALS = ['react']
 
 const PLUGIN_ID = 'dsh-smkit'
 
+/**
+ * `package.json` version, baked into the bundle as `__PLUGIN_VERSION__` so the
+ * settings section can badge itself without an extra API round-trip and with no
+ * second copy of the number to drift.
+ */
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
+  version: string
+}
+
 export default {
+  define: { __PLUGIN_VERSION__: JSON.stringify(version) },
   entry: { client: 'src/client/entry.ts' },
   outDir: 'lib',
   format: 'cjs',
