@@ -287,25 +287,20 @@ NODE_OPTIONS=--inspect-brk dsh --profile demo
 
 断点打在 `lib/index.js`，sourceMap 会映射回 `src/index.ts`。
 
-## 五、 目录说明与扩展方向
+## 五、 MCP管理功能
 
-### 1. 目录说明
+### 1. 背景
 
-| 路径 | 说明 |
-| --- | --- |
-| [`src/index.ts`](src/index.ts) | 插件本体：教程《第一个插件》的函数形态（`name` + `apply`） |
-| [`cordis.patch.yml`](cordis.patch.yml) | bundle 配置层：`insert` 一行 id=`hello` 的挂载项 |
-| [`test/verify.mjs`](test/verify.mjs) | 离线自检（`pnpm verify` / `prepack`），确保发包前构建可用；不随包发布 |
-| [`tsconfig.json`](tsconfig.json) | NodeNext、strict，`src` → `lib` |
-| [`pnpm-workspace.yaml`](pnpm-workspace.yaml) | 单包工作区 + `autoInstallPeers: true`（本地类型检查用） |
+我有一个 MCP 项目 [smk-h/embedded-mcp-toolkit](https://github.com/smk-h/embedded-mcp-toolkit)，它每次启动都会写入一个日志文件。[dsh-v0.1.5-rc.1](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.5-rc.1) 已经支持直接配置 MCP，但这种配置是全局生效的：只要 dsh 启动，就必定拉起该 MCP，并且在任何工作区都能操作它。可我大多数时候只想用 dsh 做开发，并不需要连接这个 MCP，于是每次启动都会白白多出一个日志文件。
 
-### 2. 扩展方向
+我的诉求很明确：**只在打开某个工作区时，才启用该工作区的 MCP**。顺着这个需求，找到了下面两个插件：
 
-- **切换插件形态**：对象形态或 `class MyService extends Service` 类形态（教程第 3 章服务与依赖）。
-- **注册模型可调用的工具**：`ctx.tools.register(defineTool(...))`，需补充 `@deepseek-ai/dsh-tools` 与 `@deepseek-ai/schemastery` peer（参考官方《开发一个 Tool》）。
-- **事件监听**：`ctx.on('tools/result', ...)` 等，随插件卸载自动清理。
-- **手动清理资源**：`ctx.effect(() => { /* 返回清理函数 */ })`。
-- **UI 插件**：`package.json` 里声明 `dsh.client`（platform: web + inject 客户端服务），参考 `dsh-better-sidebar` 的双半结构。
+- [hyqhyq3/dsh-mcp-manager](https://github.com/hyqhyq3/dsh-mcp-manager)：按工作区启用 MCP，避免全局常驻
+- [yangfch3/dsh-mcp-mgr](https://github.com/yangfch3/dsh-mcp-mgr)：提供重启按钮，点击即可重启 MCP
+
+[hyqhyq3/dsh-mcp-manager](https://github.com/hyqhyq3/dsh-mcp-manager) 确实好用，满足了我的核心需求，但很快又出现了新问题：我大部分时候是在 Linux 服务器上通过 SSH 启动 Windows 中的 MCP，长时间不用后连接会断开，MCP 失去响应，这时只能重启 dsh；而「重启 MCP」的能力又只存在于 [yangfch3/dsh-mcp-mgr](https://github.com/yangfch3/dsh-mcp-mgr) 中。两者分属不同插件，总不能一次装两个。
+
+所以我决定参考以上两位作者的项目，用 AI 搓一个同时满足这两点的插件，以后也方便自己修改。也许日后会出现满足全部需求的现成插件，等到那时候再说吧，哈哈哈。
 
 ---
 *本文档由 markdowncli 技能辅助生成*
