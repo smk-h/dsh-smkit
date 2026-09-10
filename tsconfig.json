@@ -18,5 +18,22 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src"]
+  // The host half. This is deliberately a two-project repository:
+  //
+  //   tsconfig.json             -> src/** minus src/client   (Node, NodeNext, ES2023)
+  //   src/client/tsconfig.json  -> src/client/**             (browser, CommonJS + classic JSX)
+  //
+  // Two projects are required, not cosmetic: the halves have different globals
+  // (`types: ["node"]` vs `types: []`, which is what stops the browser half from
+  // importing `node:*`), different `lib`, and different module formats — the
+  // client must end up as a single CommonJS bundle while the host stays a
+  // multi-file ESM graph.
+  //
+  // The `exclude` below is what makes that split unambiguous for editors too. If
+  // src/client is left in this project, an editor with no *nearer* tsconfig has
+  // to fall back to an inferred project, which defaults to the automatic JSX
+  // runtime and reports TS2875 ("requires the module path 'react/jsx-runtime'").
+  // Keep the client config inside src/client/ so it stays the nearest one.
+  "include": ["src"],
+  "exclude": ["src/client"]
 }

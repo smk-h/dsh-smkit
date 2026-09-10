@@ -1,22 +1,16 @@
 # dsh-smkit bundle patch layer.
 #
 # `package.json > dsh.bundle.patch` points here. When the package is installed
-# into a profile with:
+# into a profile:
 #
-#   dsh plugin --profile <name> add dsh-smkit
-#        (registry)  |  add ./E:/AI/dsh-smkit  (local checkout)
-#        |  add github:smk-h/dsh-smkit  (git, prepare script builds lib/)
+#   dsh plugin --profile web add dsh-smkit
 #
-# `dsh plugin` sees the `dsh.bundle` declaration and appends
-# `dsh-smkit` to `dsh.profile.bundles`. On the next
-# `dsh --profile <name>`, the profile boot merges THIS layer over the base
-# tree: a single `insert` row mounting the plugin entry.
+# `dsh plugin` sees the `dsh.bundle` declaration and appends `dsh-smkit` to
+# `dsh.profile.bundles`. On the next profile boot the loader merges THIS layer
+# over the base tree: a single `insert` row mounting the plugin entry.
 #
-# `name` is the module specifier the Loader resolves — an npm package name
-# here, the same field the tutorial mounts a relative './hello.ts' with.
-# To disable or override the row, users target it by `id` in their own
-# profile patch layer.
-
+# `id` is the row identity users target to override or disable the row from
+# their own profile patch layer.
 - insert:
-    - id: hello
+    - id: mcp-manager
       name: 'dsh-smkit'

@@ -1,0 +1,191 @@
+/**
+ * Global (profile-level) server registry.
+ *
+ * One live connection per global server, keyed by `server.id`. Connect reaps any
+ * previous transport before opening a new one (a stale stdio child would
+ * otherwise keep publishing `tools/list_changed` into a dead handle), and tool
+ * registration goes through `syncToolRegistrations` so a
+ * `notifications/tools/list_changed` burst never transiently removes unrelated
+ * tools from the model-facing prompt.
+ */
+
+import { MAX_ERROR_LENGTH } from './constants.js'
+import { disposeRegistrations, listAllTools, syncToolRegistrations } from './mcp/tools.js'
+import { toErrorMessage } from './util/text.js'
+import type { Transports } from './mcp/transports.js'
+import type { Runtime } from './runtime.js'
+import type {
+  LiveConnection,
+  LoggerLike,
+  McpCallResult,
+  McpToolInfo,
+  ServerConfig,
+  ServerStatus,
+  ServerView,
+  ServiceAccessor,
+  ToolsRegistry,
+} from './types.js'
+
+export interface RegistryDeps {
+  runtime: Runtime
+  logger: LoggerLike
+  services: ServiceAccessor | null | undefined
+  tools: ToolsRegistry
+  transports: Transports
+  /** Workspace-tier hook: re-apply `exclude` masks after a tool set changes. */
+  reconcileRestrictions(serverName?: string): void
+}
+
+export interface Registry {
+  connect(server: ServerConfig): Promise<LiveConnection>
+  disconnect(serverId: string): void
+  serverView(server: ServerConfig): ServerView
+  setGlobalTools(serverName: string, names: string[]): void
+  clearGlobalTools(serverName: string): void
+}
+
+/** Set a server's auth/connection status in whichever tier it belongs to. */
+export function setServerAuthStatus(
+  runtime: Runtime,
+  server: ServerConfig,
+  status: ServerStatus,
+  error = '',
+): void {
+  if (server.wsPath) {
+    const ws = runtime.workspaces.get(server.wsPath)
+    const conn = ws?.servers.get(server.name)
+    if (conn) {
+      conn.status = status
+      conn.error = error
+    }
+  } else {
+    runtime.setLive(server.id, { status, error })
+  }
+}
+
+export function createRegistry(deps: RegistryDeps): Registry {
+  const { runtime, logger, services, tools, transports } = deps
+
+  /**
+   * Track the exact global tool names owned by one global server so workspace
+   * `exclude` masking can deny them (`restrict()` accepts only known names).
+   */
+  function setGlobalTools(serverName: string, names: string[]): void {
+    const set = new Set(names)
+    const previous = runtime.globalToolsByServer.get(serverName)
+    if (previous && previous.size === set.size && [...set].every((name) => previous.has(name))) return
+    if (set.size > 0) runtime.globalToolsByServer.set(serverName, set)
+    else runtime.globalToolsByServer.delete(serverName)
+    deps.reconcileRestrictions(serverName)
+  }
+
+  function clearGlobalTools(serverName: string): void {
+    if (!runtime.globalToolsByServer.has(serverName)) return
+    runtime.globalToolsByServer.delete(serverName)
+    deps.reconcileRestrictions(serverName)
+  }
+
+  /** Register a connected server's tools into the GLOBAL registry. */
+  function registerToolsGlobal(server: ServerConfig, conn: LiveConnection, list: McpToolInfo[]): void {
+    const call = (name: string, args: unknown): Promise<McpCallResult> => {
+      if (!conn.handle) return Promise.reject(new Error(`MCP server "${server.name}" is not connected`))
+      return conn.handle.call(name, args)
+    }
+    const names = syncToolRegistrations(tools, services, server, conn.tools, list, call)
+    conn.toolCount = list.length
+    conn.status = 'connected'
+    conn.error = ''
+    setGlobalTools(server.name, names)
+    logger.info(`mcp-manager: ${server.name} connected, ${list.length} tools`)
+  }
+
+  async function connect(server: ServerConfig): Promise<LiveConnection> {
+    const conn = runtime.setLive(server.id, { status: 'connecting', error: '' })
+    conn.name = server.name
+    try {
+      // Reap any previous transport (a prior stdio child) before respawning.
+      try {
+        conn.handle?.close?.()
+      } catch {
+        // Closing an already-broken transport is not actionable.
+      }
+      const handle = await transports.openServer(server)
+      conn.handle = handle
+      conn.sessionId = handle.sessionId
+      conn.transport = handle.transport
+      registerToolsGlobal(server, conn, handle.tools)
+      transports.bindToolsChanged(server, handle, async () => {
+        const list = await listAllTools(handle)
+        if (conn.handle !== handle || handle.closed) return
+        handle.tools = list
+        registerToolsGlobal(server, conn, handle.tools)
+      })
+    } catch (error) {
+      disposeRegistrations(conn.tools)
+      conn.toolCount = 0
+      try {
+        conn.handle?.close?.()
+      } catch {
+        // Nothing left to reap.
+      }
+      conn.handle = null
+      conn.transport = null
+      clearGlobalTools(server.name)
+      conn.status =
+        (server.type ?? 'http') !== 'stdio' && server.authMode === 'oauth' && !server.oauth?.tokens
+          ? 'needs-auth'
+          : 'error'
+      conn.error = toErrorMessage(error, MAX_ERROR_LENGTH)
+      logger.warn(`mcp-manager: ${server.name} ${conn.status}: ${conn.error}`)
+    }
+    return conn
+  }
+
+  function disconnect(serverId: string): void {
+    const conn = runtime.live.get(serverId)
+    if (!conn) return
+    disposeRegistrations(conn.tools)
+    try {
+      conn.handle?.close?.()
+    } catch {
+      // Nothing left to reap.
+    }
+    runtime.live.delete(serverId)
+    if (conn.name) clearGlobalTools(conn.name)
+  }
+
+  function serverView(server: ServerConfig): ServerView {
+    const conn = runtime.live.get(server.id)
+    const type = server.type ?? 'http'
+    const enabled = server.enabled !== false
+    const view: ServerView = {
+      id: server.id,
+      name: server.name,
+      type,
+      enabled,
+      status: !enabled
+        ? 'disabled'
+        : (conn?.status ??
+          (type !== 'stdio' && server.authMode === 'oauth' && !server.oauth?.tokens
+            ? 'needs-auth'
+            : 'disconnected')),
+      toolCount: conn?.toolCount ?? 0,
+      error: conn?.error ?? '',
+    }
+    if (type === 'stdio') {
+      view.command = server.command
+      view.args = server.args ?? []
+      view.env = server.env ?? {}
+      view.cwd = server.cwd ?? ''
+    } else {
+      view.url = server.url
+      view.authMode = server.authMode
+      view.headers = server.headers ?? {}
+      view.headerEnv = server.headerEnv ?? {}
+      if (server.authMode === 'static') view.tokenEnv = server.tokenEnv ?? ''
+    }
+    return view
+  }
+
+  return { connect, disconnect, serverView, setGlobalTools, clearGlobalTools }
+}
