@@ -28,7 +28,7 @@ export const WORKSPACE_CONFIG_REL = join('.dsh', 'dshmm', 'mcp.json')
 export const MCP_PROTOCOL_VERSION = '2025-03-26'
 
 /** DSH client bundle id / diagnostics prefix. */
-export const PLUGIN_ID = 'dsh-smkit'
+export const PLUGIN_ID = '@smai-kit/dsh-smkit'
 
 /** `ctx.logger` message prefix. */
 export const LOG_PREFIX = 'mcp-manager'

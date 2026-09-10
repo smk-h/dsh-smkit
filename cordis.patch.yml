@@ -1,16 +1,16 @@
-# dsh-smkit bundle patch layer.
+# @smai-kit/dsh-smkit bundle patch layer.
 #
 # `package.json > dsh.bundle.patch` points here. When the package is installed
 # into a profile:
 #
-#   dsh plugin --profile web add dsh-smkit
+#   dsh plugin --profile web add @smai-kit/dsh-smkit
 #
-# `dsh plugin` sees the `dsh.bundle` declaration and appends `dsh-smkit` to
-# `dsh.profile.bundles`. On the next profile boot the loader merges THIS layer
-# over the base tree: a single `insert` row mounting the plugin entry.
+# `dsh plugin` sees the `dsh.bundle` declaration and appends the package name
+# to `dsh.profile.bundles`. On the next profile boot the loader merges THIS
+# layer over the base tree: a single `insert` row mounting the plugin entry.
 #
 # `id` is the row identity users target to override or disable the row from
 # their own profile patch layer.
 - insert:
     - id: mcp-manager
-      name: 'dsh-smkit'
+      name: '@smai-kit/dsh-smkit'

@@ -37,7 +37,7 @@ import type { UserConfig } from 'tsdown'
  */
 const CLIENT_EXTERNALS = ['react']
 
-const PLUGIN_ID = 'dsh-smkit'
+const PLUGIN_ID = '@smai-kit/dsh-smkit'
 
 /**
  * `package.json` version, baked into the bundle as `__PLUGIN_VERSION__` so the

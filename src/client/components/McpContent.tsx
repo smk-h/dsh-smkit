@@ -28,7 +28,7 @@ const REFRESH_INTERVAL_MS = 3000
 type View = 'list' | 'add' | 'edit-global' | 'edit-ws'
 
 /** The plugin's own identity for the section header; the name links to the repo. */
-const PLUGIN_NAME = 'dsh-smkit'
+const PLUGIN_NAME = '@smai-kit/dsh-smkit'
 const PLUGIN_REPO_URL = 'https://github.com/smk-h/dsh-smkit'
 
 export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX.Element {

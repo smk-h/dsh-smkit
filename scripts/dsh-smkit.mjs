@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * dsh-smkit — 把本插件装入 / 卸出 dsh profile 的辅助脚本。
+ * @smai-kit/dsh-smkit — 把本插件装入 / 卸出 dsh profile 的辅助脚本。
  *
  *   pnpm smkit:install   [--profile web]
  *   pnpm smkit:uninstall [--profile web]
@@ -19,7 +19,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const PLUGIN = 'dsh-smkit'
+const PLUGIN = '@smai-kit/dsh-smkit'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 /** shell step() 风格的阶段提示：亮青色 ➤ 前缀。 */

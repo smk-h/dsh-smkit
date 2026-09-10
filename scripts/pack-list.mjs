@@ -14,7 +14,8 @@ import { fileURLToPath } from 'node:url'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const { name, version } = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 // 相对路径：GNU tar 会把绝对路径里的盘符冒号（E:\…）解析成远程主机名。
-const tgz = `${name}-${version}.tgz`
+// scoped 包名（@smai-kit/dsh-smkit）按 pack 规则映射为 smai-kit-dsh-smkit。
+const tgz = `${name.replace(/^@/, '').replace(/\//g, '-')}-${version}.tgz`
 
 try {
   execFileSync('tar', ['-tzf', tgz], { stdio: 'inherit', cwd: ROOT })
