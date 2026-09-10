@@ -42,6 +42,8 @@
     "verify": "node test/verify.mjs",
     "smkit:install": "node scripts/dsh-smkit.mjs install",
     "smkit:uninstall": "node scripts/dsh-smkit.mjs uninstall",
+    "pack:tgz": "pnpm pack",
+    "pack:list": "node scripts/pack-list.mjs",
     "dsh:kill-port": "node scripts/kill-port.mjs",
     "dsh:open-config": "node scripts/open-dsh-config.mjs",
     "prepack": "tsc -p tsconfig.json && tsdown && node test/verify.mjs",
