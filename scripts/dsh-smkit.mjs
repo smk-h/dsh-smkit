@@ -29,14 +29,14 @@ function parseArgs(argv) {
   return args
 }
 
-function run(command, { capture = false } = {}) {
+function run(command, { capture = false, ignoreFailure = false } = {}) {
   const r = spawnSync(command, {
     shell: true,
     cwd: ROOT,
     encoding: 'utf8',
     stdio: capture ? 'pipe' : 'inherit',
   })
-  if (r.status !== 0) {
+  if (r.status !== 0 && !ignoreFailure) {
     if (r.stderr) process.stderr.write(r.stderr)
     process.exit(r.status ?? 1)
   }
@@ -53,6 +53,9 @@ if (args[0] === 'install') {
     console.error(`install: 无法从 pnpm pack 输出解析 tarball 文件名：\n${out}`)
     process.exit(1)
   }
+  // 版本号不变时，pnpm 视同名依赖为已满足、不替换文件内容，装入会变成
+  // no-op。先卸载（未安装时允许失败）再装入，保证每次都落到新代码。
+  run(`dsh plugin --profile ${profile} remove ${PLUGIN}`, { capture: true, ignoreFailure: true })
   run(`dsh plugin --profile ${profile} add "${path.join(ROOT, tgz)}"`)
   console.log(`\ninstall: ${PLUGIN} 已装入 profile "${profile}"`)
   console.log('如 dsh web 正在运行，重启后生效：dsh web')
