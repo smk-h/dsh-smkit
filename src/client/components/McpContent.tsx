@@ -98,6 +98,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
 
     const selectedWs = workspaces.find((workspace) => workspace.path === selected) ?? null
     const wsServers: WorkspaceServerView[] = selectedWs?.servers ?? []
+    const wsTotal = workspaces.reduce((sum, workspace) => sum + workspace.servers.length, 0)
     const excludeSet = new Set(selectedWs?.exclude ?? [])
     const normalizedQuery = query.trim().toLocaleLowerCase()
     const filteredServers = servers.filter((server) =>
@@ -309,7 +310,9 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
         {identityHeader}
         <div className="mm_catalogHeading">
           <h3>{t('servers')}</h3>
-          <span>{selected ? servers.length + wsServers.length : servers.length}</span>
+          <span>
+            {t('countGlobal', { count: servers.length })} · {t('countWorkspace', { count: wsTotal })}
+          </span>
           <span className="mm_addActions">{addBtn}</span>
         </div>
         <div className="mm_feature">

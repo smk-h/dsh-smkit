@@ -13,6 +13,8 @@ import type { LocaleDict } from './types'
 export const MCP_LOCALE_ZH: LocaleDict = {
   "sectionLabel": "MCP",
   "sectionIntro": "管理 MCP 服务器的配置、认证与工作区作用域",
+  "countGlobal": "全局 {count}",
+  "countWorkspace": "工作区 {count}",
   "namePlaceholder": "odin",
   "commandPlaceholder": "npx",
   "cwdPlaceholder": "/path/to/project",
