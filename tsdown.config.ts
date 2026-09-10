@@ -37,19 +37,23 @@ import type { UserConfig } from 'tsdown'
  */
 const CLIENT_EXTERNALS = ['react']
 
-const PLUGIN_ID = '@smai-kit/dsh-smkit'
-
 /**
- * `package.json` version, baked into the bundle as `__PLUGIN_VERSION__` so the
- * settings section can badge itself without an extra API round-trip and with no
- * second copy of the number to drift.
+ * The package identity, read once: the ModuleLoader id and the `__PLUGIN_NAME__`
+ * / `__PLUGIN_VERSION__` defines the client badge renders all derive from
+ * package.json, so a rename or version bump is a one-line change with nothing
+ * to drift.
  */
-const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
-  version: string
-}
+const { name, version } = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+) as { name: string; version: string }
+
+const PLUGIN_ID = name
 
 export default {
-  define: { __PLUGIN_VERSION__: JSON.stringify(version) },
+  define: {
+    __PLUGIN_NAME__: JSON.stringify(name),
+    __PLUGIN_VERSION__: JSON.stringify(version),
+  },
   entry: { client: 'src/client/entry.ts' },
   outDir: 'lib',
   format: 'cjs',

@@ -16,11 +16,13 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const PLUGIN = '@smai-kit/dsh-smkit'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+// 包名不写死，随 package.json 走：改名时这里自动跟上。
+const PLUGIN = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).name
 
 /** shell step() 风格的阶段提示：亮青色 ➤ 前缀。 */
 function step(message) {

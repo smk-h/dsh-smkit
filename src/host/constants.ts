@@ -6,8 +6,21 @@
  * plugin (see the `test/*.mjs` suites).
  */
 
+import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+
+/**
+ * The package identity, read once from package.json: PLUGIN_ID,
+ * MCP_CLIENT_INFO and anything else that must quote the package derive from
+ * this, so a rename or version bump is a one-line change with nothing to
+ * drift. The specifier is relative to the *compiled* file
+ * (`lib/host/constants.js`) = the package root; package.json ships with the
+ * package, so the read works both in the repo and installed into a profile.
+ */
+const { name, version }: { name: string; version: string } = createRequire(
+  import.meta.url,
+)('../../package.json')
 
 /** Profile-level state file: server configs plus OAuth tokens (secrets!). */
 export const STATE_PATH = join(homedir(), '.dsh', 'mcp-manager.json')
@@ -27,8 +40,8 @@ export const WORKSPACE_CONFIG_REL = join('.dsh', 'dshmm', 'mcp.json')
 /** MCP protocol revision the client advertises. */
 export const MCP_PROTOCOL_VERSION = '2025-03-26'
 
-/** DSH client bundle id / diagnostics prefix. */
-export const PLUGIN_ID = '@smai-kit/dsh-smkit'
+/** DSH client bundle id / diagnostics prefix — always the package name. */
+export const PLUGIN_ID = name
 
 /** `ctx.logger` message prefix. */
 export const LOG_PREFIX = 'mcp-manager'
@@ -59,5 +72,5 @@ export const IMAGE_MEDIA_TYPES: ReadonlySet<string> = new Set([
 /** Canonical (re-encoded-safe) base64, matching the durable attachment rule. */
 export const CANONICAL_BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
 
-/** MCP `clientInfo` reported on initialize. */
-export const MCP_CLIENT_INFO = { name: 'dsh-mcp-manager', version: '0.6.0' } as const
+/** MCP `clientInfo` reported on initialize — the package identity. */
+export const MCP_CLIENT_INFO = { name, version } as const

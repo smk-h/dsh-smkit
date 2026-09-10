@@ -27,8 +27,11 @@ const REFRESH_INTERVAL_MS = 3000
 
 type View = 'list' | 'add' | 'edit-global' | 'edit-ws'
 
-/** The plugin's own identity for the section header; the name links to the repo. */
-const PLUGIN_NAME = '@smai-kit/dsh-smkit'
+/** The plugin's own identity for the section header; the name links to the
+ * repo. Name and version are tsdown defines read from package.json
+ * (`__PLUGIN_NAME__` / `__PLUGIN_VERSION__`), so the badge cannot drift from
+ * the package. */
+const PLUGIN_NAME = __PLUGIN_NAME__
 const PLUGIN_REPO_URL = 'https://github.com/smk-h/dsh-smkit'
 
 export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX.Element {

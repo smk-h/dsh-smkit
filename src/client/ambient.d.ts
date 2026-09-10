@@ -24,8 +24,9 @@
  * DSH client-runtime loader (`react`, injected service packages). */
 declare function require(id: string): any
 
-/** package.json version, injected at build time by tsdown `define`
- * (see tsdown.config.ts); the settings section badges itself with it. */
+/** package.json identity, injected at build time by tsdown `define`
+ * (see tsdown.config.ts); the settings section badges itself with them. */
+declare const __PLUGIN_NAME__: string
 declare const __PLUGIN_VERSION__: string
 
 declare namespace JSX {
