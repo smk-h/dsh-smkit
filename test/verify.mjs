@@ -35,6 +35,7 @@ const failure = (message) => {
 
 const scratch = mkdtempSync(join(tmpdir(), 'dsh-smkit-verify-'))
 process.env.HOME = scratch
+process.env.USERPROFILE = process.env.HOME // Windows: homedir() 读 USERPROFILE 而非 HOME
 process.env.DSH_HOME = join(scratch, '.dsh')
 process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
 
