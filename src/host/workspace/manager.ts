@@ -60,6 +60,10 @@ export interface WorkspaceManager {
   listWorkspaces(): WorkspaceView[]
   openWorkspaceServer(server: ServerConfig): Promise<WorkspaceConnection>
   closeWorkspaceServer(conn: WorkspaceConnection): void
+  /** Runtime-only restart of one live workspace server; false when not live. */
+  restartWorkspaceServer(wsPath: string, name: string): Promise<boolean>
+  /** Runtime-only stop: drop the transport, keep the row; false when not live. */
+  stopWorkspaceServer(wsPath: string, name: string): boolean
   closeWorkspaceWatchers(ws: WorkspaceRuntime): void
   serverNameTaken(name: string, exceptWsPath?: string): boolean
   findServerById(id: string): FoundServer | null
@@ -117,6 +121,38 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       // Watcher already gone.
     }
     ws.watchStop = null
+  }
+
+  /**
+   * Reap one live workspace server's transport and open a fresh one from the
+   * same config — config, tokens and the row itself are untouched, so a
+   * following rescan still sees an unchanged server and keeps our connection.
+   * The agent rebuilds mirror doRescan's `changed` tail.
+   */
+  async function restartWorkspaceServer(wsPath: string, name: string): Promise<boolean> {
+    const ws = runtime.workspaces.get(wsPath)
+    const existing = ws?.servers.get(name)
+    if (!ws || !existing || existing.status === 'conflict') return false
+    closeWorkspaceServer(existing)
+    const conn = await openWorkspaceServer(existing.server)
+    ws.servers.set(name, conn)
+    for (const agent of ws.agents) scope.rebuildAgentWorkspace(agent, wsPath)
+    scope.reconcileRestrictions()
+    return true
+  }
+
+  function stopWorkspaceServer(wsPath: string, name: string): boolean {
+    const ws = runtime.workspaces.get(wsPath)
+    const conn = ws?.servers.get(name)
+    if (!ws || !conn || conn.status === 'conflict') return false
+    closeWorkspaceServer(conn)
+    conn.tools = []
+    conn.toolCount = 0
+    conn.status = 'disconnected'
+    conn.error = ''
+    for (const agent of ws.agents) scope.rebuildAgentWorkspace(agent, wsPath)
+    scope.reconcileRestrictions()
+    return true
   }
 
   async function openWorkspaceServerInner(
@@ -420,6 +456,8 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     listWorkspaces,
     openWorkspaceServer,
     closeWorkspaceServer,
+    restartWorkspaceServer,
+    stopWorkspaceServer,
     closeWorkspaceWatchers,
     serverNameTaken,
     findServerById,

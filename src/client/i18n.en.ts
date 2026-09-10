@@ -91,4 +91,8 @@ export const MCP_LOCALE_EN: LocaleDict = {
   "toolCount": "Tools: {count}",
   "confirmDelete": "Delete “{name}”? This cannot be undone.",
   "confirmWorkspaceDelete": "Delete “{name}” from this workspace?",
+  "restart": "Restart",
+  "stop": "Stop",
+  "restartFailed": "Restart failed (HTTP {status})",
+  "stopFailed": "Stop failed (HTTP {status})",
 }

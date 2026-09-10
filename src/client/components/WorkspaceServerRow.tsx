@@ -66,6 +66,25 @@ export function createWorkspaceServerRow(
       setBusy(false)
     }
 
+    // Runtime-only operations on the live connection, addressed by the row's
+    // globally unique id. Hidden for `configured`/`conflict` rows: those have
+    // no live instance to restart or stop (the workspace was never opened).
+    const runtimeOp = async (action: 'restart' | 'stop'): Promise<void> => {
+      setBusy(true)
+      setError('')
+      try {
+        const r = await api(`/servers/${server.id}/${action}`, { method: 'POST' })
+        if (!r.ok) {
+          setError(r.body.error || t(action === 'restart' ? 'restartFailed' : 'stopFailed', { status: r.status }))
+        }
+        onChanged()
+      } catch (e) {
+        setError(String(e))
+      }
+      setBusy(false)
+    }
+    const hasLiveInstance = server.status !== 'configured' && server.status !== 'conflict'
+
     return (
       <div className="mm_row" key={server.name}>
         <div className="mm_rowHead">
@@ -73,6 +92,16 @@ export function createWorkspaceServerRow(
           <span className={`mm_statusDot ${server.status}`} aria-hidden="true" />
           <span className={`mm_badge ${server.status}`}>{t(server.status)}</span>
           <span className="mm_actions">
+            {hasLiveInstance ? (
+              <button className="mm_btn" onClick={() => runtimeOp('restart')} disabled={busy}>
+                {busy ? '…' : t('restart')}
+              </button>
+            ) : null}
+            {hasLiveInstance ? (
+              <button className="mm_btn" onClick={() => runtimeOp('stop')} disabled={busy}>
+                {busy ? '…' : t('stop')}
+              </button>
+            ) : null}
             {server.authMode === 'oauth' &&
             (server.status === 'needs-auth' || server.status === 'error' || server.status === 'connected') ? (
               <button className="mm_btn" onClick={startAuth} disabled={busy}>

@@ -94,4 +94,8 @@ export const MCP_LOCALE_ZH: LocaleDict = {
   "toolCount": "{count} 个工具",
   "confirmDelete": "确定要删除「{name}」吗？此操作不可恢复。",
   "confirmWorkspaceDelete": "确定要从该工作区删除「{name}」吗？",
+  "restart": "重启",
+  "stop": "关闭",
+  "restartFailed": "重启失败 (HTTP {status})",
+  "stopFailed": "关闭失败 (HTTP {status})",
 }

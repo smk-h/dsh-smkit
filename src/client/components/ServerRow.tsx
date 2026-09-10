@@ -59,6 +59,35 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
 
     const askRemove = (): void => setConfirming(true)
 
+    // Runtime-only operations: config and the enabled flag are untouched, so a
+    // restart is "disconnect, then connect (or just connect when idle)" and a
+    // stop simply drops the live transport. The 3s poll picks up the new status.
+    const restart = async (): Promise<void> => {
+      setBusy(true)
+      setError('')
+      try {
+        const r = await api(`/servers/${server.id}/restart`, { method: 'POST' })
+        if (!r.ok) setError(r.body.error || t('restartFailed', { status: r.status }))
+        onChanged()
+      } catch (e) {
+        setError(String(e))
+      }
+      setBusy(false)
+    }
+
+    const stop = async (): Promise<void> => {
+      setBusy(true)
+      setError('')
+      try {
+        const r = await api(`/servers/${server.id}/stop`, { method: 'POST' })
+        if (!r.ok) setError(r.body.error || t('stopFailed', { status: r.status }))
+        onChanged()
+      } catch (e) {
+        setError(String(e))
+      }
+      setBusy(false)
+    }
+
     const toggleEnabled = async (): Promise<void> => {
       setBusy(true)
       setError('')
@@ -135,6 +164,16 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
                 </span>
               </span>
               <span className="mm_actionBtns">
+                {server.enabled !== false ? (
+                  <button className="mm_btn" onClick={restart} disabled={busy}>
+                    {busy ? '…' : t('restart')}
+                  </button>
+                ) : null}
+                {server.enabled !== false ? (
+                  <button className="mm_btn" onClick={stop} disabled={busy}>
+                    {busy ? '…' : t('stop')}
+                  </button>
+                ) : null}
                 {server.enabled !== false && server.authMode === 'oauth' ? (
                   <button className="mm_btn" onClick={startAuth} disabled={busy}>
                     {busy ? '…' : server.status === 'connected' ? t('reauth') : t('auth')}

@@ -111,13 +111,48 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
   }
 
   if (!idMatch) return false
+  const action = idMatch[2]
+
+  // Restart/stop are runtime-only operations (config untouched) and exist in
+  // both tiers. The id namespace is globally unique and findServerById covers
+  // the global tier plus every live workspace, so one route pair serves the
+  // settings page's two row kinds.
+  if (req.method === 'POST' && (action === '/restart' || action === '/stop')) {
+    const found = api.workspaces.findServerById(idMatch[1])
+    if (!found) {
+      sendJson(res, 404, { error: 'server not found' })
+      return true
+    }
+    if (found.wsPath && found.wsConn) {
+      if (found.wsConn.status === 'conflict') {
+        sendJson(res, 409, { error: `server name "${found.server.name}" conflicts with another source` })
+        return true
+      }
+      const ok =
+        action === '/restart'
+          ? await api.workspaces.restartWorkspaceServer(found.wsPath, found.server.name)
+          : api.workspaces.stopWorkspaceServer(found.wsPath, found.server.name)
+      if (!ok) {
+        sendJson(res, 409, { error: 'workspace is not active (no agent has opened it)' })
+        return true
+      }
+    } else {
+      if (action === '/restart' && found.server.enabled === false) {
+        sendJson(res, 409, { error: 'server is disabled (enable it first)' })
+        return true
+      }
+      api.registry.disconnect(found.server.id)
+      if (action === '/restart') await connectOrMark(api, found.server)
+    }
+    sendJson(res, 200, { ok: true })
+    return true
+  }
 
   const server = state.servers.find((candidate) => candidate.id === idMatch[1])
   if (!server) {
     sendJson(res, 404, { error: 'server not found' })
     return true
   }
-  const action = idMatch[2]
 
   if (req.method === 'POST' && action === '/auth') {
     const authorizeUrl = await api.oauth.startAuth(server, facts.origin)
