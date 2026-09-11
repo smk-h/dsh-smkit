@@ -1,14 +1,14 @@
 /**
  * Simplified Chinese dictionary for the `mcp` locale namespace.
  *
- * `i18n.en.ts` must always carry the exact same key set — DSH owns language
+ * `en.ts` must always carry the exact same key set — DSH owns language
  * selection (Settings → General → Language) and the component tree resolves
  * every user-visible string through `t` from this namespace. Server-supplied
  * diagnostics (MCP error text, tool descriptions) deliberately stay in their
  * original language.
  */
 
-import type { LocaleDict } from './types'
+import type { LocaleDict } from '../runtime/types'
 
 export const MCP_LOCALE_ZH: LocaleDict = {
   "sectionLabel": "MCP",

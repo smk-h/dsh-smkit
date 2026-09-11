@@ -8,12 +8,12 @@
  */
 
 import { createMcpContent } from './components/McpContent'
-import { createApi } from './api'
-import { createApply } from './plugin'
+import { createApi } from './runtime/api'
+import { createApply } from './runtime/plugin'
 import { installStyles } from './styles'
-import { MCP_LOCALE_EN } from './i18n.en'
-import { MCP_LOCALE_ZH } from './i18n.zh'
-import type { ClientContext, ClientDeps, LocaleDict } from './types'
+import { MCP_LOCALE_EN } from './i18n/en'
+import { MCP_LOCALE_ZH } from './i18n/zh'
+import type { ClientContext, ClientDeps, LocaleDict } from './runtime/types'
 
 /** Client services injected by the DSH client runtime. */
 export const inject = ['slots', 'locale']

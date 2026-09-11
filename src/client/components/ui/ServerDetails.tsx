@@ -1,0 +1,40 @@
+/**
+ * The detail lines every expanded server row shows: the transport summary, the
+ * tool count (connected rows only) and the last server-side error.
+ *
+ * Returns an array instead of wrapping in an element on purpose — the lines are
+ * direct children of the row's flex column, so an extra wrapper would change
+ * the layout. Keys are supplied here because React requires them for arrays.
+ */
+
+import type { ClientDeps, ServerView, Translator, WorkspaceServerView } from '../../runtime/types'
+
+export interface ServerDetailsProps {
+  t: Translator
+  server: ServerView | WorkspaceServerView
+}
+
+export function serverDetails(
+  deps: ClientDeps,
+  { t, server }: ServerDetailsProps,
+): Array<JSX.Element | null> {
+  const { h } = deps
+
+  return [
+    <div className="mm_url" key="transport">
+      {server.type === 'stdio'
+        ? `stdio · ${server.command} ${(server.args || []).join(' ')}`
+        : `${server.authMode === 'oauth' ? 'OAuth' : t('staticToken')} · ${server.url}`}
+    </div>,
+    server.status === 'connected' ? (
+      <div className="mm_meta" key="tools">
+        {t('toolCount', { count: server.toolCount })}
+      </div>
+    ) : null,
+    server.error ? (
+      <div className="mm_err" key="error">
+        {server.error}
+      </div>
+    ) : null,
+  ]
+}

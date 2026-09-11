@@ -82,56 +82,22 @@ export interface ClientDeps {
 
 /* ------------------------------------------------------------ view models */
 
-/** A global-tier server as `GET /servers` reports it. */
-export interface ServerView {
-  id: string
-  name: string
-  type: 'http' | 'stdio'
-  enabled: boolean
-  status: string
-  toolCount: number
-  error: string
-  command?: string
-  args?: string[]
-  env?: Record<string, string>
-  cwd?: string
-  url?: string
-  authMode?: string
-  headers?: Record<string, string>
-  headerEnv?: Record<string, string>
-  tokenEnv?: string
-}
+/*
+ * The wire shapes come from the contract shared with the host half; the client
+ * re-exports them so components keep importing from `../runtime/types`.
+ */
+import type { ServerView, WorkspaceServerView } from '../../shared/contract'
 
-/** A workspace-tier server as `GET /workspaces` reports it. */
-export interface WorkspaceServerView {
-  id: string
-  name: string
-  type: 'http' | 'stdio'
-  authMode: string
-  source: 'workspace'
-  status: string
-  toolCount: number
-  error: string
-  command?: string
-  args?: string[]
-  env?: Record<string, string>
-  cwd?: string
-  url?: string
-  headers?: Record<string, string>
-  headerEnv?: Record<string, string>
-  tokenEnv?: string
-}
-
-export interface WorkspaceView {
-  path: string
-  servers: WorkspaceServerView[]
-  exclude: string[]
-  error: string
-}
-
-export interface SettingsView {
-  onDemandToolInjection: boolean
-}
+export type {
+  AuthMode,
+  EnvMap,
+  ServerStatus,
+  ServerType,
+  ServerView,
+  SettingsView,
+  WorkspaceServerView,
+  WorkspaceView,
+} from '../../shared/contract'
 
 /** One editable key/value row in the server form. */
 export interface KeyValueRow {

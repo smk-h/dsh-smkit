@@ -1,11 +1,11 @@
 /**
  * English dictionary for the `mcp` locale namespace.
  *
- * Key set must stay identical to `i18n.zh.ts`. This is also the fallback DSH
+ * Key set must stay identical to `zh.ts`. This is also the fallback DSH
  * uses when the resolved language has no `mcp` dictionary.
  */
 
-import type { LocaleDict } from './types'
+import type { LocaleDict } from '../runtime/types'
 
 export const MCP_LOCALE_EN: LocaleDict = {
   "sectionLabel": "MCP",

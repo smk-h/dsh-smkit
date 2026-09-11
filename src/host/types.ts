@@ -6,6 +6,24 @@
  * testable against the stub contexts in `test/`.
  */
 
+/*
+ * The wire contract shared with the browser half (src/shared/contract.ts).
+ * Re-exported so every host module keeps importing these names from `./types.js`
+ * and `src/index.ts` keeps publishing them.
+ */
+import type { AuthMode, EnvMap, ServerStatus, ServerType } from '../shared/contract.js'
+
+export type {
+  AuthMode,
+  EnvMap,
+  ServerStatus,
+  ServerType,
+  ServerView,
+  SettingsView,
+  WorkspaceServerView,
+  WorkspaceView,
+} from '../shared/contract.js'
+
 /** Structural slice of `ctx.logger`. Never `console.log` on the host half. */
 export interface LoggerLike {
   info(message: string): void
@@ -57,10 +75,6 @@ export type ContentBlock = TextBlock | DshImageBlock | { type: string; [key: str
 export type ImageProjector = (block: Record<string, unknown>, index: number) => ContentBlock
 
 /* ------------------------------------------------------------- server config */
-
-export type ServerType = 'http' | 'stdio'
-export type AuthMode = 'oauth' | 'static'
-export type EnvMap = Record<string, string>
 
 export interface OAuthTokens {
   access_token: string
@@ -307,17 +321,6 @@ export interface WebServerLike {
 
 /* ------------------------------------------------------------ view models */
 
-export type ServerStatus =
-  | 'connected'
-  | 'needs-auth'
-  | 'authorizing'
-  | 'connecting'
-  | 'error'
-  | 'disconnected'
-  | 'disabled'
-  | 'conflict'
-  | 'configured'
-
 /** One registered MCP tool plus the signature used for stable refreshes. */
 export interface RegisteredTool {
   definition: ToolDefinition
@@ -366,53 +369,6 @@ export interface AgentScopeState {
   disposers: Map<string, Map<string, RegisteredTool>>
   restrictDisposer?: () => void
   restrictKey?: string
-}
-
-/** Server shape handed to the settings UI. */
-export interface ServerView {
-  id: string
-  name: string
-  type: ServerType
-  enabled: boolean
-  status: ServerStatus
-  toolCount: number
-  error: string
-  command?: string
-  args?: string[]
-  env?: EnvMap
-  cwd?: string
-  url?: string
-  authMode?: AuthMode | ''
-  headers?: EnvMap
-  headerEnv?: EnvMap
-  tokenEnv?: string
-}
-
-/** Workspace server shape handed to the settings UI. */
-export interface WorkspaceServerView {
-  id: string
-  name: string
-  type: ServerType
-  authMode: AuthMode | ''
-  source: 'workspace'
-  status: ServerStatus
-  toolCount: number
-  error: string
-  command?: string
-  args?: string[]
-  env?: EnvMap
-  cwd?: string
-  url?: string
-  headers?: EnvMap
-  headerEnv?: EnvMap
-  tokenEnv?: string
-}
-
-export interface WorkspaceView {
-  path: string
-  servers: WorkspaceServerView[]
-  exclude: string[]
-  error: string
 }
 
 /** Raw on-disk workspace config (`mcpServers` + `exclude`). */

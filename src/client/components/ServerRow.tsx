@@ -4,7 +4,12 @@
  * the auth/edit/delete actions, plus the delete confirmation overlay.
  */
 
-import type { ClientDeps, ServerView, Translator } from '../types'
+import { createConfirmDialog } from './ui/ConfirmDialog'
+import { serverDetails } from './ui/ServerDetails'
+import { createStatusBadge, createStatusDot } from './ui/StatusPill'
+import { createSwitch } from './ui/Switch'
+import { useAsyncAction } from './ui/useAsyncAction'
+import type { ClientDeps, ServerView, Translator } from '../runtime/types'
 
 export interface ServerRowProps {
   t: Translator
@@ -17,6 +22,10 @@ export interface ServerRowProps {
 
 export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JSX.Element {
   const { h, react, api } = deps
+  const StatusDot = createStatusDot(deps)
+  const StatusBadge = createStatusBadge(deps)
+  const Switch = createSwitch(deps)
+  const ConfirmDialog = createConfirmDialog(deps)
 
   return function ServerRow({
     t,
@@ -26,35 +35,26 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
     open,
     onToggle,
   }: ServerRowProps): JSX.Element {
-    const [busy, setBusy] = react.useState(false)
-    const [error, setError] = react.useState('')
+    const { busy, error, run } = useAsyncAction(react)
     const [confirming, setConfirming] = react.useState(false)
 
-    const startAuth = async (): Promise<void> => {
-      setBusy(true)
-      setError('')
-      try {
+    const startAuth = (): Promise<void> =>
+      run(async () => {
         const r = await api(`/servers/${server.id}/auth`, { method: 'POST' })
-        if (r.ok && r.body.authorizeUrl) window.open(r.body.authorizeUrl, '_blank')
-        else setError(r.body.error || t('authFailed', { status: r.status }))
-      } catch (e) {
-        setError(String(e))
-      }
-      setBusy(false)
-    }
+        if (r.ok && r.body.authorizeUrl) {
+          window.open(r.body.authorizeUrl, '_blank')
+          return
+        }
+        return r.body.error || t('authFailed', { status: r.status })
+      })
 
-    const remove = async (): Promise<void> => {
+    const remove = (): Promise<void> => {
       setConfirming(false)
-      setBusy(true)
-      setError('')
-      try {
+      return run(async () => {
         const r = await api(`/servers/${server.id}`, { method: 'DELETE' })
-        if (!r.ok) setError(r.body.error || t('deleteFailed', { status: r.status }))
         onChanged()
-      } catch (e) {
-        setError(String(e))
-      }
-      setBusy(false)
+        return r.ok ? undefined : r.body.error || t('deleteFailed', { status: r.status })
+      })
     }
 
     const askRemove = (): void => setConfirming(true)
@@ -62,52 +62,32 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
     // Runtime-only operations: config and the enabled flag are untouched, so a
     // restart is "disconnect, then connect (or just connect when idle)" and a
     // stop simply drops the live transport. The 3s poll picks up the new status.
-    const restart = async (): Promise<void> => {
-      setBusy(true)
-      setError('')
-      try {
+    const restart = (): Promise<void> =>
+      run(async () => {
         const r = await api(`/servers/${server.id}/restart`, { method: 'POST' })
-        if (!r.ok) setError(r.body.error || t('restartFailed', { status: r.status }))
         onChanged()
-      } catch (e) {
-        setError(String(e))
-      }
-      setBusy(false)
-    }
+        return r.ok ? undefined : r.body.error || t('restartFailed', { status: r.status })
+      })
 
-    const stop = async (): Promise<void> => {
-      setBusy(true)
-      setError('')
-      try {
+    const stop = (): Promise<void> =>
+      run(async () => {
         const r = await api(`/servers/${server.id}/stop`, { method: 'POST' })
-        if (!r.ok) setError(r.body.error || t('stopFailed', { status: r.status }))
         onChanged()
-      } catch (e) {
-        setError(String(e))
-      }
-      setBusy(false)
-    }
+        return r.ok ? undefined : r.body.error || t('stopFailed', { status: r.status })
+      })
 
-    const toggleEnabled = async (): Promise<void> => {
-      setBusy(true)
-      setError('')
-      try {
+    const toggleEnabled = (): Promise<void> =>
+      run(async () => {
         const r = await api(`/servers/${server.id}/enabled`, {
           method: 'POST',
           body: JSON.stringify({ enabled: server.enabled === false }),
         })
-        if (!r.ok) {
-          setError(
-            r.body.error ||
-              t(server.enabled === false ? 'enableFailed' : 'disableFailed', { status: r.status }),
-          )
-        }
         onChanged()
-      } catch (e) {
-        setError(String(e))
-      }
-      setBusy(false)
-    }
+        return r.ok
+          ? undefined
+          : r.body.error ||
+              t(server.enabled === false ? 'enableFailed' : 'disableFailed', { status: r.status })
+      })
 
     return (
       <div className="mm_row" key={server.id} data-open={open ? 'true' : undefined}>
@@ -119,8 +99,8 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
         >
           <span className="mm_name">{server.name}</span>
           <span className="mm_cardTrailing">
-            <span className={`mm_statusDot ${server.status}`} aria-hidden="true" />
-            <span className={`mm_badge ${server.status}`}>{t(server.status)}</span>
+            <StatusDot status={server.status} />
+            <StatusBadge t={t} status={server.status} />
             <span className="mm_chevron" data-open={open ? 'true' : undefined}>
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <path
@@ -136,33 +116,15 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
         </button>
         {open ? (
           <div className="mm_details">
-            <div className="mm_url">
-              {server.type === 'stdio'
-                ? `stdio · ${server.command} ${(server.args || []).join(' ')}`
-                : `${server.authMode === 'oauth' ? 'OAuth' : t('staticToken')} · ${server.url}`}
-            </div>
-            {server.status === 'connected' ? (
-              <div className="mm_meta">{t('toolCount', { count: server.toolCount })}</div>
-            ) : null}
-            {server.error ? <div className="mm_err">{server.error}</div> : null}
+            {serverDetails(deps, { t, server })}
             {error ? <div className="mm_err">{error}</div> : null}
             <div className="mm_cardActions">
-              <span className="mm_switchRow">
-                <button
-                  className="mm_switch"
-                  type="button"
-                  role="switch"
-                  data-on={server.enabled !== false ? 'true' : undefined}
-                  aria-checked={server.enabled !== false}
-                  onClick={toggleEnabled}
-                  disabled={busy}
-                >
-                  <span className="mm_switchThumb" />
-                </button>
-                <span className="mm_switchText">
-                  {server.enabled !== false ? t('disable') : t('enable')}
-                </span>
-              </span>
+              <Switch
+                on={server.enabled !== false}
+                text={server.enabled !== false ? t('disable') : t('enable')}
+                busy={busy}
+                onToggle={toggleEnabled}
+              />
               <span className="mm_actionBtns">
                 {server.enabled !== false ? (
                   <button className="mm_btn" onClick={restart} disabled={busy}>
@@ -190,20 +152,14 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
           </div>
         ) : null}
         {confirming ? (
-          <div className="mm_overlay" onClick={() => setConfirming(false)}>
-            <div className="mm_dialog" onClick={(e) => e.stopPropagation()}>
-              <div className="mm_dialogTitle">{t('deleteServer')}</div>
-              <div className="mm_dialogBody">{t('confirmDelete', { name: server.name })}</div>
-              <div className="mm_dialogActions">
-                <button className="mm_btn" onClick={() => setConfirming(false)} disabled={busy}>
-                  {t('cancel')}
-                </button>
-                <button className="mm_btn danger" onClick={remove} disabled={busy}>
-                  {busy ? '…' : t('delete')}
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmDialog
+            t={t}
+            title={t('deleteServer')}
+            body={t('confirmDelete', { name: server.name })}
+            busy={busy}
+            onCancel={() => setConfirming(false)}
+            onConfirm={remove}
+          />
         ) : null}
       </div>
     )

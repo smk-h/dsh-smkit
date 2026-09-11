@@ -13,6 +13,8 @@
 import { createGlobalMaskRow } from './GlobalMaskRow'
 import { createServerForm } from './ServerForm'
 import { createServerRow } from './ServerRow'
+import { createSwitch } from './ui/Switch'
+import { useAsyncAction } from './ui/useAsyncAction'
 import { createWorkspaceServerRow } from './WorkspaceServerRow'
 import type {
   ClientDeps,
@@ -21,7 +23,7 @@ import type {
   SettingsView,
   WorkspaceServerView,
   WorkspaceView,
-} from '../types'
+} from '../runtime/types'
 
 const REFRESH_INTERVAL_MS = 3000
 
@@ -40,6 +42,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
   const ServerForm = createServerForm(deps)
   const WorkspaceServerRow = createWorkspaceServerRow(deps)
   const GlobalMaskRow = createGlobalMaskRow(deps)
+  const Switch = createSwitch(deps)
 
   return function McpContent({ t }: SectionProps): JSX.Element {
     const [servers, setServers] = react.useState<ServerView[]>([])
@@ -51,9 +54,8 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     const [editingName, setEditingName] = react.useState<string | null>(null)
     const [query, setQuery] = react.useState('')
     const [expandedId, setExpandedId] = react.useState<string | null>(null)
-    const [excludeBusy, setExcludeBusy] = react.useState(false)
-    const [settingsBusy, setSettingsBusy] = react.useState(false)
-    const [settingsError, setSettingsError] = react.useState('')
+    const excludeAction = useAsyncAction(react)
+    const settingsAction = useAsyncAction(react)
 
     // The section's identity block, shown above every view: one intro line,
     // then the plugin pill (clickable name + version tag), so the page stays
@@ -110,32 +112,32 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
 
     const toggleExclude = async (serverName: string, exclude: boolean): Promise<void> => {
       if (!selected) return
-      setExcludeBusy(true)
-      try {
-        const r = await api('/workspaces/exclude', {
-          method: 'POST',
-          body: JSON.stringify({ path: selected, server: serverName, exclude }),
-        })
-        if (r.ok) refresh()
-      } catch {
-        // Transient: the 3s poll will resync.
-      }
-      setExcludeBusy(false)
+      await excludeAction.run(async () => {
+        try {
+          const r = await api('/workspaces/exclude', {
+            method: 'POST',
+            body: JSON.stringify({ path: selected, server: serverName, exclude }),
+          })
+          if (r.ok) refresh()
+        } catch {
+          // Transient: the 3s poll will resync.
+        }
+      })
     }
 
-    const toggleOnDemand = async (): Promise<void> => {
-      setSettingsBusy(true)
-      setSettingsError('')
-      try {
+    const toggleOnDemand = (): Promise<void> =>
+      settingsAction.run(async () => {
         const enabled = !settings.onDemandToolInjection
-        const r = await api('/settings/on-demand', { method: 'POST', body: JSON.stringify({ enabled }) })
-        if (r.ok) setSettings({ onDemandToolInjection: r.body.onDemandToolInjection === true })
-        else setSettingsError(r.body.error || t('toggleFailed', { status: r.status }))
-      } catch (e) {
-        setSettingsError(String(e))
-      }
-      setSettingsBusy(false)
-    }
+        const r = await api('/settings/on-demand', {
+          method: 'POST',
+          body: JSON.stringify({ enabled }),
+        })
+        if (r.ok) {
+          setSettings({ onDemandToolInjection: r.body.onDemandToolInjection === true })
+          return
+        }
+        return r.body.error || t('toggleFailed', { status: r.status })
+      })
 
     const addBtn = (
       <button
@@ -264,7 +266,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
                 setEditingId(server.id)
                 setView('edit-global')
               }}
-              busy={excludeBusy}
+              busy={excludeAction.busy}
               key={server.id}
             />
           ))}
@@ -323,25 +325,15 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             <span className="mm_featureTitle">{t('onDemand')}</span>
             <span className="mm_featureMeta">{t('onDemandHelp')}</span>
           </span>
-          <span className="mm_switchRow">
-            <button
-              className="mm_switch"
-              type="button"
-              role="switch"
-              data-on={settings.onDemandToolInjection ? 'true' : undefined}
-              aria-checked={settings.onDemandToolInjection}
-              aria-label={t('onDemand')}
-              onClick={toggleOnDemand}
-              disabled={settingsBusy}
-            >
-              <span className="mm_switchThumb" />
-            </button>
-            <span className="mm_switchText">
-              {settings.onDemandToolInjection ? t('on') : t('off')}
-            </span>
-          </span>
+          <Switch
+            on={settings.onDemandToolInjection}
+            text={settings.onDemandToolInjection ? t('on') : t('off')}
+            busy={settingsAction.busy}
+            onToggle={toggleOnDemand}
+            ariaLabel={t('onDemand')}
+          />
         </div>
-        {settingsError ? <div className="mm_err">{settingsError}</div> : null}
+        {settingsAction.error ? <div className="mm_err">{settingsAction.error}</div> : null}
         <div className="mm_wsBar">
           <select
             className="mm_wsSelect"

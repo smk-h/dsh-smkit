@@ -5,9 +5,14 @@
  * both the request target (`/servers` vs `/workspaces/servers`) and whether a
  * workspace picker is shown. The transport select swaps the whole field set, so
  * the form only ever submits the fields that belong to the chosen transport.
+ *
+ * The three key/value lists (env, headers, headers-from-env) are one component;
+ * only their labels and placeholders differ.
  */
 
-import type { ApiResult, ClientDeps, EditableServer, KeyValueRow, Translator } from '../types'
+import { createKeyValueEditor, toKeyValueMap, toKeyValueRows } from './ui/KeyValueEditor'
+import { useAsyncAction } from './ui/useAsyncAction'
+import type { ApiResult, ClientDeps, EditableServer, KeyValueRow, Translator } from '../runtime/types'
 
 export interface ServerFormProps {
   t: Translator
@@ -19,24 +24,9 @@ export interface ServerFormProps {
   workspaces?: string[]
 }
 
-const EMPTY_ROW: KeyValueRow = { key: '', value: '' }
-
-/** Object → editable rows, falling back to one blank row. */
-function toRows(source: Record<string, unknown> | undefined): KeyValueRow[] {
-  return source ? Object.entries(source).map(([key, value]) => ({ key, value: String(value) })) : [{ ...EMPTY_ROW }]
-}
-
-/** Rows → flat map, dropping keys that were left blank. */
-function toMap(rows: KeyValueRow[]): Record<string, string> {
-  return rows.reduce<Record<string, string>>((acc, row) => {
-    const key = row.key.trim()
-    if (key) acc[key] = row.value
-    return acc
-  }, {})
-}
-
 export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => JSX.Element {
   const { h, react, api } = deps
+  const KeyValueEditor = createKeyValueEditor(deps)
 
   return function ServerForm({
     t,
@@ -55,28 +45,29 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
     const [url, setUrl] = react.useState(initial?.url ?? '')
     const [authMode, setAuthMode] = react.useState<string>(initial?.authMode ?? 'oauth')
     const [tokenEnv, setTokenEnv] = react.useState(initial?.tokenEnv ?? '')
-    const [headersList, setHeadersList] = react.useState<KeyValueRow[]>(toRows(initial?.headers))
-    const [headerEnvList, setHeaderEnvList] = react.useState<KeyValueRow[]>(toRows(initial?.headerEnv))
+    const [headersList, setHeadersList] = react.useState<KeyValueRow[]>(
+      toKeyValueRows(initial?.headers),
+    )
+    const [headerEnvList, setHeaderEnvList] = react.useState<KeyValueRow[]>(
+      toKeyValueRows(initial?.headerEnv),
+    )
     const [command, setCommand] = react.useState(initial?.command ?? '')
     const initialArgs = initial?.args ?? []
     const [argsList, setArgsList] = react.useState<string[]>(
       initialArgs.length ? initialArgs.map(String) : [''],
     )
-    const [envList, setEnvList] = react.useState<KeyValueRow[]>(toRows(initial?.env))
+    const [envList, setEnvList] = react.useState<KeyValueRow[]>(toKeyValueRows(initial?.env))
     const [cwd, setCwd] = react.useState(initial?.cwd ?? '')
-    const [busy, setBusy] = react.useState(false)
-    const [error, setError] = react.useState('')
+    const { busy, error, setError, run } = useAsyncAction(react)
 
     const isWorkspace = formScope === 'workspace'
 
-    const submit = async (): Promise<void> => {
+    const submit = (): Promise<void> => {
       if (isWorkspace && !wsPath) {
         setError(t('chooseWorkspaceError'))
-        return
+        return Promise.resolve()
       }
-      setBusy(true)
-      setError('')
-      try {
+      return run(async () => {
         const body: Record<string, unknown> =
           type === 'stdio'
             ? {
@@ -85,15 +76,15 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
                 command,
                 cwd,
                 args: argsList.map((arg) => arg.trim()).filter(Boolean),
-                env: toMap(envList),
+                env: toKeyValueMap(envList),
               }
             : {
                 name,
                 type: 'http',
                 url,
                 authMode,
-                headers: toMap(headersList),
-                headerEnv: toMap(headerEnvList),
+                headers: toKeyValueMap(headersList),
+                headerEnv: toKeyValueMap(headerEnvList),
                 ...(authMode === 'static' ? { tokenEnv } : {}),
               }
         let r: ApiResult
@@ -112,12 +103,12 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
         } else {
           r = await api('/servers', { method: 'POST', body: JSON.stringify(body) })
         }
-        if (r.ok) onDone()
-        else setError(r.body.error || t(editing ? 'saveFailed' : 'addFailed', { status: r.status }))
-      } catch (e) {
-        setError(String(e))
-      }
-      setBusy(false)
+        if (r.ok) {
+          onDone()
+          return
+        }
+        return r.body.error || t(editing ? 'saveFailed' : 'addFailed', { status: r.status })
+      })
     }
 
     // The transport select swaps the whole field set: only these fields belong
@@ -157,49 +148,17 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
                 {t('addArgument')}
               </button>
             </label>,
-            <label className="wide" key="environment">
-              {t('environment')}
-              {envList.map((entry, i) => (
-                <div className="mm_kv" key={i}>
-                  <input
-                    value={entry.key}
-                    onChange={(e) =>
-                      setEnvList(
-                        envList.map((value, index) =>
-                          index === i ? { ...value, key: e.target.value } : value,
-                        ),
-                      )
-                    }
-                    placeholder={t('keyUpper')}
-                  />
-                  <input
-                    value={entry.value}
-                    onChange={(e) =>
-                      setEnvList(
-                        envList.map((value, index) =>
-                          index === i ? { ...value, value: e.target.value } : value,
-                        ),
-                      )
-                    }
-                    placeholder={t('valueUpper')}
-                  />
-                  <button
-                    className="mm_btn"
-                    onClick={() => setEnvList(envList.filter((_, index) => index !== i))}
-                    disabled={busy}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-              <button
-                className="mm_btn"
-                onClick={() => setEnvList([...envList, { ...EMPTY_ROW }])}
-                disabled={busy}
-              >
-                {t('addEnvironment')}
-              </button>
-            </label>,
+            <KeyValueEditor
+              key="environment"
+              t={t}
+              label={t('environment')}
+              rows={envList}
+              onChange={setEnvList}
+              keyPlaceholder={t('keyUpper')}
+              valuePlaceholder={t('valueUpper')}
+              addLabel={t('addEnvironment')}
+              busy={busy}
+            />,
             <label className="wide" key="cwd">
               {t('cwd')}
               <input
@@ -235,92 +194,28 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
                 />
               </label>
             ) : null,
-            <label className="wide" key="headers">
-              {t('headers')}
-              {headersList.map((entry, i) => (
-                <div className="mm_kv" key={i}>
-                  <input
-                    value={entry.key}
-                    onChange={(e) =>
-                      setHeadersList(
-                        headersList.map((value, index) =>
-                          index === i ? { ...value, key: e.target.value } : value,
-                        ),
-                      )
-                    }
-                    placeholder={t('key')}
-                  />
-                  <input
-                    value={entry.value}
-                    onChange={(e) =>
-                      setHeadersList(
-                        headersList.map((value, index) =>
-                          index === i ? { ...value, value: e.target.value } : value,
-                        ),
-                      )
-                    }
-                    placeholder={t('value')}
-                  />
-                  <button
-                    className="mm_btn"
-                    onClick={() => setHeadersList(headersList.filter((_, index) => index !== i))}
-                    disabled={busy}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-              <button
-                className="mm_btn"
-                onClick={() => setHeadersList([...headersList, { ...EMPTY_ROW }])}
-                disabled={busy}
-              >
-                {t('addHeader')}
-              </button>
-            </label>,
-            <label className="wide" key="headerEnv">
-              {t('headerEnv')}
-              {headerEnvList.map((entry, i) => (
-                <div className="mm_kv" key={i}>
-                  <input
-                    value={entry.key}
-                    onChange={(e) =>
-                      setHeaderEnvList(
-                        headerEnvList.map((value, index) =>
-                          index === i ? { ...value, key: e.target.value } : value,
-                        ),
-                      )
-                    }
-                    placeholder={t('key')}
-                  />
-                  <input
-                    value={entry.value}
-                    onChange={(e) =>
-                      setHeaderEnvList(
-                        headerEnvList.map((value, index) =>
-                          index === i ? { ...value, value: e.target.value } : value,
-                        ),
-                      )
-                    }
-                    placeholder={t('envName')}
-                  />
-                  <button
-                    className="mm_btn"
-                    onClick={() => setHeaderEnvList(headerEnvList.filter((_, index) => index !== i))}
-                    disabled={busy}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-              <button
-                className="mm_btn"
-                onClick={() => setHeaderEnvList([...headerEnvList, { ...EMPTY_ROW }])}
-                disabled={busy}
-              >
-                {t('addVariable')}
-              </button>
-            </label>,
+            <KeyValueEditor
+              key="headers"
+              t={t}
+              label={t('headers')}
+              rows={headersList}
+              onChange={setHeadersList}
+              keyPlaceholder={t('key')}
+              valuePlaceholder={t('value')}
+              addLabel={t('addHeader')}
+              busy={busy}
+            />,
+            <KeyValueEditor
+              key="headerEnv"
+              t={t}
+              label={t('headerEnv')}
+              rows={headerEnvList}
+              onChange={setHeaderEnvList}
+              keyPlaceholder={t('key')}
+              valuePlaceholder={t('envName')}
+              addLabel={t('addVariable')}
+              busy={busy}
+            />,
           ]
 
     return (

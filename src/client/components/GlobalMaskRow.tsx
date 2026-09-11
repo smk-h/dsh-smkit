@@ -4,7 +4,8 @@
  * `exclude` list (which masks its global tools for agents in that workspace).
  */
 
-import type { ClientDeps, ServerView, Translator } from '../types'
+import { createStatusBadge, createStatusDot } from './ui/StatusPill'
+import type { ClientDeps, ServerView, Translator } from '../runtime/types'
 
 export interface GlobalMaskRowProps {
   t: Translator
@@ -17,6 +18,8 @@ export interface GlobalMaskRowProps {
 
 export function createGlobalMaskRow(deps: ClientDeps): (props: GlobalMaskRowProps) => JSX.Element {
   const { h } = deps
+  const StatusDot = createStatusDot(deps)
+  const StatusBadge = createStatusBadge(deps)
 
   return function GlobalMaskRow({
     t,
@@ -28,9 +31,9 @@ export function createGlobalMaskRow(deps: ClientDeps): (props: GlobalMaskRowProp
   }: GlobalMaskRowProps): JSX.Element {
     return (
       <div className="mm_wsServer" key={server.id}>
-        <span className={`mm_statusDot ${server.status}`} aria-hidden="true" />
+        <StatusDot status={server.status} />
         <span className="mm_name">{server.name}</span>
-        <span className={`mm_badge ${server.status}`}>{t(server.status)}</span>
+        <StatusBadge t={t} status={server.status} />
         <label className="mm_wsCheck">
           <input
             type="checkbox"

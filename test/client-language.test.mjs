@@ -14,7 +14,7 @@ function walk(dir) {
 }
 
 /** The only modules allowed to contain Han literals. */
-const I18N_MODULE = /i18n\.(zh|en)\.ts$/
+const I18N_MODULE = /[/\\]i18n[/\\]/
 
 // Run the real module factory with a tiny hook harness; no browser or dependencies.
 function mount(fetch, language = 'en') {
@@ -76,7 +76,15 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 function nodes(tree) {
   return tree && typeof tree === 'object' ? [tree, ...tree.children.flatMap(nodes)] : []
 }
-const text = (tree) => typeof tree === 'string' ? tree : tree?.children?.map(text).join(' ') ?? ''
+// Expands function components while walking: the section delegates parts of its
+// tree to child components (the key/value editors, the status pills), and their
+// text only appears once the component is called, the way React would.
+const text = (tree) =>
+  typeof tree === 'string'
+    ? tree
+    : typeof tree?.type === 'function'
+      ? text(tree.type(tree.props))
+      : tree?.children?.map(text).join(' ') ?? ''
 const content = (tree) => nodes(tree).find((node) => typeof node.type === 'function')
 
 it('registers balanced mcp dictionaries with effect cleanup and the locale slot seat', () => {

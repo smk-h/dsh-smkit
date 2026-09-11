@@ -33,10 +33,10 @@ declare namespace JSX {
   /**
    * The element type produced by the injected `createElement`, kept opaque:
    * components build a tree and hand it straight back to React, never
-   * inspecting it. `Element` is an alias of `import('./types').Element` so the
-   * JSX and non-JSX call paths agree on one type.
+   * inspecting it. `Element` is an alias of `import('./runtime/types').Element`
+   * so the JSX and non-JSX call paths agree on one type.
    */
-  type Element = import('./types').Element
+  type Element = import('./runtime/types').Element
 
   /**
    * Structural stand-in for a React synthetic event. The browser half has no
