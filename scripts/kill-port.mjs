@@ -2,9 +2,10 @@
 /**
  * kill-port — 查出监听指定端口的进程，经确认后终止，用于解除端口占用。
  *
- *   pnpm port:kill <port> [--yes]
+ *   pnpm dsh:kill-port <port> [--yes]
  *
- * Windows 走 netstat / tasklist / taskkill；POSIX 走 lsof / ps / kill。
+ * Windows 走 netstat / tasklist / taskkill；POSIX 依次尝试
+ * lsof → ss → netstat → fuser 找监听进程，/ ps / kill。
  * --yes 跳过确认。
  */
 
@@ -17,7 +18,7 @@ const yes = args.includes('--yes') || args.includes('-y')
 const port = args.find((a) => /^\d+$/.test(a)) || '3080'
 
 if (+port < 1 || +port > 65535) {
-  console.log('usage: pnpm port:kill <port> [--yes]')
+  console.log('usage: pnpm dsh:kill-port <port> [--yes]')
   process.exit(1)
 }
 
@@ -28,19 +29,86 @@ function runCapture(command) {
   return (r.stdout || '').trim()
 }
 
-function listeners() {
-  if (isWindows) {
-    const out = runCapture(`netstat -ano | findstr /C:":${port} "`)
-    const pids = new Set()
-    for (const line of out.split(/\r?\n/)) {
-      if (/LISTENING/i.test(line)) {
-        const pid = line.trim().split(/\s+/).pop()
-        if (pid && pid !== '0') pids.add(pid)
-      }
+/** 命令是否存在（command -v 是 POSIX 内置，Linux/macOS 通用）。 */
+function has(command) {
+  return spawnSync(`command -v ${command}`, { shell: true, encoding: 'utf8' }).status === 0
+}
+
+/** 从任意文本里抽出所有非 0 的数字（去重），用于解析 PID。 */
+function extractPids(text) {
+  return [...new Set(text.match(/\d+/g) || [])].filter((n) => n !== '0')
+}
+
+/** Windows：netstat -ano 里 LISTENING 行的最后一列是 PID。 */
+function windowsListeners() {
+  const out = runCapture(`netstat -ano | findstr /C:":${port} "`)
+  const pids = new Set()
+  for (const line of out.split(/\r?\n/)) {
+    if (/LISTENING/i.test(line)) {
+      const pid = line.trim().split(/\s+/).pop()
+      if (pid && pid !== '0') pids.add(pid)
     }
-    return [...pids]
   }
-  return [...new Set(runCapture(`lsof -ti tcp:${port} -sTCP:LISTEN`).split(/\r?\n/).filter(Boolean))]
+  return [...pids]
+}
+
+/** POSIX：按 lsof → ss → netstat → fuser 回退，谁先给出结果用谁。
+ * 各发行版自带工具差异极大（minimal 镜像常连 lsof 都没有），
+ * 因此必须逐个探测能力，而不是押注单一命令。 */
+function posixListeners() {
+  const attempts = [
+    // lsof 最精确：-sTCP:LISTEN 只取监听态，直接返回 PID 列表
+    ['lsof', () => extractPids(runCapture(`lsof -ti tcp:${port} -sTCP:LISTEN`))],
+    // iproute2：LISTEN 行的本地地址列末段是端口，Process 列形如 users:(("node",pid=1234,fd=20))
+    [
+      'ss',
+      () => {
+        const pids = new Set()
+        for (const line of runCapture('ss -ltnp').split(/\r?\n/)) {
+          const cols = line.trim().split(/\s+/)
+          if (cols[0] !== 'LISTEN') continue
+          if ((cols[3] || '').split(':').pop() !== String(port)) continue
+          for (const m of line.matchAll(/pid=(\d+)/g)) pids.add(m[1])
+        }
+        return [...pids]
+      },
+    ],
+    // net-tools：本地地址列末段是端口，末列形如 1234/node
+    [
+      'netstat',
+      () => {
+        const pids = new Set()
+        for (const line of runCapture('netstat -tlnp').split(/\r?\n/)) {
+          const cols = line.trim().split(/\s+/)
+          if (!/^tcp/i.test(cols[0]) || !/LISTEN/i.test(line)) continue
+          if ((cols[3] || '').split(':').pop() !== String(port)) continue
+          const pid = (cols[cols.length - 1] || '').split('/')[0]
+          if (/^\d+$/.test(pid) && pid !== '0') pids.add(pid)
+        }
+        return [...pids]
+      },
+    ],
+    // psmisc：stdout 形如 "3080/tcp:            1234"，冒号前是端口、之后才是 PID
+    [
+      'fuser',
+      () => extractPids(runCapture(`fuser -n tcp ${port} 2>/dev/null`).split(':').pop() || ''),
+    ],
+  ]
+
+  for (const [cmd, probe] of attempts) {
+    if (!has(cmd)) continue
+    try {
+      const pids = probe()
+      if (pids.length) return pids
+    } catch {
+      // 单个工具异常不应中断回退链
+    }
+  }
+  return []
+}
+
+function listeners() {
+  return isWindows ? windowsListeners() : posixListeners()
 }
 
 function describe(pid) {
@@ -61,7 +129,13 @@ function describe(pid) {
 
 const pids = listeners()
 if (pids.length === 0) {
-  console.log(`port:kill: 端口 ${port} 没有监听进程`)
+  console.log(`kill-port: 端口 ${port} 没有监听进程`)
+  if (!isWindows && !['lsof', 'ss', 'netstat', 'fuser'].some(has)) {
+    console.log(
+      'kill-port: 系统缺少 lsof/ss/netstat/fuser，无法探测端口占用。' +
+        '请安装其一（如 iproute2 的 ss、net-tools 的 netstat）。',
+    )
+  }
   process.exit(0)
 }
 
@@ -81,7 +155,7 @@ if (!confirmed) {
 }
 
 if (!confirmed) {
-  console.log('port:kill: 已取消')
+  console.log('kill-port: 已取消')
   process.exit(0)
 }
 
@@ -90,8 +164,8 @@ for (const pid of pids) {
     ? spawnSync(`taskkill /PID ${pid} /T /F`, { shell: true, encoding: 'utf8' })
     : spawnSync(`kill -9 ${pid}`, { shell: true, encoding: 'utf8' })
   if (kill.status !== 0) {
-    process.stderr.write(kill.stderr || `port:kill: 终止 PID ${pid} 失败\n`)
+    process.stderr.write(kill.stderr || `kill-port: 终止 PID ${pid} 失败\n`)
     process.exit(kill.status ?? 1)
   }
-  console.log(`port:kill: 已终止 PID ${pid}`)
+  console.log(`kill-port: 已终止 PID ${pid}`)
 }
