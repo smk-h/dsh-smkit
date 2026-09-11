@@ -10,12 +10,12 @@
  * 打包后用绝对路径 add 进 profile。不使用 link:/相对路径——profile 与项目
  * 跨盘符时 pnpm 会把 link: 目标当相对路径解析，生成坏 junction。
  *
- * debug 是完整调试循环：装入新代码 → 杀掉端口上的 dsh → 新终端窗口重启
- * dsh web。新窗口承载服务进程，日志直接可见、可 Ctrl+C，窗口在 dsh 退出
- * 后保留；不带 --no-open，每次重启由 dsh 自动打开浏览器。
+ * debug 是完整调试循环：装入新代码 → 杀掉端口上的 dsh → 前台重启 dsh web。
+ * 服务进程随本脚本一起跑在前台，启动日志（含访问链接）直接可见，按 Ctrl+C
+ * 即可结束；不带 --no-open，每次重启由 dsh 自动打开浏览器。
  */
 
-import { spawn, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -77,7 +77,7 @@ function killDsh(port) {
   run(`node "${path.join(ROOT, 'scripts', 'kill-port.mjs')}" ${port} --yes`)
 }
 
-/** 重启 dsh：Windows 在新终端窗口里前台运行（日志可见）；POSIX 放后台。
+/** 前台重启 dsh：日志（含访问链接）直接输出到当前终端，Ctrl+C 结束。
  * 不带 --no-open，由 dsh 每次重启后自动打开浏览器。 */
 function startDsh(profile, port) {
   // `dsh web` 是 `--profile web` 的别名；其他 profile 走通用 boot 入口，
@@ -93,11 +93,11 @@ function startDsh(profile, port) {
       stdio: 'ignore',
     })
     console.log(`debug: 已在新窗口启动：${boot}`)
-  } else {
-    const child = spawn(boot, { shell: true, detached: true, stdio: 'ignore' })
-    child.unref()
-    console.log(`debug: 已在后台启动：${boot}（日志不落盘，需要看日志请手动前台运行）`)
+    return
   }
+  // stdio 置 inherit：把当前终端交给 dsh，启动链接随日志一起打印；
+  // 本进程阻塞等待，Ctrl+C 同时终止 dsh 与脚本。
+  spawnSync(boot, { shell: true, cwd: ROOT, stdio: 'inherit' })
 }
 
 /** pnpm smkit:install — 打包并装入 profile，重启 dsh 后生效。 */
@@ -125,9 +125,9 @@ async function cmdDebug(profile, port) {
   killDsh(port)
   // 端口释放与子进程树退出之间有短暂竞争，稍等再启动避免 EADDRINUSE。
   await new Promise((resolve) => setTimeout(resolve, 800))
-  step(`重启 dsh web（端口 ${port}）`)
-  startDsh(profile, port)
+  step(`前台启动 dsh web（端口 ${port}）；Ctrl+C 结束`)
   console.log('debug: 浏览器请硬刷新（Ctrl+F5）以绕过旧客户端脚本缓存')
+  startDsh(profile, port)
 }
 
 function printUsage() {
