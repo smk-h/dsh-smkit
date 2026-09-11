@@ -21,7 +21,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -92,7 +92,9 @@ const NPM_STUB = [
   '  *) exit 0 ;;',
   'esac',
 ].join('\n')
-writeFileSync(join(bin, 'npm'), NPM_STUB)
+const npmStub = join(bin, 'npm')
+writeFileSync(npmStub, NPM_STUB)
+chmodSync(npmStub, 0o755)
 
 // 假 pnpm：本项目发布走 pnpm publish，仅记录调用不真正发布
 const PNPM_STUB = [
@@ -100,7 +102,9 @@ const PNPM_STUB = [
   'echo "pnpm $*" >> "$FAKE_NPM_CALLS"',
   'exit 0',
 ].join('\n')
-writeFileSync(join(bin, 'pnpm'), PNPM_STUB)
+const pnpmStub = join(bin, 'pnpm')
+writeFileSync(pnpmStub, PNPM_STUB)
+chmodSync(pnpmStub, 0o755)
 
 /** 在沙箱中执行提取出的脚本，返回合并后的输出。registryLine 非空表示该版本已发布。 */
 function runCase(registryLine) {
