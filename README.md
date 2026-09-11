@@ -1,8 +1,32 @@
 ## 一、 项目简介
 
-dsh-smkit 是严格按照 [Cordis 教程《第一个插件》](https://deepseek-harness.github.io/deepseek-harness/develop/cordis-tutorial/01-first-plugin)章节实现的最小示例插件，宿主为 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/)，基于 MIT 协议开源。
+### 1. 背景
 
-插件本体是教程中的函数形态 Cordis 插件：导出显示元数据 `name` 与 `apply` 函数，被加载器挂载时输出一行 `hello from my first plugin`。仓库同时补齐了教程页面未涉及的 dsh 打包部分（bundle manifest、配置层与安装验证），让它能直接通过 `dsh plugin add` 装进 profile。
+我有一个 MCP 项目 [smk-h/embedded-mcp-toolkit](https://github.com/smk-h/embedded-mcp-toolkit)，它每次启动都会写入一个日志文件。[dsh-v0.1.5-rc.1](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.5-rc.1) 原本就支持直接配置 MCP，但这种配置是全局生效的：只要 dsh 启动，就必定拉起该 MCP，并且在任何工作区都能操作它。可我大多数时候只是启动 dsh ，并不一定需要连接这个 MCP，于是每次启动都会白白多出一个日志文件。
+
+我的需求很明确：**只在打开某个工作区时，才启用该工作区的 MCP**。顺着这个需求，找到了下面两个插件：
+
+- [hyqhyq3/dsh-mcp-manager](https://github.com/hyqhyq3/dsh-mcp-manager)：按工作区启用 MCP，避免全局常驻
+- [yangfch3/dsh-mcp-mgr](https://github.com/yangfch3/dsh-mcp-mgr)：提供重启按钮，点击即可重启 MCP
+
+[hyqhyq3/dsh-mcp-manager](https://github.com/hyqhyq3/dsh-mcp-manager) 确实好用，满足了我的核心需求，但很快又出现了新问题：我大部分使用场景是在 Linux 服务器上通过 SSH 启动 Windows 中的 MCP，长时间不用后连接会断开，MCP 失去响应（这个我没有具体深究，右面有必要再说），这时只能重启 dsh；而「重启 MCP」的能力又只存在于 [yangfch3/dsh-mcp-mgr](https://github.com/yangfch3/dsh-mcp-mgr) 中。两者分属不同插件，总不能一次装两个，那也太麻烦了。
+
+所以我决定参考以上两位作者的项目，用 AI 搓一个同时满足这两点的插件，以后也方便加入自己的一些需求。如有需求，请使用作者原版插件，本插件仅供自己学习使用，也许后续作者直接支持了，这里可能就会放弃这个插件了。
+
+> [!NOTE]
+> 本项目功能对齐上游 [hyqhyq3/dsh-mcp-manager](https://github.com/hyqhyq3/dsh-mcp-manager) 的 `1d1bb9c`（v0.11.0，2026-09-10）。两个仓库没有共同提交历史，同步指功能语义对齐而非 git 合并；两者各自独立发布，版本号不互相对应。
+
+### 2. 项目介绍
+
+dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，把 MCP 服务器的配置与生命周期管理收进「设置 → MCP」页面，基于 MIT 协议开源。主要能力如下：
+
+- 在设置页统一登记、启停、编辑、删除 MCP 服务器；停用的服务器不会在启动时被拉起。
+- 支持两种传输：远程 HTTP（OAuth PKCE + 动态客户端注册，或静态 Bearer Token），以及本地 stdio 进程。
+- 按工作区隔离：工作区独享的服务器写在 `<workspace>/.dsh/dshmm/mcp.json`，全局服务器也可按工作区屏蔽。
+- 运行时可重启、关闭单个服务器的连接，长连接断开后不必重启 dsh。
+- 可选的按需工具代理（broker）：开启后 MCP 仅暴露 search、describe、execute 三个工具，避免大量工具污染上下文。
+
+插件分为宿主端与浏览器端两半，均以 TypeScript 编写：宿主端挂载 `/mcp-manager/api` 路由、管理 MCP 连接与工作区作用域，浏览器端只负责渲染设置页，两者通过同一组 API 通信。
 
 ## 二、 插件工作原理
 
@@ -286,21 +310,6 @@ NODE_OPTIONS=--inspect-brk dsh --profile demo
 ```
 
 断点打在 `lib/index.js`，sourceMap 会映射回 `src/index.ts`。
-
-## 五、 MCP管理功能
-
-### 1. 背景
-
-我有一个 MCP 项目 [smk-h/embedded-mcp-toolkit](https://github.com/smk-h/embedded-mcp-toolkit)，它每次启动都会写入一个日志文件。[dsh-v0.1.5-rc.1](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.5-rc.1) 已经支持直接配置 MCP，但这种配置是全局生效的：只要 dsh 启动，就必定拉起该 MCP，并且在任何工作区都能操作它。可我大多数时候只想用 dsh 做开发，并不需要连接这个 MCP，于是每次启动都会白白多出一个日志文件。
-
-我的诉求很明确：**只在打开某个工作区时，才启用该工作区的 MCP**。顺着这个需求，找到了下面两个插件：
-
-- [hyqhyq3/dsh-mcp-manager](https://github.com/hyqhyq3/dsh-mcp-manager)：按工作区启用 MCP，避免全局常驻
-- [yangfch3/dsh-mcp-mgr](https://github.com/yangfch3/dsh-mcp-mgr)：提供重启按钮，点击即可重启 MCP
-
-[hyqhyq3/dsh-mcp-manager](https://github.com/hyqhyq3/dsh-mcp-manager) 确实好用，满足了我的核心需求，但很快又出现了新问题：我大部分时候是在 Linux 服务器上通过 SSH 启动 Windows 中的 MCP，长时间不用后连接会断开，MCP 失去响应，这时只能重启 dsh；而「重启 MCP」的能力又只存在于 [yangfch3/dsh-mcp-mgr](https://github.com/yangfch3/dsh-mcp-mgr) 中。两者分属不同插件，总不能一次装两个。
-
-所以我决定参考以上两位作者的项目，用 AI 搓一个同时满足这两点的插件，以后也方便自己修改。也许日后会出现满足全部需求的现成插件，等到那时候再说吧，哈哈哈。
 
 ---
 *本文档由 markdowncli 技能辅助生成*
