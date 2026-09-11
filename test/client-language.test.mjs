@@ -40,9 +40,9 @@ function mount(fetch, language = 'en') {
     setInterval: () => 1,
     clearInterval: () => {},
   })
-  let dispose
+  const disposers = []
   exported.apply({
-    effect(fn, label) { effectLabels.push(label); dispose = fn() },
+    effect(fn, label) { effectLabels.push(label); disposers.push(fn()) },
     locale: {
       register(ns, table) {
         assert.equal(ns, 'mcp')
@@ -61,7 +61,7 @@ function mount(fetch, language = 'en') {
     get spec() { return spec },
     get inject() { return exported.inject },
     effectLabels,
-    dispose() { dispose(); assert.equal(disposed, true) },
+    dispose() { for (const dispose of disposers) dispose(); assert.equal(disposed, true) },
     setLocale(next) { language = next },
     render(component = Section, props = { t }) {
       cursor = 0
@@ -96,7 +96,7 @@ it('registers balanced mcp dictionaries with effect cleanup and the locale slot 
   assert.ok(app.inject.includes('locale'))
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-locale'))
-  assert.deepEqual(app.effectLabels, ['dsh-mcp-manager: dictionaries'])
+  assert.deepEqual(app.effectLabels, ['dsh-mcp-manager: dictionaries', 'dsh-mcp-manager: settings nav row'])
   for (const key of [...source.matchAll(/\bt\(\s*["']([\w-]+)["']/g)].map((match) => match[1])) {
     for (const locale of ['zh', 'en']) assert.ok(app.dictionaries[locale][key], locale + ': ' + key)
   }

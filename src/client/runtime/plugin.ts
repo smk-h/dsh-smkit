@@ -1,16 +1,19 @@
 /**
  * Client-side `apply`.
  *
- * Two responsibilities, both delegated to DSH:
+ * Three responsibilities, all delegated to DSH:
  * - register the bilingual `mcp` dictionary (`ctx.locale.register`), so DSH owns
  *   language selection, browser fallback, persistence and live updates;
  * - register the Settings → MCP tab in the `settings.section` slot, tagged with
- *   `locale: "mcp"` so its component receives the standard `t` prop.
+ *   `locale: "mcp"` so its component receives the standard `t` prop;
+ * - mark this section's own row in the settings nav, which the shell draws the
+ *   glyph for itself with no icon field on the registration (see `./nav-icon`).
  *
  * The plugin deliberately has no language selector, no language state and no
  * language API of its own.
  */
 
+import { markSettingsNavRow } from './nav-icon'
 import type { ClientContext, ClientDeps } from './types'
 
 const NAMESPACE = 'mcp'
@@ -22,6 +25,10 @@ export function createApply(deps: ClientDeps, McpContent: unknown): (ctx: Client
       'dsh-mcp-manager: dictionaries',
     )
     const t = ctx.locale.bind(NAMESPACE)
+    ctx.effect(
+      () => markSettingsNavRow(() => t('sectionLabel')),
+      'dsh-mcp-manager: settings nav row',
+    )
     ctx.slots.inject('settings.section', () =>
       ctx.slots.register(
         {
