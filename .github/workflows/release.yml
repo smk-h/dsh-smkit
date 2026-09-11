@@ -1,0 +1,172 @@
+name: Publish Release
+
+# 触发条件：推送到 main/master 且 commit message 含 [release] 标记。
+# 触发链：CNB push(main) → tencentcom/git-sync 同步到 GitHub → 本流水线触发。
+#   同一次提交若要同时发 npm 与 GitHub Release，把 [publish] 与 [release] 一起写进
+#   提交信息：npm 走 CNB 的 npm-publish.yml，压缩包走本文件，两条链互不依赖。
+on:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: write # 创建 tag / release 需要
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # 1. 读版本号并创建草稿 Release（先占位，压缩包由后续 job 上传）
+  #    tag、压缩包文件名、Release 页面里的安装命令全部由 package.json 派生，
+  #    改名或升版本只动 package.json，本文件不需要跟着改。
+  # ─────────────────────────────────────────────────────────────
+  release:
+    name: Create Draft Release
+    runs-on: ubuntu-latest
+    if: contains(join(github.event.commits.*.message, ' '), '[release]')
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      asset: ${{ steps.meta.outputs.asset }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Read name/version from package.json
+        id: meta
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          # scoped 包名按 pnpm pack 的产物命名规则映射：
+          # @smai-kit/dsh-smkit → smai-kit-dsh-smkit-<version>.tgz
+          SLUG=$(node -p "require('./package.json').name.replace(/^@/, '').replace(/\//g, '-')")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "asset=${SLUG}-${VERSION}.tgz" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## 产物说明
+
+            | 文件 | 内容 | 适用场景 |
+            |------|------|---------|
+            | `${{ steps.meta.outputs.asset }}` | 预构建插件包（`lib/` 已编译，文件清单与 npm 包完全一致） | **推荐**：下载即装，安装过程不跑构建脚本 |
+            | `Source code (zip / tar.gz)` | GitHub 自动生成的源码归档 | 需要自己 `pnpm install && pnpm build` 后再安装 |
+
+            ### 一、 直接按 URL 安装（推荐）
+
+            ```sh
+            dsh plugin --profile web add https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/${{ steps.meta.outputs.asset }}
+            ```
+
+            ### 二、 下载压缩包后安装
+
+            ```sh
+            # 已把 ${{ steps.meta.outputs.asset }} 下载到当前目录
+            dsh plugin --profile web add ./${{ steps.meta.outputs.asset }}
+            ```
+
+            Windows 上换成压缩包的绝对路径：
+
+            ```
+            dsh plugin --profile web add E:\downloads\${{ steps.meta.outputs.asset }}
+            ```
+
+            ### 三、 装完怎么验证
+
+            ```sh
+            dsh --profile web --dump-config | grep smai-kit
+            # == @smai-kit/dsh-smkit
+            # - id: mcp-manager
+            #   name: '@smai-kit/dsh-smkit'
+            ```
+
+            > 包内 `lib/` 由 `pnpm pack` 的 `prepack`（`tsc` + `tsdown` + 离线自检）预先产出，
+            > 安装时不执行任何构建脚本，因此**不需要**在 profile 的 `pnpm-workspace.yaml` 里
+            > 配置 `allowBuilds`——那是 `github:` 源码安装方式才需要的。
+
+            ### 四、 同一版本的其它安装方式
+
+            | 方式 | 命令 | 说明 |
+            |------|------|------|
+            | npm | `dsh plugin --profile web add @smai-kit/dsh-smkit@${{ steps.meta.outputs.version }}` | 受 pnpm 供应链发布年龄策略约束，刚发版时可能被拦下 |
+            | git | `dsh plugin --profile web add github:${{ github.repository }}` | 安装时执行 `prepare` 构建，需 `allowBuilds` 授权 |
+
+  # ─────────────────────────────────────────────────────────────
+  # 2. 构建并打出压缩包——与 npm 发布同源，都是 `pnpm pack` 的产物。
+  #    `pnpm pack` 按 package.json 的 files 清单打包，prepack 负责把 lib/ 编译出来，
+  #    所以这个压缩包和 npm 上那份是同一份东西，两种安装方式不会漂移。
+  # ─────────────────────────────────────────────────────────────
+  build:
+    name: Build tarball
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10 # 与 CNB 的 npm-publish 流水线保持一致
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 与 CNB 发布流水线同一道门槛：构建产物过不了自检就不出 Release
+      - name: Build, typecheck and test
+        run: |
+          pnpm build
+          pnpm typecheck
+          pnpm test
+
+      - name: Pack tarball
+        id: pack
+        run: |
+          # prepack 会重跑一次 build + 离线自检，这里不复用上一步的产物，保证包内 lib/ 是最新的
+          pnpm pack
+          TGZ="$(basename "$(ls -1 ./*.tgz | head -1)")"
+          EXPECTED="${{ needs.release.outputs.asset }}"
+          if [ "$TGZ" != "$EXPECTED" ]; then
+            echo "::error::pnpm pack 产物名与预期不符：$TGZ != $EXPECTED"
+            exit 1
+          fi
+          ls -lh "$TGZ"
+          echo "archive=$TGZ" >> "$GITHUB_OUTPUT"
+
+      - name: Upload tarball to draft release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.release.outputs.tag }}
+          draft: true
+          files: ${{ steps.pack.outputs.archive }}
+
+  # ─────────────────────────────────────────────────────────────
+  # 3. 压缩包上传完毕，把草稿 Release 正式发布（此时才建 tag 并置为 latest）
+  # ─────────────────────────────────────────────────────────────
+  publish:
+    name: Publish Release
+    needs: [release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark release as published (undraft)
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.release.outputs.tag }}
+          draft: false
+          make_latest: true
