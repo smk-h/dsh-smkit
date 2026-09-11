@@ -12,6 +12,7 @@
 
 import { createGlobalMaskRow } from './GlobalMaskRow'
 import { createServerForm } from './ServerForm'
+import { createScopeSelect } from './ui/ScopeSelect'
 import { createServerRow } from './ServerRow'
 import { createSwitch } from './ui/Switch'
 import { useAsyncAction } from './ui/useAsyncAction'
@@ -36,12 +37,19 @@ type View = 'list' | 'add' | 'edit-global' | 'edit-ws'
 const PLUGIN_NAME = __PLUGIN_NAME__
 const PLUGIN_REPO_URL = 'https://github.com/smk-h/dsh-smkit'
 
+/** The label the scope picker shows for a workspace: its last path segment,
+ * falling back to the whole path when there is no separator to split on. */
+function workspaceName(path: string): string {
+  return path.split('/').filter(Boolean).pop() || path
+}
+
 export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX.Element {
   const { h, react, api } = deps
   const ServerRow = createServerRow(deps)
   const ServerForm = createServerForm(deps)
   const WorkspaceServerRow = createWorkspaceServerRow(deps)
   const GlobalMaskRow = createGlobalMaskRow(deps)
+  const ScopeSelect = createScopeSelect(deps)
   const Switch = createSwitch(deps)
 
   return function McpContent({ t }: SectionProps): JSX.Element {
@@ -335,22 +343,19 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
         </div>
         {settingsAction.error ? <div className="mm_err">{settingsAction.error}</div> : null}
         <div className="mm_wsBar">
-          <select
-            className="mm_wsSelect"
+          <ScopeSelect
+            t={t}
             value={selected}
-            onChange={(e) => {
-              setSelected(e.target.value)
+            workspaces={workspaces.map((workspace) => ({
+              path: workspace.path,
+              name: workspaceName(workspace.path),
+            }))}
+            onChange={(next) => {
+              setSelected(next)
               setExpandedId(null)
               setQuery('')
             }}
-          >
-            <option value="">{t('global')}</option>
-            {workspaces.map((workspace) => (
-              <option value={workspace.path} key={workspace.path}>
-                {workspace.path.split('/').filter(Boolean).pop() || workspace.path}
-              </option>
-            ))}
-          </select>
+          />
         </div>
         {selected ? <div className="mm_wsPathHint">{selected}</div> : null}
         {selectedWs?.error ? <div className="mm_err">{selectedWs.error}</div> : null}
