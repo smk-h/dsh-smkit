@@ -108,20 +108,11 @@ declare namespace JSX {
     fill?: string
   }
 
-  interface SvgShapeProps extends CommonProps {
-    d?: string
-    cx?: string | number
-    cy?: string | number
-    r?: string | number
-    stroke?: string
-    strokeWidth?: string | number
-    strokeLinecap?: 'round' | 'butt' | 'square'
-    strokeLinejoin?: 'round' | 'miter' | 'bevel'
-  }
-
   /**
-   * Only the tags this section actually renders are declared. Adding a new one
-   * is a deliberate edit, and the stylesheet has to gain `.mm_*` rules for it.
+   * Only the tags this section's own JSX renders are declared; the elements
+   * inside an icon reach the DOM as tag strings through `h()` (see
+   * icons/Icon.tsx), so they need no entry here. Adding a tag is a deliberate
+   * edit, and the stylesheet has to gain `.mm_*` rules for it.
    */
   interface IntrinsicElements {
     div: CommonProps
@@ -135,7 +126,5 @@ declare namespace JSX {
     option: OptionProps
     button: ButtonProps
     svg: SvgProps
-    circle: SvgShapeProps
-    path: SvgShapeProps
   }
 }

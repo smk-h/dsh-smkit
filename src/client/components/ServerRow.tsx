@@ -4,6 +4,7 @@
  * the auth/edit/delete actions, plus the delete confirmation overlay.
  */
 
+import { createChevronDownIcon } from './icons/ChevronDownIcon'
 import { createConfirmDialog } from './ui/ConfirmDialog'
 import { serverDetails } from './ui/ServerDetails'
 import { createStatusBadge, createStatusDot } from './ui/StatusPill'
@@ -26,6 +27,7 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
   const StatusBadge = createStatusBadge(deps)
   const Switch = createSwitch(deps)
   const ConfirmDialog = createConfirmDialog(deps)
+  const ChevronDownIcon = createChevronDownIcon(deps)
 
   return function ServerRow({
     t,
@@ -102,15 +104,7 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
             <StatusDot status={server.status} />
             <StatusBadge t={t} status={server.status} />
             <span className="mm_chevron" data-open={open ? 'true' : undefined}>
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path
-                  d="M4 6l4 4 4-4"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <ChevronDownIcon size={12} />
             </span>
           </span>
         </button>

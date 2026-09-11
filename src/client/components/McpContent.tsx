@@ -11,6 +11,8 @@
  */
 
 import { createGlobalMaskRow } from './GlobalMaskRow'
+import { createPlusIcon } from './icons/PlusIcon'
+import { createSearchIcon } from './icons/SearchIcon'
 import { createServerForm } from './ServerForm'
 import { createScopeSelect } from './ui/ScopeSelect'
 import { createServerRow } from './ServerRow'
@@ -51,6 +53,8 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
   const GlobalMaskRow = createGlobalMaskRow(deps)
   const ScopeSelect = createScopeSelect(deps)
   const Switch = createSwitch(deps)
+  const PlusIcon = createPlusIcon(deps)
+  const SearchIcon = createSearchIcon(deps)
 
   return function McpContent({ t }: SectionProps): JSX.Element {
     const [servers, setServers] = react.useState<ServerView[]>([])
@@ -155,10 +159,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
         title={t('addServer')}
         onClick={() => setView('add')}
       >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M8 3.5v9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          <path d="M3.5 8h9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
+        <PlusIcon size={14} />
       </button>
     )
 
@@ -288,10 +289,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
 
     const globalBranch: JSX.Element[] = [
       <label className="mm_search" key="search">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
+        <SearchIcon size={14} />
         <input
           type="search"
           value={query}
