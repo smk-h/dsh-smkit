@@ -6,7 +6,7 @@
  * secret — nothing in this module may be logged.
  */
 
-import type { EnvMap, ServerConfig } from './types.js'
+import type { EnvMap, ServerConfig } from '../types.js'
 
 /**
  * The bearer token to present for this server.
@@ -57,4 +57,17 @@ export function authHeaders(
 export function hasToken(server: ServerConfig): boolean {
   if (server.authMode === 'static') return accessToken(server) !== ''
   return !!server.oauth?.tokens
+}
+
+/**
+ * Why a server with no usable credentials cannot connect. Empty for OAuth,
+ * whose reason arrives from the browser round trip instead.
+ */
+export function missingCredentialError(server: ServerConfig): string {
+  return server.authMode === 'static' ? 'missing token (set the env var)' : ''
+}
+
+/** Whether an OAuth server still needs its browser round trip (no tokens yet). */
+export function needsAuth(server: ServerConfig): boolean {
+  return (server.type ?? 'http') !== 'stdio' && server.authMode === 'oauth' && !server.oauth?.tokens
 }

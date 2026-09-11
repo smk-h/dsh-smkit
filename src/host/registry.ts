@@ -10,8 +10,11 @@
  */
 
 import { MAX_ERROR_LENGTH } from './constants.js'
+import { needsAuth } from './auth/credentials.js'
+import { closeHandleQuietly } from './mcp/handle.js'
 import { disposeRegistrations, listAllTools, syncToolRegistrations } from './mcp/tools.js'
 import { toErrorMessage } from './util/text.js'
+import { applyTransportFields } from './view.js'
 import type { Transports } from './mcp/transports.js'
 import type { Runtime } from './runtime.js'
 import type {
@@ -104,11 +107,7 @@ export function createRegistry(deps: RegistryDeps): Registry {
     conn.name = server.name
     try {
       // Reap any previous transport (a prior stdio child) before respawning.
-      try {
-        conn.handle?.close?.()
-      } catch {
-        // Closing an already-broken transport is not actionable.
-      }
+      closeHandleQuietly(conn.handle)
       const handle = await transports.openServer(server)
       conn.handle = handle
       conn.sessionId = handle.sessionId
@@ -123,18 +122,11 @@ export function createRegistry(deps: RegistryDeps): Registry {
     } catch (error) {
       disposeRegistrations(conn.tools)
       conn.toolCount = 0
-      try {
-        conn.handle?.close?.()
-      } catch {
-        // Nothing left to reap.
-      }
+      closeHandleQuietly(conn.handle)
       conn.handle = null
       conn.transport = null
       clearGlobalTools(server.name)
-      conn.status =
-        (server.type ?? 'http') !== 'stdio' && server.authMode === 'oauth' && !server.oauth?.tokens
-          ? 'needs-auth'
-          : 'error'
+      conn.status = needsAuth(server) ? 'needs-auth' : 'error'
       conn.error = toErrorMessage(error, MAX_ERROR_LENGTH)
       logger.warn(`mcp-manager: ${server.name} ${conn.status}: ${conn.error}`)
     }
@@ -145,11 +137,7 @@ export function createRegistry(deps: RegistryDeps): Registry {
     const conn = runtime.live.get(serverId)
     if (!conn) return
     disposeRegistrations(conn.tools)
-    try {
-      conn.handle?.close?.()
-    } catch {
-      // Nothing left to reap.
-    }
+    closeHandleQuietly(conn.handle)
     runtime.live.delete(serverId)
     if (conn.name) clearGlobalTools(conn.name)
   }
@@ -165,25 +153,12 @@ export function createRegistry(deps: RegistryDeps): Registry {
       enabled,
       status: !enabled
         ? 'disabled'
-        : (conn?.status ??
-          (type !== 'stdio' && server.authMode === 'oauth' && !server.oauth?.tokens
-            ? 'needs-auth'
-            : 'disconnected')),
+        : (conn?.status ?? (needsAuth(server) ? 'needs-auth' : 'disconnected')),
       toolCount: conn?.toolCount ?? 0,
       error: conn?.error ?? '',
+      authMode: type === 'stdio' ? undefined : server.authMode,
     }
-    if (type === 'stdio') {
-      view.command = server.command
-      view.args = server.args ?? []
-      view.env = server.env ?? {}
-      view.cwd = server.cwd ?? ''
-    } else {
-      view.url = server.url
-      view.authMode = server.authMode
-      view.headers = server.headers ?? {}
-      view.headerEnv = server.headerEnv ?? {}
-      if (server.authMode === 'static') view.tokenEnv = server.tokenEnv ?? ''
-    }
+    applyTransportFields(view, server)
     return view
   }
 

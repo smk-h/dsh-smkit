@@ -8,9 +8,15 @@
  */
 
 import { readBody, sendJson } from '../util/http.js'
-import { buildWorkspaceEntry, normalizeWorkspaceServer, readWorkspaceRaw, writeWorkspaceRaw } from '../workspace/config.js'
 import { workspaceTokenKey } from '../mcp/naming.js'
-import { saveState } from '../state.js'
+import { dropWorkspaceToken, saveState } from '../state.js'
+import {
+  buildWorkspaceEntry,
+  normalizeWorkspaceServer,
+  readWorkspaceRaw,
+  writeWorkspaceRaw,
+} from '../workspace/config.js'
+import { resolveWorkspace } from './context.js'
 import type { ApiContext, ApiHandler } from './context.js'
 
 async function respondWithWorkspaces(api: ApiContext, res: Parameters<ApiHandler>[1]): Promise<void> {
@@ -34,11 +40,8 @@ export const handleWorkspaces: ApiHandler = async (req, res, facts, api) => {
       sendJson(res, 400, { error: 'path and name are required' })
       return true
     }
-    const canonical = api.workspaces.knownWorkspacePath(path)
-    if (!canonical) {
-      sendJson(res, 403, { error: 'path is not a registered or active DSH workspace' })
-      return true
-    }
+    const canonical = resolveWorkspace(api, res, path)
+    if (!canonical) return true
     const ws = api.runtime.workspaces.get(canonical)
     const conn = ws?.servers.get(name)
     if (!conn) {
@@ -67,11 +70,8 @@ export const handleWorkspaces: ApiHandler = async (req, res, facts, api) => {
       sendJson(res, 400, { error: `unknown global server "${server}"` })
       return true
     }
-    const canonical = api.workspaces.knownWorkspacePath(path)
-    if (!canonical) {
-      sendJson(res, 403, { error: 'path is not a registered or active DSH workspace' })
-      return true
-    }
+    const canonical = resolveWorkspace(api, res, path)
+    if (!canonical) return true
     const raw = readWorkspaceRaw(canonical)
     const list = (Array.isArray(raw.exclude) ? raw.exclude : []).filter(
       (value): value is string => typeof value === 'string' && value !== server,
@@ -96,11 +96,8 @@ export const handleWorkspaces: ApiHandler = async (req, res, facts, api) => {
       sendJson(res, 400, { error: error ?? 'invalid server payload' })
       return true
     }
-    const canonical = api.workspaces.knownWorkspacePath(path)
-    if (!canonical) {
-      sendJson(res, 403, { error: 'path is not a registered or active DSH workspace' })
-      return true
-    }
+    const canonical = resolveWorkspace(api, res, path)
+    if (!canonical) return true
     const raw = readWorkspaceRaw(canonical)
     if (raw.mcpServers && typeof raw.mcpServers === 'object' && name in raw.mcpServers) {
       sendJson(res, 409, { error: `a server named ${name} already exists in this workspace` })
@@ -133,11 +130,8 @@ export const handleWorkspaces: ApiHandler = async (req, res, facts, api) => {
       sendJson(res, 400, { error: error ?? 'invalid server payload' })
       return true
     }
-    const canonical = api.workspaces.knownWorkspacePath(path)
-    if (!canonical) {
-      sendJson(res, 403, { error: 'path is not a registered or active DSH workspace' })
-      return true
-    }
+    const canonical = resolveWorkspace(api, res, path)
+    if (!canonical) return true
     const raw = readWorkspaceRaw(canonical)
     if (!raw.mcpServers || typeof raw.mcpServers !== 'object' || !(oldName in raw.mcpServers)) {
       sendJson(res, 404, { error: `workspace server "${oldName}" not found` })
@@ -169,10 +163,7 @@ export const handleWorkspaces: ApiHandler = async (req, res, facts, api) => {
     writeWorkspaceRaw(canonical, raw)
     // Preserve OAuth state only while the same named server stays on the same
     // issuer; otherwise an old token/client registration is unsafe.
-    const oldKey = workspaceTokenKey(canonical, oldName)
-    const tokens = (state.workspaceTokens ?? {}) as Record<string, unknown>
-    if (!keepOAuth && tokens[oldKey]) {
-      delete tokens[oldKey]
+    if (!keepOAuth && dropWorkspaceToken(state, workspaceTokenKey(canonical, oldName))) {
       saveState(state)
     }
     if (api.runtime.workspaces.get(canonical)) await api.workspaces.rescanWorkspace(canonical)
@@ -188,20 +179,12 @@ export const handleWorkspaces: ApiHandler = async (req, res, facts, api) => {
       sendJson(res, 400, { error: 'path and name are required' })
       return true
     }
-    const canonical = api.workspaces.knownWorkspacePath(path)
-    if (!canonical) {
-      sendJson(res, 403, { error: 'path is not a registered or active DSH workspace' })
-      return true
-    }
+    const canonical = resolveWorkspace(api, res, path)
+    if (!canonical) return true
     const raw = readWorkspaceRaw(canonical)
     if (raw.mcpServers && typeof raw.mcpServers === 'object') delete raw.mcpServers[name]
     writeWorkspaceRaw(canonical, raw)
-    const key = workspaceTokenKey(canonical, name)
-    const tokens = (state.workspaceTokens ?? {}) as Record<string, unknown>
-    if (tokens[key]) {
-      delete tokens[key]
-      saveState(state)
-    }
+    if (dropWorkspaceToken(state, workspaceTokenKey(canonical, name))) saveState(state)
     if (api.runtime.workspaces.get(canonical)) await api.workspaces.rescanWorkspace(canonical)
     await respondWithWorkspaces(api, res)
     return true

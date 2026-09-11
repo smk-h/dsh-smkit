@@ -79,3 +79,14 @@ export function persistServer(state: PluginState, server: ServerConfig): void {
   }
   saveState(state)
 }
+
+/**
+ * Drop the OAuth slot of one workspace server. Returns whether it existed, so
+ * callers persist only when something actually changed.
+ */
+export function dropWorkspaceToken(state: PluginState, key: string): boolean {
+  const tokens = state.workspaceTokens
+  if (!tokens || !(key in tokens)) return false
+  delete tokens[key]
+  return true
+}

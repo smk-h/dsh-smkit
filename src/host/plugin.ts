@@ -20,10 +20,10 @@
  */
 
 import { LOG_PREFIX } from './constants.js'
-import { hasToken } from './credentials.js'
+import { hasToken } from './auth/credentials.js'
 import { createRoute } from './api/route.js'
 import { createBrokerRuntime } from './broker/runtime.js'
-import { createOAuth } from './oauth.js'
+import { createOAuth } from './auth/oauth.js'
 import { createRegistry, setServerAuthStatus } from './registry.js'
 import { createRuntime } from './runtime.js'
 import { loadState, migrateLoadedState, saveState } from './state.js'
@@ -31,6 +31,7 @@ import { toErrorMessage } from './util/text.js'
 import { createAgentDecorators } from './workspace/agents.js'
 import { createWorkspaceManager } from './workspace/manager.js'
 import { createWorkspaceScope } from './workspace/scope.js'
+import { closeHandleQuietly } from './mcp/handle.js'
 import { createTransports } from './mcp/transports.js'
 import type { ApiContext } from './api/context.js'
 import type { BrokerRuntime, PromptAssembleContext, PromptAssembly } from './broker/runtime.js'
@@ -192,13 +193,7 @@ export function apply(ctx: PluginContext): void {
     runtime.brokerRuntimeDispose?.()
     runtime.brokerRuntimeDispose = null
     for (const agentState of runtime.agentScopeState.values()) scope.disposeAgentScope(agentState)
-    for (const conn of runtime.live.values()) {
-      try {
-        conn.handle?.close?.()
-      } catch {
-        // Nothing left to reap.
-      }
-    }
+    for (const conn of runtime.live.values()) closeHandleQuietly(conn.handle)
     for (const ws of runtime.workspaces.values()) {
       for (const conn of ws.servers.values()) manager.closeWorkspaceServer(conn)
       manager.closeWorkspaceWatchers(ws)

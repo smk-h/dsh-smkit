@@ -61,6 +61,13 @@ export const MAX_TOOL_NAME_LENGTH = 64
 /** Per-server `mcp__<name>__*` name rule, enforced on both tiers. */
 export const SERVER_NAME_RE = /^[A-Za-z0-9_-]{1,32}$/
 
+/** Validation messages shared by the global API and the workspace config. */
+export const SERVER_NAME_ERROR =
+  'name must be 1-32 chars of [A-Za-z0-9_-] (it becomes the mcp__<name>__ tool prefix)'
+export const SERVER_COMMAND_ERROR =
+  'stdio server requires a command (executable, e.g. npx / uvx / python)'
+export const SERVER_URL_ERROR = 'url must be an http(s) URL'
+
 /** Raster formats the DSH attachment vocabulary accepts. */
 export const IMAGE_MEDIA_TYPES: ReadonlySet<string> = new Set([
   'image/png',

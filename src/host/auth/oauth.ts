@@ -11,12 +11,12 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto'
-import { CALLBACK_PATH } from './constants.js'
-import { persistServer } from './state.js'
-import { httpPostForm, httpPostJson, parseJsonText } from './util/http.js'
-import { b64url, isRecord } from './util/text.js'
-import type { Runtime } from './runtime.js'
-import type { ServerConfig, ServerStatus } from './types.js'
+import { CALLBACK_PATH } from '../constants.js'
+import { persistServer } from '../state.js'
+import { httpPostForm, httpPostJson, parseJsonText } from '../util/http.js'
+import { b64url, isRecord } from '../util/text.js'
+import type { Runtime } from '../runtime.js'
+import type { ServerConfig, ServerStatus } from '../types.js'
 
 export interface OAuthMetadata {
   authorization_endpoint: string

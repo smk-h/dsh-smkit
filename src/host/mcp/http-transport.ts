@@ -14,7 +14,7 @@
  */
 
 import { LOG_PREFIX, MCP_CLIENT_INFO, MCP_PROTOCOL_VERSION } from '../constants.js'
-import { authHeaders } from '../credentials.js'
+import { authHeaders } from '../auth/credentials.js'
 import { httpPostJson } from '../util/http.js'
 import { errorText } from '../util/text.js'
 import { parseRpc, parseSseMessages } from './rpc.js'

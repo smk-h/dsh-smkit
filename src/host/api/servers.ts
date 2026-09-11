@@ -8,18 +8,19 @@
  * OAuth tokens persist.
  */
 
-import { SERVER_NAME_RE } from '../constants.js'
-import { hasToken } from '../credentials.js'
+import {
+  SERVER_COMMAND_ERROR,
+  SERVER_NAME_ERROR,
+  SERVER_NAME_RE,
+  SERVER_URL_ERROR,
+} from '../constants.js'
+import { hasToken, missingCredentialError } from '../auth/credentials.js'
 import { newServerId } from '../mcp/naming.js'
 import { saveState } from '../state.js'
 import { readBody, sendJson } from '../util/http.js'
-import { parseArgs, parseEnv } from '../util/text.js'
+import { isHttpUrl, parseArgs, parseEnv } from '../util/text.js'
 import type { ApiContext, ApiHandler } from './context.js'
 import type { AuthMode, EnvMap, ServerConfig } from '../types.js'
-
-const NAME_ERROR = 'name must be 1-32 chars of [A-Za-z0-9_-] (it becomes the mcp__<name>__ tool prefix)'
-const COMMAND_ERROR = 'stdio server requires a command (executable, e.g. npx / uvx / python)'
-const URL_ERROR = 'url must be an http(s) URL'
 
 interface NextConfig {
   command?: string
@@ -41,7 +42,7 @@ async function connectOrMark(api: ApiContext, server: ServerConfig): Promise<voi
   }
   api.runtime.setLive(server.id, {
     status: 'needs-auth',
-    error: server.authMode === 'static' ? 'missing token (set the env var)' : '',
+    error: missingCredentialError(server),
   })
 }
 
@@ -59,7 +60,7 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
     const name = String(body.name ?? '').trim()
     const type = body.type === 'stdio' ? 'stdio' : 'http'
     if (!SERVER_NAME_RE.test(name)) {
-      sendJson(res, 400, { error: NAME_ERROR })
+      sendJson(res, 400, { error: SERVER_NAME_ERROR })
       return true
     }
     if (api.workspaces.serverNameTaken(name)) {
@@ -71,7 +72,7 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
     if (type === 'stdio') {
       const command = String(body.command ?? '').trim()
       if (!command) {
-        sendJson(res, 400, { error: COMMAND_ERROR })
+        sendJson(res, 400, { error: SERVER_COMMAND_ERROR })
         return true
       }
       server = {
@@ -87,8 +88,8 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
     } else {
       const serverUrl = String(body.url ?? '').trim()
       const authMode: AuthMode = body.authMode === 'static' ? 'static' : 'oauth'
-      if (!/^https?:\/\//.test(serverUrl)) {
-        sendJson(res, 400, { error: URL_ERROR })
+      if (!isHttpUrl(serverUrl)) {
+        sendJson(res, 400, { error: SERVER_URL_ERROR })
         return true
       }
       server = {
@@ -203,7 +204,7 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
     // 1. Validate first: nothing below mutates `server` until every check passed.
     const newName = String(body.name ?? server.name).trim()
     if (!SERVER_NAME_RE.test(newName)) {
-      sendJson(res, 400, { error: NAME_ERROR })
+      sendJson(res, 400, { error: SERVER_NAME_ERROR })
       return true
     }
     if (newName !== server.name && api.workspaces.serverNameTaken(newName)) {
@@ -215,7 +216,7 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
     if (type === 'stdio') {
       const command = String(body.command ?? '').trim()
       if (!command) {
-        sendJson(res, 400, { error: COMMAND_ERROR })
+        sendJson(res, 400, { error: SERVER_COMMAND_ERROR })
         return true
       }
       next.command = command
@@ -225,8 +226,8 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
       if (cwd) next.cwd = cwd
     } else {
       const serverUrl = String(body.url ?? '').trim()
-      if (!/^https?:\/\//.test(serverUrl)) {
-        sendJson(res, 400, { error: URL_ERROR })
+      if (!isHttpUrl(serverUrl)) {
+        sendJson(res, 400, { error: SERVER_URL_ERROR })
         return true
       }
       next.url = serverUrl

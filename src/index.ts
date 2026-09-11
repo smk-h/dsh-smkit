@@ -10,9 +10,9 @@ export { apply, inject, name } from './host/plugin.js'
 export type { PluginContext } from './host/plugin.js'
 
 export { loadState, migrateLoadedState, persistServer, saveState } from './host/state.js'
-export { accessToken, authHeaders, hasToken, resolveHeaders } from './host/credentials.js'
-export { createOAuth } from './host/oauth.js'
-export type { OAuthMetadata, OAuthService } from './host/oauth.js'
+export { accessToken, authHeaders, hasToken, resolveHeaders } from './host/auth/credentials.js'
+export { createOAuth } from './host/auth/oauth.js'
+export type { OAuthMetadata, OAuthService } from './host/auth/oauth.js'
 
 export { normalizeEnvPairs, parseArgs, parseEnv, quoteWindowsToken } from './host/util/text.js'
 export { serviceOf } from './host/util/services.js'

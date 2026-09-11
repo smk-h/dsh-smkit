@@ -22,11 +22,6 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-/** Alias used where the JSON-Schema pass cares about array-ness specifically. */
-export function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return isRecord(value)
-}
-
 /** Render any thrown value as a message, unbounded. */
 export function errorText(error: unknown): string {
   return isRecord(error) && 'message' in error ? String(error.message) : String(error)
@@ -110,4 +105,9 @@ export function parseEnv(env: unknown): EnvMap {
     }
   }
   return {}
+}
+
+/** Whether a value is an absolute http(s) URL — the only scheme MCP accepts. */
+export function isHttpUrl(value: unknown): boolean {
+  return /^https?:\/\//.test(String(value ?? '').trim())
 }

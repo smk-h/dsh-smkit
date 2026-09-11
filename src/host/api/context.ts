@@ -6,7 +6,8 @@
  * `apply()` composition point the only place that wires subsystems together.
  */
 
-import type { OAuthService } from '../oauth.js'
+import { sendJson } from '../util/http.js'
+import type { OAuthService } from '../auth/oauth.js'
 import type { Registry } from '../registry.js'
 import type { Runtime } from '../runtime.js'
 import type { WorkspaceManager } from '../workspace/manager.js'
@@ -63,7 +64,15 @@ export function originOf(req: RequestLike): string {
   return `http://${headerValue(req, 'host') ?? '127.0.0.1'}`
 }
 
-/** The `path` field of a JSON body, trimmed. */
-export function requiredPath(body: Record<string, unknown>): string {
-  return String(body.path ?? '').trim()
+/**
+ * Resolve a `path` field to a canonical workspace, answering 403 when the path
+ * is not a registered or active workspace. Returns null once it has answered.
+ */
+export function resolveWorkspace(api: ApiContext, res: ResponseLike, path: string): string | null {
+  const canonical = api.workspaces.knownWorkspacePath(path)
+  if (!canonical) {
+    sendJson(res, 403, { error: 'path is not a registered or active DSH workspace' })
+    return null
+  }
+  return canonical
 }

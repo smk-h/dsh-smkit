@@ -13,12 +13,14 @@ import { realpathSync, unwatchFile, watchFile } from 'node:fs'
 import type { Stats } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { LOG_PREFIX, MAX_ERROR_LENGTH } from '../constants.js'
-import { hasToken } from '../credentials.js'
+import { hasToken, missingCredentialError } from '../auth/credentials.js'
+import { closeHandleQuietly } from '../mcp/handle.js'
 import { workspaceServerId, workspaceTokenKey } from '../mcp/naming.js'
 import { listAllTools } from '../mcp/tools.js'
-import { saveState } from '../state.js'
+import { dropWorkspaceToken, saveState } from '../state.js'
 import { serviceOf } from '../util/services.js'
 import { errorText, isRecord, toErrorMessage } from '../util/text.js'
+import { applyTransportFields } from '../view.js'
 import { canonicalize, readWorkspaceConfig, sameServerConfig, wsConfigPath } from './config.js'
 import type { Transports } from '../mcp/transports.js'
 import type { Runtime } from '../runtime.js'
@@ -104,11 +106,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
   }
 
   function closeWorkspaceServer(conn: WorkspaceConnection): void {
-    try {
-      conn.handle?.close?.()
-    } catch {
-      // Nothing left to reap.
-    }
+    closeHandleQuietly(conn.handle)
     conn.handle = null
     conn.call = () => Promise.reject(new Error('not connected'))
   }
@@ -197,7 +195,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     }
     if ((server.type ?? 'http') !== 'stdio' && !hasToken(server)) {
       conn.status = 'needs-auth'
-      conn.error = server.authMode === 'static' ? 'missing token (set the env var)' : ''
+      conn.error = missingCredentialError(server)
       return Promise.resolve(conn)
     }
     return openWorkspaceServerInner(server, conn)
@@ -233,11 +231,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       if (!desired.has(name)) {
         closeWorkspaceServer(conn)
         ws.servers.delete(name)
-        const key = workspaceTokenKey(wsPath, name)
-        if (workspaceTokens()[key]) {
-          delete workspaceTokens()[key]
-          tokensDropped = true
-        }
+        if (dropWorkspaceToken(runtime.state, workspaceTokenKey(wsPath, name))) tokensDropped = true
         changed = true
       }
     }
@@ -375,17 +369,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       toolCount,
       error,
     }
-    if (view.type === 'stdio') {
-      view.command = server.command
-      view.args = server.args ?? []
-      view.env = server.env ?? {}
-      view.cwd = server.cwd ?? ''
-    } else {
-      view.url = server.url
-      view.headers = server.headers ?? {}
-      view.headerEnv = server.headerEnv ?? {}
-      if (view.authMode === 'static') view.tokenEnv = server.tokenEnv ?? ''
-    }
+    applyTransportFields(view, server)
     return view
   }
 

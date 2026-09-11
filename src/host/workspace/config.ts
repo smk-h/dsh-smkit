@@ -9,13 +9,16 @@
 
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { SERVER_NAME_RE, WORKSPACE_CONFIG_REL } from '../constants.js'
+import {
+  SERVER_COMMAND_ERROR,
+  SERVER_NAME_ERROR,
+  SERVER_NAME_RE,
+  SERVER_URL_ERROR,
+  WORKSPACE_CONFIG_REL,
+} from '../constants.js'
 import { newWorkspaceServerId } from '../mcp/naming.js'
-import { errorText, isRecord, parseArgs, parseEnv } from '../util/text.js'
+import { errorText, isHttpUrl, isRecord, parseArgs, parseEnv } from '../util/text.js'
 import type { ServerConfig, WorkspaceConfig, WorkspaceRawConfig } from '../types.js'
-
-const NAME_ERROR =
-  'name must be 1-32 chars of [A-Za-z0-9_-] (it becomes the mcp__<name>__ tool prefix)'
 
 export function wsConfigPath(cwd: string): string {
   return join(cwd, WORKSPACE_CONFIG_REL)
@@ -67,7 +70,7 @@ export function normalizeWorkspaceServer(name: string, cfg: unknown, cwd: string
     return server
   }
   const url = String(cfg.url ?? '').trim()
-  if (!/^https?:\/\//.test(url)) return null
+  if (!isHttpUrl(url)) return null
   const authMode = cfg.authMode === 'static' ? 'static' : 'oauth'
   const server: ServerConfig = {
     id: newWorkspaceServerId(),
@@ -116,14 +119,12 @@ export interface WorkspaceEntryResult {
  */
 export function buildWorkspaceEntry(body: Record<string, unknown>): WorkspaceEntryResult {
   const name = String(body?.name ?? '').trim()
-  if (!SERVER_NAME_RE.test(name)) return { error: NAME_ERROR }
+  if (!SERVER_NAME_RE.test(name)) return { error: SERVER_NAME_ERROR }
   const type = body?.type === 'stdio' ? 'stdio' : 'http'
   const entry: Record<string, unknown> = { type }
   if (type === 'stdio') {
     const command = String(body?.command ?? '').trim()
-    if (!command) {
-      return { error: 'stdio server requires a command (executable, e.g. npx / uvx / python)' }
-    }
+    if (!command) return { error: SERVER_COMMAND_ERROR }
     entry.command = command
     entry.args = parseArgs(body?.args)
     entry.env = parseEnv(body?.env)
@@ -131,7 +132,7 @@ export function buildWorkspaceEntry(body: Record<string, unknown>): WorkspaceEnt
     if (cwd) entry.cwd = cwd
   } else {
     const url = String(body?.url ?? '').trim()
-    if (!/^https?:\/\//.test(url)) return { error: 'url must be an http(s) URL' }
+    if (!isHttpUrl(url)) return { error: SERVER_URL_ERROR }
     entry.url = url
     entry.authMode = body?.authMode === 'static' ? 'static' : 'oauth'
     entry.headers = parseEnv(body?.headers)
