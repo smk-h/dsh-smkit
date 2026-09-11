@@ -1,0 +1,52 @@
+# npm 自动发布流水线（模式与 embedded-mcp-toolkit 的同名流程一致）
+# 当 push 的提交记录中含有 [publish] 时触发：构建 → 测试 → 发布到 npm。
+# 幂等：版本已存在于 npm 时自动跳过。
+# dist-tag：预发布版本（如 0.2.0-alpha.0）发布到 alpha，稳定版发布到 latest。
+# 发布成功后即可安装：dsh plugin --profile web add @smai-kit/dsh-smkit@latest
+
+"**":
+  push:
+    - docker:
+        image: node:24
+      stages:
+        - name: node 和 npm 版本
+          script: |
+            echo "Node.js 版本: $(node -v)"
+            echo "npm 版本: $(npm -v)"
+
+        - name: 安装 pnpm
+          if: |
+            case "$CNB_COMMIT_MESSAGE" in *"[publish]"* ) true ;; * ) false ;; esac
+          script: |
+            npm i -g pnpm@10
+            pnpm -v
+
+        - name: 安装依赖
+          if: |
+            case "$CNB_COMMIT_MESSAGE" in *"[publish]"* ) true ;; * ) false ;; esac
+          script: pnpm install --frozen-lockfile
+
+        - name: 构建与测试
+          if: |
+            case "$CNB_COMMIT_MESSAGE" in *"[publish]"* ) true ;; * ) false ;; esac
+          script: |
+            pnpm build
+            pnpm typecheck
+            pnpm test
+
+        - name: 发布到 npm
+          if: |
+            case "$CNB_COMMIT_MESSAGE" in *"[publish]"* ) true ;; * ) false ;; esac
+          imports: https://cnb.cool/sumu.k/secret-key/-/blob/main/access-token.yml
+          script: |
+            VERSION=$(node -p "require('./package.json').version")
+            PKG_NAME=$(node -p "require('./package.json').name")
+            if npm view "${PKG_NAME}@${VERSION}" version >/dev/null 2>&1; then
+              echo "⏭️ 版本 ${PKG_NAME}@${VERSION} 已存在于 npm，跳过发布"
+            else
+              echo "//registry.npmjs.org/:_authToken=${NPM_ACCESS_TOKENS}" > ~/.npmrc
+              TAG=$(node -p "require('./package.json').version.includes('-') ? 'alpha' : 'latest'")
+              echo "🚀 发布 ${PKG_NAME}@${VERSION}（dist-tag: ${TAG}）"
+              pnpm publish --no-git-checks --tag "$TAG"
+              echo "✅ 发布成功！安装：dsh plugin --profile web add ${PKG_NAME}@latest"
+            fi
