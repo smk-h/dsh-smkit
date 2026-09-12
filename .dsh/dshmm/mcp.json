@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "slow-mcp-delay-30": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./scripts/slow-mcp.mjs",
+        "--delay=30"
+      ],
+      "env": {}
+    },
+    "slow-mcp-delay-30-fail": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./scripts/slow-mcp.mjs",
+        "--delay=30",
+        "--fail"
+      ],
+      "env": {}
+    },
+    "slow-mcp-delay-50": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./scripts/slow-mcp.mjs",
+        "--delay=50"
+      ],
+      "env": {}
+    }
+  }
+}
