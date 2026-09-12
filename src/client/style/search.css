@@ -1,5 +1,13 @@
 /**
- * The filter box above the global list (McpContent).
+ * The filter box in the section toolbar (McpContent): the magnifier, the
+ * field, and the round clear button that stands in for the input's native
+ * cancel control (which is hidden below).
+ *
+ * The box is a toolbar citizen, not a full-width row: it holds the scope
+ * row's right edge while the row fits it and drops to its own line — packed
+ * left, the toolbar's spacer keeping the right pull off it — on a page
+ * narrower than the row needs. The pill radius mirrors the scope trigger it
+ * sits next to.
  *
  * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
  * joins them in the order listed there, and the build inlines the result as one
@@ -8,11 +16,21 @@
  */
 
 .mm_search {
-  width: 100%;
+  position: relative;
   color: var(--dsw-alias-label-tertiary);
   align-items: center;
   display: flex;
-  position: relative;
+  /* Fixed at its working width and ready to wrap: the toolbar's spacer owns
+   * the slack (see section.css), so the box pins to the row's right edge
+   * while the row fits it and lands left-aligned on its own line when it
+   * does not. The width — not only the flex shrink chain — is what makes the
+   * wrap point deterministic: an input's intrinsic contribution is its
+   * placeholder text, which would leave the cluster's hypothetical width to
+   * the copy. The shrink and floor below are the overflow valve for a line
+   * narrower than the box, not a sizing mode. */
+  flex: 0 1 auto;
+  width: 260px;
+  min-width: 150px;
 }
 .mm_search>svg {
   pointer-events: none;
@@ -23,17 +41,44 @@
   border: 1px solid var(--dsw-alias-border-l2);
   background: var(--dsw-alias-bg-layer-1);
   width: 100%;
-  height: 36px;
+  height: 32px;
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  border-radius: 8px;
+  border-radius: 999px;
   outline: none;
-  padding: 0 34px 0 36px;
+  /* The left inset clears the magnifier; the right one reserves the clear
+   * button's slot whether or not it is mounted, so the text does not shift
+   * when the button appears. */
+  padding: 0 30px 0 34px;
   font-size: 13px;
+}
+.mm_search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
 }
 .mm_search input::placeholder {
   color: var(--dsw-alias-label-tertiary);
 }
 .mm_search input:focus-visible {
   border-color: var(--dsw-alias-state-business-primary);
+}
+
+.mm_searchClear {
+  position: absolute;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+  background: 0 0;
+  border: none;
+  border-radius: 999px;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mm_searchClear:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover-solid);
 }

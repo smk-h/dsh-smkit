@@ -31,10 +31,9 @@
 
 /* A connection that is being established (`connecting`/`authorizing`) draws as
  * a spinning arc in the status colour instead of sitting as a dot — motion
- * carries "working on it", the way ZCode's own MCP page does. Rows start the
- * spin at click time by previewing the transient status (McpContent's
- * `statusPreviews`), so the indicator no longer waits for the 3-second poll
- * that feeds it. */
+ * carries "working on it". Rows start the spin at click time by previewing
+ * the transient status (McpContent's `statusPreviews`), so the indicator no
+ * longer waits for the 3-second poll that feeds it. */
 .mm_statusDot[data-spin=true] {
   width: auto;
   height: auto;

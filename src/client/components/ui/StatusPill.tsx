@@ -9,11 +9,10 @@
  * Both render the status they are handed, transient ones included: a
  * `connecting`/`authorizing` connection draws as a spinning arc in the same
  * colour the settled dot would have (`mm_statusSpin` in `style/pill.css`) —
- * motion carries "working on it" instead of a colour change, the way ZCode's
- * own MCP page does. Rows keep this honest for user-initiated transitions by
- * previewing the intermediate status at click time (see `McpContent`'s
- * `statusPreviews`), so the spin starts with the click rather than with the
- * next poll.
+ * motion carries "working on it" instead of a colour change. Rows keep this
+ * honest for user-initiated transitions by previewing the intermediate status
+ * at click time (see `McpContent`'s `statusPreviews`), so the spin starts
+ * with the click rather than with the next poll.
  */
 
 import type { ClientDeps, Translator } from '../../runtime/types'

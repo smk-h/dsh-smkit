@@ -5,12 +5,21 @@
  * three API-surfaced data sets, re-polled every 3 seconds so a server that
  * reconnects on the host side updates its badge without a page reload.
  *
+ * The list view opens with the section title and both counts on their own
+ * line under the identity badge. Below it, a toolbar row pairs the scope
+ * picker on the left with the search box and the add button against the right
+ * edge; the box rides the same row while it fits and wraps to its own line,
+ * packed left, when the row runs short. The filter is a per-scope map — one
+ * query per scope — and it filters whichever lists the selected scope shows,
+ * so a workspace view can be narrowed down exactly like the global one.
+ *
  * Selecting a workspace switches the whole page into that workspace's scope:
  * its own servers on top, and the global servers below with a `hide` checkbox
  * each (the `exclude` mask).
  */
 
 import { createGlobalMaskRow } from './GlobalMaskRow'
+import { createClearIcon } from './icons/ClearIcon'
 import { createPlusIcon } from './icons/PlusIcon'
 import { createSearchIcon } from './icons/SearchIcon'
 import { createServerForm } from './ServerForm'
@@ -63,6 +72,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
   const Switch = createSwitch(deps)
   const PlusIcon = createPlusIcon(deps)
   const SearchIcon = createSearchIcon(deps)
+  const ClearIcon = createClearIcon(deps)
 
   return function McpContent({ t }: SectionProps): JSX.Element {
     const [servers, setServers] = react.useState<ServerView[]>([])
@@ -72,9 +82,12 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     const [view, setView] = react.useState<View>('list')
     const [editingId, setEditingId] = react.useState<string | null>(null)
     const [editingName, setEditingName] = react.useState<string | null>(null)
-    const [query, setQuery] = react.useState('')
+    // One query per scope: the text belongs to the scope it was typed in, so
+    // bouncing between the global view and a workspace keeps each view's
+    // filter instead of resetting it.
+    const [queries, setQueries] = react.useState<Record<string, string>>({})
     const [expandedId, setExpandedId] = react.useState<string | null>(null)
-    // Optimistic transitions, the model ZCode's own MCP page uses: an action
+    // Optimistic transitions: an action
     // (enable/disable, restart, stop, auth) previews the intermediate status at
     // click time so the row spins from the click, not from whenever the 3s
     // poll happens to sample the host-side transition. A preview retires once
@@ -169,10 +182,23 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     const wsServers: WorkspaceServerView[] = selectedWs?.servers ?? []
     const wsTotal = workspaces.reduce((sum, workspace) => sum + workspace.servers.length, 0)
     const excludeSet = new Set(selectedWs?.exclude ?? [])
+    const query = queries[selected] ?? ''
+    const setQuery = (next: string): void => {
+      setQueries({ ...queries, [selected]: next })
+    }
     const normalizedQuery = query.trim().toLocaleLowerCase()
-    const filteredServers = servers.filter((server) =>
-      server.name.toLocaleLowerCase().includes(normalizedQuery),
-    )
+    const searching = normalizedQuery !== ''
+    // A trimmed, case-insensitive substring test across the fields a server
+    // is found by — its name, plus the URL or command one would grep a config
+    // for. An empty query matches everything, so the unsearched lists below
+    // are these same filters.
+    const matchesQuery = (server: { name: string; url?: string; command?: string }): boolean =>
+      !searching ||
+      [server.name, server.url, server.command].some((field) =>
+        field?.toLocaleLowerCase().includes(normalizedQuery),
+      )
+    const filteredServers = servers.filter(matchesQuery)
+    const filteredWsServers = wsServers.filter(matchesQuery)
 
     const toggleExclude = async (serverName: string, exclude: boolean): Promise<void> => {
       if (!selected) return
@@ -287,70 +313,78 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
       )
     }
 
-    const workspaceBranch: JSX.Element[] = [
-      <div className="mm_groupTitle" key="ws-title">
-        {t('workspaceServers')}
-      </div>,
-      wsServers.length > 0 ? (
-        <div className="mm_wsList" key="ws-list">
-          {wsServers.map((server) => (
-            <WorkspaceServerRow
-              t={t}
-              server={withPreview(server)}
-              workspacePath={selected}
-              onChanged={refresh}
-              onStatusPreview={previewStatus}
-              onEdit={() => {
-                setEditingName(server.name)
-                setView('edit-ws')
-              }}
-              key={server.name}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="mm_meta" key="ws-empty">
-          {t('emptyWorkspace')}
-        </div>
-      ),
-      <div className="mm_groupTitle" key="global-title">
-        {t('globalServers')}
-      </div>,
-      servers.length > 0 ? (
-        <div className="mm_wsList" key="global-list">
-          {servers.map((server) => (
-            <GlobalMaskRow
-              t={t}
-              server={withPreview(server)}
-              excluded={excludeSet.has(server.name)}
-              onToggleExclude={toggleExclude}
-              onEdit={() => {
-                setEditingId(server.id)
-                setView('edit-global')
-              }}
-              busy={excludeAction.busy}
-              key={server.id}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="mm_meta" key="global-empty">
-          {t('emptyGlobal')}
-        </div>
-      ),
-    ]
+    // While a query is active, a group with no matches disappears whole —
+    // title included, rather than showing its empty-state line — and when
+    // that leaves nothing at all, one "no matches" line stands in for both
+    // groups.
+    const workspaceBranch: JSX.Element[] = []
+    if (!searching || filteredWsServers.length > 0) {
+      workspaceBranch.push(
+        <div className="mm_groupTitle" key="ws-title">
+          {t('workspaceServers')}
+        </div>,
+        wsServers.length > 0 ? (
+          <div className="mm_wsList" key="ws-list">
+            {filteredWsServers.map((server) => (
+              <WorkspaceServerRow
+                t={t}
+                server={withPreview(server)}
+                workspacePath={selected}
+                onChanged={refresh}
+                onStatusPreview={previewStatus}
+                onEdit={() => {
+                  setEditingName(server.name)
+                  setView('edit-ws')
+                }}
+                key={server.name}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="mm_meta" key="ws-empty">
+            {t('emptyWorkspace')}
+          </div>
+        ),
+      )
+    }
+    if (!searching || filteredServers.length > 0) {
+      workspaceBranch.push(
+        <div className="mm_groupTitle" key="global-title">
+          {t('globalServers')}
+        </div>,
+        servers.length > 0 ? (
+          <div className="mm_wsList" key="global-list">
+            {filteredServers.map((server) => (
+              <GlobalMaskRow
+                t={t}
+                server={withPreview(server)}
+                excluded={excludeSet.has(server.name)}
+                onToggleExclude={toggleExclude}
+                onEdit={() => {
+                  setEditingId(server.id)
+                  setView('edit-global')
+                }}
+                busy={excludeAction.busy}
+                key={server.id}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="mm_meta" key="global-empty">
+            {t('emptyGlobal')}
+          </div>
+        ),
+      )
+    }
+    if (searching && filteredWsServers.length === 0 && filteredServers.length === 0) {
+      workspaceBranch.push(
+        <div className="mm_meta" key="search-empty">
+          {t('searchEmpty')}
+        </div>,
+      )
+    }
 
     const globalBranch: JSX.Element[] = [
-      <label className="mm_search" key="search">
-        <SearchIcon size={14} />
-        <input
-          type="search"
-          value={query}
-          placeholder={t('search')}
-          aria-label={t('search')}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </label>,
       <div className="mm_cards" key="cards">
         {filteredServers.map((server) => (
           <ServerRow
@@ -369,6 +403,13 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
         ))}
       </div>,
     ]
+    if (searching && filteredServers.length === 0) {
+      globalBranch.push(
+        <div className="mm_meta" key="search-empty">
+          {t('searchEmpty')}
+        </div>,
+      )
+    }
 
     return (
       <div className="mm_section">
@@ -376,9 +417,48 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
         <div className="mm_catalogHeading">
           <h3>{t('servers')}</h3>
           <span>
-            {t('countGlobal', { count: servers.length })} · {t('countWorkspace', { count: wsTotal })}
+            {t('countGlobal', { count: servers.length })} ·{' '}
+            {t('countWorkspace', { count: wsTotal })}
           </span>
-          <span className="mm_addActions">{addBtn}</span>
+        </div>
+        <div className="mm_toolbar">
+          <ScopeSelect
+            t={t}
+            value={selected}
+            workspaces={workspaces.map((workspace) => ({
+              path: workspace.path,
+              name: workspaceName(workspace.path),
+            }))}
+            onChange={(next) => {
+              setSelected(next)
+              setExpandedId(null)
+            }}
+          />
+          <span className="mm_toolbarSpacer" aria-hidden="true" />
+          <div className="mm_toolbarActions">
+            <label className="mm_search">
+              <SearchIcon size={14} />
+              <input
+                type="search"
+                value={query}
+                placeholder={t('search')}
+                aria-label={t('search')}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {query ? (
+                <button
+                  className="mm_searchClear"
+                  type="button"
+                  aria-label={t('clearSearch')}
+                  title={t('clearSearch')}
+                  onClick={() => setQuery('')}
+                >
+                  <ClearIcon size={12} />
+                </button>
+              ) : null}
+            </label>
+            {addBtn}
+          </div>
         </div>
         <div className="mm_feature">
           <span className="mm_featureText">
@@ -394,21 +474,6 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           />
         </div>
         {settingsAction.error ? <div className="mm_err">{settingsAction.error}</div> : null}
-        <div className="mm_wsBar">
-          <ScopeSelect
-            t={t}
-            value={selected}
-            workspaces={workspaces.map((workspace) => ({
-              path: workspace.path,
-              name: workspaceName(workspace.path),
-            }))}
-            onChange={(next) => {
-              setSelected(next)
-              setExpandedId(null)
-              setQuery('')
-            }}
-          />
-        </div>
         {selected ? <div className="mm_wsPathHint">{selected}</div> : null}
         {selectedWs?.error ? <div className="mm_err">{selectedWs.error}</div> : null}
         {selected ? workspaceBranch : globalBranch}

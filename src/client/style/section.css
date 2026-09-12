@@ -1,7 +1,7 @@
 /**
  * Page shell for the section (McpContent): the container, its headings, the
  * lists that hold the rows/cards, the add button, the on-demand feature row,
- * the scope bar and the path hint.
+ * the toolbar (scope picker, title, search) and the path hint.
  *
  * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
  * joins them in the order listed there, and the build inlines the result as one
@@ -56,11 +56,6 @@
   display: grid;
 }
 
-.mm_addActions {
-  margin-left: auto;
-  display: inline-flex;
-}
-
 .mm_addBtn {
   box-sizing: border-box;
   width: 28px;
@@ -85,11 +80,43 @@
   gap: 10px;
 }
 
-.mm_wsBar {
-  display: flex;
+.mm_toolbar {
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 0 2px;
+  display: flex;
+}
+
+/* The scope picker yields first when the row runs short: `min-width: 0` lets
+ * the pill compress below its label so the trigger's ellipsis engages instead
+ * of the search wrapping to its own line. */
+.mm_toolbar>.mm_scope {
+  min-width: 0;
+}
+
+/* The right-hand pull for the search, as its own flex item rather than an
+ * auto margin on the search box: an auto margin would push a wrapped search
+ * to the right of its own line too. On one line the spacer absorbs the slack
+ * and holds search+add against the right edge; when the search wraps, the
+ * spacer stays behind on the scope's line and the search's line packs left. */
+.mm_toolbarSpacer {
+  flex: 1 1 0;
+}
+
+/* The search and the add button travel as one cluster, so a wrapping search
+ * never strands the add button on a line of its own; the spacer above owns
+ * the right-edge pull, so the cluster packs left when it wraps. The cluster
+ * itself stays shrinkable — `min-width: 0` waives the automatic minimum (the
+ * content's intrinsic width, which would hold the pair at full size and let
+ * it overflow the card) and lets a narrow panel squeeze the search box inside
+ * it, down to the search's own floor. */
+.mm_toolbarActions {
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  display: flex;
+  flex: 0 1 auto;
 }
 
 .mm_wsPathHint {
