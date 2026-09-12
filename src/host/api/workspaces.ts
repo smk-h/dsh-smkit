@@ -5,9 +5,14 @@
  * rescans that workspace, so the change lands in live agent sessions without a
  * restart (the file watcher covers external edits too). `path` must be a
  * registered or already-active workspace — the routes refuse arbitrary paths.
+ * The one non-mutating exception is `/workspaces/open-config`, which opens
+ * the config file with the platform's default association (creating the empty
+ * file when absent) and never rescans.
  */
 
+import { existsSync } from 'node:fs'
 import { readBody, sendJson } from '../util/http.js'
+import { openPath } from '../util/open.js'
 import { workspaceTokenKey } from '../mcp/naming.js'
 import { dropWorkspaceToken, saveState } from '../state.js'
 import {
@@ -15,6 +20,7 @@ import {
   normalizeWorkspaceServer,
   readWorkspaceRaw,
   writeWorkspaceRaw,
+  wsConfigPath,
 } from '../workspace/config.js'
 import { resolveWorkspace } from './context.js'
 import type { ApiContext, ApiHandler } from './context.js'
@@ -192,6 +198,24 @@ export const handleWorkspaces: ApiHandler = async (req, res, facts, api) => {
     if (dropWorkspaceToken(state, workspaceTokenKey(canonical, name))) saveState(state)
     if (api.runtime.workspaces.get(canonical)) await api.workspaces.rescanWorkspace(canonical)
     await respondWithWorkspaces(api, res)
+    return true
+  }
+
+  if (req.method === 'POST' && rest === '/workspaces/open-config') {
+    const body = await readBody(req)
+    const path = String(body.path ?? '').trim()
+    if (!path) {
+      sendJson(res, 400, { error: 'path is required' })
+      return true
+    }
+    const canonical = resolveWorkspace(api, res, path)
+    if (!canonical) return true
+    const file = wsConfigPath(canonical)
+    // The open needs a target: create the minimal config when absent. A
+    // present-but-broken file still opens — the user must see it to fix it.
+    if (!existsSync(file)) writeWorkspaceRaw(canonical, {})
+    openPath(file)
+    sendJson(res, 200, { file })
     return true
   }
 

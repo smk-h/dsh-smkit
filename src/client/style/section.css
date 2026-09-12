@@ -49,6 +49,34 @@
   line-height: 18px;
 }
 
+/* The "open config file" icon button beside the scope picker, same 28px
+ * circle as the add button so the toolbar reads as one row of round actions.
+ * Icon-only on purpose: a label squeezed the search box onto its own line.
+ * The picker's trigger already names the selected workspace (hover shows the
+ * full path), and the button's tooltip names the file it opens. */
+.mm_openConfig {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  background: 0 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 14px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mm_openConfig:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+.mm_openConfig:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .mm_cards {
   grid-template-columns: minmax(0,1fr);
   align-items: start;

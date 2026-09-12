@@ -22,6 +22,7 @@ import { createGlobalMaskRow } from './GlobalMaskRow'
 import { createClearIcon } from './icons/ClearIcon'
 import { createPlusIcon } from './icons/PlusIcon'
 import { createSearchIcon } from './icons/SearchIcon'
+import { createSettings2Icon } from './icons/Settings2Icon'
 import { createServerForm } from './ServerForm'
 import { createScopeSelect } from './ui/ScopeSelect'
 import { createServerRow } from './ServerRow'
@@ -73,6 +74,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
   const PlusIcon = createPlusIcon(deps)
   const SearchIcon = createSearchIcon(deps)
   const ClearIcon = createClearIcon(deps)
+  const Settings2Icon = createSettings2Icon(deps)
 
   return function McpContent({ t }: SectionProps): JSX.Element {
     const [servers, setServers] = react.useState<ServerView[]>([])
@@ -100,6 +102,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     const [polledAt, setPolledAt] = react.useState(0)
     const excludeAction = useAsyncAction(react)
     const settingsAction = useAsyncAction(react)
+    const openConfigAction = useAsyncAction(react)
 
     /** Overlay a previewed status onto one server view. */
     const withPreview = <S extends { id: string; status: string }>(server: S): S => {
@@ -228,6 +231,21 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
         }
         return r.body.error || t('toggleFailed', { status: r.status })
       })
+
+    // Open the current scope's config file, DSH-settings style: the file
+    // itself, via the platform's default `.json` association. Global opens
+    // the profile state file (the global tier's only store); a workspace
+    // opens its declarative .dsh/dshmm/mcp.json.
+    const openConfig = (): Promise<void> =>
+      openConfigAction.run(async () => {
+        const r = selected
+          ? await api('/workspaces/open-config', {
+              method: 'POST',
+              body: JSON.stringify({ path: selected }),
+            })
+          : await api('/open-config', { method: 'POST' })
+        if (!r.ok) return r.body.error || t('openConfigFailed', { status: r.status })
+      }, 'open-config')
 
     const addBtn = (
       <button
@@ -434,6 +452,16 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
               setExpandedId(null)
             }}
           />
+          <button
+            className="mm_openConfig"
+            type="button"
+            aria-label={t('openConfig')}
+            title={t('openConfig')}
+            disabled={openConfigAction.busy}
+            onClick={openConfig}
+          >
+            <Settings2Icon size={14} />
+          </button>
           <span className="mm_toolbarSpacer" aria-hidden="true" />
           <div className="mm_toolbarActions">
             <label className="mm_search">
@@ -474,7 +502,6 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           />
         </div>
         {settingsAction.error ? <div className="mm_err">{settingsAction.error}</div> : null}
-        {selected ? <div className="mm_wsPathHint">{selected}</div> : null}
         {selectedWs?.error ? <div className="mm_err">{selectedWs.error}</div> : null}
         {selected ? workspaceBranch : globalBranch}
       </div>

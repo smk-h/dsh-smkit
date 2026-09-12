@@ -90,6 +90,8 @@ export const MCP_LOCALE_EN: LocaleDict = {
   "search": "Search MCP servers…",
   "clearSearch": "Clear search",
   "searchEmpty": "No matching MCP servers",
+  "openConfig": "Open config file",
+  "openConfigFailed": "Failed to open config file (HTTP {status})",
   "authFailed": "Failed to start authentication (HTTP {status})",
   "deleteFailed": "Delete failed (HTTP {status})",
   "toggleFailed": "Toggle failed (HTTP {status})",

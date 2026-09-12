@@ -1,5 +1,5 @@
 /**
- * `GET /ping` and the profile-level feature settings.
+ * `GET /ping`, the profile-level feature settings, and the global config open.
  *
  * `GET /settings` intentionally exposes **only** `onDemandToolInjection`: the
  * plugin has no language setting of its own — DSH owns language selection
@@ -8,6 +8,10 @@
  * unused, and `POST /settings/language` must 404.
  */
 
+import { existsSync } from 'node:fs'
+import { STATE_PATH } from '../constants.js'
+import { saveState } from '../state.js'
+import { openPath } from '../util/open.js'
 import { readBody, sendJson } from '../util/http.js'
 import type { ApiHandler } from './context.js'
 
@@ -32,6 +36,16 @@ export const handleSettings: ApiHandler = async (req, res, facts, api) => {
     }
     api.setOnDemandToolInjection(body.enabled)
     sendJson(res, 200, { onDemandToolInjection: api.runtime.state.onDemandToolInjection })
+    return true
+  }
+
+  if (req.method === 'POST' && rest === '/open-config') {
+    // The open needs a target: materialize the state file when absent. It is
+    // the plugin's own store, so writing the in-memory state back is the
+    // normal save path, not a special case.
+    if (!existsSync(STATE_PATH)) saveState(api.runtime.state)
+    openPath(STATE_PATH)
+    sendJson(res, 200, { file: STATE_PATH })
     return true
   }
 

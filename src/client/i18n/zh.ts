@@ -93,6 +93,8 @@ export const MCP_LOCALE_ZH: LocaleDict = {
   "search": "搜索 MCP 服务器…",
   "clearSearch": "清空搜索",
   "searchEmpty": "没有匹配的 MCP 服务器",
+  "openConfig": "打开配置文件",
+  "openConfigFailed": "打开配置文件失败 (HTTP {status})",
   "authFailed": "认证启动失败 (HTTP {status})",
   "deleteFailed": "删除失败 (HTTP {status})",
   "toggleFailed": "切换失败 (HTTP {status})",
