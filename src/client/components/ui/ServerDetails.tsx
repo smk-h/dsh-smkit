@@ -24,7 +24,7 @@ export function serverDetails(
     <div className="mm_url" key="transport">
       {server.type === 'stdio'
         ? `stdio · ${server.command} ${(server.args || []).join(' ')}`
-        : `${server.authMode === 'oauth' ? 'OAuth' : t('staticToken')} · ${server.url}`}
+        : `${server.authMode === 'oauth' ? 'OAuth' : server.authMode === 'none' ? t('noAuth') : t('staticToken')} · ${server.url}`}
     </div>,
     server.status === 'connected' ? (
       <div className="mm_meta" key="tools">

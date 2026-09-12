@@ -6,17 +6,32 @@
  * secret — nothing in this module may be logged.
  */
 
-import type { EnvMap, ServerConfig } from '../types.js'
+import type { AuthMode, EnvMap, ServerConfig } from '../types.js'
+
+/**
+ * Normalize a config/request `authMode` in exactly one place.
+ *
+ * `oauth` | `static` | `none` are the only valid modes; anything else (missing,
+ * hand-edited, or an unknown future value) falls back to `oauth`, so a server
+ * can never end up in a limbo state.
+ */
+export function normalizeAuthMode(value: unknown): AuthMode {
+  return value === 'static' || value === 'none' ? value : 'oauth'
+}
 
 /**
  * The bearer token to present for this server.
  *
+ * - `none`: no authentication at all — always empty, even when a stale OAuth
+ *   token is still attached (e.g. a hand-edited workspace `mcp.json`), so no
+ *   `Authorization` header is ever sent.
  * - `static`: read `process.env[tokenEnv]`; fall back to the legacy plaintext
  *   `staticToken` written by ≤0.3.0 so existing configs keep working until they
  *   are re-saved with an env var name (the PUT handler then drops the field).
  * - `oauth`: the stored access token (may be stale; callers refresh on 401).
  */
 export function accessToken(server: ServerConfig): string {
+  if (server.authMode === 'none') return ''
   if (server.authMode === 'static') {
     const envName = server.tokenEnv
     if (envName) return process.env[envName] ?? ''
@@ -55,6 +70,8 @@ export function authHeaders(
 
 /** Whether this server currently has usable credentials to attempt connecting. */
 export function hasToken(server: ServerConfig): boolean {
+  // `none` is exempt from the credential gate: there is nothing to wait for.
+  if (server.authMode === 'none') return true
   if (server.authMode === 'static') return accessToken(server) !== ''
   return !!server.oauth?.tokens
 }

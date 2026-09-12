@@ -182,6 +182,7 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
               <select value={authMode} onChange={(e) => setAuthMode(e.target.value)}>
                 <option value="oauth">{t('oauth')}</option>
                 <option value="static">{t('bearer')}</option>
+                <option value="none">{t('noAuthOption')}</option>
               </select>
             </label>,
             authMode === 'static' ? (

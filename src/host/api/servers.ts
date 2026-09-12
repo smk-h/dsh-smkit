@@ -14,7 +14,7 @@ import {
   SERVER_NAME_RE,
   SERVER_URL_ERROR,
 } from '../constants.js'
-import { hasToken, missingCredentialError } from '../auth/credentials.js'
+import { hasToken, missingCredentialError, normalizeAuthMode } from '../auth/credentials.js'
 import { newServerId } from '../mcp/naming.js'
 import { saveState } from '../state.js'
 import { readBody, sendJson } from '../util/http.js'
@@ -87,7 +87,7 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
       if (cwd) server.cwd = cwd
     } else {
       const serverUrl = String(body.url ?? '').trim()
-      const authMode: AuthMode = body.authMode === 'static' ? 'static' : 'oauth'
+      const authMode: AuthMode = normalizeAuthMode(body.authMode)
       if (!isHttpUrl(serverUrl)) {
         sendJson(res, 400, { error: SERVER_URL_ERROR })
         return true
@@ -156,6 +156,11 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
   }
 
   if (req.method === 'POST' && action === '/auth') {
+    // Only OAuth has a browser round trip; `static`/`none` have nothing to start.
+    if (server.authMode !== 'oauth') {
+      sendJson(res, 400, { error: 'only HTTP OAuth servers need authorization' })
+      return true
+    }
     const authorizeUrl = await api.oauth.startAuth(server, facts.origin)
     sendJson(res, 200, { authorizeUrl })
     return true
@@ -231,7 +236,7 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
         return true
       }
       next.url = serverUrl
-      next.authMode = body.authMode === 'static' ? 'static' : 'oauth'
+      next.authMode = normalizeAuthMode(body.authMode)
       next.headers = parseEnv(body.headers)
       next.headerEnv = parseEnv(body.headerEnv)
       if (next.authMode === 'static') {
@@ -269,6 +274,12 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
         // Once an env var name is set (or kept), the legacy plaintext token is
         // obsolete — drop it.
         if (server.tokenEnv) delete server.staticToken
+      } else if (next.authMode === 'none') {
+        // Unauthenticated: drop every credential, including a leftover OAuth
+        // client registration/token, so nothing stale can be sent.
+        delete server.tokenEnv
+        delete server.staticToken
+        delete server.oauth
       } else {
         delete server.tokenEnv
         delete server.staticToken

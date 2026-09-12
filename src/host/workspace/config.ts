@@ -16,6 +16,7 @@ import {
   SERVER_URL_ERROR,
   WORKSPACE_CONFIG_REL,
 } from '../constants.js'
+import { normalizeAuthMode } from '../auth/credentials.js'
 import { newWorkspaceServerId } from '../mcp/naming.js'
 import { errorText, isHttpUrl, isRecord, parseArgs, parseEnv } from '../util/text.js'
 import type { ServerConfig, WorkspaceConfig, WorkspaceRawConfig } from '../types.js'
@@ -71,7 +72,7 @@ export function normalizeWorkspaceServer(name: string, cfg: unknown, cwd: string
   }
   const url = String(cfg.url ?? '').trim()
   if (!isHttpUrl(url)) return null
-  const authMode = cfg.authMode === 'static' ? 'static' : 'oauth'
+  const authMode = normalizeAuthMode(cfg.authMode)
   const server: ServerConfig = {
     id: newWorkspaceServerId(),
     name,
@@ -134,7 +135,7 @@ export function buildWorkspaceEntry(body: Record<string, unknown>): WorkspaceEnt
     const url = String(body?.url ?? '').trim()
     if (!isHttpUrl(url)) return { error: SERVER_URL_ERROR }
     entry.url = url
-    entry.authMode = body?.authMode === 'static' ? 'static' : 'oauth'
+    entry.authMode = normalizeAuthMode(body?.authMode)
     entry.headers = parseEnv(body?.headers)
     entry.headerEnv = parseEnv(body?.headerEnv)
     if (entry.authMode === 'static') entry.tokenEnv = String(body?.tokenEnv ?? '').trim()

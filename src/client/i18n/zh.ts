@@ -64,6 +64,8 @@ export const MCP_LOCALE_ZH: LocaleDict = {
   "authMode": "认证方式",
   "oauth": "OAuth（浏览器跳转认证）",
   "bearer": "静态 Bearer Token",
+  "noAuth": "无鉴权",
+  "noAuthOption": "无鉴权（服务器无需认证）",
   "tokenEnv": "Bearer 令牌环境变量（填变量名，不填明文）",
   "headers": "标头 Headers",
   "key": "键 Key",

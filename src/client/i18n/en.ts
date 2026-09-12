@@ -61,6 +61,8 @@ export const MCP_LOCALE_EN: LocaleDict = {
   "authMode": "Authentication method",
   "oauth": "OAuth (authenticate in browser)",
   "bearer": "Static Bearer token",
+  "noAuth": "No auth",
+  "noAuthOption": "No auth (server needs no credentials)",
   "tokenEnv": "Bearer token environment variable (name, not the token itself)",
   "headers": "Headers",
   "key": "Key",

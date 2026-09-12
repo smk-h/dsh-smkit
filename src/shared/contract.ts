@@ -13,7 +13,7 @@
  */
 
 export type ServerType = 'http' | 'stdio'
-export type AuthMode = 'oauth' | 'static'
+export type AuthMode = 'oauth' | 'static' | 'none'
 export type EnvMap = Record<string, string>
 
 export type ServerStatus =
