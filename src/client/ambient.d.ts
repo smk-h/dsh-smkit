@@ -10,6 +10,10 @@
  *    Node out of browser code), so it is declared once, below. It survives
  *    bundling because tsdown marks `react` as never-bundled, leaving the call
  *    for the factory's own `require` to resolve at runtime.
+ * 3. Stylesheets are imported as *strings* rather than for their side effects
+ *    (`style/index.ts`): the build's `cssTextPlugin` compiles each `.css` to
+ *    `export default "<rules>"`, so the declaration below has to state that
+ *    shape instead of the CSS-Modules class map the other convention implies.
  *
  * JSX uses the **classic** runtime (`jsxFactory: "h"`) with `h` bound to the
  * injected `createElement` through `ClientDeps`. There is no module-level
@@ -28,6 +32,14 @@ declare function require(id: string): any
  * (see tsdown.config.ts); the settings section badges itself with them. */
 declare const __PLUGIN_NAME__: string
 declare const __PLUGIN_VERSION__: string
+
+/** One stylesheet, as the text the build's `cssTextPlugin` compiles it to
+ * (see tsdown.config.ts). The client half injects the rules itself, because a
+ * single-script bundle can reference no stylesheet file. */
+declare module '*.css' {
+  const css: string
+  export default css
+}
 
 declare namespace JSX {
   /**

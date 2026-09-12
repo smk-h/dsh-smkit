@@ -1,0 +1,63 @@
+/**
+ * Status dots and badges — the connection state the rows report
+ * (ui/StatusPill, plus the conflict variant the workspace view shows).
+ *
+ * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
+ * joins them in the order listed there, and the build inlines the result as one
+ * string: the split is a reading aid, the order in `index.ts` decides the
+ * cascade.
+ */
+
+.mm_statusDot {
+  background: var(--dsw-alias-label-tertiary);
+  border-radius: 999px;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  display: inline-block;
+}
+.mm_statusDot.connected {
+  background: var(--dsw-alias-state-success-primary);
+}
+.mm_statusDot.needs-auth,.mm_statusDot.authorizing,.mm_statusDot.connecting {
+  background: var(--dsw-alias-state-business-primary);
+}
+.mm_statusDot.error {
+  background: var(--dsw-alias-state-error-primary);
+}
+
+.mm_badge {
+  background: var(--dsw-alias-bg-layer-1);
+  min-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+  border-radius: 5px;
+  align-items: center;
+  padding: 1px 8px;
+  font-size: 11px;
+  line-height: 16px;
+  display: inline-flex;
+}
+.mm_badge.connected {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
+  color: var(--dsw-alias-state-success-primary);
+}
+.mm_badge.error {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
+  color: var(--dsw-alias-state-error-primary);
+}
+.mm_badge.needs-auth,.mm_badge.authorizing,.mm_badge.connecting {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
+  color: var(--dsw-alias-state-business-primary);
+}
+.mm_badge.disabled {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.mm_statusDot.conflict {
+  background: var(--dsw-alias-state-error-primary);
+}
+
+.mm_badge.conflict {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
+  color: var(--dsw-alias-state-error-primary);
+}

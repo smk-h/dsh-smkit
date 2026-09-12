@@ -1,0 +1,57 @@
+/**
+ * The add/edit form: its field grid, the key-value editor rows and the
+ * dashed add-field row (ServerForm, ui/KeyValueEditor).
+ *
+ * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
+ * joins them in the order listed there, and the build inlines the result as one
+ * string: the split is a reading aid, the order in `index.ts` decides the
+ * cascade.
+ */
+
+.mm_form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mm_form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+.mm_form input,.mm_form select {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+.mm_form input::placeholder,.mm_form select::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+.mm_form select option {
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+}
+.mm_form .wide {
+  grid-column: 1 / -1;
+}
+
+.mm_add {
+  border-style: dashed;
+}
+
+.mm_kv {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.mm_kv input {
+  flex: 1;
+}
+.mm_kv .mm_btn {
+  flex: none;
+}

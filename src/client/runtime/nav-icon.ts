@@ -9,7 +9,7 @@
  *
  * So the plugin marks its own localized row once the dialog has mounted and
  * lets the stylesheet paint the glyph over the shell's (see `MCP_NAV_ICON_CSS`
- * in `../styles`). The marker owns no shell structure and is dropped again on
+ * in `../style`). The marker owns no shell structure and is dropped again on
  * disposal, which keeps the adaptation HMR-safe.
  */
 

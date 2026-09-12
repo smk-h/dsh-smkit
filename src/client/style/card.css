@@ -1,0 +1,104 @@
+/**
+ * The server card: the row frame, its head, name and transport line, the
+ * expandable details slot, and the action strips (ServerRow, and the same row
+ * shape reused by the form's test row).
+ *
+ * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
+ * joins them in the order listed there, and the build inlines the result as one
+ * string: the split is a reading aid, the order in `index.ts` decides the
+ * cascade.
+ */
+
+.mm_row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-3);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.mm_rowHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mm_name {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+  flex: 1;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.mm_url {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+  word-break: break-all;
+}
+
+.mm_actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.mm_cardContent {
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  background: 0 0;
+  border: none;
+  padding: 0;
+  display: flex;
+  text-align: left;
+}
+
+.mm_chevron {
+  color: var(--dsw-alias-label-tertiary);
+  flex: none;
+  margin-left: auto;
+  transition: transform .15s;
+  display: inline-flex;
+}
+.mm_chevron[data-open=true] {
+  transform: rotate(180deg);
+}
+
+.mm_details {
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  margin-top: 10px;
+  display: flex;
+}
+
+.mm_cardTrailing {
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  display: inline-flex;
+}
+
+.mm_cardActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mm_actionBtns {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}

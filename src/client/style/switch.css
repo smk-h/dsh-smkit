@@ -1,0 +1,64 @@
+/**
+ * The switch (ui/Switch): track, thumb, label, and the dark-theme thumb
+ * override that keeps the off state readable.
+ *
+ * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
+ * joins them in the order listed there, and the build inlines the result as one
+ * string: the split is a reading aid, the order in `index.ts` decides the
+ * cascade.
+ */
+
+.mm_switchRow {
+  align-items: center;
+  gap: 8px;
+  display: inline-flex;
+}
+
+.mm_switch {
+  box-sizing: border-box;
+  width: 36px;
+  height: 20px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-3);
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  flex: none;
+  transition: background-color .2s ease,border-color .2s ease;
+}
+.mm_switch:disabled {
+  cursor: default;
+  opacity: .6;
+}
+.mm_switch[data-on=true] {
+  border-color: transparent;
+  background: var(--dsw-alias-brand-primary);
+}
+
+.mm_switchThumb {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--dsw-alias-label-secondary);
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform .22s cubic-bezier(.34,1.56,.64,1),background-color .18s ease;
+}
+
+.mm_switch[data-on=true] .mm_switchThumb {
+  transform: translateX(18px);
+  background: var(--dsw-alias-label-primary-foreground);
+}
+
+.mm_switchText {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+body[data-ds-dark-theme] .mm_switch:not([data-on=true]) .mm_switchThumb {
+  background: #fff;
+}

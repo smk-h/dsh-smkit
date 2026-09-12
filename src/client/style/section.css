@@ -1,0 +1,179 @@
+/**
+ * Page shell for the section (McpContent): the container, its headings, the
+ * lists that hold the rows/cards, the add button, the on-demand feature row,
+ * the scope bar and the path hint.
+ *
+ * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
+ * joins them in the order listed there, and the build inlines the result as one
+ * string: the split is a reading aid, the order in `index.ts` decides the
+ * cascade.
+ */
+
+.mm_section {
+  width: 100%;
+  max-width: 760px;
+  color: var(--dsw-alias-label-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mm_err {
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.mm_meta {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.mm_catalogHeading {
+  align-items: baseline;
+  gap: 7px;
+  padding: 0 2px;
+  display: flex;
+}
+.mm_catalogHeading h3 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+  margin: 0;
+}
+.mm_catalogHeading span {
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.mm_cards {
+  grid-template-columns: minmax(0,1fr);
+  align-items: start;
+  gap: 10px;
+  display: grid;
+}
+
+.mm_addActions {
+  margin-left: auto;
+  display: inline-flex;
+}
+
+.mm_addBtn {
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  background: 0 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 14px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mm_addBtn:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+
+.mm_wsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mm_wsBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px;
+}
+
+.mm_wsPathHint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+  word-break: break-all;
+  padding: 0 2px;
+}
+
+.mm_groupTitle {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  padding: 0 2px;
+  margin-top: 4px;
+}
+
+.mm_feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-3);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.mm_featureText {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mm_featureTitle {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.mm_featureMeta {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.mm_intro {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.mm_versionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 4px 12px 4px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.mm_versionBadgeName {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.mm_versionBadgeName:hover {
+  color: var(--dsw-alias-label-primary);
+  text-decoration: underline;
+}
+
+.mm_versionBadgeTag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--dsw-alias-accent-soft,var(--dsw-alias-border-l2));
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}

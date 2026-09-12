@@ -1,0 +1,109 @@
+/**
+ * The scope picker (ui/ScopeSelect): trigger, menu, group label, items and
+ * the check mark.
+ *
+ * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
+ * joins them in the order listed there, and the build inlines the result as one
+ * string: the split is a reading aid, the order in `index.ts` decides the
+ * cascade.
+ */
+
+.mm_scope {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.mm_scopeTrigger {
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  display: inline-flex;
+  max-width: 100%;
+}
+.mm_scopeTrigger:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.mm_scopeTrigger>svg {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+.mm_scopeTrigger .mm_chevron {
+  margin-left: 0;
+}
+
+.mm_scopeLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mm_scopeMenu {
+  flex-direction: column;
+  gap: 2px;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-layer-3);
+  box-shadow: var(--dsw-shadow-lv1);
+  display: flex;
+}
+
+.mm_scopeGroup {
+  padding: 6px 10px 2px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.mm_scopeItem {
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+  background: 0 0;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  width: 100%;
+}
+.mm_scopeItem:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.mm_scopeItem>svg {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.mm_scopeItemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mm_scopeCheck {
+  flex: none;
+  display: inline-flex;
+  color: var(--dsw-alias-state-business-primary);
+}

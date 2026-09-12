@@ -10,7 +10,7 @@
 import { createMcpContent } from './components/McpContent'
 import { createApi } from './runtime/api'
 import { createApply } from './runtime/plugin'
-import { installStyles } from './styles'
+import { installStyles } from './style'
 import { MCP_LOCALE_EN } from './i18n/en'
 import { MCP_LOCALE_ZH } from './i18n/zh'
 import type { ClientContext, ClientDeps, LocaleDict } from './runtime/types'

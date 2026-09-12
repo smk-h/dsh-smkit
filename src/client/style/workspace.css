@@ -1,0 +1,72 @@
+/**
+ * The workspace scope: the global-mask rows and their hide checkbox
+ * (GlobalMaskRow, WorkspaceServerRow).
+ *
+ * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
+ * joins them in the order listed there, and the build inlines the result as one
+ * string: the split is a reading aid, the order in `index.ts` decides the
+ * cascade.
+ */
+
+.mm_ws {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-3);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.mm_wsPath {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+  word-break: break-all;
+}
+
+.mm_wsServers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mm_wsServer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  flex-wrap: wrap;
+}
+.mm_wsServer .mm_badge {
+  flex: none;
+}
+
+.mm_wsExclude {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mm_wsExcludeTitle {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.mm_wsCheck {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+.mm_wsCheck input {
+  accent-color: var(--dsw-alias-state-business-primary);
+}

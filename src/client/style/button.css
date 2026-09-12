@@ -1,0 +1,39 @@
+/**
+ * Buttons: the neutral action button and its two variants
+ * (ui/ConfirmDialog, ServerForm, rows).
+ *
+ * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
+ * joins them in the order listed there, and the build inlines the result as one
+ * string: the split is a reading aid, the order in `index.ts` decides the
+ * cascade.
+ */
+
+.mm_btn {
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 18px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+.mm_btn:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.mm_btn:disabled {
+  opacity: .5;
+  cursor: default;
+}
+.mm_btn.primary {
+  border-color: transparent;
+  background: var(--dsw-alias-state-business-primary);
+  color: #fff;
+}
+.mm_btn.danger {
+  color: var(--dsw-alias-state-error-primary);
+  border-color: var(--dsw-alias-state-error-primary);
+}
+.mm_btn.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
+}
