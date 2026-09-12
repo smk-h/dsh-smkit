@@ -1,0 +1,112 @@
+/**
+ * Auto-clamping for the `.mm_tip` hover bubbles.
+ *
+ * The bubble is a `::after` pseudo-element centered above its button, so a
+ * button near a clipping edge (the panel's `overflow`, or the window itself)
+ * pushes half of the bubble past the boundary and gets it cut. Rather than
+ * hand-tagging edge buttons with alignment variants, the bubble's horizontal
+ * shift is a CSS variable: one delegated `pointerover` measures the rendered
+ * pseudo-element, walks the button's ancestors for real clip boundaries, and
+ * writes the smallest shift that keeps the bubble inside them into
+ * `--mm-tip-shift` (consumed by `.mm_tip::after`'s transform). Removing the
+ * variable on leave resets for the next hover; `focusin` covers the keyboard
+ * path, whose tooltip shows without any pointer event.
+ *
+ * Measuring works while the bubble is still invisible: it is hidden with
+ * `opacity` only, so its layout — and therefore its width — exists from the
+ * start, and the shift is in place before the hover fade-in begins.
+ */
+
+/** Horizontal breathing room kept between the bubble and a clip edge. */
+const GUTTER = 4
+
+/**
+ * The horizontal range a bubble may span: the clip ancestors between the
+ * button and its fixed-positioned root, narrowed to the window itself.
+ *
+ * The walk must stop at the fixed root. A floating panel (DSH's settings
+ * dialog, a modal overlay) is `position: fixed` and escapes plain `overflow`
+ * clipping, yet its mount point often sits in the DOM under an unrelated
+ * hidden-overflow column — DSH nests it under the 280px sidebar column, and
+ * counting that column once shifted every bubble half a screen away. Within
+ * the fixed subtree the clips are real: the dialog's own scroll area and
+ * panel bounds are exactly what cuts a bubble on the right edge.
+ */
+function clipBounds(button: HTMLElement): { left: number; right: number } {
+  let left = 0
+  let right = window.innerWidth
+  let ceiling: HTMLElement | null = null
+  for (let node = button.parentElement; node; node = node.parentElement) {
+    if (getComputedStyle(node).position === 'fixed') ceiling = node
+  }
+  for (let node = button.parentElement; node && node !== ceiling; node = node.parentElement) {
+    const style = getComputedStyle(node)
+    const clips =
+      /(hidden|clip|auto|scroll)/.test(style.overflowX) || /paint|strict|content/.test(style.contain)
+    if (!clips) continue
+    const box = node.getBoundingClientRect()
+    const padLeft = Number.parseFloat(style.paddingLeft)
+    const padRight = Number.parseFloat(style.paddingRight)
+    left = Math.max(left, box.left + (Number.isFinite(padLeft) ? padLeft : 0))
+    right = Math.min(right, box.right - (Number.isFinite(padRight) ? padRight : 0))
+  }
+  return { left: left + GUTTER, right: right - GUTTER }
+}
+
+/** Write the shift keeping a centered bubble of `width` inside the bounds. */
+function clampTip(button: HTMLElement): void {
+  const width = parseFloat(getComputedStyle(button, '::after').width)
+  if (!width || !Number.isFinite(width)) return
+  const box = button.getBoundingClientRect()
+  const center = box.left + box.width / 2
+  const { left, right } = clipBounds(button)
+  let shift = 0
+  if (center - width / 2 < left) shift = left - (center - width / 2)
+  else if (center + width / 2 > right) shift = right - (center + width / 2)
+  button.style.setProperty('--mm-tip-shift', `${shift}px`)
+}
+
+/**
+ * Install the document-level listeners; returns the uninstaller for the
+ * caller's effect cleanup. Delegation means one listener set serves every
+ * `.mm_tip` on the page, present and future, and no button opts in beyond
+ * carrying the class and its `data-tip` label.
+ */
+export function watchTipBoundaries(): () => void {
+  // `document` is absent outside a browser (the hook test harness runs the
+  // bundle in a bare context) — the same guard `ScopeSelect` carries.
+  if (typeof document === 'undefined') return () => {}
+  // Targets are matched as `Element`, not `HTMLElement`: the pointer usually
+  // sits on the button's inner `<svg>`, which is an SVGElement — rejecting
+  // non-HTML targets would skip exactly the hover this exists for.
+  const over = (event: PointerEvent): void => {
+    const target = event.target
+    if (target instanceof Element) {
+      const button = target.closest<HTMLElement>('.mm_tip')
+      if (button) clampTip(button)
+    }
+  }
+  const out = (event: PointerEvent): void => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const button = target.closest<HTMLElement>('.mm_tip')
+    if (!button) return
+    // Moving between the button's own children fires `pointerout` too; only a
+    // leave that no longer lands inside the button clears the shift.
+    const related = event.relatedTarget
+    if (related instanceof Node && button.contains(related)) return
+    button.style.removeProperty('--mm-tip-shift')
+  }
+  const focusin = (event: FocusEvent): void => {
+    const target = event.target
+    if (target instanceof Element && target.matches('.mm_tip')) clampTip(target as HTMLElement)
+  }
+  document.addEventListener('pointerover', over)
+  document.addEventListener('pointerout', out)
+  document.addEventListener('focusin', focusin)
+  return () => {
+    document.removeEventListener('pointerover', over)
+    document.removeEventListener('pointerout', out)
+    document.removeEventListener('focusin', focusin)
+  }
+}

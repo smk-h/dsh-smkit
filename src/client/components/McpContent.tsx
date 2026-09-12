@@ -27,6 +27,7 @@ import { createServerForm } from './ServerForm'
 import { createScopeSelect } from './ui/ScopeSelect'
 import { createServerRow } from './ServerRow'
 import { createSwitch } from './ui/Switch'
+import { watchTipBoundaries } from './ui/tip'
 import { useAsyncAction } from './ui/useAsyncAction'
 import { isTransientStatus } from './ui/StatusPill'
 import { createWorkspaceServerRow } from './WorkspaceServerRow'
@@ -157,6 +158,10 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
       return () => clearInterval(timer)
     }, [refresh])
 
+    // Hover bubbles slide clear of clip edges; one document-level watch
+    // serves every `.mm_tip` the section renders.
+    react.useEffect(() => watchTipBoundaries(), [])
+
     // Drop the selection if the workspace disappeared.
     react.useEffect(() => {
       if (selected && !workspaces.some((workspace) => workspace.path === selected)) setSelected('')
@@ -249,10 +254,10 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
 
     const addBtn = (
       <button
-        className="mm_addBtn"
+        className="mm_addBtn mm_tip"
         type="button"
         aria-label={t('addServer')}
-        title={t('addServer')}
+        data-tip={t('addServer')}
         onClick={() => setView('add')}
       >
         <PlusIcon size={14} />
@@ -453,10 +458,10 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             }}
           />
           <button
-            className="mm_openConfig"
+            className="mm_openConfig mm_tip"
             type="button"
             aria-label={t('openConfig')}
-            title={t('openConfig')}
+            data-tip={t('openConfig')}
             disabled={openConfigAction.busy}
             onClick={openConfig}
           >
