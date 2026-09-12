@@ -14,14 +14,14 @@
 所以我决定参考以上两位作者的项目，用 AI 搓一个同时满足这两点的插件，以后也方便加入自己的一些需求。如有需求，请使用作者原版插件，本插件仅供自己学习使用，也许后续作者直接支持了，这里可能就会放弃这个插件了。
 
 > [!NOTE]
-> 本项目功能对齐上游 [hyqhyq3/dsh-mcp-manager](https://github.com/hyqhyq3/dsh-mcp-manager) 的 `1d1bb9c`（v0.11.0，2026-09-10）。两个仓库没有共同提交历史，同步指功能语义对齐而非 git 合并；两者各自独立发布，版本号不互相对应。
+> 本项目功能对齐上游 [hyqhyq3/dsh-mcp-manager](https://github.com/hyqhyq3/dsh-mcp-manager) 的 `b029407c`（v0.12.0，2026-09-11）。两个仓库没有共同提交历史，同步指功能语义对齐而非 git 合并；两者各自独立发布，版本号不互相对应。
 
 ### 2. 项目介绍
 
 dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，把 MCP 服务器的配置与生命周期管理收进「设置 → MCP」页面，基于 MIT 协议开源。主要能力如下：
 
 - 在设置页统一登记、启停、编辑、删除 MCP 服务器；停用的服务器不会在启动时被拉起。
-- 支持两种传输：远程 HTTP（OAuth PKCE + 动态客户端注册，或静态 Bearer Token），以及本地 stdio 进程。
+- 支持两种传输：远程 HTTP（OAuth PKCE + 动态客户端注册、静态 Bearer Token，或无鉴权），以及本地 stdio 进程。无鉴权模式不发送 `Authorization` 头，适合本机这类不做认证的端点（如 `http://127.0.0.1:9316/mcp`）。
 - 按工作区隔离：工作区独享的服务器写在 `<workspace>/.dsh/dshmm/mcp.json`，全局服务器也可按工作区屏蔽。
 - 运行时可重启、关闭单个服务器的连接，长连接断开后不必重启 dsh。
 - 可选的按需工具代理（broker）：开启后 MCP 仅暴露 search、describe、execute 三个工具，避免大量工具污染上下文。
