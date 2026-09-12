@@ -132,6 +132,14 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     const existing = ws?.servers.get(name)
     if (!ws || !existing || existing.status === 'conflict') return false
     closeWorkspaceServer(existing)
+    // `closeWorkspaceServer` drops the transport but touches no status, so
+    // without this the settings page would keep reporting the old green
+    // "connected" for the whole reopen — which is seconds to a minute when a
+    // stdio server has to be respawned (`npx` re-resolves its package first).
+    // The global tier gets the same effect from `registry.connect`, which enters
+    // through `runtime.setLive(..., 'connecting')`.
+    existing.status = 'connecting'
+    existing.error = ''
     const conn = await openWorkspaceServer(existing.server)
     ws.servers.set(name, conn)
     for (const agent of ws.agents) scope.rebuildAgentWorkspace(agent, wsPath)

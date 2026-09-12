@@ -37,8 +37,14 @@ export function createConfirmDialog(deps: ClientDeps): (props: ConfirmDialogProp
             <button className="mm_btn" onClick={onCancel} disabled={busy}>
               {t('cancel')}
             </button>
-            <button className="mm_btn danger" onClick={onConfirm} disabled={busy}>
-              {busy ? '…' : t('delete')}
+            <button
+              className="mm_btn danger"
+              onClick={onConfirm}
+              disabled={busy}
+              data-pending={busy ? 'true' : undefined}
+              aria-busy={busy}
+            >
+              {t('delete')}
             </button>
           </div>
         </div>

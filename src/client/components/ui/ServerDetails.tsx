@@ -12,11 +12,15 @@ import type { ClientDeps, ServerView, Translator, WorkspaceServerView } from '..
 export interface ServerDetailsProps {
   t: Translator
   server: ServerView | WorkspaceServerView
+  /** Status to render the status-dependent lines from. The rows pass the one
+   * they settled on (`useSettledStatus`), so the tool-count line cannot blink out
+   * and back while a connection is being re-established. */
+  status?: string
 }
 
 export function serverDetails(
   deps: ClientDeps,
-  { t, server }: ServerDetailsProps,
+  { t, server, status = server.status }: ServerDetailsProps,
 ): Array<JSX.Element | null> {
   const { h } = deps
 
@@ -26,7 +30,7 @@ export function serverDetails(
         ? `stdio · ${server.command} ${(server.args || []).join(' ')}`
         : `${server.authMode === 'oauth' ? 'OAuth' : server.authMode === 'none' ? t('noAuth') : t('staticToken')} · ${server.url}`}
     </div>,
-    server.status === 'connected' ? (
+    status === 'connected' ? (
       <div className="mm_meta" key="tools">
         {t('toolCount', { count: server.toolCount })}
       </div>

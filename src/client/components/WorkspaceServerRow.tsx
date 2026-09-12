@@ -9,6 +9,7 @@
 
 import { createConfirmDialog } from './ui/ConfirmDialog'
 import { serverDetails } from './ui/ServerDetails'
+import { useSettledStatus } from './ui/useSettledStatus'
 import { createStatusBadge, createStatusDot } from './ui/StatusPill'
 import { useAsyncAction } from './ui/useAsyncAction'
 import type { ClientDeps, Translator, WorkspaceServerView } from '../runtime/types'
@@ -36,7 +37,10 @@ export function createWorkspaceServerRow(
     onChanged,
     onEdit,
   }: WorkspaceServerRowProps): JSX.Element {
-    const { busy, error, run } = useAsyncAction(react)
+    const { busy, pending, error, run } = useAsyncAction(react)
+    // The pills render the last settled status; a live transient one only pulses
+    // (see ui/useSettledStatus for why the intermediate status is not shown).
+    const { status, busy: statusBusy } = useSettledStatus(react, server.status)
     const [confirming, setConfirming] = react.useState(false)
 
     const startAuth = (): Promise<void> =>
@@ -50,7 +54,7 @@ export function createWorkspaceServerRow(
           return
         }
         return r.body.error || t('authFailed', { status: r.status })
-      })
+      }, 'auth')
 
     const remove = (): Promise<void> => {
       setConfirming(false)
@@ -75,30 +79,48 @@ export function createWorkspaceServerRow(
           ? undefined
           : r.body.error ||
               t(action === 'restart' ? 'restartFailed' : 'stopFailed', { status: r.status })
-      })
-    const hasLiveInstance = server.status !== 'configured' && server.status !== 'conflict'
+      }, action)
+    const hasLiveInstance = status !== 'configured' && status !== 'conflict'
 
     return (
       <div className="mm_row" key={server.name}>
         <div className="mm_rowHead">
           <span className="mm_name">{server.name}</span>
-          <StatusDot status={server.status} />
-          <StatusBadge t={t} status={server.status} />
+          <StatusDot status={status} busy={statusBusy} />
+          <StatusBadge t={t} status={status} busy={statusBusy} />
           <span className="mm_actions">
             {hasLiveInstance ? (
-              <button className="mm_btn" onClick={() => runtimeOp('restart')} disabled={busy}>
-                {busy ? '…' : t('restart')}
+              <button
+                className="mm_btn"
+                onClick={() => runtimeOp('restart')}
+                disabled={busy}
+                data-pending={pending === 'restart' ? 'true' : undefined}
+                aria-busy={pending === 'restart'}
+              >
+                {t('restart')}
               </button>
             ) : null}
             {hasLiveInstance ? (
-              <button className="mm_btn" onClick={() => runtimeOp('stop')} disabled={busy}>
-                {busy ? '…' : t('stop')}
+              <button
+                className="mm_btn"
+                onClick={() => runtimeOp('stop')}
+                disabled={busy}
+                data-pending={pending === 'stop' ? 'true' : undefined}
+                aria-busy={pending === 'stop'}
+              >
+                {t('stop')}
               </button>
             ) : null}
             {server.authMode === 'oauth' &&
-            (server.status === 'needs-auth' || server.status === 'error' || server.status === 'connected') ? (
-              <button className="mm_btn" onClick={startAuth} disabled={busy}>
-                {busy ? '…' : server.status === 'connected' ? t('reauth') : t('auth')}
+            (status === 'needs-auth' || status === 'error' || status === 'connected') ? (
+              <button
+                className="mm_btn"
+                onClick={startAuth}
+                disabled={busy}
+                data-pending={pending === 'auth' ? 'true' : undefined}
+                aria-busy={pending === 'auth'}
+              >
+                {status === 'connected' ? t('reauth') : t('auth')}
               </button>
             ) : null}
             <button className="mm_btn" onClick={onEdit} disabled={busy}>
@@ -109,7 +131,7 @@ export function createWorkspaceServerRow(
             </button>
           </span>
         </div>
-        {serverDetails(deps, { t, server })}
+        {serverDetails(deps, { t, server, status })}
         {error ? <div className="mm_err">{error}</div> : null}
         {confirming ? (
           <ConfirmDialog

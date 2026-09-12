@@ -9,6 +9,7 @@
  */
 
 .mm_btn {
+  position: relative;
   cursor: pointer;
   font-size: 12px;
   line-height: 18px;
@@ -24,6 +25,32 @@
 .mm_btn:disabled {
   opacity: .5;
   cursor: default;
+}
+
+/* The pending state of a button that is waiting on its request: `data-pending`
+ * keeps the label in the box — it is only made transparent — and the ellipsis is
+ * painted over it. Keeping the box means the pending state cannot resize the
+ * button, which matters because the action buttons are laid out after a flexible
+ * name: a button that got one character narrower would shove the name, dot and
+ * badge to the right, so a slow restart (up to a minute for a respawned stdio
+ * server) would look like the row is drifting.
+ *
+ * The two colours are spelled out because the overlay would otherwise inherit
+ * the transparent `color` above. */
+.mm_btn[data-pending=true] {
+  color: transparent;
+}
+.mm_btn[data-pending=true]::after {
+  content: '…';
+  color: var(--dsw-alias-label-primary);
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mm_btn.danger[data-pending=true]::after {
+  color: var(--dsw-alias-state-error-primary);
 }
 .mm_btn.primary {
   border-color: transparent;

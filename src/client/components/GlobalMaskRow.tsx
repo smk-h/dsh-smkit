@@ -4,6 +4,7 @@
  * `exclude` list (which masks its global tools for agents in that workspace).
  */
 
+import { useSettledStatus } from './ui/useSettledStatus'
 import { createStatusBadge, createStatusDot } from './ui/StatusPill'
 import type { ClientDeps, ServerView, Translator } from '../runtime/types'
 
@@ -17,7 +18,7 @@ export interface GlobalMaskRowProps {
 }
 
 export function createGlobalMaskRow(deps: ClientDeps): (props: GlobalMaskRowProps) => JSX.Element {
-  const { h } = deps
+  const { h, react } = deps
   const StatusDot = createStatusDot(deps)
   const StatusBadge = createStatusBadge(deps)
 
@@ -29,11 +30,15 @@ export function createGlobalMaskRow(deps: ClientDeps): (props: GlobalMaskRowProp
     onEdit,
     busy,
   }: GlobalMaskRowProps): JSX.Element {
+    // The pills render the last settled status; a live transient one only pulses
+    // (see ui/useSettledStatus for why the intermediate status is not shown).
+    const { status, busy: statusBusy } = useSettledStatus(react, server.status)
+
     return (
       <div className="mm_wsServer" key={server.id}>
-        <StatusDot status={server.status} />
+        <StatusDot status={status} busy={statusBusy} />
         <span className="mm_name">{server.name}</span>
-        <StatusBadge t={t} status={server.status} />
+        <StatusBadge t={t} status={status} busy={statusBusy} />
         <label className="mm_wsCheck">
           <input
             type="checkbox"

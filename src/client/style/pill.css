@@ -36,6 +36,7 @@
   font-size: 11px;
   line-height: 16px;
   display: inline-flex;
+  transition: background-color .2s ease, color .2s ease, opacity .2s ease;
 }
 .mm_badge.connected {
   background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
@@ -51,6 +52,35 @@
 }
 .mm_badge.disabled {
   color: var(--dsw-alias-label-tertiary);
+}
+
+/* A connection that is being re-established. The pills keep showing the last
+ * settled status, because a transition is shorter than the 3-second poll that
+ * feeds them — rendering it made the badge flash for the tail of one poll or not
+ * appear at all (see ui/useSettledStatus). `data-busy` carries the "working on it"
+ * instead: the dot pulses and the badge steps back. */
+.mm_statusDot[data-busy=true] {
+  animation: mm_statusPulse 1.2s ease-in-out infinite;
+}
+.mm_badge[data-busy=true] {
+  opacity: .6;
+}
+
+@keyframes mm_statusPulse {
+  0%,100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .3;
+  }
+}
+
+/* Without motion the dimmed badge still reports the busy row; the dot simply
+ * stops flashing. */
+@media (prefers-reduced-motion: reduce) {
+  .mm_statusDot[data-busy=true] {
+    animation: none;
+  }
 }
 
 .mm_statusDot.conflict {

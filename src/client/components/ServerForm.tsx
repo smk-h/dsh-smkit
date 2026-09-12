@@ -274,8 +274,10 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
             disabled={
               busy || !name || (isWorkspace && !wsPath) || (type === 'stdio' ? !command : !url)
             }
+            data-pending={busy ? 'true' : undefined}
+            aria-busy={busy}
           >
-            {busy ? '…' : t('save')}
+            {t('save')}
           </button>
           <button className="mm_btn" onClick={onCancel} disabled={busy}>
             {t('cancel')}

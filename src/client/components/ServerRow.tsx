@@ -7,6 +7,7 @@
 import { createChevronDownIcon } from './icons/ChevronDownIcon'
 import { createConfirmDialog } from './ui/ConfirmDialog'
 import { serverDetails } from './ui/ServerDetails'
+import { useSettledStatus } from './ui/useSettledStatus'
 import { createStatusBadge, createStatusDot } from './ui/StatusPill'
 import { createSwitch } from './ui/Switch'
 import { useAsyncAction } from './ui/useAsyncAction'
@@ -37,7 +38,10 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
     open,
     onToggle,
   }: ServerRowProps): JSX.Element {
-    const { busy, error, run } = useAsyncAction(react)
+    const { busy, pending, error, run } = useAsyncAction(react)
+    // The pills render the last settled status; a live transient one only pulses
+    // (see ui/useSettledStatus for why the intermediate status is not shown).
+    const { status, busy: statusBusy } = useSettledStatus(react, server.status)
     const [confirming, setConfirming] = react.useState(false)
 
     const startAuth = (): Promise<void> =>
@@ -48,7 +52,7 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
           return
         }
         return r.body.error || t('authFailed', { status: r.status })
-      })
+      }, 'auth')
 
     const remove = (): Promise<void> => {
       setConfirming(false)
@@ -69,14 +73,14 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
         const r = await api(`/servers/${server.id}/restart`, { method: 'POST' })
         onChanged()
         return r.ok ? undefined : r.body.error || t('restartFailed', { status: r.status })
-      })
+      }, 'restart')
 
     const stop = (): Promise<void> =>
       run(async () => {
         const r = await api(`/servers/${server.id}/stop`, { method: 'POST' })
         onChanged()
         return r.ok ? undefined : r.body.error || t('stopFailed', { status: r.status })
-      })
+      }, 'stop')
 
     const toggleEnabled = (): Promise<void> =>
       run(async () => {
@@ -101,8 +105,8 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
         >
           <span className="mm_name">{server.name}</span>
           <span className="mm_cardTrailing">
-            <StatusDot status={server.status} />
-            <StatusBadge t={t} status={server.status} />
+            <StatusDot status={status} busy={statusBusy} />
+            <StatusBadge t={t} status={status} busy={statusBusy} />
             <span className="mm_chevron" data-open={open ? 'true' : undefined}>
               <ChevronDownIcon size={12} />
             </span>
@@ -110,7 +114,7 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
         </button>
         {open ? (
           <div className="mm_details">
-            {serverDetails(deps, { t, server })}
+            {serverDetails(deps, { t, server, status })}
             {error ? <div className="mm_err">{error}</div> : null}
             <div className="mm_cardActions">
               <Switch
@@ -121,18 +125,36 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
               />
               <span className="mm_actionBtns">
                 {server.enabled !== false ? (
-                  <button className="mm_btn" onClick={restart} disabled={busy}>
-                    {busy ? '…' : t('restart')}
+                  <button
+                    className="mm_btn"
+                    onClick={restart}
+                    disabled={busy}
+                    data-pending={pending === 'restart' ? 'true' : undefined}
+                    aria-busy={pending === 'restart'}
+                  >
+                    {t('restart')}
                   </button>
                 ) : null}
                 {server.enabled !== false ? (
-                  <button className="mm_btn" onClick={stop} disabled={busy}>
-                    {busy ? '…' : t('stop')}
+                  <button
+                    className="mm_btn"
+                    onClick={stop}
+                    disabled={busy}
+                    data-pending={pending === 'stop' ? 'true' : undefined}
+                    aria-busy={pending === 'stop'}
+                  >
+                    {t('stop')}
                   </button>
                 ) : null}
                 {server.enabled !== false && server.authMode === 'oauth' ? (
-                  <button className="mm_btn" onClick={startAuth} disabled={busy}>
-                    {busy ? '…' : server.status === 'connected' ? t('reauth') : t('auth')}
+                  <button
+                    className="mm_btn"
+                    onClick={startAuth}
+                    disabled={busy}
+                    data-pending={pending === 'auth' ? 'true' : undefined}
+                    aria-busy={pending === 'auth'}
+                  >
+                    {status === 'connected' ? t('reauth') : t('auth')}
                   </button>
                 ) : null}
                 <button className="mm_btn" onClick={onEdit} disabled={busy}>
