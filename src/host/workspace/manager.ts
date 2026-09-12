@@ -266,6 +266,10 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       }
     }
     if (tokensDropped) saveState(runtime.state)
+    // New/changed transports all open concurrently: every row is registered up
+    // front (so the settings page shows the whole set at once, each in
+    // `connecting` state) and no server waits for its neighbour to settle.
+    const opening: Promise<unknown>[] = []
     for (const [name, entry] of desired) {
       const existing = ws.servers.get(name)
       if (entry.conflict) {
@@ -289,13 +293,16 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       }
       if (existing) closeWorkspaceServer(existing)
       const conn = freshWorkspaceConn(entry.server)
-      // Register before connecting: the row shows up in `connecting` state
-      // right away, and the mid-open supersede guard keys off this
+      // Register before connecting: the mid-open supersede guard keys off this
       // registration.
       ws.servers.set(name, conn)
+      changed = true
       if (awaitConnect) {
-        await connectWorkspaceConn(entry.server, conn)
+        opening.push(connectWorkspaceConn(entry.server, conn))
       } else {
+        // Fire-and-forget: the save route answers with the row in `connecting`
+        // state; this settle callback re-projects the agent scopes once the
+        // tools actually arrive.
         void connectWorkspaceConn(entry.server, conn)
           .then(() => {
             const live = runtime.workspaces.get(wsPath)
@@ -309,8 +316,11 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
             )
           })
       }
-      changed = true
     }
+    // Agent setup awaits this scan, so it still resolves only once every new
+    // transport has settled — just all of them in parallel now. Background
+    // scans (settings saves) have nothing queued here and resolve at once.
+    if (opening.length > 0) await Promise.all(opening)
     if (changed) {
       for (const agent of ws.agents) scope.rebuildAgentWorkspace(agent, wsPath)
       scope.reconcileRestrictions()
