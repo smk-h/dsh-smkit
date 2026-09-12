@@ -1,6 +1,8 @@
 /**
  * The add/edit form: its field grid, the key-value editor rows and the
- * dashed add-field row (ServerForm, ui/KeyValueEditor).
+ * dashed add-field row (ServerForm, ui/KeyValueEditor), plus the trigger of
+ * the form's icon dropdowns (ui/IconSelect — their menu reuses the scope
+ * picker styles from scope.css).
  *
  * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
  * joins them in the order listed there, and the build inlines the result as one
@@ -13,7 +15,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
-.mm_form label {
+.mm_form label,.mm_form .mm_field {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -38,6 +40,46 @@
 }
 .mm_form .wide {
   grid-column: 1 / -1;
+}
+
+/* The icon dropdown (ui/IconSelect, `field` variant): a trigger shaped like
+   the native select above it; the menu reuses the scope picker's styles, which
+   anchor to this root. */
+.mm_fieldSelect {
+  position: relative;
+}
+.mm_fieldSelectTrigger {
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  display: flex;
+  text-align: left;
+}
+.mm_fieldSelectTrigger>svg {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+.mm_fieldSelectTrigger[disabled] {
+  cursor: default;
+  color: var(--dsw-alias-label-tertiary);
+}
+.mm_fieldSelectTrigger[disabled]>svg {
+  color: var(--dsw-alias-label-tertiary);
+}
+.mm_fieldSelectLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mm_add {

@@ -1,7 +1,7 @@
 /**
  * Add/edit form for a server, shared by the global and workspace tiers.
  *
- * The tier is chosen by the `scope` select (locked while editing) and decides
+ * The tier is chosen by the `scope` picker (locked while editing) and decides
  * both the request target (`/servers` vs `/workspaces/servers`) and whether a
  * workspace picker is shown. The transport select swaps the whole field set, so
  * the form only ever submits the fields that belong to the chosen transport.
@@ -10,7 +10,10 @@
  * only their labels and placeholders differ.
  */
 
+import { createFolderIcon } from './icons/FolderIcon'
+import { createMonitorIcon } from './icons/MonitorIcon'
 import { createKeyValueEditor, toKeyValueMap, toKeyValueRows } from './ui/KeyValueEditor'
+import { createIconSelect } from './ui/IconSelect'
 import { useAsyncAction } from './ui/useAsyncAction'
 import type { ApiResult, ClientDeps, EditableServer, KeyValueRow, Translator } from '../runtime/types'
 
@@ -27,6 +30,9 @@ export interface ServerFormProps {
 export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => JSX.Element {
   const { h, react, api } = deps
   const KeyValueEditor = createKeyValueEditor(deps)
+  const IconSelect = createIconSelect(deps)
+  const MonitorIcon = createMonitorIcon(deps)
+  const FolderIcon = createFolderIcon(deps)
 
   return function ServerForm({
     t,
@@ -222,29 +228,41 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
     return (
       <div className="mm_row mm_add">
         <div className="mm_form">
-          <label className="wide">
-            {t('scope')}
-            <select
+          {/* The two scope pickers are custom dropdowns (not `<label>`-wrapped:
+              a label would forward caption clicks into the trigger button) so
+              their options can carry the same monitor/folder icons the list
+              view's scope picker uses. */}
+          <div className="wide mm_field">
+            <span>{t('scope')}</span>
+            <IconSelect
               value={formScope}
               disabled={editing}
-              onChange={(e) => setFormScope(e.target.value)}
-            >
-              <option value="user">{t('userScope')}</option>
-              <option value="workspace">{t('workspaceScope')}</option>
-            </select>
-          </label>
+              ariaLabel={t('scope')}
+              onChange={setFormScope}
+              options={[
+                { value: 'user', label: t('userScope'), icon: <MonitorIcon /> },
+                { value: 'workspace', label: t('workspaceScope'), icon: <FolderIcon /> },
+              ]}
+            />
+          </div>
           {isWorkspace ? (
-            <label className="wide">
-              {t('workspace')}
-              <select value={wsPath} disabled={editing} onChange={(e) => setWsPath(e.target.value)}>
-                <option value="">{t('chooseWorkspace')}</option>
-                {(workspaces ?? []).map((workspace) => (
-                  <option value={workspace} key={workspace}>
-                    {workspace}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="wide mm_field">
+              <span>{t('workspace')}</span>
+              <IconSelect
+                value={wsPath}
+                disabled={editing}
+                ariaLabel={t('workspace')}
+                onChange={setWsPath}
+                options={[
+                  { value: '', label: t('chooseWorkspace') },
+                  ...(workspaces ?? []).map((workspace) => ({
+                    value: workspace,
+                    label: workspace,
+                    icon: <FolderIcon />,
+                  })),
+                ]}
+              />
+            </div>
           ) : null}
           <label>
             {t('type')}
