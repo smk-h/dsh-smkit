@@ -59,3 +59,27 @@ export function createIcon(deps: ClientDeps, spec: IconSpec): IconFactory {
     )
   }
 }
+
+/**
+ * One glyph as a `mask-image` value: the same `<svg>` shell `createIcon`
+ * renders, serialized and URL-encoded for a stylesheet. Alpha only — the glyph
+ * strokes in `currentColor`, which resolves to opaque inside a mask, so the
+ * masked element's own colour shows through while `currentColor` in the rule
+ * keeps the tint following hover and active states.
+ *
+ * React spells SVG presentation attributes in camelCase (`strokeWidth`) while
+ * serialized markup must use SVG's kebab-case (`stroke-width`), so attribute
+ * names are converted on the way out; the `viewBox` is on the shell and is
+ * already in its SVG spelling.
+ */
+export function iconMaskDataUri(spec: IconSpec): string {
+  const kebabCase = (name: string): string =>
+    name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
+  const attributes = (attrs: Record<string, string | number>): string =>
+    Object.entries(attrs)
+      .map(([name, value]) => ` ${kebabCase(name)}="${String(value)}"`)
+      .join('')
+  const nodes = spec.nodes.map((node) => `<${node.tag}${attributes(node.attrs)}/>`).join('')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${spec.viewBox}" fill="none">${nodes}</svg>`
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
