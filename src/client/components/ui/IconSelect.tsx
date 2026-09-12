@@ -24,9 +24,9 @@ export interface IconSelectOption {
   /** A non-empty group renders a header line above the option whenever it
    * differs from the previous option's group (options render in array order). */
   group?: string
-  /** Hover tooltip for the row and for the trigger while selected; the label
-   * stands in when unset (a workspace shows its full path here, its name in
-   * the label). */
+  /** Hover tooltip for the row and for the trigger while selected, rendered
+   * as the section's standard `.mm_tip` bubble (a workspace shows its full
+   * path here, its name in the label); rows without one show no bubble. */
   title?: string
 }
 
@@ -98,11 +98,11 @@ export function createIconSelect(deps: ClientDeps): (props: IconSelectProps) => 
       const selected = option.value === value
       row.push(
         <button
-          className="mm_scopeItem"
+          className={option.title ? 'mm_scopeItem mm_tip' : 'mm_scopeItem'}
           type="button"
           role="option"
           aria-selected={selected}
-          title={option.title ?? option.label}
+          data-tip={option.title}
           onClick={() => {
             setOpen(false)
             onChange(option.value)
@@ -124,13 +124,13 @@ export function createIconSelect(deps: ClientDeps): (props: IconSelectProps) => 
     return (
       <div className={root} data-mm-icon-select="true">
         <button
-          className={trigger}
+          className={current?.title ? `${trigger} mm_tip` : trigger}
           type="button"
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-label={ariaLabel}
           disabled={disabled}
-          title={current ? current.title ?? current.label : undefined}
+          data-tip={current?.title}
           onClick={() => setOpen(!open)}
         >
           {current?.icon ?? null}
