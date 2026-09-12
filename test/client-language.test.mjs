@@ -85,7 +85,13 @@ const text = (tree) =>
     : typeof tree?.type === 'function'
       ? text(tree.type(tree.props))
       : tree?.children?.map(text).join(' ') ?? ''
-const content = (tree) => nodes(tree).find((node) => typeof node.type === 'function')
+// The add view's form: the first function node that takes the translator. The
+// section can render helper components ahead of the form (e.g. the header
+// breadcrumb, which resolves to `null` in this harness — the fake `require`
+// hands back the react stub without `createPortal`), so "first function node"
+// alone is not a form locator.
+const content = (tree) =>
+  nodes(tree).find((node) => typeof node.type === 'function' && node.props?.t != null)
 
 it('registers balanced mcp dictionaries with effect cleanup and the locale slot seat', () => {
   const app = mount(async () => response({}))

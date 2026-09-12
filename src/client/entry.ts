@@ -21,6 +21,17 @@ export const inject = ['slots', 'locale']
 export function createPlugin(): { apply(ctx: ClientContext): void; inject: string[] } {
   const react = require('react')
 
+  // The settings-header breadcrumb portals into the shell's title strip, which
+  // needs react-dom. The host module table carries it (the shell's own plugins
+  // resolve it the same way); an older host without it only loses the bar —
+  // the section renders whole.
+  let createPortal: ClientDeps['createPortal']
+  try {
+    createPortal = require('react-dom').createPortal
+  } catch {
+    // No react-dom in the platform module table: no header breadcrumb.
+  }
+
   installStyles()
 
   const deps: ClientDeps = {
@@ -29,6 +40,7 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
     api: createApi(),
     zh: MCP_LOCALE_ZH as LocaleDict,
     en: MCP_LOCALE_EN as LocaleDict,
+    createPortal,
   }
   const McpContent = createMcpContent(deps)
 

@@ -5,6 +5,12 @@
  * three API-surfaced data sets, re-polled every 3 seconds so a server that
  * reconnects on the host side updates its badge without a page reload.
  *
+ * Each view keeps its own heading in the content (`mm_catalogHeading`); the
+ * three sub-views additionally mount a breadcrumb (`ui/Breadcrumb`) into the
+ * settings shell's title strip through a portal — the list view is the trail's
+ * root, and clicking it is the second way back besides the form's cancel
+ * button.
+ *
  * The list view opens with the section title and both counts on their own
  * line under the identity badge. Below it, a toolbar row pairs the scope
  * picker on the left with the search box and the add button against the right
@@ -24,6 +30,7 @@ import { createPlusIcon } from './icons/PlusIcon'
 import { createSearchIcon } from './icons/SearchIcon'
 import { createSettings2Icon } from './icons/Settings2Icon'
 import { createServerForm } from './ServerForm'
+import { createBreadcrumb } from './ui/Breadcrumb'
 import { createScopeSelect } from './ui/ScopeSelect'
 import { createServerRow } from './ServerRow'
 import { createSwitch } from './ui/Switch'
@@ -67,12 +74,13 @@ function workspaceName(path: string): string {
 }
 
 export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX.Element {
-  const { h, react, api } = deps
+  const { h, react, api, createPortal } = deps
   const ServerRow = createServerRow(deps)
   const ServerForm = createServerForm(deps)
   const WorkspaceServerRow = createWorkspaceServerRow(deps)
   const GlobalMaskRow = createGlobalMaskRow(deps)
   const ScopeSelect = createScopeSelect(deps)
+  const Breadcrumb = createBreadcrumb(deps)
   const Switch = createSwitch(deps)
   const PlusIcon = createPlusIcon(deps)
   const SearchIcon = createSearchIcon(deps)
@@ -137,6 +145,31 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
         <span className="mm_versionBadgeTag">v{__PLUGIN_VERSION__}</span>
       </div>,
     ]
+
+    /** The root crumb every sub-view's breadcrumb starts from: the list view
+     * itself, which clicking returns to (`view` lives in this component). */
+    const listCrumb = { label: t('servers'), onClick: (): void => setView('list') }
+
+    // The settings shell's title strip — the flex row that carries the header
+    // actions and the close button, empty on its left — is where the sub-views'
+    // breadcrumb mounts. The shell keeps only the active section rendered, so
+    // this component rendering at all already means MCP is the section on
+    // show. The strip is re-located after every render (the 3s poll re-renders
+    // the section anyway, which doubles as the re-check) and re-set only on
+    // identity change, so a re-rendered or replaced strip is picked up without
+    // a timer; a closed dialog leaves nothing to find and the breadcrumb goes
+    // with it. Guarded like `runtime/nav-icon`: the offline harness runs
+    // effects without a DOM. The anchor avoids hashed classes — the wrapper is
+    // the one the shell renders its `settings.action` slot into, and the strip
+    // is the nearest ancestor whose CSS-module local name is `header`.
+    const [headerStrip, setHeaderStrip] = react.useState<Element | null>(null)
+    react.useEffect(() => {
+      if (typeof document === 'undefined') return
+      const actions = document.querySelector('[role="dialog"] [data-slot="settings.action"]')
+      // Same-value sets bail out of the re-render, so the strip's identity is
+      // the only thing that turns this effect into work.
+      setHeaderStrip(actions?.closest('[class*="header"]') ?? null)
+    })
 
     const refresh = react.useCallback(() => {
       // Fence timestamp: the GET handlers answer from the host state at handling
@@ -266,6 +299,30 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
       </button>
     )
 
+    // The sub-view breadcrumb for the shell's title strip: list view is the
+    // trail's root and mounts nothing. Portal-rendered because the strip is
+    // the shell's chrome, not this section's scroll area; `null` when the
+    // strip was not found or the host module table has no react-dom — the
+    // section's own heading remains either way.
+    const subViewLabel =
+      view === 'add'
+        ? t('addServer')
+        : view === 'edit-global'
+          ? t('editGlobal')
+          : view === 'edit-ws'
+            ? t('editWorkspace')
+            : null
+    const headerBreadcrumb =
+      headerStrip && createPortal && subViewLabel
+        ? createPortal(
+            <Breadcrumb
+              ariaLabel={t('breadcrumb')}
+              crumbs={[listCrumb, { label: subViewLabel }]}
+            />,
+            headerStrip,
+          )
+        : null
+
     if (view === 'add') {
       return (
         <div className="mm_section">
@@ -273,6 +330,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           <div className="mm_catalogHeading">
             <h3>{t('addServer')}</h3>
           </div>
+          {headerBreadcrumb}
           <ServerForm
             t={t}
             scope={selected ? 'workspace' : 'user'}
@@ -297,6 +355,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           <div className="mm_catalogHeading">
             <h3>{t('editGlobal')}</h3>
           </div>
+          {headerBreadcrumb}
           <ServerForm
             t={t}
             initial={globalEditing}
@@ -322,6 +381,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           <div className="mm_catalogHeading">
             <h3>{t('editWorkspace')}</h3>
           </div>
+          {headerBreadcrumb}
           <div className="mm_wsPathHint">{selected}</div>
           <ServerForm
             t={t}

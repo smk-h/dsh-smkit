@@ -10,6 +10,7 @@ import type { LocaleDict } from '../runtime/types'
 export const MCP_LOCALE_EN: LocaleDict = {
   "sectionLabel": "MCP",
   "sectionIntro": "Manage MCP servers, authentication, and workspace scope",
+  "breadcrumb": "Breadcrumb",
   "countGlobal": "Global {count}",
   "countWorkspace": "Workspace {count}",
   "namePlaceholder": "odin",

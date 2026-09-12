@@ -24,6 +24,7 @@
  * replaced the native `.mm_wsSelect`) are the deliberate departures.
  */
 
+import breadcrumbCss from './breadcrumb.css'
 import buttonCss from './button.css'
 import cardCss from './card.css'
 import dialogCss from './dialog.css'
@@ -41,6 +42,7 @@ import { iconMaskDataUri } from '../components/icons/Icon'
 /** The parts of the section stylesheet, in cascade order. */
 const STYLESHEETS = [
   sectionCss,
+  breadcrumbCss,
   cardCss,
   pillCss,
   buttonCss,

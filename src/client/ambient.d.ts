@@ -130,6 +130,7 @@ declare namespace JSX {
     div: CommonProps
     span: CommonProps
     label: CommonProps
+    nav: CommonProps
     h3: CommonProps
     p: ParagraphProps
     a: AnchorProps

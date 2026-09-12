@@ -38,9 +38,11 @@ import type { TsdownPlugin, UserConfig } from 'tsdown'
  * Module specifiers the web shell resolves at runtime through the factory's
  * `require` (the platform module table). Everything else inlines — this plugin
  * has no other imports, and it must not: the client half is deliberately
- * dependency-free apart from `react`.
+ * dependency-free apart from `react`. `react-dom` rides the same table (the
+ * shell's own plugins resolve it) and only feeds `createPortal`, the mount for
+ * the settings-header breadcrumb.
  */
-const CLIENT_EXTERNALS = ['react']
+const CLIENT_EXTERNALS = ['react', 'react-dom']
 
 /**
  * The package identity, read once: the ModuleLoader id and the `__PLUGIN_NAME__`

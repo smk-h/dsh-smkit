@@ -78,6 +78,15 @@ export interface ClientDeps {
   api: ApiFn
   zh: LocaleDict
   en: LocaleDict
+  /**
+   * react-dom's `createPortal`, resolved alongside `react` in `entry.ts`: the
+   * settings-header breadcrumb portals through it into the shell's title strip.
+   * Optional on purpose — an older host whose module table lacks `react-dom`
+   * only loses the bar, and the section still renders whole. The container is
+   * a live DOM element; `any` keeps the DOM lib's `Element` from colliding
+   * with this file's opaque element alias at the boundary.
+   */
+  createPortal?: (children: unknown, container: any) => unknown
 }
 
 /* ------------------------------------------------------------ view models */

@@ -1,0 +1,69 @@
+/**
+ * The breadcrumb (`ui/Breadcrumb.tsx`): a quiet trail in the settings shell's
+ * title strip — ancestor crumbs as links, the current page beside them, a
+ * chevron between levels.
+ *
+ * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
+ * joins them in the order listed there, and the build inlines the result as one
+ * string: the split is a reading aid, the order in `index.ts` decides the
+ * cascade.
+ */
+
+/* The strip is the shell's flex row `[actions][close]` with the actions pushed
+ * right by their own `margin-left: auto`. The portal lands at the row's end,
+ * so `order: -1` puts the bar first regardless of DOM position, and its auto
+ * right margin consumes the row's free space to keep actions and close pinned
+ * right as before. The 4px top margin lines the 20px bar up with the
+ * centerline of the 28px action buttons under the strip's top-heavy padding;
+ * `min-width: 0` lets a long trail ellipsize instead of shoving the buttons.
+ *
+ * The 14px left indent squares the bar with the section below: the strip pads
+ * its left edge 10px while the section area pads 24px, so without it the
+ * trail hangs 14px left of the intro line, badge and heading it introduces. */
+.mm_breadcrumb {
+  order: -1;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: 14px;
+  margin-right: auto;
+  margin-top: 4px;
+  align-items: baseline;
+  gap: 7px;
+  padding: 0 2px;
+  display: flex;
+}
+
+/* The chevron has no text baseline to sit on; centering it in the line keeps
+ * it at the visual middle of the labels beside it. */
+.mm_breadcrumbSep {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.mm_breadcrumbLink {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+  background: 0 0;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.mm_breadcrumbLink:hover {
+  color: var(--dsw-alias-label-primary);
+  text-decoration: underline;
+}
+
+/* The current page: same size as its ancestors — the strip is the shell's
+ * chrome and the section's own heading carries the emphasis — a step brighter
+ * than the links and a touch heavier, so the eye lands here first without the
+ * bar competing with the page below. A non-last crumb without an `onClick`
+ * renders through the same class on a `span` and reads as plain text. */
+.mm_breadcrumbCurrent {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
