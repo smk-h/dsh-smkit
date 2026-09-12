@@ -3,7 +3,9 @@
  *
  * Editing is a three-phase operation: validate everything first (so a rejected
  * edit leaves the live server untouched), then disconnect + rewrite the config,
- * then reconnect from the new config. Disable/enable is profile-global:
+ * then reconnect from the new config. Add and edit answer before the
+ * (re)connect settles — the card tracks the transition through its poll — so a
+ * slow server never pins the form open. Disable/enable is profile-global:
  * disabling unregisters every tool and drops the transport while config and
  * OAuth tokens persist.
  */
@@ -106,7 +108,11 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
 
     state.servers.push(server)
     saveState(state)
-    await connectOrMark(api, server)
+    // Connect in the background: the response already carries the card's
+    // transitional status (`connecting` / `needs-auth` — both are set
+    // synchronously by `connectOrMark`), and the settings page's poll settles
+    // it, so a slow server cannot pin the add form open.
+    void connectOrMark(api, server).catch(() => {})
     sendJson(res, 201, { server: api.registry.serverView(server) })
     return true
   }
@@ -300,8 +306,10 @@ export const handleServers: ApiHandler = async (req, res, facts, api) => {
     }
     saveState(state)
 
-    // 3. Reconnect from the new config.
-    await connectOrMark(api, server)
+    // 3. Reconnect from the new config, in the background (same reasoning as
+    // the add route: the response carries the transitional status instead of
+    // waiting out the reconnect).
+    void connectOrMark(api, server).catch(() => {})
     sendJson(res, 200, { server: api.registry.serverView(server) })
     return true
   }

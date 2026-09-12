@@ -112,7 +112,10 @@ export const handleWorkspaces: ApiHandler = async (req, res, facts, api) => {
       : {}
     raw.mcpServers[name] = entry
     writeWorkspaceRaw(canonical, raw)
-    if (api.runtime.workspaces.get(canonical)) await api.workspaces.rescanWorkspace(canonical)
+    // Register the rows without waiting for their transports: the response
+    // already lists the new server in `connecting` state and the settings
+    // page's poll settles it, so a slow server cannot pin the form open.
+    await api.workspaces.rescanWorkspace(canonical, { awaitConnect: false })
     await respondWithWorkspaces(api, res)
     return true
   }
@@ -166,7 +169,9 @@ export const handleWorkspaces: ApiHandler = async (req, res, facts, api) => {
     if (!keepOAuth && dropWorkspaceToken(state, workspaceTokenKey(canonical, oldName))) {
       saveState(state)
     }
-    if (api.runtime.workspaces.get(canonical)) await api.workspaces.rescanWorkspace(canonical)
+    // Same as the add route: apply the diff and answer; transports reconnect
+    // in the background while the card shows `connecting`.
+    await api.workspaces.rescanWorkspace(canonical, { awaitConnect: false })
     await respondWithWorkspaces(api, res)
     return true
   }

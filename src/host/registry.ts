@@ -69,6 +69,12 @@ export function setServerAuthStatus(
 export function createRegistry(deps: RegistryDeps): Registry {
   const { runtime, logger, services, tools, transports } = deps
 
+  /** serverId → in-flight connect. Saves answer before the connection settles,
+   * so a second connect for the same server (auth callback, restart, enable)
+   * can arrive mid-open: it queues behind the first instead of racing a second
+   * transport open. */
+  const connecting = new Map<string, Promise<LiveConnection>>()
+
   /**
    * Track the exact global tool names owned by one global server so workspace
    * `exclude` masking can deny them (`restrict()` accepts only known names).
@@ -102,13 +108,20 @@ export function createRegistry(deps: RegistryDeps): Registry {
     logger.info(`mcp-manager: ${server.name} connected, ${list.length} tools`)
   }
 
-  async function connect(server: ServerConfig): Promise<LiveConnection> {
+  async function connectOnce(server: ServerConfig): Promise<LiveConnection> {
     const conn = runtime.setLive(server.id, { status: 'connecting', error: '' })
     conn.name = server.name
     try {
       // Reap any previous transport (a prior stdio child) before respawning.
       closeHandleQuietly(conn.handle)
       const handle = await transports.openServer(server)
+      if (runtime.live.get(server.id) !== conn) {
+        // Superseded while opening (disabled, deleted, edited, restarted): the
+        // id belongs to a newer connection record now, so drop this transport
+        // instead of registering tools on top of — and leaking — it.
+        closeHandleQuietly(handle)
+        return conn
+      }
       conn.handle = handle
       conn.sessionId = handle.sessionId
       conn.transport = handle.transport
@@ -131,6 +144,19 @@ export function createRegistry(deps: RegistryDeps): Registry {
       logger.warn(`mcp-manager: ${server.name} ${conn.status}: ${conn.error}`)
     }
     return conn
+  }
+
+  function connect(server: ServerConfig): Promise<LiveConnection> {
+    const previous = connecting.get(server.id)
+    const task = previous
+      ? previous.then(() => connectOnce(server), () => connectOnce(server))
+      : connectOnce(server)
+    connecting.set(server.id, task)
+    const settle = (): void => {
+      if (connecting.get(server.id) === task) connecting.delete(server.id)
+    }
+    void task.then(settle, settle)
+    return task
   }
 
   function disconnect(serverId: string): void {

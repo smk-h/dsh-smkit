@@ -56,11 +56,10 @@ export interface FoundServer {
 
 export interface WorkspaceManager {
   ensureWorkspace(wsPath: string, rawPath: string): WorkspaceRuntime
-  rescanWorkspace(wsPath: string): Promise<void>
+  rescanWorkspace(wsPath: string, opts?: { awaitConnect?: boolean }): Promise<void>
   releaseWorkspace(wsPath: string, agent: AgentLike): void
   knownWorkspacePath(path: string): string | null
   listWorkspaces(): WorkspaceView[]
-  openWorkspaceServer(server: ServerConfig): Promise<WorkspaceConnection>
   closeWorkspaceServer(conn: WorkspaceConnection): void
   /** Runtime-only restart of one live workspace server; false when not live. */
   restartWorkspaceServer(wsPath: string, name: string): Promise<boolean>
@@ -123,25 +122,25 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
 
   /**
    * Reap one live workspace server's transport and open a fresh one from the
-   * same config — config, tokens and the row itself are untouched, so a
-   * following rescan still sees an unchanged server and keeps our connection.
-   * The agent rebuilds mirror doRescan's `changed` tail.
+   * same config — config, tokens, the row itself and its registration in the
+   * server map are untouched, so a following rescan still sees an unchanged
+   * server and keeps our connection. The agent rebuilds mirror doRescan's
+   * `changed` tail.
    */
   async function restartWorkspaceServer(wsPath: string, name: string): Promise<boolean> {
     const ws = runtime.workspaces.get(wsPath)
     const existing = ws?.servers.get(name)
     if (!ws || !existing || existing.status === 'conflict') return false
     closeWorkspaceServer(existing)
+    existing.tools = []
+    existing.toolCount = 0
     // `closeWorkspaceServer` drops the transport but touches no status, so
     // without this the settings page would keep reporting the old green
     // "connected" for the whole reopen — which is seconds to a minute when a
     // stdio server has to be respawned (`npx` re-resolves its package first).
     // The global tier gets the same effect from `registry.connect`, which enters
     // through `runtime.setLive(..., 'connecting')`.
-    existing.status = 'connecting'
-    existing.error = ''
-    const conn = await openWorkspaceServer(existing.server)
-    ws.servers.set(name, conn)
+    await connectWorkspaceConn(existing.server, existing)
     for (const agent of ws.agents) scope.rebuildAgentWorkspace(agent, wsPath)
     scope.reconcileRestrictions()
     return true
@@ -168,6 +167,14 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     const wsPath = String(server.wsPath)
     try {
       const handle: McpHandle = await transports.openServer(server)
+      const owner = runtime.workspaces.get(wsPath)
+      if (owner?.servers.get(server.name) !== conn) {
+        // Superseded mid-open (a rescan replaced or removed the row while the
+        // transport was opening): drop the fresh handle instead of leaking a
+        // connection the map no longer owns.
+        closeHandleQuietly(handle)
+        return conn
+      }
       conn.handle = handle
       conn.tools = handle.tools ?? []
       conn.toolCount = conn.tools.length
@@ -191,8 +198,9 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     return conn
   }
 
-  function openWorkspaceServer(server: ServerConfig): Promise<WorkspaceConnection> {
-    const conn: WorkspaceConnection = {
+  /** A fresh, not-yet-opened connection record for one workspace server. */
+  function freshWorkspaceConn(server: ServerConfig): WorkspaceConnection {
+    return {
       server,
       handle: null,
       status: 'connecting',
@@ -201,15 +209,29 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       tools: [],
       call: () => Promise.reject(new Error('not connected')),
     }
+  }
+
+  /**
+   * Open `conn`'s transport and mutate it in place. `conn` must already be the
+   * registered record for `server.name` in its workspace's server map — that
+   * registration is what lets a rescan landing mid-open supersede the loser
+   * (see the guard in `openWorkspaceServerInner`) instead of racing it.
+   */
+  function connectWorkspaceConn(
+    server: ServerConfig,
+    conn: WorkspaceConnection,
+  ): Promise<WorkspaceConnection> {
     if ((server.type ?? 'http') !== 'stdio' && !hasToken(server)) {
       conn.status = 'needs-auth'
       conn.error = missingCredentialError(server)
       return Promise.resolve(conn)
     }
+    conn.status = 'connecting'
+    conn.error = ''
     return openWorkspaceServerInner(server, conn)
   }
 
-  async function doRescan(wsPath: string): Promise<void> {
+  async function doRescan(wsPath: string, awaitConnect: boolean): Promise<void> {
     const ws = runtime.workspaces.get(wsPath)
     if (!ws) return
     ensureWorkspaceWatchers(wsPath, ws)
@@ -266,8 +288,27 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
         continue
       }
       if (existing) closeWorkspaceServer(existing)
-      const conn = await openWorkspaceServer(entry.server)
+      const conn = freshWorkspaceConn(entry.server)
+      // Register before connecting: the row shows up in `connecting` state
+      // right away, and the mid-open supersede guard keys off this
+      // registration.
       ws.servers.set(name, conn)
+      if (awaitConnect) {
+        await connectWorkspaceConn(entry.server, conn)
+      } else {
+        void connectWorkspaceConn(entry.server, conn)
+          .then(() => {
+            const live = runtime.workspaces.get(wsPath)
+            if (!live) return
+            for (const agent of live.agents) scope.rebuildAgentWorkspace(agent, wsPath)
+            scope.reconcileRestrictions()
+          })
+          .catch((error) => {
+            logger.warn(
+              `${LOG_PREFIX}: workspace reconnect settle failed for ${wsPath}: ${errorText(error)}`,
+            )
+          })
+      }
       changed = true
     }
     if (changed) {
@@ -276,11 +317,22 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     }
   }
 
-  function rescanWorkspace(wsPath: string): Promise<void> {
+  /**
+   * Apply the workspace's on-disk config to the live map. With `awaitConnect`
+   * (the default, used by agent setup) the scan resolves only once every new
+   * server's transport has settled; the settings-page save routes pass
+   * `awaitConnect: false` so the response returns as soon as the rows are
+   * registered, with the transports opening in the background.
+   */
+  function rescanWorkspace(
+    wsPath: string,
+    opts?: { awaitConnect?: boolean },
+  ): Promise<void> {
+    const awaitConnect = opts?.awaitConnect !== false
     const previous = runtime.workspaceRescans.get(wsPath) ?? Promise.resolve()
     const next = previous.then(
-      () => doRescan(wsPath),
-      () => doRescan(wsPath),
+      () => doRescan(wsPath, awaitConnect),
+      () => doRescan(wsPath, awaitConnect),
     )
     runtime.workspaceRescans.set(
       wsPath,
@@ -446,7 +498,6 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     releaseWorkspace,
     knownWorkspacePath,
     listWorkspaces,
-    openWorkspaceServer,
     closeWorkspaceServer,
     restartWorkspaceServer,
     stopWorkspaceServer,

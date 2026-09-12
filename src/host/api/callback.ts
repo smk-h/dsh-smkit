@@ -50,15 +50,11 @@ export const handleCallback: ApiHandler = async (req, res, facts, api: ApiContex
     await api.oauth.exchangeCode(server, code, facts.origin)
     if (found?.wsPath) {
       // Reconnect the workspace server in place and re-register its tools into
-      // every live agent in that workspace.
-      const runtimeWs = api.runtime.workspaces.get(found.wsPath)
-      if (runtimeWs && found.wsConn) {
-        api.workspaces.closeWorkspaceServer(found.wsConn)
-        const fresh = await api.workspaces.openWorkspaceServer(server)
-        runtimeWs.servers.set(server.name, fresh)
-        for (const agent of runtimeWs.agents) api.scope.rebuildAgentWorkspace(agent, found.wsPath)
-      }
-      const conn = runtimeWs?.servers.get(server.name)
+      // every live agent in that workspace. The reconnect keeps the row
+      // registered in the server map (the contract the transport-open guard
+      // relies on), so a rescan landing mid-open supersedes it safely.
+      await api.workspaces.restartWorkspaceServer(found.wsPath, server.name)
+      const conn = api.runtime.workspaces.get(found.wsPath)?.servers.get(server.name)
       return (
         done(
           true,
