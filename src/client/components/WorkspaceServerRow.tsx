@@ -9,7 +9,6 @@
 
 import { createConfirmDialog } from './ui/ConfirmDialog'
 import { serverDetails } from './ui/ServerDetails'
-import { useSettledStatus } from './ui/useSettledStatus'
 import { createStatusBadge, createStatusDot } from './ui/StatusPill'
 import { useAsyncAction } from './ui/useAsyncAction'
 import type { ClientDeps, Translator, WorkspaceServerView } from '../runtime/types'
@@ -19,6 +18,9 @@ export interface WorkspaceServerRowProps {
   server: WorkspaceServerView
   workspacePath: string
   onChanged(): void
+  /** Preview a status for this server until the next poll confirms it (see
+   * `ServerRowProps.onStatusPreview`). */
+  onStatusPreview(id: string, status: string): void
   onEdit(): void
 }
 
@@ -35,16 +37,15 @@ export function createWorkspaceServerRow(
     server,
     workspacePath,
     onChanged,
+    onStatusPreview,
     onEdit,
   }: WorkspaceServerRowProps): JSX.Element {
     const { busy, pending, error, run } = useAsyncAction(react)
-    // The pills render the last settled status; a live transient one only pulses
-    // (see ui/useSettledStatus for why the intermediate status is not shown).
-    const { status, busy: statusBusy } = useSettledStatus(react, server.status)
     const [confirming, setConfirming] = react.useState(false)
 
     const startAuth = (): Promise<void> =>
       run(async () => {
+        onStatusPreview(server.id, 'authorizing')
         const r = await api('/workspaces/auth', {
           method: 'POST',
           body: JSON.stringify({ path: workspacePath, name: server.name }),
@@ -71,8 +72,11 @@ export function createWorkspaceServerRow(
     // Runtime-only operations on the live connection, addressed by the row's
     // globally unique id. Hidden for `configured`/`conflict` rows: those have
     // no live instance to restart or stop (the workspace was never opened).
+    // The pills preview the intermediate status at click time; the request's
+    // own `onChanged` refresh settles them.
     const runtimeOp = (action: 'restart' | 'stop'): Promise<void> =>
       run(async () => {
+        onStatusPreview(server.id, action === 'restart' ? 'connecting' : 'disconnected')
         const r = await api(`/servers/${server.id}/${action}`, { method: 'POST' })
         onChanged()
         return r.ok
@@ -80,14 +84,15 @@ export function createWorkspaceServerRow(
           : r.body.error ||
               t(action === 'restart' ? 'restartFailed' : 'stopFailed', { status: r.status })
       }, action)
+    const status = server.status
     const hasLiveInstance = status !== 'configured' && status !== 'conflict'
 
     return (
       <div className="mm_row" key={server.name}>
         <div className="mm_rowHead">
           <span className="mm_name">{server.name}</span>
-          <StatusDot status={status} busy={statusBusy} />
-          <StatusBadge t={t} status={status} busy={statusBusy} />
+          <StatusDot status={status} />
+          <StatusBadge t={t} status={status} />
           <span className="mm_actions">
             {hasLiveInstance ? (
               <button

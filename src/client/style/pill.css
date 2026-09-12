@@ -6,10 +6,13 @@
  * joins them in the order listed there, and the build inlines the result as one
  * string: the split is a reading aid, the order in `index.ts` decides the
  * cascade.
+ *
+ * Each status maps to one colour through `--mm-status-color`; the dot paints
+ * it as a fill and the transient spinner strokes its arc with it.
  */
 
 .mm_statusDot {
-  background: var(--dsw-alias-label-tertiary);
+  background: var(--mm-status-color, var(--dsw-alias-label-tertiary));
   border-radius: 999px;
   flex: none;
   width: 7px;
@@ -17,13 +20,45 @@
   display: inline-block;
 }
 .mm_statusDot.connected {
-  background: var(--dsw-alias-state-success-primary);
+  --mm-status-color: var(--dsw-alias-state-success-primary);
 }
 .mm_statusDot.needs-auth,.mm_statusDot.authorizing,.mm_statusDot.connecting {
-  background: var(--dsw-alias-state-business-primary);
+  --mm-status-color: var(--dsw-alias-state-business-primary);
 }
-.mm_statusDot.error {
-  background: var(--dsw-alias-state-error-primary);
+.mm_statusDot.error,.mm_statusDot.conflict {
+  --mm-status-color: var(--dsw-alias-state-error-primary);
+}
+
+/* A connection that is being established (`connecting`/`authorizing`) draws as
+ * a spinning arc in the status colour instead of sitting as a dot — motion
+ * carries "working on it", the way ZCode's own MCP page does. Rows start the
+ * spin at click time by previewing the transient status (McpContent's
+ * `statusPreviews`), so the indicator no longer waits for the 3-second poll
+ * that feeds it. */
+.mm_statusDot[data-spin=true] {
+  width: auto;
+  height: auto;
+  background: transparent;
+  display: inline-flex;
+}
+.mm_statusSpin {
+  display: block;
+  color: var(--mm-status-color, var(--dsw-alias-label-tertiary));
+  animation: mm_statusSpin .8s linear infinite;
+}
+
+@keyframes mm_statusSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Without motion the arc simply stands still; the badge text still names the
+ * transient status. */
+@media (prefers-reduced-motion: reduce) {
+  .mm_statusSpin {
+    animation: none;
+  }
 }
 
 .mm_badge {
@@ -42,7 +77,7 @@
   background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
   color: var(--dsw-alias-state-success-primary);
 }
-.mm_badge.error {
+.mm_badge.error,.mm_badge.conflict {
   background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
   color: var(--dsw-alias-state-error-primary);
 }
@@ -52,42 +87,4 @@
 }
 .mm_badge.disabled {
   color: var(--dsw-alias-label-tertiary);
-}
-
-/* A connection that is being re-established. The pills keep showing the last
- * settled status, because a transition is shorter than the 3-second poll that
- * feeds them — rendering it made the badge flash for the tail of one poll or not
- * appear at all (see ui/useSettledStatus). `data-busy` carries the "working on it"
- * instead: the dot pulses and the badge steps back. */
-.mm_statusDot[data-busy=true] {
-  animation: mm_statusPulse 1.2s ease-in-out infinite;
-}
-.mm_badge[data-busy=true] {
-  opacity: .6;
-}
-
-@keyframes mm_statusPulse {
-  0%,100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: .3;
-  }
-}
-
-/* Without motion the dimmed badge still reports the busy row; the dot simply
- * stops flashing. */
-@media (prefers-reduced-motion: reduce) {
-  .mm_statusDot[data-busy=true] {
-    animation: none;
-  }
-}
-
-.mm_statusDot.conflict {
-  background: var(--dsw-alias-state-error-primary);
-}
-
-.mm_badge.conflict {
-  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
-  color: var(--dsw-alias-state-error-primary);
 }

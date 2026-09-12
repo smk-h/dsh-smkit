@@ -32,7 +32,8 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 
 设置页的图标不从图标库引入运行时依赖，而是把上游的 SVG 数据逐字移植进 [`src/client/components/icons/`](src/client/components/icons/)：每个图标一个文件、以图标名命名，文件头部注明上游库、版本与许可。当前用到的图标如下：
 
-- `cable`：来自 [lucide](https://lucide.dev) 的同名图标，版本 v0.261.0（中文镜像站为 [lucide.nodejs.cn](https://lucide.nodejs.cn)）；用于设置导航栏「MCP」一行的字形，见 [`CableIcon.tsx`](src/client/components/icons/CableIcon.tsx) 与 [`styles.ts`](src/client/styles.ts) 的 `MCP_NAV_ICON_CSS`。
+- `cable`：来自 [lucide](https://lucide.dev) 的同名图标，版本 v0.261.0（中文镜像站为 [lucide.nodejs.cn](https://lucide.nodejs.cn)）；用于设置导航栏「MCP」一行的字形，见 [`CableIcon.tsx`](src/client/components/icons/CableIcon.tsx)、[`nav-icon.ts`](src/client/runtime/nav-icon.ts) 与 [`nav-icon.css`](src/client/style/nav-icon.css) 的 `MCP_NAV_ICON_CSS`。
+- `loader-2`：同样来自 lucide v0.261.0（后续版本更名为 `loader-circle`）；是连接中/授权中的旋转弧线，由状态点在过渡态渲染，见 [`LoaderIcon.tsx`](src/client/components/icons/LoaderIcon.tsx) 与 [`pill.css`](src/client/style/pill.css) 的 `mm_statusSpin`。
 
 lucide 图标采用 ISC 许可：版权归 Lucide Contributors（2022）所有，其中部分版权归 Cole Bemis（2013 至 2022 年，源自 Feather 项目，MIT 许可）所有。
 

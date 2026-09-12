@@ -18,6 +18,7 @@ import { createScopeSelect } from './ui/ScopeSelect'
 import { createServerRow } from './ServerRow'
 import { createSwitch } from './ui/Switch'
 import { useAsyncAction } from './ui/useAsyncAction'
+import { isTransientStatus } from './ui/StatusPill'
 import { createWorkspaceServerRow } from './WorkspaceServerRow'
 import type {
   ClientDeps,
@@ -31,6 +32,13 @@ import type {
 const REFRESH_INTERVAL_MS = 3000
 
 type View = 'list' | 'add' | 'edit-global' | 'edit-ws'
+
+/** One optimistic status overlay: what a row should render and when the action
+ * that predicted it was clicked (`polledAt` fences which polls may retire it). */
+interface StatusPreview {
+  status: string
+  at: number
+}
 
 /** The plugin's own identity for the section header; the name links to the
  * repo. Name and version are tsdown defines read from package.json
@@ -66,8 +74,29 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     const [editingName, setEditingName] = react.useState<string | null>(null)
     const [query, setQuery] = react.useState('')
     const [expandedId, setExpandedId] = react.useState<string | null>(null)
+    // Optimistic transitions, the model ZCode's own MCP page uses: an action
+    // (enable/disable, restart, stop, auth) previews the intermediate status at
+    // click time so the row spins from the click, not from whenever the 3s
+    // poll happens to sample the host-side transition. A preview retires once
+    // a poll observes the transition it predicted — with a fence: only a poll
+    // REQUESTED after the preview may retire it, because an older snapshot
+    // still carries the pre-click status and would cancel the spin the click
+    // just started (the effect below).
+    const [statusPreviews, setStatusPreviews] = react.useState(new Map<string, StatusPreview>())
+    // When the latest poll was requested; the retirement fence for previews.
+    const [polledAt, setPolledAt] = react.useState(0)
     const excludeAction = useAsyncAction(react)
     const settingsAction = useAsyncAction(react)
+
+    /** Overlay a previewed status onto one server view. */
+    const withPreview = <S extends { id: string; status: string }>(server: S): S => {
+      const preview = statusPreviews.get(server.id)?.status
+      return preview && preview !== server.status ? { ...server, status: preview } : server
+    }
+
+    const previewStatus = (id: string, status: string): void => {
+      setStatusPreviews(new Map(statusPreviews).set(id, { status, at: Date.now() }))
+    }
 
     // The section's identity block, shown above every view: one intro line,
     // then the plugin pill (clickable name + version tag), so the page stays
@@ -91,6 +120,9 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     ]
 
     const refresh = react.useCallback(() => {
+      // Fence timestamp: the GET handlers answer from the host state at handling
+      // time, so data from a poll requested at `requestedAt` cannot predate it.
+      const requestedAt = Date.now()
       Promise.all([api('/servers'), api('/workspaces'), api('/settings')])
         .then(([serversResult, workspacesResult, settingsResult]) => {
           if (serversResult.ok) setServers(serversResult.body.servers ?? [])
@@ -98,6 +130,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           if (settingsResult.ok) {
             setSettings({ onDemandToolInjection: settingsResult.body.onDemandToolInjection === true })
           }
+          setPolledAt(requestedAt)
         })
         .catch(() => {})
     }, [])
@@ -112,6 +145,25 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     react.useEffect(() => {
       if (selected && !workspaces.some((workspace) => workspace.path === selected)) setSelected('')
     }, [workspaces, selected])
+
+    // Retire a preview once a post-click poll observes the transition it
+    // predicted: a settled report for the same server means the snapshot is
+    // now the truth. Transient reports keep it — they describe the very
+    // transition in flight.
+    react.useEffect(() => {
+      if (statusPreviews.size === 0) return
+      const next = new Map(statusPreviews)
+      const retire = (server: { id: string; status: string }): void => {
+        const preview = next.get(server.id)
+        if (!preview || polledAt < preview.at) return
+        if (!isTransientStatus(server.status)) next.delete(server.id)
+      }
+      for (const server of servers) retire(server)
+      for (const workspace of workspaces) {
+        for (const server of workspace.servers) retire(server)
+      }
+      if (next.size !== statusPreviews.size) setStatusPreviews(next)
+    }, [servers, workspaces, statusPreviews, polledAt])
 
     const selectedWs = workspaces.find((workspace) => workspace.path === selected) ?? null
     const wsServers: WorkspaceServerView[] = selectedWs?.servers ?? []
@@ -244,9 +296,10 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           {wsServers.map((server) => (
             <WorkspaceServerRow
               t={t}
-              server={server}
+              server={withPreview(server)}
               workspacePath={selected}
               onChanged={refresh}
+              onStatusPreview={previewStatus}
               onEdit={() => {
                 setEditingName(server.name)
                 setView('edit-ws')
@@ -268,7 +321,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           {servers.map((server) => (
             <GlobalMaskRow
               t={t}
-              server={server}
+              server={withPreview(server)}
               excluded={excludeSet.has(server.name)}
               onToggleExclude={toggleExclude}
               onEdit={() => {
@@ -302,8 +355,9 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
         {filteredServers.map((server) => (
           <ServerRow
             t={t}
-            server={server}
+            server={withPreview(server)}
             onChanged={refresh}
+            onStatusPreview={previewStatus}
             onEdit={() => {
               setEditingId(server.id)
               setView('edit-global')

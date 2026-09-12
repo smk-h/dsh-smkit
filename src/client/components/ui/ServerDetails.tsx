@@ -12,9 +12,9 @@ import type { ClientDeps, ServerView, Translator, WorkspaceServerView } from '..
 export interface ServerDetailsProps {
   t: Translator
   server: ServerView | WorkspaceServerView
-  /** Status to render the status-dependent lines from. The rows pass the one
-   * they settled on (`useSettledStatus`), so the tool-count line cannot blink out
-   * and back while a connection is being re-established. */
+  /** Status to render the status-dependent lines from. The rows pass the live
+   * one (`server.status`, possibly previewing a transition), so the tool-count
+   * line tracks exactly what the pills show. */
   status?: string
 }
 
