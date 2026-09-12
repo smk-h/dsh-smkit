@@ -59,9 +59,11 @@ const PLUGIN_NAME = __PLUGIN_NAME__
 const PLUGIN_REPO_URL = 'https://github.com/smk-h/dsh-smkit'
 
 /** The label the scope picker shows for a workspace: its last path segment,
- * falling back to the whole path when there is no separator to split on. */
+ * falling back to the whole path when there is no separator to split on.
+ * Both separators count — the host hands out native paths, so on Windows a
+ * workspace arrives as `E:\AI\app` and a `/`-only split would show it whole. */
 function workspaceName(path: string): string {
-  return path.split('/').filter(Boolean).pop() || path
+  return path.split(/[\\/]+/).filter(Boolean).pop() || path
 }
 
 export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX.Element {
