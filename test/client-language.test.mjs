@@ -21,11 +21,18 @@ const I18N_MODULE = /[/\\]i18n[/\\]/
 // header's delete control), so registrations are keyed by slot name and the
 // section is addressed explicitly instead of "whatever registered last".
 function mount(fetch, language = 'en') {
-  let dictionaries, disposed = false
+  let disposed = false
+  const dictionaries = {}
   const effectLabels = []
   const registrations = new Map()
-  const t = (key, values = {}) => (dictionaries[language]?.[key] ?? dictionaries.en[key] ?? key)
-    .replace(/\{(\w+)\}/g, (match, name) => String(values[name] ?? match))
+  // Resolve one key inside one namespace, the way DSH's bound `t` does: the
+  // resolved language first, English as the fallback, the key itself last.
+  const translate = (namespace, key, values = {}) => {
+    const tables = dictionaries[namespace] ?? {}
+    const raw = tables[language]?.[key] ?? tables.en?.[key] ?? key
+    return String(raw).replace(/\{(\w+)\}/g, (match, name) => String(values[name] ?? match))
+  }
+  const t = (key, values) => translate('mcp', key, values)
   let exported
   let states = [], cursor = 0, effects = [], initialized = false
   const react = {
@@ -49,11 +56,10 @@ function mount(fetch, language = 'en') {
     effect(fn, label) { effectLabels.push(label); disposers.push(fn()) },
     locale: {
       register(ns, table) {
-        assert.equal(ns, 'mcp')
-        dictionaries = table
+        dictionaries[ns] = table
         return () => { disposed = true }
       },
-      bind(ns) { assert.equal(ns, 'mcp'); return t },
+      bind: (ns) => (key, values) => translate(ns, key, values),
     },
     slots: {
       inject: (_name, cb) => cb(),
@@ -99,9 +105,15 @@ const text = (tree) =>
 const content = (tree) =>
   nodes(tree).find((node) => typeof node.type === 'function' && node.props?.t != null)
 
-it('registers balanced mcp dictionaries with effect cleanup and the locale slot seat', () => {
+it('registers a balanced dictionary per namespace, with effect cleanup and both seats', () => {
   const app = mount(async () => response({}))
-  assert.deepEqual(Object.keys(app.dictionaries.zh).sort(), Object.keys(app.dictionaries.en).sort())
+  for (const namespace of ['platform', 'mcp', 'session-delete']) {
+    assert.deepEqual(
+      Object.keys(app.dictionaries[namespace].zh).sort(),
+      Object.keys(app.dictionaries[namespace].en).sort(),
+      namespace + ': zh and en must carry the same key set',
+    )
+  }
   assert.equal(app.spec.name, 'settings.section')
   assert.equal(app.spec.locale, 'mcp')
   assert.equal(app.spec.label(), 'MCP')
@@ -111,13 +123,24 @@ it('registers balanced mcp dictionaries with effect cleanup and the locale slot 
   // nav label and binds the same dictionary.
   const header = app.registrations.get('conversation.session.header.utilities')
   assert.equal(header.options.id, 'mcp-manager-session-delete')
-  assert.equal(header.options.locale, 'mcp')
+  assert.equal(header.options.locale, 'session-delete')
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-locale'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-conversation'))
-  assert.deepEqual(app.effectLabels, ['dsh-mcp-manager: dictionaries', 'dsh-mcp-manager: settings nav row'])
+  assert.deepEqual(app.effectLabels, [
+    'dsh-mcp-manager: platform/dictionaries',
+    'dsh-mcp-manager: mcp/dictionaries',
+    'dsh-mcp-manager: settings nav row',
+    'dsh-mcp-manager: session-delete/dictionaries',
+  ])
+  // Every key a component asks for must exist in one of the registered
+  // dictionaries: business copy in its feature's namespace, the dialog's shared
+  // button labels in the platform one.
+  const known = new Set(
+    Object.values(app.dictionaries).flatMap((dictionary) => Object.keys(dictionary.en)),
+  )
   for (const key of [...source.matchAll(/\bt\(\s*["']([\w-]+)["']/g)].map((match) => match[1])) {
-    for (const locale of ['zh', 'en']) assert.ok(app.dictionaries[locale][key], locale + ': ' + key)
+    assert.ok(known.has(key), 'no dictionary declares ' + key)
   }
   // Every user-visible string resolves through `t`, so no module outside the
   // dictionaries may carry a Han literal. This scans the SOURCES rather than

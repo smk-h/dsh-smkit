@@ -1,0 +1,84 @@
+/**
+ * The Session-header delete control (features/session-delete/SessionDeleteButton).
+ *
+ * These rules ship in this feature's own <style> tag (`styles.ts` beside this
+ * file): the MCP feature's stylesheet is not involved. The 28px round skeleton
+ * comes from the platform layer's `.mm_iconBtn`, which is injected before this
+ * one, so only what makes this control *this* control is declared here.
+ *
+ * The control is mounted into DSH's conversation header, not into this
+ * section's own page, so these rules deliberately match DSH's header rhythm
+ * instead of the settings vocabulary: a 28px round control on the header's
+ * 30px title row with a 14px radius, and no border at rest — the header's
+ * utilities are plain glyph buttons, and the hairline ring belongs to
+ * `ui-open-in-app`'s split button, not to a lone icon beside them. Hover
+ * carries the destructive intent — the glyph and a 10% wash turn the
+ * state-error colour — so the button reads as "delete" before it is clicked,
+ * without shouting at rest.
+ */
+
+.mm_sessionDeleteHost {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The fact block: one flat label/value stream laid out as a two-column grid, so
+ * rows need no wrapper element and the value column absorbs the free width.
+ * Labels size to content (they differ in length between the two dictionaries)
+ * while values stay on one line per row, wrapping inside themselves because a
+ * path has no spaces to break at. */
+.mm_sessionInfo {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 5px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.mm_sessionInfoLabel {
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
+
+.mm_sessionInfoValue {
+  color: var(--dsw-alias-label-primary);
+  overflow-wrap: anywhere;
+}
+
+/* The last row is the total; it is emitted last, so the label/value pair can be
+ * emphasized by position without an extra class in the component. */
+.mm_sessionInfoValue:last-child {
+  font-weight: 600;
+}
+
+/* The spinner arc while the dry run is read: `.mm_statusSpin` is the status
+ * pill's class and carries the status palette, so this control re-tints it with
+ * its own colour (which is what turns red on hover). */
+.mm_sessionDelete .mm_statusSpin {
+  color: inherit;
+}
+
+.mm_sessionDelete {
+  border: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Hover and keyboard focus share the destructive state, and it is the whole
+ * signal: glyph plus wash, no ring — the header's own icon buttons repaint the
+ * same way, so this one does not stand out as a bordered oddity. */
+.mm_sessionDelete:hover:not(:disabled),
+.mm_sessionDelete:focus-visible:not(:disabled) {
+  color: var(--dsw-alias-state-error-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
+}
+
+/* The request is in flight: the control cannot be pressed again, and the
+ * confirmation dialog is showing the same state through `busy`. */
+.mm_sessionDelete:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

@@ -1,0 +1,13 @@
+/**
+ * The inline error line.
+ *
+ * `ConfirmDialog` renders it inside the dialog and the settings forms use it
+ * under their fields, so it belongs to the platform layer — it used to live in
+ * the MCP section stylesheet while a platform component depended on it.
+ */
+
+.mm_err {
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+  line-height: 18px;
+}

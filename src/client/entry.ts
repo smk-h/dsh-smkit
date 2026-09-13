@@ -1,19 +1,26 @@
 /**
  * Client half entry module.
  *
- * Exports the two symbols the DSH client-runtime expects from a bundle:
- * `apply` (mount) and `inject` (the client service names it needs). The loader
- * wrapper around this module is contributed by tsdown's output options, so this
- * file stays a plain module with no knowledge of how it is shipped.
+ * Exports the two symbols the DSH client-runtime expects from a bundle: `apply`
+ * (mount) and `inject` (the client service names it needs). The loader wrapper
+ * around this module is contributed by tsdown's output options, so this file
+ * stays a plain module with no knowledge of how it is shipped.
+ *
+ * The plugin's features are the list below. Everything they share — the
+ * platform stylesheet, the platform dictionary, the stylesheet injector — is
+ * set up once here; each feature then registers its own seats through its
+ * descriptor, so this file needs to know nothing about MCP or about session
+ * deletion beyond which one sits where. Adding a feature is a directory plus
+ * one entry in `FEATURES`.
  */
 
-import { createMcpContent } from './components/McpContent'
-import { createApi } from './runtime/api'
-import { createApply } from './runtime/plugin'
-import { installStyles } from './style'
-import { MCP_LOCALE_EN } from './i18n/en'
-import { MCP_LOCALE_ZH } from './i18n/zh'
-import type { ClientContext, ClientDeps, LocaleDict } from './runtime/types'
+import { mcpFeature } from './features/mcp/client'
+import { sessionDeleteFeature } from './features/session-delete/client'
+import { createApi } from './platform/api'
+import { PLATFORM_LOCALE_EN } from './platform/i18n/en'
+import { PLATFORM_LOCALE_ZH } from './platform/i18n/zh'
+import { PLATFORM_CSS, installStylesheet } from './platform/styles'
+import type { ClientContext, ClientDeps, ClientFeature } from './platform/types'
 
 /**
  * Client services injected by the DSH client runtime.
@@ -25,6 +32,9 @@ import type { ClientContext, ClientDeps, LocaleDict } from './runtime/types'
  * session-header contributions do.
  */
 export const inject = ['slots', 'locale', 'sessions']
+
+/** The features this plugin ships; the order here is the order they register. */
+const FEATURES: ClientFeature[] = [mcpFeature, sessionDeleteFeature]
 
 export function createPlugin(): { apply(ctx: ClientContext): void; inject: string[] } {
   const react = require('react')
@@ -55,20 +65,47 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
     // No ui-primitives in the platform module table: the browser's own bubble.
   }
 
-  installStyles()
-
-  const deps: ClientDeps = {
-    react,
-    h: react.createElement,
-    api: createApi(),
-    zh: MCP_LOCALE_ZH as LocaleDict,
-    en: MCP_LOCALE_EN as LocaleDict,
-    createPortal,
-    Tooltip,
+  // Styles go in at load time, as they always have: the platform layer's rules
+  // first, then each feature's own, so a feature wins wherever the two overlap.
+  // Each sheet is keyed by `data-plugin-css`, so a hot reload cannot stack
+  // copies.
+  installStylesheet('dsh-mcp-manager/platform', PLATFORM_CSS)
+  for (const feature of FEATURES) {
+    for (const sheet of feature.styles) {
+      installStylesheet(`dsh-mcp-manager/${sheet.name}`, sheet.css)
+    }
   }
-  const McpContent = createMcpContent(deps)
 
-  return { apply: createApply(deps, McpContent), inject }
+  return {
+    apply(ctx: ClientContext): void {
+      // The platform dictionary is registered before the features: the platform
+      // layer's own components read their copy through `platformT`, and each
+      // feature binds its own namespace afterwards.
+      ctx.effect(
+        () => ctx.locale.register('platform', { zh: PLATFORM_LOCALE_ZH, en: PLATFORM_LOCALE_EN }),
+        'dsh-mcp-manager: platform/dictionaries',
+      )
+      const deps: ClientDeps = {
+        react,
+        h: react.createElement,
+        api: createApi(),
+        platformT: ctx.locale.bind('platform'),
+        createPortal,
+        Tooltip,
+      }
+      for (const feature of FEATURES) {
+        ctx.effect(
+          () => ctx.locale.register(feature.locale.namespace, {
+            zh: feature.locale.zh,
+            en: feature.locale.en,
+          }),
+          `dsh-mcp-manager: ${feature.id}/dictionaries`,
+        )
+        feature.register(ctx, deps, ctx.locale.bind(feature.locale.namespace))
+      }
+    },
+    inject,
+  }
 }
 
 export const { apply } = createPlugin()

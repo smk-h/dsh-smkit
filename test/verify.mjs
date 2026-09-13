@@ -148,11 +148,14 @@ clientExports.apply({
     register: (spec) => { slotSpecs.set(spec.name, spec) },
   },
 })
-assert.deepEqual(
-  Object.keys(dictionaries.mcp.zh).sort(),
-  Object.keys(dictionaries.mcp.en).sort(),
-  'the zh and en dictionaries must carry the same key set',
-)
+for (const namespace of ['platform', 'mcp', 'session-delete']) {
+  assert.ok(dictionaries[namespace], `the ${namespace} dictionary must be registered`)
+  assert.deepEqual(
+    Object.keys(dictionaries[namespace].zh).sort(),
+    Object.keys(dictionaries[namespace].en).sort(),
+    `the zh and en ${namespace} dictionaries must carry the same key set`,
+  )
+}
 
 const settingsSlot = slotSpecs.get('settings.section')
 assert.ok(settingsSlot, 'the client half must seat the settings section slot')
@@ -162,6 +165,6 @@ assert.equal(settingsSlot.locale, 'mcp', 'the slot entry must bind the mcp local
 const deleteSlot = slotSpecs.get('conversation.session.header.utilities')
 assert.ok(deleteSlot, 'the client half must seat the session delete control in the header')
 assert.equal(deleteSlot.id, 'mcp-manager-session-delete', 'the delete control keeps its own entry id')
-assert.equal(deleteSlot.locale, 'mcp', 'the delete control must bind the mcp locale namespace')
+assert.equal(deleteSlot.locale, 'session-delete', 'the delete control binds its own locale namespace')
 
 console.log('verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → MCP.')

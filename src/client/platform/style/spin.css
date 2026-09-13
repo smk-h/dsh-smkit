@@ -1,0 +1,27 @@
+/**
+ * The spinner arc, shared by the status pills and the session-delete control.
+ *
+ * `LoaderIcon` renders it through `.mm_statusSpin`, so the rule rides with the
+ * platform component instead of with either feature's stylesheet — the session
+ * delete control used to borrow the MCP pill's copy.
+ */
+
+.mm_statusSpin {
+  display: block;
+  color: var(--mm-status-color, var(--dsw-alias-label-tertiary));
+  animation: mm_statusSpin .8s linear infinite;
+}
+
+@keyframes mm_statusSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Without motion the arc simply stands still; the surrounding badge or button
+ * still names the transient status. */
+@media (prefers-reduced-motion: reduce) {
+  .mm_statusSpin {
+    animation: none;
+  }
+}

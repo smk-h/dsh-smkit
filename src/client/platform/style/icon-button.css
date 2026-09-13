@@ -1,0 +1,23 @@
+/**
+ * The skeleton every 28px round icon button in this plugin shares: the two
+ * settings toolbar buttons (`.mm_addBtn`, `.mm_openConfig`) and the
+ * conversation header's delete control (`.mm_sessionDelete`).
+ *
+ * Only the declarations all three spell identically live here; colour, border
+ * and hover treatment stay with each feature, and because the platform
+ * stylesheet is injected first a feature's own rule wins where they overlap
+ * (see `platform/styles.ts`).
+ */
+
+.mm_iconBtn {
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: 0 0;
+  cursor: pointer;
+}

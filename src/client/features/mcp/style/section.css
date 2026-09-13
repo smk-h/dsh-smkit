@@ -1,0 +1,252 @@
+/**
+ * Page shell for the section (McpContent): the container, its headings, the
+ * lists that hold the rows/cards, the add button, the on-demand feature row,
+ * the toolbar (scope picker, title, search) and the path hint.
+ *
+ * One part of the MCP feature's stylesheet. `features/mcp/styles.ts` imports
+ * the parts and joins them in the order listed there, and the build inlines the
+ * result as one string: the split is a reading aid, the order there decides the
+ * cascade.
+ */
+
+.mm_section {
+  width: 100%;
+  max-width: 760px;
+  color: var(--dsw-alias-label-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mm_meta {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.mm_catalogHeading {
+  align-items: baseline;
+  gap: 7px;
+  padding: 0 2px;
+  display: flex;
+}
+.mm_catalogHeading h3 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+  margin: 0;
+}
+.mm_catalogHeading span {
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* The "open config file" icon button beside the scope picker, same 28px
+ * circle as the add button so the toolbar reads as one row of round actions.
+ * Icon-only on purpose: a label squeezed the search box onto its own line.
+ * The picker's trigger already names the selected workspace (hover shows the
+ * full path), and the button's tooltip names the file it opens. */
+.mm_openConfig {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-primary);
+  border: 1px solid var(--dsw-alias-border-l2);
+}
+.mm_openConfig:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+.mm_openConfig:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.mm_cards {
+  grid-template-columns: minmax(0,1fr);
+  align-items: start;
+  gap: 10px;
+  display: grid;
+}
+
+.mm_addBtn {
+  color: var(--dsw-alias-label-primary);
+  border: 1px solid var(--dsw-alias-border-l2);
+}
+.mm_addBtn:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+
+/* Shared hover bubble for the round icon buttons, DSH-settings style: a dark
+ * pill floating above the button (`data-tip` carries the label; the native
+ * `title` bubble is gone — it lags and cannot be styled). Theme-inverting on
+ * purpose: the bubble paints itself with the label colour and writes with the
+ * layer colour, so it reads as inverted in both themes. Fade-in waits out a
+ * 500ms dwell (as native tooltips do) so sweeping the mouse across the toolbar
+ * does not flash bubbles; fade-out is immediate. `pointer-events: none` keeps
+ * the bubble itself from eating the hover. Fade-in waits out a 200ms dwell —
+ * short enough to feel instant next to DSH's own bubbles, long enough that
+ * sweeping the mouse across the toolbar does not flash bubbles on every
+ * button it passes; fade-out is immediate.
+ *
+ * Edge clipping is not solved with alignment variants: the horizontal offset
+ * is a variable that `watchTipBoundaries()` (ui/tip.ts) measures per hover and
+ * writes before the fade-in, so a bubble near a clip edge — the ＋ button at
+ * the section's right edge — slides just enough to stay inside it. */
+.mm_tip {
+  position: relative;
+}
+.mm_tip::after {
+  content: attr(data-tip);
+  box-sizing: border-box;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(calc(-50% + var(--mm-tip-shift, 0px)));
+  background: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-layer-2);
+  font-size: 12px;
+  line-height: 18px;
+  padding: 3px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease 0s;
+  z-index: 20;
+}
+.mm_tip:hover::after,
+.mm_tip:focus-visible::after {
+  opacity: 1;
+  transition: opacity 120ms ease 200ms;
+}
+
+.mm_wsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mm_toolbar {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px;
+  display: flex;
+}
+
+/* The scope picker yields first when the row runs short: `min-width: 0` lets
+ * the pill compress below its label so the trigger's ellipsis engages instead
+ * of the search wrapping to its own line. */
+.mm_toolbar>.mm_scope {
+  min-width: 0;
+}
+
+/* The right-hand pull for the search, as its own flex item rather than an
+ * auto margin on the search box: an auto margin would push a wrapped search
+ * to the right of its own line too. On one line the spacer absorbs the slack
+ * and holds search+add against the right edge; when the search wraps, the
+ * spacer stays behind on the scope's line and the search's line packs left. */
+.mm_toolbarSpacer {
+  flex: 1 1 0;
+}
+
+/* The search and the add button travel as one cluster, so a wrapping search
+ * never strands the add button on a line of its own; the spacer above owns
+ * the right-edge pull, so the cluster packs left when it wraps. The cluster
+ * itself stays shrinkable — `min-width: 0` waives the automatic minimum (the
+ * content's intrinsic width, which would hold the pair at full size and let
+ * it overflow the card) and lets a narrow panel squeeze the search box inside
+ * it, down to the search's own floor. */
+.mm_toolbarActions {
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  display: flex;
+  flex: 0 1 auto;
+}
+
+.mm_wsPathHint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+  word-break: break-all;
+  padding: 0 2px;
+}
+
+.mm_groupTitle {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  padding: 0 2px;
+  margin-top: 4px;
+}
+
+.mm_feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-3);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.mm_featureText {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mm_featureTitle {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.mm_featureMeta {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.mm_intro {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.mm_versionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 4px 12px 4px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.mm_versionBadgeName {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.mm_versionBadgeName:hover {
+  color: var(--dsw-alias-label-primary);
+  text-decoration: underline;
+}
+
+.mm_versionBadgeTag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--dsw-alias-accent-soft,var(--dsw-alias-border-l2));
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
