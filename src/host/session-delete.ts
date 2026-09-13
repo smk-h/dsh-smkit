@@ -36,13 +36,28 @@
  *    deletion stick: the backend's append path opens the log with `O_APPEND`
  *    and would silently recreate a header-less file inside a directory that
  *    still existed, poisoning the whole session listing;
- * 4. **drop the projection-cache row** (titles, stats, inbox) so no derived
- *    data about the session survives it;
+ * 4. **drop the derived stores** that outlive the log: the projection-cache row
+ *    (titles, stats, inbox, model selection) and the session's spilled
+ *    tool-output directory, which the local spill backend names after the
+ *    session id alone;
  * 5. **emit `api-session/removed`** on the harness event bus. That is the same
  *    event the session controller publishes when a session is disposed, and the
  *    browser reacts to it by dropping the sidebar row and masking the deleted
  *    session out of the current selection — the whole UI update is incremental,
  *    with no reload.
+ *
+ * ## What is deliberately left alone
+ *
+ * Image and file attachments live in ONE content-addressed store
+ * (`<DSH_HOME>/attachments/v1/<hash>`): a blob is named by its own bytes and may
+ * be referenced by several sessions, so removing "the session's attachments"
+ * would break other sessions' history. The harness has no reference counting and
+ * no attachment GC either, so this delete reports the session's own artifacts
+ * rather than guessing which shared blobs it happened to be the last user of.
+ *
+ * The workspace registry keeps the id in its session accounting (`sessionIds`),
+ * exactly as archiving does: that is an ordering slot, not session data, and it
+ * is what the archive tombstone of an attached session lives beside.
  *
  * ## Path resolution
  *
@@ -54,6 +69,7 @@
  * must sit inside a known root — before anything is removed.
  */
 
+import { createHash } from 'node:crypto'
 import { readdir, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
@@ -109,6 +125,11 @@ interface WorkspaceRegistryLike {
 
 /** Structural slice of the storage hub's json backend, which owns the storage root. */
 interface StorageBackendLike {
+  root?: unknown
+}
+
+/** Structural slice of `ctx.spillStore`: the local backend exposes its resolved root. */
+interface SpillStoreLike {
   root?: unknown
 }
 
@@ -196,6 +217,8 @@ export function createSessionDeleter(deps: SessionDeleterDeps): SessionDeleter {
     const cwd = typeof header.cwd === 'string' ? header.cwd : undefined
     const removed = await removeArtifacts(persistence, sessionId, cwd, deps)
     await forgetProjectionRow(deps, sessionId)
+    const spillDir = await forgetSpillFiles(deps, sessionId)
+    if (spillDir !== undefined) removed.push(spillDir)
 
     // The browser's sidebar row, current selection, and workspace browser all
     // follow this one frame — no reload, no stale entry.
@@ -397,6 +420,38 @@ async function isDirectory(path: string): Promise<boolean> {
 function isInside(root: string, target: string): boolean {
   const rel = relative(resolve(root), target)
   return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)
+}
+
+/**
+ * Delete the session's spilled tool-output directory. Tool results too large to
+ * keep in the log are written to `<spill root>/session-<hash12>/…` — one
+ * directory per session, where `hash12` is the first 12 hex digits of
+ * `sha256(sessionId)`. The name is a pure function of the id, so this addresses
+ * this session's directory and no other.
+ *
+ * Best effort: the default spill root is a private temp directory the harness
+ * sweeps by age on startup, so a missed cleanup costs disk space, never
+ * correctness.
+ * @param deps - deleter dependencies.
+ * @param sessionId - the deleted session.
+ * @returns the removed directory, when there was one.
+ */
+async function forgetSpillFiles(deps: SessionDeleterDeps, sessionId: string): Promise<string | undefined> {
+  const spill = serviceOf(deps.services, 'spillStore') as SpillStoreLike | undefined
+  const root = typeof spill?.root === 'string' && spill.root !== '' ? resolve(spill.root) : undefined
+  if (root === undefined) return undefined
+  const name = `session-${createHash('sha256').update(sessionId).digest('hex').slice(0, 12)}`
+  const dir = join(root, name)
+  // `name` holds no separator and `join` cannot escape its own root, so the
+  // guard only states the invariant the `rm` below depends on.
+  if (!isInside(root, dir)) return undefined
+  try {
+    await rm(dir, { recursive: true, force: true })
+  } catch (error) {
+    deps.logger.warn(`mcp-manager: could not remove the spill directory for "${sessionId}": ${String(error)}`)
+    return undefined
+  }
+  return dir
 }
 
 /**

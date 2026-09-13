@@ -11,6 +11,7 @@
  * the "never remove anything that is not this session's own directory" guard.
  */
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -40,7 +41,7 @@ function makeSession({ id, cwd, root }) {
  * `workspaceRegistry` are only supplied when the case needs them, which is what
  * proves the delete degrades instead of requiring them.
  */
-function makeCtx({ persistence, sessions, agents, registry, storageBackend, removes }) {
+function makeCtx({ persistence, sessions, agents, registry, storageBackend, spillStore, removes }) {
   const routes = []
   const services = {
     ...(persistence === undefined ? {} : { sessionPersistence: persistence }),
@@ -48,6 +49,7 @@ function makeCtx({ persistence, sessions, agents, registry, storageBackend, remo
     ...(agents === undefined ? {} : { agents }),
     ...(registry === undefined ? {} : { workspaceRegistry: registry }),
     ...(storageBackend === undefined ? {} : { 'storage.backend.json': storageBackend }),
+    ...(spillStore === undefined ? {} : { spillStore }),
   }
   const ctx = {
     logger: { info() {}, warn() {}, error() {} },
@@ -260,6 +262,30 @@ it('removes the projection cache row and nothing beside it', async () => {
   assert.equal(existsSync(own), false)
   assert.equal(existsSync(backup), false)
   assert.equal(existsSync(other), true, 'another session\u2019s cache row must survive')
+})
+
+it('removes the session\u2019s spilled tool-output directory', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-smkit-sessions-root-'))
+  const spillRoot = mkdtempSync(join(tmpdir(), 'dsh-smkit-spill-'))
+  const cwd = join(scratchHome, 'project-spill')
+  makeSession({ id: 'session-spill', cwd, root })
+  // The local spill backend names one directory per session after sha256(id).
+  const spillName = (id) => `session-${createHash('sha256').update(id).digest('hex').slice(0, 12)}`
+  const own = join(spillRoot, spillName('session-spill'))
+  const other = join(spillRoot, spillName('session-other'))
+  mkdirSync(own, { recursive: true })
+  mkdirSync(other, { recursive: true })
+  writeFileSync(join(own, '012345-read.txt'), 'spilled tool output')
+  const handler = makeCtx({
+    persistence: { root, stat: async (id) => ({ header: { id, cwd } }) },
+    spillStore: { root: spillRoot },
+  })
+
+  const r = await request(handler, { sessionId: 'session-spill' })
+  assert.equal(r.code, 200)
+  assert.equal(existsSync(own), false, 'the session\u2019s spilled output must go with it')
+  assert.equal(existsSync(other), true, 'another session\u2019s spill directory must survive')
+  assert.deepEqual(r.json.removed, [join(root, projectKey(cwd), encodeSegment('session-spill')), own])
 })
 
 it('answers 503 when the deployment mounts no session persistence', async () => {
