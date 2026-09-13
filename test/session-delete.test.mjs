@@ -12,7 +12,7 @@
  */
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, it } from 'node:test'
@@ -78,6 +78,24 @@ async function request(handler, body) {
     url: '/mcp-manager/api/sessions/delete',
     headers: { host: '127.0.0.1:3080' },
     async *[Symbol.asyncIterator]() { for (const chunk of payload) yield chunk },
+  }
+  const res = {
+    code: 0,
+    body: '',
+    writeHead(code) { this.code = code },
+    end(chunk) { this.body = chunk ?? '' },
+  }
+  await handler(req, res)
+  return { code: res.code, json: res.body ? JSON.parse(res.body) : undefined }
+}
+
+/** Call the mounted route with a GET (the preview dry run). */
+async function preview(handler, sessionId) {
+  const req = {
+    method: 'GET',
+    url: `/mcp-manager/api/sessions/preview?sessionId=${encodeURIComponent(sessionId)}`,
+    headers: { host: '127.0.0.1:3080' },
+    async *[Symbol.asyncIterator]() {},
   }
   const res = {
     code: 0,
@@ -332,4 +350,103 @@ it('keeps the delete working when a backend refuses to read the header', async (
   const r = await request(handler, { sessionId: 'session-broken' })
   assert.equal(r.code, 404, 'an unreadable artifact reports the same miss a listing shows')
   assert.equal(existsSync(dir), true, 'and is never removed on a guess')
+})
+it('previews the session\u2019s identity and the exact stores a delete would free', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-smkit-sessions-root-'))
+  const storageRoot = mkdtempSync(join(tmpdir(), 'dsh-smkit-storages-'))
+  const spillRoot = mkdtempSync(join(tmpdir(), 'dsh-smkit-spill-'))
+  const cwd = join(scratchHome, 'project-preview')
+  const createdAt = 1_760_000_000_000
+  // The log is a directory of files (generations + lock), the cache and spill
+  // stores hold one document / one directory respectively.
+  const dir = makeSession({ id: 'session-preview', cwd, root })
+  writeFileSync(join(dir, 'session.v1.jsonl.zstd'), Buffer.alloc(1000))
+  const tableDir = join(storageRoot, 'session_projcache', 'sessions')
+  mkdirSync(tableDir, { recursive: true })
+  writeFileSync(join(tableDir, 'session-preview.json'), Buffer.alloc(64))
+  const spillDir = join(spillRoot, `session-${createHash('sha256').update('session-preview').digest('hex').slice(0, 12)}`)
+  mkdirSync(spillDir, { recursive: true })
+  writeFileSync(join(spillDir, '012345-read.txt'), Buffer.alloc(36))
+  const handler = makeCtx({
+    persistence: { root, stat: async (id) => ({ header: { id, cwd, createdAt } }) },
+    storageBackend: { root: storageRoot },
+    spillStore: { root: spillRoot },
+  })
+
+  const r = await preview(handler, 'session-preview')
+  assert.equal(r.code, 200)
+  assert.equal(r.json.sessionId, 'session-preview')
+  assert.equal(r.json.cwd, cwd)
+  assert.equal(r.json.createdAt, createdAt)
+  // The fixture's own header file counts too: the directory is measured, not guessed.
+  const headerBytes = readFileSync(join(dir, 'session.jsonl')).length
+  assert.equal(r.json.log.path, dir)
+  assert.equal(r.json.log.bytes, headerBytes + 1000, 'the log directory totals every file it holds')
+  assert.equal(r.json.log.files, 2)
+  assert.deepEqual(r.json.cache, { path: tableDir, bytes: 64, files: 1 })
+  assert.deepEqual(r.json.spill, { path: spillDir, bytes: 36, files: 1 })
+  assert.equal(r.json.totalBytes, headerBytes + 1000 + 64 + 36)
+  assert.equal(existsSync(dir), true, 'a preview reads only')
+  assert.equal(existsSync(spillDir), true)
+})
+
+it('previews an attached session without archiving it', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-smkit-sessions-root-'))
+  const cwd = join(scratchHome, 'project-preview-live')
+  makeSession({ id: 'session-preview-live', cwd, root })
+  const archived = []
+  const handler = makeCtx({
+    persistence: { root, stat: async () => undefined },
+    sessions: { get: (id) => (id === 'session-preview-live' ? { header: { id, cwd } } : undefined) },
+    agents: { get: () => ({ status: 'idle' }) },
+    registry: { archiveSession: async (id) => { archived.push(id) } },
+  })
+
+  const r = await preview(handler, 'session-preview-live')
+  assert.equal(r.code, 200)
+  assert.equal(r.json.sessionId, 'session-preview-live')
+  assert.deepEqual(archived, [], 'the dry run must not hide the session it is only describing')
+})
+
+it('answers the preview with the same refusals the delete would give', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-smkit-sessions-root-'))
+  const cwd = join(scratchHome, 'project-preview-refusals')
+  const stored = new Set(['session-busy', 'child'])
+  const handler = makeCtx({
+    persistence: {
+      root,
+      stat: async (id) => (stored.has(id)
+        ? { header: { id, cwd, ...(id === 'child' ? { origin: 'subagent' } : {}) } }
+        : undefined),
+    },
+    sessions: { get: (id) => (id === 'session-live' ? { header: { id, cwd } } : undefined) },
+    agents: {
+      get: (id) => (id === 'session-busy' ? { status: 'running' } : undefined),
+    },
+  })
+
+  const unknown = await preview(handler, 'missing')
+  assert.equal(unknown.code, 404)
+  assert.equal(unknown.json.code, 'session/not-found')
+
+  const busy = await preview(handler, 'session-busy')
+  assert.equal(busy.code, 409)
+  assert.equal(busy.json.code, 'session/running', 'the dialog learns about a running agent before the click')
+
+  const subagent = await preview(handler, 'child')
+  assert.equal(subagent.code, 400)
+  assert.equal(subagent.json.code, 'session/subagent')
+
+  // Attached, but this deployment mounts no workspace registry to hide it in:
+  // the delete would refuse, so the dry run says so up front.
+  const attached = await preview(handler, 'session-live')
+  assert.equal(attached.code, 409)
+  assert.equal(attached.json.code, 'session/attached')
+})
+
+it('previews without a session id as a miss', async () => {
+  const handler = makeCtx({ persistence: { stat: async () => undefined } })
+  const r = await preview(handler, '')
+  assert.equal(r.code, 404)
+  assert.equal(r.json.code, 'session/not-found')
 })

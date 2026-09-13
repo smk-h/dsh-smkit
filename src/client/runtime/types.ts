@@ -66,8 +66,10 @@ export type WorkspaceSelector = <Selected>(
   selector: (state: WorkspaceStateLike) => Selected,
 ) => Selected
 
-/** The part of one session-list row this plugin reads: where the session lives. */
+/** The part of one session-list row this plugin reads: what the session is. */
 export interface SessionListRowLike {
+  /** Durable, host-projected title; absent until the session earns one. */
+  title?: string
   cwd?: string
   blank?: boolean
 }
@@ -172,6 +174,8 @@ export type {
   ServerType,
   ServerView,
   SettingsView,
+  SessionPreview,
+  SessionStoreFootprint,
   WorkspaceServerView,
   WorkspaceView,
 } from '../../shared/contract'

@@ -67,6 +67,15 @@
  * `$DSH_HOME/sessions` (see `session-path.ts`). Every candidate is verified —
  * it must be a real directory whose basename is the encoded session id and it
  * must sit inside a known root — before anything is removed.
+ *
+ * ## Preview
+ *
+ * `createSessionPreviewer` runs the delete's own preconditions as a dry run and
+ * measures what each step would remove, so the confirmation dialog can show the
+ * session's identity, where its data lives, and how much of it there is. Both
+ * entry points share {@link inspectSession} and the same locators, which is what
+ * keeps the dialog's numbers honest: nothing is estimated from a second code
+ * path that could drift.
  */
 
 import { createHash } from 'node:crypto'
@@ -75,7 +84,12 @@ import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { encodeSegment, sessionDir } from './session-path.js'
 import { serviceOf } from './util/services.js'
-import type { SessionDeleteRefusal, SessionDeleteReceipt } from '../shared/contract.js'
+import type {
+  SessionDeleteRefusal,
+  SessionDeleteReceipt,
+  SessionPreview,
+  SessionStoreFootprint,
+} from '../shared/contract.js'
 import type { LoggerLike, ServiceAccessor } from './types.js'
 
 /** Longest session id accepted from the wire; far above any id the harness mints. */
@@ -97,6 +111,8 @@ interface SessionHeaderLike {
   id?: unknown
   cwd?: unknown
   origin?: unknown
+  /** Session creation instant, epoch milliseconds. */
+  createdAt?: unknown
 }
 
 /** Structural slice of `ctx.sessionPersistence` (the JSONL backend in practice). */
@@ -148,8 +164,107 @@ export type SessionDeleteOutcome =
   | { ok: true; receipt: SessionDeleteReceipt }
   | { ok: false; code: SessionDeleteRefusal; message: string }
 
-/** The delete operation the API layer calls; the only exported behaviour here. */
+/** Outcome of one preview request: what would go, or the same refusals. */
+export type SessionPreviewOutcome =
+  | { ok: true; preview: SessionPreview }
+  | { ok: false; code: SessionDeleteRefusal; message: string }
+
+/** The delete operation the API layer calls. */
 export type SessionDeleter = (sessionId: unknown) => Promise<SessionDeleteOutcome>
+
+/** The dry run the delete dialog asks for before it offers to confirm. */
+export type SessionPreviewer = (sessionId: unknown) => Promise<SessionPreviewOutcome>
+
+/** One session resolved far enough to act on: its identity, header, and liveness. */
+interface SessionTarget {
+  /** The validated id every later step addresses. */
+  readonly id: string
+  readonly persistence: PersistenceLike
+  readonly header: SessionHeaderLike
+  /** Whether the harness currently holds this session in memory. */
+  readonly live: boolean
+  readonly cwd: string | undefined
+}
+
+/** The result of the preconditions both entry points share. */
+type SessionInspection =
+  | { ok: true; target: SessionTarget }
+  | { ok: false; code: SessionDeleteRefusal; message: string }
+
+/**
+ * Resolve one session and apply the refusals a delete must not run past. The
+ * delete and the preview both start here, so the dialog can never offer an
+ * action the delete would then refuse for a reason it already knew.
+ * @param deps - deleter dependencies.
+ * @param sessionId - the id as received from the wire.
+ * @returns the resolved target, or the refusal to report.
+ */
+async function inspectSession(deps: SessionDeleterDeps, sessionId: unknown): Promise<SessionInspection> {
+  if (
+    typeof sessionId !== 'string'
+    || sessionId.length === 0
+    || sessionId.length > MAX_SESSION_ID_LENGTH
+    || sessionId.includes('\0')
+  ) {
+    return { ok: false, code: 'session/not-found', message: 'sessionId must be a non-empty session id' }
+  }
+
+  const persistence = serviceOf(deps.services, 'sessionPersistence') as PersistenceLike | undefined
+  if (persistence === undefined) {
+    return {
+      ok: false,
+      code: 'session/unavailable',
+      message: 'this deployment mounts no session persistence backend, so there is no session data to delete',
+    }
+  }
+
+  // A live session carries the authoritative header already; a cold one is read
+  // from the backend without resuming its agent.
+  const liveSession = (serviceOf(deps.services, 'sessions') as SessionStoreLike | undefined)?.get?.(sessionId)
+  const header = liveSession?.header ?? await readHeader(persistence, sessionId, deps.logger)
+  if (header === undefined) {
+    return { ok: false, code: 'session/not-found', message: `session "${sessionId}" is not a live or stored session` }
+  }
+  if (header.origin === 'subagent') {
+    return {
+      ok: false,
+      code: 'session/subagent',
+      message: `session "${sessionId}" is a subagent child; delete its parent session instead`,
+    }
+  }
+  const agents = serviceOf(deps.services, 'agents') as AgentRegistryLike | undefined
+  if (agents?.get?.(sessionId)?.status === 'running') {
+    return { ok: false, code: 'session/running', message: `session "${sessionId}" is running; stop it before deleting` }
+  }
+
+  // A detached session is complete once its artifacts are gone; an attached one
+  // also needs the registry's archive set to disappear from the session list.
+  // Checked here so the preview reports it before the user commits to anything.
+  if (liveSession !== undefined && !archiveAvailable(deps)) {
+    return {
+      ok: false,
+      code: 'session/attached',
+      message: `session "${sessionId}" is attached to this harness and no archive set is mounted to hide it from the session list`,
+    }
+  }
+
+  return {
+    ok: true,
+    target: {
+      id: sessionId,
+      persistence,
+      header,
+      live: liveSession !== undefined,
+      cwd: typeof header.cwd === 'string' ? header.cwd : undefined,
+    },
+  }
+}
+
+/** Whether this deployment can hide an attached session from the session list. */
+function archiveAvailable(deps: SessionDeleterDeps): boolean {
+  const registry = serviceOf(deps.services, 'workspaceRegistry') as WorkspaceRegistryLike | undefined
+  return typeof registry?.archiveSession === 'function'
+}
 
 /**
  * Build the delete operation over the host services. All DSH-facing access is
@@ -161,43 +276,9 @@ export type SessionDeleter = (sessionId: unknown) => Promise<SessionDeleteOutcom
  */
 export function createSessionDeleter(deps: SessionDeleterDeps): SessionDeleter {
   return async function deleteSession(sessionId: unknown): Promise<SessionDeleteOutcome> {
-    if (
-      typeof sessionId !== 'string'
-      || sessionId.length === 0
-      || sessionId.length > MAX_SESSION_ID_LENGTH
-      || sessionId.includes('\0')
-    ) {
-      return refuse('session/not-found', 'sessionId must be a non-empty session id')
-    }
-
-    const persistence = serviceOf(deps.services, 'sessionPersistence') as PersistenceLike | undefined
-    if (persistence === undefined) {
-      return refuse(
-        'session/unavailable',
-        'this deployment mounts no session persistence backend, so there is no session data to delete',
-      )
-    }
-
-    // A live session carries the authoritative header already; a cold one is
-    // read from the backend without resuming its agent.
-    const live = (serviceOf(deps.services, 'sessions') as SessionStoreLike | undefined)?.get?.(sessionId)
-    const header = live?.header ?? await readHeader(persistence, sessionId, deps.logger)
-    if (header === undefined) {
-      return refuse('session/not-found', `session "${sessionId}" is not a live or stored session`)
-    }
-    if (header.origin === 'subagent') {
-      return refuse(
-        'session/subagent',
-        `session "${sessionId}" is a subagent child; delete its parent session instead`,
-      )
-    }
-    const agents = serviceOf(deps.services, 'agents') as AgentRegistryLike | undefined
-    if (agents?.get?.(sessionId)?.status === 'running') {
-      return refuse(
-        'session/running',
-        `session "${sessionId}" is running; stop it before deleting`,
-      )
-    }
+    const inspection = await inspectSession(deps, sessionId)
+    if (!inspection.ok) return refuse(inspection.code, inspection.message)
+    const { id, persistence, live, cwd } = inspection.target
 
     // A session that is no longer attached needs no hiding: with its artifacts
     // gone it cannot appear in a listing at all, and the event below takes the
@@ -207,32 +288,141 @@ export function createSessionDeleter(deps: SessionDeleterDeps): SessionDeleter {
     // controller drops that handle), so the registry's archive set is the only
     // lever that hides it. Order matters: the archive set only accepts a
     // session that still exists, so it is written before the log goes away.
-    const archived = live === undefined ? false : await archiveSession(deps, sessionId)
-    if (live !== undefined && !archived) {
+    const archived = live ? await archiveSession(deps, id) : false
+    if (live && !archived) {
       return refuse(
         'session/attached',
-        `session "${sessionId}" is attached to this harness and no archive set is mounted to hide it from the session list`,
+        `session "${id}" is attached to this harness and no archive set is mounted to hide it from the session list`,
       )
     }
-    const cwd = typeof header.cwd === 'string' ? header.cwd : undefined
-    const removed = await removeArtifacts(persistence, sessionId, cwd, deps)
-    await forgetProjectionRow(deps, sessionId)
-    const spillDir = await forgetSpillFiles(deps, sessionId)
+    const removed = await removeArtifacts(persistence, id, cwd, deps)
+    await forgetProjectionRows(deps, id)
+    const spillDir = await forgetSpillFiles(deps, id)
     if (spillDir !== undefined) removed.push(spillDir)
 
     // The browser's sidebar row, current selection, and workspace browser all
     // follow this one frame — no reload, no stale entry.
-    deps.emit?.('api-session/removed', sessionId)
+    deps.emit?.('api-session/removed', id)
+
+    return { ok: true, receipt: { deleted: true, sessionId: id, live, archived, removed } }
+  }
+}
+
+/**
+ * Build the delete dialog's dry run: the same preconditions, plus a measurement
+ * of what each removal step would free. No mutation happens here — the archive
+ * set is only *checked* for availability, never written.
+ * @param deps - service accessor, logger, and optional home override.
+ * @returns the preview operation.
+ */
+export function createSessionPreviewer(deps: SessionDeleterDeps): SessionPreviewer {
+  return async function previewSession(sessionId: unknown): Promise<SessionPreviewOutcome> {
+    const inspection = await inspectSession(deps, sessionId)
+    if (!inspection.ok) return refuse(inspection.code, inspection.message)
+    const { id, persistence, header, cwd } = inspection.target
+
+    const log = await measureSessionDir(persistence, id, cwd, deps)
+    const cacheFiles = await projectionRowPaths(deps, id)
+    const cache = cacheFiles.length === 0 ? undefined : await measureFiles(cacheFiles)
+    let spill: SessionStoreFootprint | undefined
+    const spillPath = spillDirPath(deps, id)
+    if (spillPath !== undefined) {
+      const measured = await measureTree(spillPath)
+      // An empty (or absent) spill directory is not worth a row of its own.
+      if (measured.files > 0) spill = { path: spillPath, ...measured }
+    }
 
     return {
       ok: true,
-      receipt: { deleted: true, sessionId, live: live !== undefined, archived, removed },
+      preview: {
+        sessionId: id,
+        ...(cwd === undefined ? {} : { cwd }),
+        ...(typeof header.createdAt === 'number' ? { createdAt: header.createdAt } : {}),
+        ...(log === undefined ? {} : { log }),
+        ...(cache === undefined ? {} : { cache }),
+        ...(spill === undefined ? {} : { spill }),
+        totalBytes: (log?.bytes ?? 0) + (cache?.bytes ?? 0) + (spill?.bytes ?? 0),
+      },
     }
   }
 }
 
-/** Build one refusal without losing the stable code the UI branches on. */
-function refuse(code: SessionDeleteRefusal, message: string): SessionDeleteOutcome {
+/**
+ * Measure the directory the delete would remove for this session.
+ * @param persistence - the persistence service that names the artifact.
+ * @param sessionId - the session being previewed.
+ * @param cwd - the session's project directory, when the header carries one.
+ * @param deps - deleter dependencies.
+ * @returns the footprint, or undefined when the session has no directory (an
+ *   attached session that never materialized leaves nothing on disk).
+ */
+async function measureSessionDir(
+  persistence: PersistenceLike,
+  sessionId: string,
+  cwd: string | undefined,
+  deps: SessionDeleterDeps,
+): Promise<SessionStoreFootprint | undefined> {
+  const encoded = encodeSegment(sessionId)
+  const roots = knownRoots(persistence, deps.dshHome)
+  const dir = await locateSessionDir(persistence, sessionId, cwd, encoded, roots, deps.logger)
+  if (dir === undefined) return undefined
+  return { path: dir, ...await measureTree(dir) }
+}
+
+/** Sum the bytes and count the files of a list of existing files (all in one directory). */
+async function measureFiles(paths: readonly string[]): Promise<SessionStoreFootprint> {
+  let bytes = 0
+  for (const path of paths) bytes += await fileSize(path)
+  return { path: dirname(paths[0]), bytes, files: paths.length }
+}
+
+/**
+ * Walk one path and total its file bytes. An unreadable entry contributes
+ * nothing rather than failing the preview: the dialog showing a smaller number
+ * than reality is harmless next to refusing to open.
+ * @param path - the directory to measure.
+ * @returns the total bytes and file count (0/0 when the path is absent).
+ */
+async function measureTree(path: string): Promise<{ bytes: number; files: number }> {
+  let entries
+  try {
+    entries = await readdir(path, { withFileTypes: true })
+  } catch {
+    return { bytes: 0, files: 0 }
+  }
+  let bytes = 0
+  let files = 0
+  for (const entry of entries) {
+    const child = join(path, entry.name)
+    if (entry.isDirectory()) {
+      const nested = await measureTree(child)
+      bytes += nested.bytes
+      files += nested.files
+      continue
+    }
+    bytes += await fileSize(child)
+    files += 1
+  }
+  return { bytes, files }
+}
+
+/** One file's size, or 0 when it cannot be read. */
+async function fileSize(path: string): Promise<number> {
+  try {
+    return (await stat(path)).size
+  } catch {
+    return 0
+  }
+}
+
+/**
+ * Build one refusal without losing the stable code the UI branches on. Spelled
+ * as the refusal arm alone so both the delete and the preview outcomes accept it.
+ * @param code - the stable refusal code the browser branches on.
+ * @param message - the host's own diagnostic, shown when no code-specific copy exists.
+ * @returns the refusal.
+ */
+function refuse(code: SessionDeleteRefusal, message: string): { ok: false; code: SessionDeleteRefusal; message: string } {
   return { ok: false, code, message }
 }
 
@@ -423,11 +613,28 @@ function isInside(root: string, target: string): boolean {
 }
 
 /**
- * Delete the session's spilled tool-output directory. Tool results too large to
- * keep in the log are written to `<spill root>/session-<hash12>/…` — one
- * directory per session, where `hash12` is the first 12 hex digits of
- * `sha256(sessionId)`. The name is a pure function of the id, so this addresses
- * this session's directory and no other.
+ * The session's spilled tool-output directory. Tool results too large to keep in
+ * the log are written to `<spill root>/session-<hash12>/…` — one directory per
+ * session, where `hash12` is the first 12 hex digits of `sha256(sessionId)`. The
+ * name is a pure function of the id, so this addresses this session's directory
+ * and no other.
+ * @param deps - deleter dependencies.
+ * @param sessionId - the session.
+ * @returns the directory path, or undefined when this deployment has no spill store.
+ */
+function spillDirPath(deps: SessionDeleterDeps, sessionId: string): string | undefined {
+  const spill = serviceOf(deps.services, 'spillStore') as SpillStoreLike | undefined
+  const root = typeof spill?.root === 'string' && spill.root !== '' ? resolve(spill.root) : undefined
+  if (root === undefined) return undefined
+  const name = `session-${createHash('sha256').update(sessionId).digest('hex').slice(0, 12)}`
+  const dir = join(root, name)
+  // `name` holds no separator and `join` cannot escape its own root, so the
+  // guard only states the invariant the removal depends on.
+  return isInside(root, dir) ? dir : undefined
+}
+
+/**
+ * Delete the session's spilled tool-output directory.
  *
  * Best effort: the default spill root is a private temp directory the harness
  * sweeps by age on startup, so a missed cleanup costs disk space, never
@@ -437,14 +644,8 @@ function isInside(root: string, target: string): boolean {
  * @returns the removed directory, when there was one.
  */
 async function forgetSpillFiles(deps: SessionDeleterDeps, sessionId: string): Promise<string | undefined> {
-  const spill = serviceOf(deps.services, 'spillStore') as SpillStoreLike | undefined
-  const root = typeof spill?.root === 'string' && spill.root !== '' ? resolve(spill.root) : undefined
-  if (root === undefined) return undefined
-  const name = `session-${createHash('sha256').update(sessionId).digest('hex').slice(0, 12)}`
-  const dir = join(root, name)
-  // `name` holds no separator and `join` cannot escape its own root, so the
-  // guard only states the invariant the `rm` below depends on.
-  if (!isInside(root, dir)) return undefined
+  const dir = spillDirPath(deps, sessionId)
+  if (dir === undefined) return undefined
   try {
     await rm(dir, { recursive: true, force: true })
   } catch (error) {
@@ -455,25 +656,41 @@ async function forgetSpillFiles(deps: SessionDeleterDeps, sessionId: string): Pr
 }
 
 /**
- * Delete the projection-cache document derived from this session. Best effort:
- * the cache is a fold shortcut, never an authority, so a leftover row is inert
- * (an id is bound to one stored lifecycle, and this one no longer exists) —
- * but the user asked for the session's data to be gone, so it goes.
+ * The projection-cache documents written for this session: the record itself
+ * plus any `<key>.json.bak.<stamp>` document the backend moved aside. The store
+ * is one file per session under `<storage root>/session_projcache/sessions/`,
+ * and its keys are path-safe by construction (a key outside the backend's
+ * alphabet was never written), so a session id that fails that check has nothing
+ * to look for.
  * @param deps - deleter dependencies.
- * @param sessionId - the deleted session.
+ * @param sessionId - the session.
+ * @returns the matching document paths, empty when there are none.
  */
-async function forgetProjectionRow(deps: SessionDeleterDeps, sessionId: string): Promise<void> {
-  if (!SAFE_STORAGE_KEY.test(sessionId)) return
+async function projectionRowPaths(deps: SessionDeleterDeps, sessionId: string): Promise<string[]> {
+  if (!SAFE_STORAGE_KEY.test(sessionId)) return []
   const backend = serviceOf(deps.services, 'storage.backend.json') as StorageBackendLike | undefined
   const storageRoot = typeof backend?.root === 'string' && backend.root !== ''
     ? backend.root
     : join(deps.dshHome ?? resolveDshHome(), 'storages')
   const tableDir = join(storageRoot, PROJECTION_UNIT, PROJECTION_TABLE)
   const entries = await readdir(tableDir).catch(() => [])
-  for (const name of entries) {
-    if (name !== `${sessionId}.json` && !name.startsWith(`${sessionId}.json.bak.`)) continue
+  return entries
+    .filter(name => name === `${sessionId}.json` || name.startsWith(`${sessionId}.json.bak.`))
+    .map(name => join(tableDir, name))
+}
+
+/**
+ * Delete the projection-cache documents derived from this session. Best effort:
+ * the cache is a fold shortcut, never an authority, so a leftover row is inert
+ * (an id is bound to one stored lifecycle, and this one no longer exists) — but
+ * the user asked for the session's data to be gone, so it goes.
+ * @param deps - deleter dependencies.
+ * @param sessionId - the deleted session.
+ */
+async function forgetProjectionRows(deps: SessionDeleterDeps, sessionId: string): Promise<void> {
+  for (const path of await projectionRowPaths(deps, sessionId)) {
     try {
-      await rm(join(tableDir, name), { force: true })
+      await rm(path, { force: true })
     } catch (error) {
       // A cache row is disposable derived data: never fail the delete over it.
       deps.logger.warn(`mcp-manager: could not remove the projection cache row for "${sessionId}": ${String(error)}`)

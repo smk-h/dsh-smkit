@@ -26,7 +26,7 @@ import { createBrokerRuntime } from './broker/runtime.js'
 import { createOAuth } from './auth/oauth.js'
 import { createRegistry, setServerAuthStatus } from './registry.js'
 import { createRuntime } from './runtime.js'
-import { createSessionDeleter } from './session-delete.js'
+import { createSessionDeleter, createSessionPreviewer } from './session-delete.js'
 import { loadState, migrateLoadedState, saveState } from './state.js'
 import { toErrorMessage } from './util/text.js'
 import { createAgentDecorators } from './workspace/agents.js'
@@ -159,6 +159,7 @@ export function apply(ctx: PluginContext): void {
     logger,
     ...(hostEmit === undefined ? {} : { emit: hostEmit.bind(ctx) }),
   })
+  const previewSession = createSessionPreviewer({ services, logger })
 
   const api: ApiContext = {
     runtime,
@@ -169,6 +170,7 @@ export function apply(ctx: PluginContext): void {
     scope,
     oauth,
     deleteSession,
+    previewSession,
     setOnDemandToolInjection: (enabled: boolean) => broker.setOnDemandToolInjection(enabled),
     setServerAuthStatus: (server, status, error) =>
       setServerAuthStatus(runtime, server, status, error),

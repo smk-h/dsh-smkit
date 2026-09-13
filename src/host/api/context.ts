@@ -10,7 +10,7 @@ import { sendJson } from '../util/http.js'
 import type { OAuthService } from '../auth/oauth.js'
 import type { Registry } from '../registry.js'
 import type { Runtime } from '../runtime.js'
-import type { SessionDeleter } from '../session-delete.js'
+import type { SessionDeleter, SessionPreviewer } from '../session-delete.js'
 import type { WorkspaceManager } from '../workspace/manager.js'
 import type { WorkspaceScope } from '../workspace/scope.js'
 import type {
@@ -35,6 +35,11 @@ export interface ApiContext {
    * the implementation owns all DSH service access (see `../session-delete`).
    */
   deleteSession: SessionDeleter
+  /**
+   * Dry-run the same preconditions and measure what the delete would remove, so
+   * the browser can show it before the user confirms.
+   */
+  previewSession: SessionPreviewer
   /** Toggle broker mode; throws when the new setting cannot be persisted. */
   setOnDemandToolInjection(enabled: boolean): void
   setServerAuthStatus(server: ServerConfig, status: ServerStatus, error?: string): void

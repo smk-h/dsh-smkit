@@ -20,6 +20,52 @@
   align-items: center;
 }
 
+/* The delete dialog carries a fact block, so it needs more width than the
+ * 360px default: absolute host paths wrap badly in a narrow column. */
+.mm_dialogWide {
+  max-width: 520px;
+}
+
+/* The fact block: one flat label/value stream laid out as a two-column grid, so
+ * rows need no wrapper element and the value column absorbs the free width.
+ * Labels size to content (they differ in length between the two dictionaries)
+ * while values stay on one line per row, wrapping inside themselves because a
+ * path has no spaces to break at. */
+.mm_sessionInfo {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 5px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.mm_sessionInfoLabel {
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
+
+.mm_sessionInfoValue {
+  color: var(--dsw-alias-label-primary);
+  overflow-wrap: anywhere;
+}
+
+/* The last row is the total; it is emitted last, so the label/value pair can be
+ * emphasized by position without an extra class in the component. */
+.mm_sessionInfoValue:last-child {
+  font-weight: 600;
+}
+
+/* The spinner arc while the dry run is read: `.mm_statusSpin` is the status
+ * pill's class and carries the status palette, so this control re-tints it with
+ * its own colour (which is what turns red on hover). */
+.mm_sessionDelete .mm_statusSpin {
+  color: inherit;
+}
+
 .mm_sessionDelete {
   box-sizing: border-box;
   width: 28px;

@@ -10,8 +10,14 @@ export { apply, inject, name } from './host/plugin.js'
 export type { PluginContext } from './host/plugin.js'
 
 export { loadState, migrateLoadedState, persistServer, saveState } from './host/state.js'
-export { createSessionDeleter } from './host/session-delete.js'
-export type { SessionDeleteOutcome, SessionDeleter, SessionDeleterDeps } from './host/session-delete.js'
+export { createSessionDeleter, createSessionPreviewer } from './host/session-delete.js'
+export type {
+  SessionDeleteOutcome,
+  SessionDeleter,
+  SessionDeleterDeps,
+  SessionPreviewer,
+  SessionPreviewOutcome,
+} from './host/session-delete.js'
 export { encodeSegment, projectKey, sessionDir } from './host/session-path.js'
 export { accessToken, authHeaders, hasToken, resolveHeaders } from './host/auth/credentials.js'
 export { createOAuth } from './host/auth/oauth.js'

@@ -114,3 +114,34 @@ export interface SessionDeleteReceipt {
   /** Absolute directories removed from disk, in the order they were resolved. */
   removed: string[]
 }
+
+/** Measured disk footprint of one store the delete would remove. */
+export interface SessionStoreFootprint {
+  /** Absolute path on the harness host. */
+  path: string
+  bytes: number
+  /** Files inside the path (a single-file store counts as 1). */
+  files: number
+}
+
+/**
+ * What `GET /sessions/preview` reports about one session: its identity, and the
+ * disk footprint the delete would remove. The numbers come from the same path
+ * resolution the delete uses, so the dialog shows what will actually go —
+ * nothing is estimated.
+ */
+export interface SessionPreview {
+  sessionId: string
+  /** The session's project directory (its `cwd`), when the header carries one. */
+  cwd?: string
+  /** Session creation instant, epoch milliseconds. */
+  createdAt?: number
+  /** The session's own directory: log generations, write lock, session-local files. */
+  log?: SessionStoreFootprint
+  /** Projection-cache documents derived from this session (titles, stats, inbox). */
+  cache?: SessionStoreFootprint
+  /** The session's spilled tool-output directory. */
+  spill?: SessionStoreFootprint
+  /** Sum of the footprints above, in bytes. */
+  totalBytes: number
+}
