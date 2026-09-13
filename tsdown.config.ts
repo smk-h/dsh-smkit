@@ -76,9 +76,9 @@ const CSS_VIRTUAL_SUFFIX = '.mjs'
  * `export default "<rules>"`.
  *
  * The client half is one script and the browser resolves neither modules nor
- * stylesheets, so the rules have to travel as data and be injected at runtime
- * (`src/client/style/index.ts`, one string per file in `src/client/style/`). The
- * two hooks below are the whole mechanism:
+ * stylesheets, so the rules have to travel as data and be injected at runtime —
+ * `platform/styles.ts` for the shared rules, each feature's own `styles.ts` for
+ * its own. The two hooks below are the whole mechanism:
  *
  *   resolveId  `./section.css` becomes the virtual id `\0dsh-smkit-css:<abs>.mjs`
  *   load       that id is read back and returned as a JSON-escaped string
@@ -89,7 +89,7 @@ const CSS_VIRTUAL_SUFFIX = '.mjs'
  * hashing and no `lightningcss` dependency is pulled in. Where the reference
  * emits the `<style>` tag from inside the generated module, this one only hands
  * back the text, which keeps injection and its de-dupe key in one place
- * (`installStyles`).
+ * (`installStylesheet`).
  *
  * tsdown's own CSS support cannot be used here: `@tsdown/css` extracts a sibling
  * `client.css` asset, and nothing would ever request it — DSH loads

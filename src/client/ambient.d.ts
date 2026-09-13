@@ -11,7 +11,7 @@
  *    bundling because tsdown marks `react` as never-bundled, leaving the call
  *    for the factory's own `require` to resolve at runtime.
  * 3. Stylesheets are imported as *strings* rather than for their side effects
- *    (`style/index.ts`): the build's `cssTextPlugin` compiles each `.css` to
+ *    (`platform/styles.ts`): the build's `cssTextPlugin` compiles each `.css` to
  *    `export default "<rules>"`, so the declaration below has to state that
  *    shape instead of the CSS-Modules class map the other convention implies.
  *

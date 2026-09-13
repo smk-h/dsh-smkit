@@ -1,10 +1,10 @@
 /**
- * The MCP row's glyph in DSH's settings nav (see `runtime/nav-icon`): the shell
+ * The MCP row's glyph in DSH's settings nav (see `nav-icon.ts`): the shell
  * paints a fallback gear on every section row, so this hides that glyph and
  * paints the `cable` mask in its place on the row the runtime marks.
  *
  * The mask is the icon's data URI, which a stylesheet cannot know — it is built
- * from the icon spec at runtime (`../components/icons/Icon`) — so `index.ts`
+ * from the icon spec at runtime (`../../platform/icons/Icon`) — so `styles.ts`
  * passes it in as the `--mm-nav-glyph` custom property and only the *use* of it
  * lives here. That indirection is what keeps the drawn glyph and the mask from
  * drifting; see `MCP_NAV_ICON_CSS`.
