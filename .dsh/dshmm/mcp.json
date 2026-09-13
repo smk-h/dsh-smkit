@@ -27,6 +27,28 @@
         "--delay=50"
       ],
       "env": {}
+    },
+    "http-mcp-none": {
+      "type": "http",
+      "url": "http://127.0.0.1:8791/mcp",
+      "authMode": "none",
+      "headers": {},
+      "headerEnv": {}
+    },
+    "http-mcp-static": {
+      "type": "http",
+      "url": "http://127.0.0.1:8792/mcp",
+      "authMode": "static",
+      "tokenEnv": "MCP_HTTP_TOKEN",
+      "headers": {},
+      "headerEnv": {}
+    },
+    "http-mcp-oauth": {
+      "type": "http",
+      "url": "http://127.0.0.1:8793/mcp",
+      "authMode": "oauth",
+      "headers": {},
+      "headerEnv": {}
     }
   }
 }
