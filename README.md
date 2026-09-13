@@ -25,6 +25,7 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 - 按工作区隔离：工作区独享的服务器写在 `<workspace>/.dsh/dshmm/mcp.json`，全局服务器也可按工作区屏蔽。工具栏作用域选择旁可一键直接打开配置文件（全局为 `~/.dsh/mcp-manager.json` 状态文件，工作区为该工作区的 `mcp.json`）。
 - 运行时可重启、关闭单个服务器的连接，长连接断开后不必重启 dsh。
 - 可选的按需工具代理（broker）：开启后 MCP 仅暴露 search、describe、execute 三个工具，避免大量工具污染上下文。
+- 在「设置 → 模型重试」页为每个已注册的提供方路由配置模型请求失败后的自动重试——模式（normal / always）、重试次数、退避间隔与抖动比例。写入的是 dsh 自己的 `settings.yaml` 对应配置段（`llm-pi-ai.providers.<路由>.retryPolicy`、`llm-deepseek.retryPolicy` 等），保存后立即生效、不需要重启 dsh；路由不在此页新增或删除，重试策略只跟随已注册的提供方。
 - 会话窗口右上角提供「删除会话」按钮：dsh 自带的「归档会话」只是把会话从列表里隐藏，日志仍留在磁盘上；该按钮会真正删掉当前会话的本地数据——会话目录（全部日志世代与写锁）、投影缓存行、该会话的溢出文件目录——随后侧边栏条目同步消失，并在原会话所属工作区直接开好一个新会话（等同 dsh 自带的「新会话」，不必再选一次工作区），全程局部更新、不刷新页面。
 
 > [!NOTE]

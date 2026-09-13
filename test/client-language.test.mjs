@@ -17,9 +17,10 @@ function walk(dir) {
 const I18N_MODULE = /[/\\]i18n[/\\]/
 
 // Run the real module factory with a tiny hook harness; no browser or dependencies.
-// The plugin seats more than one slot (Settings → MCP and the conversation
-// header's delete control), so registrations are keyed by slot name and the
-// section is addressed explicitly instead of "whatever registered last".
+// The plugin seats several entries (Settings → MCP, Settings → 模型重试, and the
+// conversation header's delete control), two of them in the same slot, so
+// registrations are keyed by the entry id DSH itself addresses them by — a map
+// keyed by slot name would keep whichever feature registered last.
 function mount(fetch, language = 'en') {
   let disposed = false
   const dictionaries = {}
@@ -63,10 +64,10 @@ function mount(fetch, language = 'en') {
     },
     slots: {
       inject: (_name, cb) => cb(),
-      register: (options, component) => { registrations.set(options.name, { options, component }) },
+      register: (options, component) => { registrations.set(options.id, { options, component }) },
     },
   })
-  const section = registrations.get('settings.section')
+  const section = registrations.get('mcp-manager')
   return {
     get dictionaries() { return dictionaries },
     get spec() { return section.options },
@@ -105,9 +106,9 @@ const text = (tree) =>
 const content = (tree) =>
   nodes(tree).find((node) => typeof node.type === 'function' && node.props?.t != null)
 
-it('registers a balanced dictionary per namespace, with effect cleanup and both seats', () => {
+it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'mcp', 'session-delete']) {
+  for (const namespace of ['platform', 'mcp', 'session-delete', 'llm-retry']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -121,9 +122,16 @@ it('registers a balanced dictionary per namespace, with effect cleanup and both 
   assert.ok(app.inject.includes('sessions'), 'the header delete control needs the client session store')
   // The second seat: the conversation header's delete control, which carries no
   // nav label and binds the same dictionary.
-  const header = app.registrations.get('conversation.session.header.utilities')
-  assert.equal(header.options.id, 'mcp-manager-session-delete')
+  const header = app.registrations.get('mcp-manager-session-delete')
+  assert.equal(header.options.name, 'conversation.session.header.utilities')
   assert.equal(header.options.locale, 'session-delete')
+  // The third: the retry policy page, the second entry of the settings section
+  // slot. Its own entry id is what keeps the two pages from replacing each
+  // other in the shell's nav.
+  const retry = app.registrations.get('mcp-manager-llm-retry')
+  assert.equal(retry.options.name, 'settings.section')
+  assert.equal(retry.options.locale, 'llm-retry')
+  assert.equal(retry.options.label(), 'Model retry')
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-locale'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-conversation'))
@@ -132,6 +140,7 @@ it('registers a balanced dictionary per namespace, with effect cleanup and both 
     'dsh-mcp-manager: mcp/dictionaries',
     'dsh-mcp-manager: settings nav row',
     'dsh-mcp-manager: session-delete/dictionaries',
+    'dsh-mcp-manager: llm-retry/dictionaries',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared

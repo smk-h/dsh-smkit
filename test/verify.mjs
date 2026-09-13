@@ -10,8 +10,9 @@
  *      answers;
  *   3. the bundle patch and manifest wiring still point at this package;
  *   4. the browser half loads through `window.__ModuleLoader__.load`, registers
- *      balanced `zh`/`en` dictionaries and seats the `settings.section` and
- *      `conversation.session.header.utilities` slots.
+ *      balanced `zh`/`en` dictionaries and seats the three slots it owns:
+ *      Settings → MCP, Settings → 模型重试, and the conversation header's delete
+ *      control.
  *
  * Exits non-zero with a clear message on any failure, so `prepack` can never
  * ship a broken build. `HOME` and `DSH_HOME` are redirected to a scratch
@@ -145,10 +146,12 @@ clientExports.apply({
   },
   slots: {
     inject: (_name, callback) => callback(),
-    register: (spec) => { slotSpecs.set(spec.name, spec) },
+    // Every entry per slot name, as a list: two features seat the settings
+    // section, and a map keyed by slot name would keep only the last seat.
+    register: (spec) => { slotSpecs.set(spec.name, [...(slotSpecs.get(spec.name) ?? []), spec]) },
   },
 })
-for (const namespace of ['platform', 'mcp', 'session-delete']) {
+for (const namespace of ['platform', 'mcp', 'session-delete', 'llm-retry']) {
   assert.ok(dictionaries[namespace], `the ${namespace} dictionary must be registered`)
   assert.deepEqual(
     Object.keys(dictionaries[namespace].zh).sort(),
@@ -157,14 +160,20 @@ for (const namespace of ['platform', 'mcp', 'session-delete']) {
   )
 }
 
-const settingsSlot = slotSpecs.get('settings.section')
-assert.ok(settingsSlot, 'the client half must seat the settings section slot')
-assert.equal(settingsSlot.id, 'mcp-manager', 'the slot entry id must stay mcp-manager')
-assert.equal(settingsSlot.locale, 'mcp', 'the slot entry must bind the mcp locale namespace')
+/** The one entry a slot carries under a given id. */
+const entryOf = (slot, id) => {
+  const found = (slotSpecs.get(slot) ?? []).find((entry) => entry.id === id)
+  assert.ok(found, `the client half must seat ${slot} as ${id}`)
+  return found
+}
 
-const deleteSlot = slotSpecs.get('conversation.session.header.utilities')
-assert.ok(deleteSlot, 'the client half must seat the session delete control in the header')
-assert.equal(deleteSlot.id, 'mcp-manager-session-delete', 'the delete control keeps its own entry id')
+const settingsSlot = entryOf('settings.section', 'mcp-manager')
+assert.equal(settingsSlot.locale, 'mcp', 'the MCP section entry must bind the mcp locale namespace')
+
+const retrySlot = entryOf('settings.section', 'mcp-manager-llm-retry')
+assert.equal(retrySlot.locale, 'llm-retry', 'the retry section entry must bind its own locale namespace')
+
+const deleteSlot = entryOf('conversation.session.header.utilities', 'mcp-manager-session-delete')
 assert.equal(deleteSlot.locale, 'session-delete', 'the delete control binds its own locale namespace')
 
-console.log('verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → MCP.')
+console.log('verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → MCP → 模型重试.')

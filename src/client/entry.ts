@@ -9,11 +9,12 @@
  * The plugin's features are the list below. Everything they share — the
  * platform stylesheet, the platform dictionary, the stylesheet injector — is
  * set up once here; each feature then registers its own seats through its
- * descriptor, so this file needs to know nothing about MCP or about session
- * deletion beyond which one sits where. Adding a feature is a directory plus
- * one entry in `FEATURES`.
+ * descriptor, so this file needs to know nothing about MCP, about session
+ * deletion, or about retry policies beyond which one sits where. Adding a
+ * feature is a directory plus one entry in `FEATURES`.
  */
 
+import { llmRetryFeature } from './features/llm-retry/client'
 import { mcpFeature } from './features/mcp/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
 import { createApi } from './platform/api'
@@ -34,7 +35,7 @@ import type { ClientContext, ClientDeps, ClientFeature } from './platform/types'
 export const inject = ['slots', 'locale', 'sessions']
 
 /** The features this plugin ships; the order here is the order they register. */
-const FEATURES: ClientFeature[] = [mcpFeature, sessionDeleteFeature]
+const FEATURES: ClientFeature[] = [mcpFeature, sessionDeleteFeature, llmRetryFeature]
 
 export function createPlugin(): { apply(ctx: ClientContext): void; inject: string[] } {
   const react = require('react')
