@@ -21,9 +21,36 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-/** Render any thrown value as a message, unbounded. */
+/** How many messages the `cause` chain may contribute before it is cut off. */
+const MAX_ERROR_CHAIN = 3
+
+/**
+ * Render any thrown value as a message, unbounded.
+ *
+ * The `cause` chain is appended in parentheses because the outermost error is
+ * usually useless on its own: `fetch()` throws a bare `TypeError: fetch failed`
+ * and keeps the real reason — `connect ECONNREFUSED 127.0.0.1:8793` — in
+ * `cause`. An `AggregateError` (undici tries every address a host resolves to)
+ * puts it in `errors` instead, and its own message is just "aggregate error",
+ * so that message is dropped in favour of the first entry. Repeated and
+ * self-referencing causes are ignored, so this cannot loop.
+ */
 export function errorText(error: unknown): string {
-  return isRecord(error) && 'message' in error ? String(error.message) : String(error)
+  const seen = new Set<unknown>()
+  const parts: string[] = []
+  let current: unknown = error
+  while (parts.length < MAX_ERROR_CHAIN && current != null && !seen.has(current)) {
+    seen.add(current)
+    const record = isRecord(current) ? current : null
+    const nested = record && Array.isArray(record.errors) && record.errors.length > 0 ? record.errors[0] : undefined
+    if (nested === undefined) {
+      const message = record && 'message' in record ? String(record.message) : String(current)
+      if (message && message !== parts[parts.length - 1]) parts.push(message)
+    }
+    current = nested ?? record?.cause
+  }
+  if (parts.length === 0) return String(error)
+  return parts.length === 1 ? parts[0] : `${parts[0]} (${parts.slice(1).join(' → ')})`
 }
 
 /** Render any thrown value as a bounded, user-safe message. */

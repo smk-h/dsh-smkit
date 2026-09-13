@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { migrateLoadedState, normalizeEnvPairs, quoteWindowsToken } from '../lib/index.js'
+import { errorText, migrateLoadedState, normalizeEnvPairs, quoteWindowsToken } from '../lib/index.js'
 
 describe('normalizeEnvPairs (legacy [{ name, value }] support)', () => {
   it('converts the legacy list into a flat map', () => {
@@ -108,5 +108,41 @@ describe('quoteWindowsToken (cmd.exe command line)', () => {
     const command = quoteWindowsToken('C:\\path with space\\server.exe')
     const args = ['--flag', 'a b', 'plain'].map(quoteWindowsToken)
     assert.equal([command, ...args].join(' '), '"C:\\path with space\\server.exe" --flag "a b" plain')
+  })
+})
+
+describe('errorText (cause chain)', () => {
+  it('appends the cause, which is where fetch() keeps the real reason', () => {
+    // undici 把 ECONNREFUSED 藏在 cause 里，只报 message 的话设置页只显示 "fetch failed"。
+    const error = new TypeError('fetch failed', { cause: new Error('connect ECONNREFUSED 127.0.0.1:8793') })
+    assert.equal(errorText(error), 'fetch failed (connect ECONNREFUSED 127.0.0.1:8793)')
+  })
+
+  it('prefers an AggregateError entry over its useless own message', () => {
+    // 主机名解析出多个地址时 undici 对每个地址各试一次，失败原因在 errors 里。
+    const cause = new AggregateError(
+      [new Error('connect ECONNREFUSED ::1:8793'), new Error('connect ECONNREFUSED 127.0.0.1:8793')],
+      'aggregate error',
+    )
+    assert.equal(errorText(new TypeError('fetch failed', { cause })), 'fetch failed (connect ECONNREFUSED ::1:8793)')
+  })
+
+  it('caps the chain so one error cannot produce a wall of text', () => {
+    const error = new Error('e1', { cause: new Error('e2', { cause: new Error('e3', { cause: new Error('e4') }) }) })
+    assert.equal(errorText(error), 'e1 (e2 → e3)')
+  })
+
+  it('cannot loop on a self-referencing or repeated cause', () => {
+    const selfReferencing = new Error('loop')
+    selfReferencing.cause = selfReferencing
+    assert.equal(errorText(selfReferencing), 'loop')
+    assert.equal(errorText(new Error('boom', { cause: new Error('boom') })), 'boom')
+  })
+
+  it('keeps the old rendering for a bare message and for non-errors', () => {
+    assert.equal(errorText(new Error('failed')), 'failed')
+    assert.equal(errorText('boom'), 'boom')
+    assert.equal(errorText(undefined), 'undefined')
+    assert.equal(errorText(null), 'null')
   })
 })

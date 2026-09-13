@@ -82,7 +82,7 @@ export { accessToken, authHeaders, hasToken, resolveHeaders } from './host/featu
 export { createOAuth } from './host/features/mcp/auth/oauth.js'
 export type { OAuthMetadata, OAuthService } from './host/features/mcp/auth/oauth.js'
 
-export { normalizeEnvPairs, parseArgs, parseEnv, quoteWindowsToken } from './host/platform/util/text.js'
+export { errorText, normalizeEnvPairs, parseArgs, parseEnv, quoteWindowsToken } from './host/platform/util/text.js'
 export { serviceOf } from './host/platform/util/services.js'
 
 export {
