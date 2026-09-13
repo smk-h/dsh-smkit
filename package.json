@@ -51,6 +51,8 @@
     "pack:list": "node scripts/pack-list.mjs",
     "dsh:kill-port": "node scripts/kill-port.mjs",
     "dsh:open-config": "node scripts/open-dsh-config.mjs",
+    "http-mcp:serve": "node scripts/http-mcp-cli.mjs serve",
+    "http-mcp:stop": "node scripts/http-mcp-cli.mjs stop",
     "prepack": "tsc -p tsconfig.json && tsdown && node test/verify.mjs",
     "prepare": "tsc -p tsconfig.json && tsdown"
   },
