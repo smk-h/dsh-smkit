@@ -61,16 +61,22 @@ function confirmButton(tree) {
 
 /**
  * Mount the real client bundle with a hook harness and mount the header slot.
- * @param options - URL-routed fetch stub, the session/workspace state the selectors read, and an optional create override.
+ * @param options - URL-routed fetch stub, the session/workspace state the selectors read, an optional create override, and the platform modules the bundle may require.
  * @returns the render/click helpers plus the recorded calls.
  */
-function mount({ fetch, session, workspace, create }) {
+function mount({ fetch, session, workspace, create, primitives }) {
   const calls = []
   const registrations = new Map()
   let exported
   let states = [], cursor = 0
   const react = {
-    createElement: (type, props, ...children) => ({ type, props: props ?? {}, children: children.flat(Infinity) }),
+    // Children land in `props` as well as in the element's own slot, the way
+    // React delivers them: a component in the tree (the shell's tooltip, when a
+    // case supplies one) renders what it was handed by reading `props.children`.
+    createElement: (type, props, ...children) => {
+      const kids = children.flat(Infinity)
+      return { type, props: { ...props, children: kids }, children: kids }
+    },
     useState: (initial) => {
       const index = cursor++
       if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial
@@ -79,8 +85,15 @@ function mount({ fetch, session, workspace, create }) {
     useEffect: () => {},
     useCallback: (callback) => callback,
   }
+  // The bundle's `require` resolves platform module-table ids. Only `react` is
+  // always there: an id the case does not supply is absent, which is exactly
+  // how the control's two fallbacks (no react-dom, no ui-primitives) are reached.
+  const modules = {
+    'react': react,
+    '@deepseek-ai/dsh-client-ui-primitives': primitives,
+  }
   runInNewContext(source, {
-    window: { __ModuleLoader__: { load: ({ factory }) => { exported = factory(() => react) } } },
+    window: { __ModuleLoader__: { load: ({ factory }) => { exported = factory((id) => modules[id]) } } },
     fetch: async (url, options) => {
       calls.push({ url, body: options?.body === undefined ? undefined : JSON.parse(options.body) })
       return fetch(url)
@@ -169,6 +182,43 @@ const routing = ({ preview = { body: previewBody }, remove = { body: { deleted: 
     const answer = url.includes('/sessions/preview') ? preview : remove
     return response(answer.body, answer.ok ?? true, answer.status ?? 200)
   }
+
+it('wears the shell\u2019s own hover bubble, positioned by the shell', () => {
+  // The bubble is the platform primitives module's `Tooltip` — the component
+  // DSH's own header buttons use. Only the *request* for it is this control's
+  // business (which label, which side, how long a hover delay); where the
+  // bubble lands at a viewport edge is the shell component's own fit pass, and
+  // its behaviour is covered where it lives, not here.
+  const seen = []
+  const Tooltip = (props) => {
+    seen.push(props)
+    return { type: 'span', props: { className: 'stub_bubbleHost' }, children: props.children }
+  }
+  const app = mount({
+    fetch: routing({}),
+    session: sessionState(),
+    workspace: workspaceState(),
+    primitives: { Tooltip },
+  })
+  // Walking the tree is what invokes the stubbed component — the harness
+  // expands function elements only while flattening, exactly as React would
+  // while rendering.
+  const control = button(app.render(), 'deleteSession')
+
+  assert.equal(seen.length, 1, 'the anchor is handed to the shell\u2019s bubble exactly once')
+  assert.equal(seen[0].label, 'deleteSession', 'the bubble names the action')
+  assert.equal(seen[0].side, 'bottom', 'it hangs under the control, like the shell\u2019s header buttons')
+  assert.equal(seen[0].delayMs, 500, 'the same hover delay those buttons use')
+  assert.equal(control.props.title, undefined, 'no native bubble stacked underneath it')
+})
+
+it('falls back to the browser\u2019s own bubble when the platform has no primitives', () => {
+  const app = mount({ fetch: routing({}), session: sessionState(), workspace: workspaceState() })
+  const control = button(app.render(), 'deleteSession')
+
+  assert.equal(control.props.title, 'deleteSession', 'the hover hint survives without the styled bubble')
+  assert.equal(control.props.disabled, false, 'and the control itself is unaffected')
+})
 
 it('shows the session\u2019s identity and disk footprint before confirming', async () => {
   const app = mount({ fetch: routing({}), session: sessionState(), workspace: workspaceState() })

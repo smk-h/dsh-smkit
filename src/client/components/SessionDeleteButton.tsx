@@ -5,6 +5,13 @@
  * with the header's own right-aligned utilities on the current session only —
  * there is no "delete some other row" state to keep consistent.
  *
+ * On hover the control names itself in the shell's own bubble (`Tooltip` of the
+ * platform's ui-primitives module), the same one DSH's header buttons wear, so
+ * the bubble hangs under the button, slides back inside the viewport when the
+ * control sits near an edge, and flips above it when the header is low on the
+ * page. Where the module table cannot supply it, the browser's `title` bubble
+ * stands in.
+ *
  * The control asks before acting, and the question carries the answer's facts:
  * clicking fetches the host's *dry run* (`GET /sessions/preview`), which applies
  * the delete's own preconditions and measures the stores it would remove, and
@@ -111,7 +118,7 @@ export function createSessionDeleteButton(
   deps: ClientDeps,
   ctx: ClientContext,
 ): (props: SessionDeleteProps) => JSX.Element {
-  const { h, react, api, createPortal } = deps
+  const { h, react, api, createPortal, Tooltip } = deps
   const ConfirmDialog = createConfirmDialog(deps)
   const TrashIcon = createTrashIcon(deps)
   const LoaderIcon = createLoaderIcon(deps)
@@ -280,23 +287,39 @@ export function createSessionDeleteButton(
         ? createPortal(dialog, document.body)
         : dialog
 
+    const anchor = (
+      <button
+        className="mm_sessionDelete"
+        type="button"
+        // The shell's bubble replaces the browser's: keeping `title` as well
+        // would stack a native tooltip underneath the styled one.
+        title={Tooltip === undefined ? t('deleteSession') : undefined}
+        aria-label={t('deleteSession')}
+        disabled={busy}
+        onClick={openDialog}
+      >
+        {/* Busy covers both waits: reading the dry run (the dialog has not
+         * opened yet, so this arc is the only feedback) and the delete itself
+         * once the dialog is up. */}
+        {busy
+          ? <LoaderIcon className="mm_statusSpin" size={15} />
+          : <TrashIcon size={15} />}
+      </button>
+    )
+
     return (
       <span className="mm_sessionDeleteHost">
-        <button
-          className="mm_sessionDelete"
-          type="button"
-          title={t('deleteSession')}
-          aria-label={t('deleteSession')}
-          disabled={busy}
-          onClick={openDialog}
-        >
-          {/* Busy covers both waits: reading the dry run (the dialog has not
-           * opened yet, so this arc is the only feedback) and the delete itself
-           * once the dialog is up. */}
-          {busy
-            ? <LoaderIcon className="mm_statusSpin" size={15} />
-            : <TrashIcon size={15} />}
-        </button>
+        {/* The bubble clones this one anchor and adds a fixed-position sibling
+         * of its own, so the button stays exactly the control it is. `bottom`
+         * plus the shell's 500ms hover delay is what DSH's own header buttons
+         * use; the edge handling rides along with the component. */}
+        {Tooltip === undefined
+          ? anchor
+          : (
+            <Tooltip label={t('deleteSession')} side="bottom" delayMs={500}>
+              {anchor}
+            </Tooltip>
+          )}
         {overlay}
       </span>
     )

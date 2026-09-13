@@ -141,6 +141,30 @@ export interface ApiResult {
 
 export type ApiFn = (path: string, options?: RequestInit) => Promise<ApiResult>
 
+/**
+ * The shell's hover bubble, as this plugin uses it: a structural slice of
+ * `Tooltip` from the platform's ui-primitives module. Every member below exists
+ * on the real component (`label`, `side`, `delayMs`, `disabled`, `maxWidth`,
+ * `children`) and nothing else is touched, so the control keeps wearing the
+ * shell's own bubble — its theme variables, its animation, and its viewport fit
+ * pass — instead of a second implementation that would have to re-derive all
+ * three. The bubble is rendered as a fixed-position sibling of the anchor.
+ */
+export interface HostTooltipProps {
+  /** Bubble text. */
+  label: string
+  /** Placement relative to the anchor; `bottom` is the header control's. */
+  side?: 'right' | 'bottom' | 'top'
+  /** Hover delay in milliseconds; keyboard focus stays immediate. */
+  delayMs?: number
+  /** Suppress the bubble while true. */
+  disabled?: boolean
+  /** Width cap in pixels, for labels a half-viewport would render too wide. */
+  maxWidth?: number
+  /** The single anchor element the bubble describes. */
+  children?: unknown
+}
+
 /** Everything the components need, threaded explicitly (no module globals). */
 export interface ClientDeps {
   react: ReactLike
@@ -148,6 +172,13 @@ export interface ClientDeps {
   api: ApiFn
   zh: LocaleDict
   en: LocaleDict
+  /**
+   * The shell's own hover bubble, resolved in `entry.ts` from the platform
+   * module table. Optional on purpose: a host whose table has no such module
+   * only loses the styled bubble — the header control falls back to the
+   * browser's `title` bubble, which still names it on hover.
+   */
+  Tooltip?: (props: HostTooltipProps) => Element
   /**
    * react-dom's `createPortal`, resolved alongside `react` in `entry.ts`: the
    * settings-header breadcrumb portals through it into the shell's title strip.

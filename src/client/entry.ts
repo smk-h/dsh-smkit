@@ -40,6 +40,21 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
     // No react-dom in the platform module table: no header breadcrumb.
   }
 
+  // The header control's hover bubble is the shell's own: the web shell seeds
+  // ui-primitives into the same module table (`packages/client/web/src/seed.ts`),
+  // so requiring it hands back the very component DSH's header buttons use —
+  // same theme variables, same animation, and the same viewport fit pass that
+  // keeps a bubble near an edge from being cut off. Porting a copy would mean
+  // re-deriving all three, and guessing at variables an older theme may not
+  // define; a host without the module only loses the bubble (see `ClientDeps`).
+  let Tooltip: ClientDeps['Tooltip']
+  try {
+    const primitives = require('@deepseek-ai/dsh-client-ui-primitives')
+    if (typeof primitives.Tooltip === 'function') Tooltip = primitives.Tooltip as ClientDeps['Tooltip']
+  } catch {
+    // No ui-primitives in the platform module table: the browser's own bubble.
+  }
+
   installStyles()
 
   const deps: ClientDeps = {
@@ -49,6 +64,7 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
     zh: MCP_LOCALE_ZH as LocaleDict,
     en: MCP_LOCALE_EN as LocaleDict,
     createPortal,
+    Tooltip,
   }
   const McpContent = createMcpContent(deps)
 

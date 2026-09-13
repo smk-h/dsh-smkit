@@ -40,9 +40,12 @@ import type { TsdownPlugin, UserConfig } from 'tsdown'
  * has no other imports, and it must not: the client half is deliberately
  * dependency-free apart from `react`. `react-dom` rides the same table (the
  * shell's own plugins resolve it) and only feeds `createPortal`, the mount for
- * the settings-header breadcrumb.
+ * the settings-header breadcrumb. `@deepseek-ai/dsh-client-ui-primitives` is a
+ * platform module too (the web shell seeds it, `packages/client/web/src/seed.ts`)
+ * and only feeds the header control's hover bubble, whose absence merely costs
+ * the styled bubble.
  */
-const CLIENT_EXTERNALS = ['react', 'react-dom']
+const CLIENT_EXTERNALS = ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives']
 
 /**
  * The package identity, read once: the ModuleLoader id and the `__PLUGIN_NAME__`
