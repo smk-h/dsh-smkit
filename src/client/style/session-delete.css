@@ -8,11 +8,12 @@
  * The control is mounted into DSH's conversation header, not into this
  * section's own page, so these rules deliberately match DSH's header rhythm
  * instead of the settings vocabulary: a 28px round control on the header's
- * 30px title row, the same hairline l4 border and 14px radius DSH's own header
- * buttons use (`ui-open-in-app`'s split button, `ui-conversation`'s crumbs).
- * Hover carries the destructive intent — the border, the glyph, and a 10% wash
- * turn the state-error colour — so the button reads as "delete" before it is
- * clicked, without shouting at rest.
+ * 30px title row with a 14px radius, and no border at rest — the header's
+ * utilities are plain glyph buttons, and the hairline ring belongs to
+ * `ui-open-in-app`'s split button, not to a lone icon beside them. Hover
+ * carries the destructive intent — the glyph and a 10% wash turn the
+ * state-error colour — so the button reads as "delete" before it is clicked,
+ * without shouting at rest.
  */
 
 .mm_sessionDeleteHost {
@@ -74,17 +75,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 0.5px solid var(--dsw-alias-border-l4);
+  border: 0;
   border-radius: 14px;
   background: 0 0;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
 }
 
+/* Hover and keyboard focus share the destructive state, and it is the whole
+ * signal: glyph plus wash, no ring — the header's own icon buttons repaint the
+ * same way, so this one does not stand out as a bordered oddity. */
 .mm_sessionDelete:hover:not(:disabled),
 .mm_sessionDelete:focus-visible:not(:disabled) {
   color: var(--dsw-alias-state-error-primary);
-  border-color: var(--dsw-alias-state-error-primary);
   background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
 }
 
