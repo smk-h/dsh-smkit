@@ -191,7 +191,7 @@ export function createRetryForm(deps: ClientDeps): (props: RetryFormProps) => JS
         {error ? <div className="mm_err">{error}</div> : null}
         <div className="lr_actions">
           <button
-            className="mm_btn primary"
+            className="mm_btn"
             onClick={save}
             disabled={busy}
             data-pending={busy ? 'true' : undefined}

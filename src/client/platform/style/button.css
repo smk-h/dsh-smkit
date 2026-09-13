@@ -55,7 +55,40 @@
 .mm_btn.primary {
   border-color: transparent;
   background: var(--dsw-alias-state-business-primary);
-  color: #fff;
+  /* The theme's own "text on a solid fill" colour, not a literal white: it is
+   * white on a dark fill and near-black on a light one, so the label keeps its
+   * contrast whichever side of the theme the fill sits. */
+  color: var(--dsw-alias-label-primary-foreground, #fff);
+}
+
+/* A solid fill owns its hover: the neutral rule above is a 6% dark wash meant
+ * for a transparent button, so on a variant that paints its own fill it
+ * replaces that fill with something a light label disappears on. The fill
+ * deepens inside its own hue instead — the palette's next shade down, with a
+ * mix as the fallback — and the label keeps the theme's on-fill colour.
+ *
+ * No button in this plugin wears this variant today: every action is neutral,
+ * so only the rule above is ever exercised. It is fixed here anyway, so the
+ * next solid button does not have to rediscover the trap. */
+.mm_btn.primary:hover:not(:disabled) {
+  background: var(--dsw-static-deepseek-600, color-mix(in srgb, var(--dsw-alias-state-business-primary) 86%, #000));
+  color: var(--dsw-alias-label-primary-foreground, #fff);
+}
+
+/* The dark palette's business blue is a *light* step and its on-fill colour is
+ * near-black (see `label-primary-foreground`), so the hover steps up the same
+ * scale instead of down — deepening the fill there would darken it under dark
+ * ink. The attribute is the shell's own theme flag (dsh's ui-theme palette
+ * scopes its dark tokens to `body[data-ds-dark-theme]`); a host that spells it
+ * differently only loses this step, falling back to the rule above. */
+body[data-ds-dark-theme] .mm_btn.primary:hover:not(:disabled) {
+  background: var(--dsw-static-deepseek-300, color-mix(in srgb, var(--dsw-alias-state-business-primary) 86%, #fff));
+}
+
+/* The pending ellipsis is painted over the label, so it needs the same colour
+ * the label would have had — the shared rule's ink is for the neutral button. */
+.mm_btn.primary[data-pending=true]::after {
+  color: var(--dsw-alias-label-primary-foreground, #fff);
 }
 .mm_btn.danger {
   color: var(--dsw-alias-state-error-primary);
