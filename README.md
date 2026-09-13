@@ -159,7 +159,7 @@ dsh plugin --profile demo add E:/AI/dsh-smkit
 
 # 方式 B：tarball（预构建，免 allowBuilds 授权；跨盘符开发用这个）
 pnpm pack
-dsh plugin --profile demo add E:\AI\dsh-smkit\dsh-smkit-0.1.0.tgz
+dsh plugin --profile demo add E:\AI\dsh-smkit\smai-kit-dsh-smkit-<version>.tgz
 
 # 方式 C：git（安装时执行 prepare 脚本构建 lib/）
 dsh plugin --profile demo add github:smk-h/dsh-smkit
@@ -191,8 +191,8 @@ dsh --profile demo --dump-config | Select-String "dsh-smkit" -Context 1
 ### 4. 卸载与更新
 
 ```sh
-dsh plugin --profile demo remove dsh-smkit   # 同时移除依赖和层
-dsh plugin --profile demo update dsh-smkit   # pnpm update + reconcile
+dsh plugin --profile demo remove @smai-kit/dsh-smkit   # 同时移除依赖和层
+dsh plugin --profile demo update @smai-kit/dsh-smkit   # pnpm update + reconcile
 ```
 
 ## 四、 调试
