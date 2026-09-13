@@ -10,11 +10,11 @@
 
 export * from '../../platform/types.js'
 
-import type { AuthMode, EnvMap, ServerStatus, ServerType } from '../../../shared/contract.js'
+import type { AuthMode, EnvMap, ServerStatus, ServerType } from '../../../shared/mcp/contract.js'
 import type { AgentLike, ToolDefinition } from '../../platform/types.js'
 
 /*
- * The wire contract shared with the browser half (`src/shared/contract.ts`).
+ * The wire contract shared with the browser half (`shared/mcp/contract.ts`).
  * Re-exported so every module of this feature keeps importing these names from
  * `./types.js`, and `src/index.ts` keeps publishing them.
  */
@@ -27,7 +27,7 @@ export type {
   SettingsView,
   WorkspaceServerView,
   WorkspaceView,
-} from '../../../shared/contract.js'
+} from '../../../shared/mcp/contract.js'
 
 /* ------------------------------------------------------------------ content */
 

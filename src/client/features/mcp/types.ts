@@ -8,7 +8,24 @@
  * contract moves under this feature when the contract itself is split.
  */
 
-import type { ServerView, Translator, WorkspaceServerView } from '../../platform/types'
+import type { Translator } from '../../platform/types'
+import type { ServerView, WorkspaceServerView } from '../../../shared/mcp/contract'
+
+/*
+ * The MCP half of the wire contract shared with the host half. Re-exported so
+ * this feature's components keep one import site for their business types and
+ * for these wire shapes.
+ */
+export type {
+  AuthMode,
+  EnvMap,
+  ServerStatus,
+  ServerType,
+  ServerView,
+  SettingsView,
+  WorkspaceServerView,
+  WorkspaceView,
+} from '../../../shared/mcp/contract'
 
 /** Props every settings section component receives from the slot system. */
 export interface SectionProps {

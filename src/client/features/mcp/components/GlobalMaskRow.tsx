@@ -5,7 +5,8 @@
  */
 
 import { createStatusBadge, createStatusDot } from '../ui/StatusPill'
-import type { ClientDeps, ServerView, Translator } from '../../../platform/types'
+import type { ClientDeps, Translator } from '../../../platform/types'
+import type { ServerView } from '../types'
 
 export interface GlobalMaskRowProps {
   t: Translator

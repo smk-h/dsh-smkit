@@ -7,7 +7,8 @@
  * the layout. Keys are supplied here because React requires them for arrays.
  */
 
-import type { ClientDeps, ServerView, Translator, WorkspaceServerView } from '../../../platform/types'
+import type { ClientDeps, Translator } from '../../../platform/types'
+import type { ServerView, WorkspaceServerView } from '../types'
 
 export interface ServerDetailsProps {
   t: Translator

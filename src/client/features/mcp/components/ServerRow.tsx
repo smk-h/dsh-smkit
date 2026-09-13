@@ -10,7 +10,8 @@ import { serverDetails } from '../ui/ServerDetails'
 import { createStatusBadge, createStatusDot } from '../ui/StatusPill'
 import { createSwitch } from '../ui/Switch'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
-import type { ClientDeps, ServerView, Translator } from '../../../platform/types'
+import type { ClientDeps, Translator } from '../../../platform/types'
+import type { ServerView } from '../types'
 
 export interface ServerRowProps {
   t: Translator

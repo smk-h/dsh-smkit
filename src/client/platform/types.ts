@@ -215,26 +215,6 @@ export interface ClientDeps {
   createPortal?: (children: unknown, container: any) => unknown
 }
 
-/* ------------------------------------------------------------ view models */
-
-/*
- * The wire shapes come from the contract shared with the host half; the client
- * re-exports them so components keep one import site. The MCP half of this list
- * moves under `features/mcp` when the contract itself is split.
- */
-export type {
-  AuthMode,
-  EnvMap,
-  ServerStatus,
-  ServerType,
-  ServerView,
-  SettingsView,
-  SessionPreview,
-  SessionStoreFootprint,
-  WorkspaceServerView,
-  WorkspaceView,
-} from '../../shared/contract'
-
 /* --------------------------------------------------------------- DOM events */
 
 /*

@@ -38,14 +38,14 @@ import { watchTipBoundaries } from '../ui/tip'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
 import { isTransientStatus } from '../ui/StatusPill'
 import { createWorkspaceServerRow } from './WorkspaceServerRow'
+import type { ClientDeps } from '../../../platform/types'
 import type {
-  ClientDeps,
+  SectionProps,
   ServerView,
   SettingsView,
   WorkspaceServerView,
   WorkspaceView,
-} from '../../../platform/types'
-import type { SectionProps } from '../types'
+} from '../types'
 
 const REFRESH_INTERVAL_MS = 3000
 

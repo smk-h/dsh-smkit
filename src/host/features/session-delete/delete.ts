@@ -89,7 +89,7 @@ import type {
   SessionDeleteReceipt,
   SessionPreview,
   SessionStoreFootprint,
-} from '../../../shared/contract.js'
+} from '../../../shared/session-delete/contract.js'
 import type { LoggerLike, ServiceAccessor } from '../../platform/types.js'
 
 /** Longest session id accepted from the wire; far above any id the harness mints. */

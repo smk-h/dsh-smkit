@@ -53,11 +53,10 @@ import type {
   ClientContext,
   ClientDeps,
   SessionListSelector,
-  SessionPreview,
-  SessionStoreFootprint,
   Translator,
   WorkspaceSelector,
 } from '../../platform/types'
+import type { SessionPreview, SessionStoreFootprint } from '../../../shared/session-delete/contract'
 
 /** Props the slot framework supplies to a session-scope header entry. */
 export interface SessionDeleteProps {

@@ -11,7 +11,8 @@ import { createConfirmDialog } from '../../../platform/ui/ConfirmDialog'
 import { serverDetails } from '../ui/ServerDetails'
 import { createStatusBadge, createStatusDot } from '../ui/StatusPill'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
-import type { ClientDeps, Translator, WorkspaceServerView } from '../../../platform/types'
+import type { ClientDeps, Translator } from '../../../platform/types'
+import type { WorkspaceServerView } from '../types'
 
 export interface WorkspaceServerRowProps {
   t: Translator

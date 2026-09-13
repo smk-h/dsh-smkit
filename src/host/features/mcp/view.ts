@@ -7,7 +7,7 @@
  * the global view keeps it optional, the workspace view requires it.
  */
 
-import type { ServerView, WorkspaceServerView } from '../../../shared/contract.js'
+import type { ServerView, WorkspaceServerView } from '../../../shared/mcp/contract.js'
 import type { ServerConfig } from './types.js'
 
 /** Fill the transport-specific fields of a view from its server config. */

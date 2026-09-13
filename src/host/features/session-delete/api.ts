@@ -10,7 +10,7 @@
 
 import { readBody, sendJson } from '../../platform/util/http.js'
 import type { ApiHandler } from '../../platform/routes.js'
-import type { SessionDeleteRefusal } from '../../../shared/contract.js'
+import type { SessionDeleteRefusal } from '../../../shared/session-delete/contract.js'
 import type { SessionDeleter, SessionPreviewer } from './delete.js'
 
 /** What this feature's routes need from the host. */
