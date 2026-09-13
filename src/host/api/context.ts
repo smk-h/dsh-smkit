@@ -10,6 +10,7 @@ import { sendJson } from '../util/http.js'
 import type { OAuthService } from '../auth/oauth.js'
 import type { Registry } from '../registry.js'
 import type { Runtime } from '../runtime.js'
+import type { SessionDeleter } from '../session-delete.js'
 import type { WorkspaceManager } from '../workspace/manager.js'
 import type { WorkspaceScope } from '../workspace/scope.js'
 import type {
@@ -29,6 +30,11 @@ export interface ApiContext {
   workspaces: WorkspaceManager
   scope: WorkspaceScope
   oauth: OAuthService
+  /**
+   * Delete one session's durable data and hide it from every listing surface;
+   * the implementation owns all DSH service access (see `../session-delete`).
+   */
+  deleteSession: SessionDeleter
   /** Toggle broker mode; throws when the new setting cannot be persisted. */
   setOnDemandToolInjection(enabled: boolean): void
   setServerAuthStatus(server: ServerConfig, status: ServerStatus, error?: string): void

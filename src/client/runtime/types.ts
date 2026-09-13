@@ -36,6 +36,62 @@ export type Translator = (key: string, values?: Record<string, unknown>) => stri
 
 export type LocaleDict = Record<string, string>
 
+/**
+ * The slice of DSH's client sessions service (`ctx.sessions`) this plugin
+ * uses. Every member exists on `ISessions`; the plugin never touches the rest,
+ * so it declares only what it calls.
+ */
+export interface ClientSessionsLike {
+  /**
+   * Create or adopt a session on the Host. `workspaceId` lands it in that
+   * workspace's accounting (the same call the workspace picker makes), `cwd`
+   * only names a directory.
+   */
+  create(opts?: { workspaceId?: string; cwd?: string }): Promise<string>
+  /** Select a created session as current. */
+  open(id: string): void
+  /** Clear the current selection: the layout falls to the no-session state. */
+  clear(): void
+  /** Re-pull the Host-authoritative session list. */
+  refresh(): Promise<void>
+}
+
+/** `useSessions`' callee shape: a selector over the client's session-list state. */
+export type SessionListSelector = <Selected>(
+  selector: (state: SessionListStateLike) => Selected,
+) => Selected
+
+/** `useWorkspaces`' callee shape: a selector over the client's workspace state. */
+export type WorkspaceSelector = <Selected>(
+  selector: (state: WorkspaceStateLike) => Selected,
+) => Selected
+
+/** The part of one session-list row this plugin reads: where the session lives. */
+export interface SessionListRowLike {
+  cwd?: string
+  blank?: boolean
+}
+
+/** The part of `SessionListState` this plugin reads. */
+export interface SessionListStateLike {
+  readonly ids: readonly string[]
+  readonly byId: Readonly<Record<string, SessionListRowLike | undefined>>
+  readonly current?: string
+}
+
+/** The part of one Workspace row this plugin reads: its identity and accounting. */
+export interface WorkspaceRowLike {
+  readonly workspaceId: string
+  readonly path: string
+  readonly sessionIds: readonly string[]
+}
+
+/** The part of the Workspace snapshot this plugin reads. */
+export interface WorkspaceStateLike {
+  readonly items: readonly WorkspaceRowLike[]
+  readonly archivedSessionIds: readonly string[]
+}
+
 /** The slot/runtime context DSH hands to a client plugin's `apply`. */
 export interface ClientContext {
   effect(callback: () => void | (() => void), label?: string): void
@@ -47,13 +103,25 @@ export interface ClientContext {
     inject(name: string, setup: () => void): void
     register(options: SlotOptions, component: unknown): unknown
   }
+  /**
+   * Client Session state and selection. Declared optional on purpose: the
+   * header control degrades to the host's own `api-session/removed` frame
+   * (which the sidebar and the selection both follow) when a composition has
+   * no sessions service, and the Settings → MCP page must never depend on one.
+   */
+  sessions?: ClientSessionsLike
 }
 
+/**
+ * Registration options of one slot entry. `label` is optional because DSH only
+ * reads it for entries an owner projects as a named row (the settings nav); a
+ * plain header control declares none.
+ */
 export interface SlotOptions {
   name: string
   id: string
   order: number
-  label: () => string
+  label?: () => string
   locale: string
 }
 

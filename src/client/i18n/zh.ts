@@ -107,4 +107,12 @@ export const MCP_LOCALE_ZH: LocaleDict = {
   "stop": "关闭",
   "restartFailed": "重启失败 (HTTP {status})",
   "stopFailed": "关闭失败 (HTTP {status})",
+  "deleteSession": "删除会话",
+  "confirmSessionDelete": "将永久删除该会话的历史与全部已存数据（含本地日志文件），此操作不可恢复。",
+  "deleteSessionFailed": "删除会话失败 (HTTP {status})",
+  "deleteSessionNotFound": "会话不存在或已被删除",
+  "deleteSessionRunning": "会话正在运行，请先停止后再删除",
+  "deleteSessionAttached": "会话仍挂在宿主进程中，当前部署没有可隐藏它的归档集；重启 dsh 后再删除即可",
+  "deleteSessionSubagent": "子代理会话不能单独删除，请删除其所属会话",
+  "deleteSessionUnavailable": "当前部署未挂载会话存储，无法删除会话数据",
 }

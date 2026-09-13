@@ -104,4 +104,12 @@ export const MCP_LOCALE_EN: LocaleDict = {
   "stop": "Stop",
   "restartFailed": "Restart failed (HTTP {status})",
   "stopFailed": "Stop failed (HTTP {status})",
+  "deleteSession": "Delete session",
+  "confirmSessionDelete": "This permanently deletes the session's history and all of its stored data, including its log file. It cannot be undone.",
+  "deleteSessionFailed": "Delete session failed (HTTP {status})",
+  "deleteSessionNotFound": "The session no longer exists",
+  "deleteSessionRunning": "The session is running; stop it before deleting",
+  "deleteSessionAttached": "The session is still attached to the harness and this deployment mounts no archive set to hide it; restart dsh and delete it again",
+  "deleteSessionSubagent": "A subagent session cannot be deleted on its own; delete the session that owns it",
+  "deleteSessionUnavailable": "This deployment mounts no session store, so session data cannot be deleted",
 }

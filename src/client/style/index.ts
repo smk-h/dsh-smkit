@@ -1,10 +1,12 @@
 /**
- * The Settings → MCP stylesheet mount point.
+ * The plugin's stylesheet mount point.
  *
  * The rules live in the `.css` files next to this one, split by UI module and
  * imported here as strings: the build compiles each of them to a string module
  * (see the `cssTextPlugin` in `tsdown.config.ts`), because the client half ships
- * as one script that the browser cannot fetch a stylesheet for.
+ * as one script that the browser cannot fetch a stylesheet for. They cover both
+ * mount points the client half draws into: the Settings → MCP page and the
+ * conversation header's delete control (`session-delete.css`).
  *
  * `STYLESHEETS` below is the concatenation order and therefore the cascade
  * order — page shell first, then the pieces in the order the page stacks them.
@@ -34,6 +36,7 @@ import pillCss from './pill.css'
 import scopeCss from './scope.css'
 import searchCss from './search.css'
 import sectionCss from './section.css'
+import sessionDeleteCss from './session-delete.css'
 import switchCss from './switch.css'
 import workspaceCss from './workspace.css'
 import { CABLE_SPEC } from '../components/icons/CableIcon'
@@ -52,6 +55,7 @@ const STYLESHEETS = [
   scopeCss,
   workspaceCss,
   dialogCss,
+  sessionDeleteCss,
 ]
 
 /** The section's own rules, as the text `installStyles` injects. */

@@ -15,8 +15,16 @@ import { MCP_LOCALE_EN } from './i18n/en'
 import { MCP_LOCALE_ZH } from './i18n/zh'
 import type { ClientContext, ClientDeps, LocaleDict } from './runtime/types'
 
-/** Client services injected by the DSH client runtime. */
-export const inject = ['slots', 'locale']
+/**
+ * Client services injected by the DSH client runtime.
+ *
+ * `sessions` is the client session store: the delete control uses it to move
+ * this browser off a session it just removed. The header registration itself is
+ * optional (its slot is injected, not required), but the service is a hard
+ * dependency of the control, so the bundle declares it the same way DSH's own
+ * session-header contributions do.
+ */
+export const inject = ['slots', 'locale', 'sessions']
 
 export function createPlugin(): { apply(ctx: ClientContext): void; inject: string[] } {
   const react = require('react')

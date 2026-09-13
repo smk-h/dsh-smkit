@@ -10,7 +10,8 @@
  *      answers;
  *   3. the bundle patch and manifest wiring still point at this package;
  *   4. the browser half loads through `window.__ModuleLoader__.load`, registers
- *      balanced `zh`/`en` dictionaries and seats the `settings.section` slot.
+ *      balanced `zh`/`en` dictionaries and seats the `settings.section` and
+ *      `conversation.session.header.utilities` slots.
  *
  * Exits non-zero with a clear message on any failure, so `prepack` can never
  * ship a broken build. `HOME` and `DSH_HOME` are redirected to a scratch
@@ -110,7 +111,7 @@ assert.equal(pkg.exports['./client'], './lib/client.js', 'package.json must expo
 /** 4. The browser half must load and seat itself through the client runtime. */
 const clientSource = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
 const dictionaries = {}
-let slotSpec = null
+const slotSpecs = new Map()
 let clientExports = null
 
 runInNewContext(clientSource, {
@@ -134,6 +135,7 @@ runInNewContext(clientSource, {
 
 assert.equal(typeof clientExports?.apply, 'function', 'the client bundle must export apply()')
 assert.ok(clientExports.inject.includes('locale'), 'the client half must inject the locale service')
+assert.ok(clientExports.inject.includes('sessions'), 'the client half must inject the sessions service')
 
 clientExports.apply({
   effect(fn) { fn() },
@@ -143,7 +145,7 @@ clientExports.apply({
   },
   slots: {
     inject: (_name, callback) => callback(),
-    register: (spec) => { slotSpec = spec },
+    register: (spec) => { slotSpecs.set(spec.name, spec) },
   },
 })
 assert.deepEqual(
@@ -151,8 +153,15 @@ assert.deepEqual(
   Object.keys(dictionaries.mcp.en).sort(),
   'the zh and en dictionaries must carry the same key set',
 )
-assert.equal(slotSpec?.name, 'settings.section', 'the client half must seat the settings section slot')
-assert.equal(slotSpec?.id, 'mcp-manager', 'the slot entry id must stay mcp-manager')
-assert.equal(slotSpec?.locale, 'mcp', 'the slot entry must bind the mcp locale namespace')
+
+const settingsSlot = slotSpecs.get('settings.section')
+assert.ok(settingsSlot, 'the client half must seat the settings section slot')
+assert.equal(settingsSlot.id, 'mcp-manager', 'the slot entry id must stay mcp-manager')
+assert.equal(settingsSlot.locale, 'mcp', 'the slot entry must bind the mcp locale namespace')
+
+const deleteSlot = slotSpecs.get('conversation.session.header.utilities')
+assert.ok(deleteSlot, 'the client half must seat the session delete control in the header')
+assert.equal(deleteSlot.id, 'mcp-manager-session-delete', 'the delete control keeps its own entry id')
+assert.equal(deleteSlot.locale, 'mcp', 'the delete control must bind the mcp locale namespace')
 
 console.log('verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → MCP.')

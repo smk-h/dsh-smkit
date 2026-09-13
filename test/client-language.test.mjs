@@ -17,12 +17,16 @@ function walk(dir) {
 const I18N_MODULE = /[/\\]i18n[/\\]/
 
 // Run the real module factory with a tiny hook harness; no browser or dependencies.
+// The plugin seats more than one slot (Settings → MCP and the conversation
+// header's delete control), so registrations are keyed by slot name and the
+// section is addressed explicitly instead of "whatever registered last".
 function mount(fetch, language = 'en') {
-  let dictionaries, spec, disposed = false
+  let dictionaries, disposed = false
   const effectLabels = []
+  const registrations = new Map()
   const t = (key, values = {}) => (dictionaries[language]?.[key] ?? dictionaries.en[key] ?? key)
     .replace(/\{(\w+)\}/g, (match, name) => String(values[name] ?? match))
-  let exported, Section
+  let exported
   let states = [], cursor = 0, effects = [], initialized = false
   const react = {
     createElement: (type, props, ...children) => ({ type, props: props ?? {}, children: children.flat(Infinity) }),
@@ -53,17 +57,19 @@ function mount(fetch, language = 'en') {
     },
     slots: {
       inject: (_name, cb) => cb(),
-      register: (options, component) => { spec = options; Section = component },
+      register: (options, component) => { registrations.set(options.name, { options, component }) },
     },
   })
+  const section = registrations.get('settings.section')
   return {
     get dictionaries() { return dictionaries },
-    get spec() { return spec },
+    get spec() { return section.options },
+    get registrations() { return registrations },
     get inject() { return exported.inject },
     effectLabels,
     dispose() { for (const dispose of disposers) dispose(); assert.equal(disposed, true) },
     setLocale(next) { language = next },
-    render(component = Section, props = { t }) {
+    render(component = section.component, props = { t }) {
       cursor = 0
       return component(props)
     },
@@ -100,8 +106,15 @@ it('registers balanced mcp dictionaries with effect cleanup and the locale slot 
   assert.equal(app.spec.locale, 'mcp')
   assert.equal(app.spec.label(), 'MCP')
   assert.ok(app.inject.includes('locale'))
+  assert.ok(app.inject.includes('sessions'), 'the header delete control needs the client session store')
+  // The second seat: the conversation header's delete control, which carries no
+  // nav label and binds the same dictionary.
+  const header = app.registrations.get('conversation.session.header.utilities')
+  assert.equal(header.options.id, 'mcp-manager-session-delete')
+  assert.equal(header.options.locale, 'mcp')
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-locale'))
+  assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-conversation'))
   assert.deepEqual(app.effectLabels, ['dsh-mcp-manager: dictionaries', 'dsh-mcp-manager: settings nav row'])
   for (const key of [...source.matchAll(/\bt\(\s*["']([\w-]+)["']/g)].map((match) => match[1])) {
     for (const locale of ['zh', 'en']) assert.ok(app.dictionaries[locale][key], locale + ': ' + key)

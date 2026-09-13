@@ -26,6 +26,7 @@ import { createBrokerRuntime } from './broker/runtime.js'
 import { createOAuth } from './auth/oauth.js'
 import { createRegistry, setServerAuthStatus } from './registry.js'
 import { createRuntime } from './runtime.js'
+import { createSessionDeleter } from './session-delete.js'
 import { loadState, migrateLoadedState, saveState } from './state.js'
 import { toErrorMessage } from './util/text.js'
 import { createAgentDecorators } from './workspace/agents.js'
@@ -55,6 +56,8 @@ export interface PluginContext {
   tools: ToolsRegistry
   webServer?: WebServerLike
   get?(name: string): unknown
+  /** Cordis event publication. The session delete announces itself with it. */
+  emit?(event: string, ...args: unknown[]): void
   on(
     event: string,
     handler: (
@@ -145,6 +148,18 @@ export function apply(ctx: PluginContext): void {
     on: (event, handler, options) => ctx.on(event, handler, options),
   })
 
+  // Deleting a session reaches into services this plugin deliberately does not
+  // depend on (`sessionPersistence`, `sessions`, `agents`, `workspaceRegistry`),
+  // so it resolves them per call through the structural accessor and stays
+  // mountable where only some of them exist. The event publication is the same
+  // mixed-in method the harness itself uses (`ctx.emit`), bound to this context.
+  const hostEmit = ctx.emit
+  const deleteSession = createSessionDeleter({
+    services,
+    logger,
+    ...(hostEmit === undefined ? {} : { emit: hostEmit.bind(ctx) }),
+  })
+
   const api: ApiContext = {
     runtime,
     logger,
@@ -153,6 +168,7 @@ export function apply(ctx: PluginContext): void {
     workspaces: manager,
     scope,
     oauth,
+    deleteSession,
     setOnDemandToolInjection: (enabled: boolean) => broker.setOnDemandToolInjection(enabled),
     setServerAuthStatus: (server, status, error) =>
       setServerAuthStatus(runtime, server, status, error),

@@ -25,15 +25,17 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 - 按工作区隔离：工作区独享的服务器写在 `<workspace>/.dsh/dshmm/mcp.json`，全局服务器也可按工作区屏蔽。工具栏作用域选择旁可一键直接打开配置文件（全局为 `~/.dsh/mcp-manager.json` 状态文件，工作区为该工作区的 `mcp.json`）。
 - 运行时可重启、关闭单个服务器的连接，长连接断开后不必重启 dsh。
 - 可选的按需工具代理（broker）：开启后 MCP 仅暴露 search、describe、execute 三个工具，避免大量工具污染上下文。
+- 会话窗口右上角提供「删除会话」按钮：dsh 自带的「归档会话」只是把会话从列表里隐藏，日志仍留在磁盘上；该按钮会真正删掉当前会话的历史与本地数据（会话目录、派生缓存、列表条目），随后侧边栏条目同步消失，并在原会话所属工作区直接开好一个新会话（等同 dsh 自带的「新会话」，不必再选一次工作区），全程局部更新、不刷新页面。
 
-插件分为宿主端与浏览器端两半，均以 TypeScript 编写：宿主端挂载 `/mcp-manager/api` 路由、管理 MCP 连接与工作区作用域，浏览器端只负责渲染设置页，两者通过同一组 API 通信。
+插件分为宿主端与浏览器端两半，均以 TypeScript 编写：宿主端挂载 `/mcp-manager/api` 路由、管理 MCP 连接与工作区作用域，浏览器端负责渲染设置页与会话窗口中的删除按钮，两者通过同一组 API 通信。
 
 ### 3. 图标来源
 
-设置页的图标不从图标库引入运行时依赖，而是把上游的 SVG 数据逐字移植进 [`src/client/components/icons/`](src/client/components/icons/)：每个图标一个文件、以图标名命名，文件头部注明上游库、版本与许可。当前用到的图标如下：
+插件的图标不从图标库引入运行时依赖，而是把上游的 SVG 数据逐字移植进 [`src/client/components/icons/`](src/client/components/icons/)：每个图标一个文件、以图标名命名，文件头部注明上游库、版本与许可。当前用到的图标如下：
 
 - `cable`：来自 [lucide](https://lucide.dev) 的同名图标，版本 v0.261.0（中文镜像站为 [lucide.nodejs.cn](https://lucide.nodejs.cn)）；用于设置导航栏「MCP」一行的字形，见 [`CableIcon.tsx`](src/client/components/icons/CableIcon.tsx)、[`nav-icon.ts`](src/client/runtime/nav-icon.ts) 与 [`nav-icon.css`](src/client/style/nav-icon.css) 的 `MCP_NAV_ICON_CSS`。
 - `loader-2`：同样来自 lucide v0.261.0（后续版本更名为 `loader-circle`）；是连接中/授权中的旋转弧线，由状态点在过渡态渲染，见 [`LoaderIcon.tsx`](src/client/components/icons/LoaderIcon.tsx) 与 [`pill.css`](src/client/style/pill.css) 的 `mm_statusSpin`。
+- `trash`（`ic_ds_trash_outline_16`）：来自宿主自带的 `@deepseek-ai/dsh-client-ui-primitives` 0.1.5-rc.2（MIT，© 2026 DeepSeek）；用于会话窗口右上角的删除会话按钮，见 [`TrashIcon.tsx`](src/client/components/icons/TrashIcon.tsx) 与 [`SessionDeleteButton.tsx`](src/client/components/SessionDeleteButton.tsx)。
 
 lucide 图标采用 ISC 许可：版权归 Lucide Contributors（2022）所有，其中部分版权归 Cole Bemis（2013 至 2022 年，源自 Feather 项目，MIT 许可）所有。
 

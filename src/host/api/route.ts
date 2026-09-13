@@ -3,8 +3,9 @@
  *
  * Order matters and mirrors the reference implementation: the OAuth callback is
  * a browser navigation answered with HTML, then `/ping` + `/settings`, then the
- * workspace routes (so `/workspaces/servers/delete` wins over the
- * `/servers/:id` pattern), then the global server routes.
+ * exact-path session route, then the workspace routes (so
+ * `/workspaces/servers/delete` wins over the `/servers/:id` pattern), then the
+ * global server routes.
  *
  * The browser-facing origin is derived **per request** from the `Host` header,
  * so OAuth redirect URIs follow whatever address the GUI is actually served on.
@@ -16,6 +17,7 @@ import { errorText, isRecord, toErrorMessage } from '../util/text.js'
 import { handleCallback } from './callback.js'
 import { originOf } from './context.js'
 import { handleServers } from './servers.js'
+import { handleSessions } from './sessions.js'
 import { handleSettings } from './settings.js'
 import { handleWorkspaces } from './workspaces.js'
 import type { ApiContext, RequestFacts } from './context.js'
@@ -45,6 +47,7 @@ export function createRoute(api: ApiContext): RouteDefinition {
         facts.idMatch = rest.match(ID_ROUTE_RE)
 
         if (await handleSettings(req, res, facts, api)) return
+        if (await handleSessions(req, res, facts, api)) return
         if (await handleWorkspaces(req, res, facts, api)) return
         if (await handleServers(req, res, facts, api)) return
 

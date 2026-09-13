@@ -1,0 +1,50 @@
+/**
+ * The Session-header delete control (components/SessionDeleteButton).
+ *
+ * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
+ * joins them in the order listed there, and the build inlines the result as one
+ * string: the split is a reading aid, the order `index.ts` decides the cascade.
+ *
+ * The control is mounted into DSH's conversation header, not into this
+ * section's own page, so these rules deliberately match DSH's header rhythm
+ * instead of the settings vocabulary: a 28px round control on the header's
+ * 30px title row, the same hairline l4 border and 14px radius DSH's own header
+ * buttons use (`ui-open-in-app`'s split button, `ui-conversation`'s crumbs).
+ * Hover carries the destructive intent — the border, the glyph, and a 10% wash
+ * turn the state-error colour — so the button reads as "delete" before it is
+ * clicked, without shouting at rest.
+ */
+
+.mm_sessionDeleteHost {
+  display: inline-flex;
+  align-items: center;
+}
+
+.mm_sessionDelete {
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 14px;
+  background: 0 0;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.mm_sessionDelete:hover:not(:disabled),
+.mm_sessionDelete:focus-visible:not(:disabled) {
+  color: var(--dsw-alias-state-error-primary);
+  border-color: var(--dsw-alias-state-error-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
+}
+
+/* The request is in flight: the control cannot be pressed again, and the
+ * confirmation dialog is showing the same state through `busy`. */
+.mm_sessionDelete:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

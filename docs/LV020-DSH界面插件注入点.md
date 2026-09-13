@@ -6,7 +6,7 @@
 
 ### 1. 一句话结论
 
-DSH Web 界面整体就是一个 slot（插槽）组装出来的外壳，宿主共暴露约 40 个具名注入点。插件放按钮不走 hack，而是宿主的一等公民能力：在 `package.json` 的 `dsh.client.inject` 里声明需要的 UI 包，再在客户端 `apply()` 里注册对应 slot 即可。本项目 dsh-smkit 往「设置 → MCP」塞页面用的正是这套机制。
+DSH Web 界面整体就是一个 slot（插槽）组装出来的外壳，宿主共暴露约 40 个具名注入点。插件放按钮不走 hack，而是宿主的一等公民能力：在 `package.json` 的 `dsh.client.inject` 里声明需要的 UI 包，再在客户端 `apply()` 里注册对应 slot 即可。本项目 dsh-smkit 用的正是这套机制：往「设置 → MCP」塞页面（`settings.section`），往会话窗口右上角塞「删除会话」按钮（`conversation.session.header.utilities`）。
 
 ### 2. 注入链路
 
@@ -158,7 +158,7 @@ ctx.slots.inject('conversation.input.left', () =>
 
 ### 3. 参考实现
 
-- 本项目：[`src/client/runtime/plugin.ts`](../src/client/runtime/plugin.ts) 注册 `settings.section` 的完整流程；
+- 本项目：[`src/client/runtime/plugin.ts`](../src/client/runtime/plugin.ts) 注册 `settings.section` 的完整流程，以及 `conversation.session.header.utilities`（会话头部删除按钮）的注册方式；
 - 第三方实证：已装入 web profile 的 `dsh-better-sidebar` 插件同时注入了 `conversation.session.header.utilities`（顶栏按钮）、`conversation.chat.turnTail`（Turn 尾部按钮）、`settings.section` 与右侧栏 tab，说明这些座位对第三方插件完全开放。
 
 ---
