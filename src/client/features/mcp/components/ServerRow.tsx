@@ -88,6 +88,13 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
         return r.ok ? undefined : r.body.error || t('stopFailed', { status: r.status })
       }, 'stop')
 
+    // Same reasoning as WorkspaceServerRow: the wait happens in the browser, and
+    // `pending` only covers the request itself, so the button's pending state
+    // follows the `authorizing` status too. Without that it turns clickable again
+    // as soon as the request returns, and a second click opens another tab and
+    // supersedes the flow already in progress.
+    const authorizing = server.status === 'authorizing'
+
     const toggleEnabled = (): Promise<void> =>
       run(async () => {
         const enabling = server.enabled === false
@@ -157,9 +164,9 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
                   <button
                     className="mm_btn"
                     onClick={startAuth}
-                    disabled={busy}
-                    data-pending={pending === 'auth' ? 'true' : undefined}
-                    aria-busy={pending === 'auth'}
+                    disabled={busy || authorizing}
+                    data-pending={pending === 'auth' || authorizing ? 'true' : undefined}
+                    aria-busy={pending === 'auth' || authorizing}
                   >
                     {server.status === 'connected' ? t('reauth') : t('auth')}
                   </button>

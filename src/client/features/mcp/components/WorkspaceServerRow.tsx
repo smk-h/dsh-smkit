@@ -87,6 +87,18 @@ export function createWorkspaceServerRow(
       }, action)
     const status = server.status
     const hasLiveInstance = status !== 'configured' && status !== 'conflict'
+    // Authorizing spans a browser round trip: the request returns an authorizeUrl
+    // almost immediately, and the wait then happens in the user's own tab until
+    // the plugin's callback exchanges the code. So the button's pending state
+    // follows this status as well — on `pending` alone it would look idle again
+    // the moment the request returned, while the user is still in the tab.
+    const authorizing = status === 'authorizing'
+    // `authorizing` has to stay in this allow-list: missing it, the button unmounts
+    // the instant it is clicked, so it vanishes instead of turning into the same
+    // three dots a restart shows.
+    const showAuth =
+      server.authMode === 'oauth' &&
+      (authorizing || status === 'needs-auth' || status === 'error' || status === 'connected')
 
     return (
       <div className="mm_row" key={server.name}>
@@ -117,14 +129,13 @@ export function createWorkspaceServerRow(
                 {t('stop')}
               </button>
             ) : null}
-            {server.authMode === 'oauth' &&
-            (status === 'needs-auth' || status === 'error' || status === 'connected') ? (
+            {showAuth ? (
               <button
                 className="mm_btn"
                 onClick={startAuth}
-                disabled={busy}
-                data-pending={pending === 'auth' ? 'true' : undefined}
-                aria-busy={pending === 'auth'}
+                disabled={busy || authorizing}
+                data-pending={pending === 'auth' || authorizing ? 'true' : undefined}
+                aria-busy={pending === 'auth' || authorizing}
               >
                 {status === 'connected' ? t('reauth') : t('auth')}
               </button>
