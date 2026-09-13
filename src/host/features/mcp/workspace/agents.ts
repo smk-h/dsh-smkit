@@ -117,19 +117,30 @@ export function createAgentDecorators(deps: AgentDecoratorsDeps): AgentDecorator
    * Compose the caller's agent setup with workspace scoping. Best-effort: a
    * missing/invalid cwd or any scoping failure degrades to "global tools only"
    * and never rejects agent creation.
+   *
+   * The scan never *waits* for the workspace's transports: connecting is
+   * background work, so opening a session is not gated on a cold MCP server
+   * (a stdio server can spend tens of seconds in `initialize` while npx
+   * resolves its package). Everything here is therefore inside the same guard
+   * — including the release hook, whose installation is the last thing that
+   * could previously escape it and reject the caller's session creation.
    */
   function composeAgentSetup(
     callerSetup: unknown,
   ): (agentCtx: unknown, explicitAgent?: unknown) => Promise<unknown> {
     return async (agentCtx, explicitAgent) => {
       const agent = resolveSetupAgent(agentCtx, explicitAgent)
-      let wsPath: string | null = null
       const cwd = agent?.session?.header?.cwd
       if (typeof cwd === 'string' && cwd.length > 0 && isAbsolute(cwd)) {
         try {
-          wsPath = canonicalize(cwd)
+          const wsPath = canonicalize(cwd)
           const ws = manager.ensureWorkspace(wsPath, cwd)
-          await manager.rescanWorkspace(wsPath)
+          // Register with the transports that are connected *now*; `doRescan`'s
+          // background settle callback rebuilds this agent's scope once each
+          // transport lands. This is the posture the settings save routes already
+          // take (see `api/workspaces.ts`), applied to the seam that decides how
+          // long opening a session takes.
+          await manager.rescanWorkspace(wsPath, { awaitConnect: false })
           ws.agents.add(agent as AgentLike)
           runtime.agentScopeState.set(agent as AgentLike, {
             wsPath,
@@ -138,20 +149,19 @@ export function createAgentDecorators(deps: AgentDecoratorsDeps): AgentDecorator
             restrictKey: undefined,
           })
           scope.rebuildAgentWorkspace(agent as AgentLike, wsPath)
+          // Released through the agent's own context, so it runs exactly when the
+          // session's scope unwinds. A hook that cannot be installed now degrades
+          // the workspace tier with a warning instead of failing the session.
+          if (isRecord(agentCtx) && typeof agentCtx.effect === 'function') {
+            ;(agentCtx.effect as (callback: () => () => void, label: string) => void)(
+              () => () => {
+                manager.releaseWorkspace(wsPath, agent as AgentLike)
+              },
+              'mcp-workspace-release',
+            )
+          }
         } catch (error) {
           logger.warn(`${LOG_PREFIX}: workspace scoping failed for ${cwd}: ${errorText(error)}`)
-          wsPath = null
-        }
-      }
-      if (wsPath) {
-        const scoped = wsPath
-        if (isRecord(agentCtx) && typeof agentCtx.effect === 'function') {
-          ;(agentCtx.effect as (callback: () => () => void, label: string) => void)(
-            () => () => {
-              manager.releaseWorkspace(scoped, agent as AgentLike)
-            },
-            'mcp-workspace-release',
-          )
         }
       }
       const setup = typeof callerSetup === 'function' ? (callerSetup as (a: unknown, b?: unknown) => unknown) : undefined

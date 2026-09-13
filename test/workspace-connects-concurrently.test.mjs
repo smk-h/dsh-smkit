@@ -2,6 +2,10 @@
  * Opening a workspace must register every server row up front and open all of
  * their transports concurrently — not connect one server before the next one
  * even shows up. Regression for the serial first-time connect.
+ *
+ * Session creation must not be *gated* on those transports either: the setup
+ * has to answer while they are still opening, leaving the tools to arrive
+ * through the scan's own settle callback.
  */
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -139,6 +143,17 @@ function startStub(gate) {
 
 const settleMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+/** Poll until `condition` yields a truthy value; fail the test on timeout. */
+async function waitFor(condition, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const value = await condition()
+    if (value) return value
+    if (Date.now() > deadline) throw new Error(`timed out after ${timeoutMs}ms waiting for the workspace transports`)
+    await settleMs(50)
+  }
+}
+
 it('registers every workspace row at once and opens their transports concurrently', async () => {
   // The gated server's initialize parks until the test releases it, so with a
   // serial connect the second row would never even appear while parked.
@@ -158,11 +173,18 @@ it('registers every workspace row at once and opens their transports concurrentl
 
   const { handler, agents, dispose } = makeCtx({ workspacePath: wsDir })
 
-  // Open the workspace: agent setup awaits the scan, which awaits every
-  // transport — kick it off without awaiting so the mid-flight state is
-  // observable.
+  // Open the workspace. Session creation must not wait for the transports: the
+  // setup has to answer while both connections are still opening.
   const created = agents.create({ setup: async () => {} })
+  let creationSettled = false
+  let creationError
+  void created.then(
+    () => { creationSettled = true },
+    (error) => { creationSettled = true; creationError = error },
+  )
   await settleMs(200)
+  assert.equal(creationSettled, true, 'session creation must not wait for the workspace transports')
+  assert.equal(creationError, undefined, `session creation must not fail: ${creationError}`)
 
   const midFlight = await request(handler, 'GET', '/mcp-manager/api/workspaces')
   const rows = midFlight.json.workspaces
@@ -174,14 +196,19 @@ it('registers every workspace row at once and opens their transports concurrentl
     'both rows must be listed while one transport is still opening',
   )
 
+  // Releasing the gate lets the second transport finish. Nothing else touches
+  // the session from here: its tools must arrive through the settle callback.
   gate.resolve()
-  await created
-  const settled = await request(handler, 'GET', '/mcp-manager/api/workspaces')
-  const settledRows = settled.json.workspaces
-    .find((workspace) => workspace.path === wsDir)
-    ?.servers ?? []
+  const settledRows = await waitFor(async () => {
+    const settled = await request(handler, 'GET', '/mcp-manager/api/workspaces')
+    const current = settled.json.workspaces
+      .find((workspace) => workspace.path === wsDir)
+      ?.servers ?? []
+    return current.length === 2 && current.every((row) => row.status === 'connected')
+      ? current
+      : undefined
+  })
   for (const row of settledRows) {
-    assert.equal(row.status, 'connected')
     assert.equal(row.toolCount, 1)
   }
 
