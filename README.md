@@ -29,6 +29,14 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 - 「设置 → MCP → 高级」可配置工具调用超时（默认 60000 毫秒，范围 1000～1800000）：只作用于 `tools/call`，连接阶段（`initialize` / `tools/list`）仍是固定 60 秒；保存后立即生效，不需要重连服务器，也不需要重启 dsh。
 - 「设置 → 自定义设置」页收拢 DSH 里那些值得单独调、又不常改的配置，一个标签页一块：「模型重试」为每个已注册的提供方路由配置模型请求失败后的自动重试——模式（normal / always）、重试次数、退避间隔与抖动比例；「其他设置」先列出后续准备接入的配置项。写入的是 dsh 自己的 `settings.yaml` 对应配置段（`llm-pi-ai.providers.<路由>.retryPolicy`、`llm-deepseek.retryPolicy` 等），保存后立即生效、不需要重启 dsh；路由不在此页新增或删除，重试策略只跟随已注册的提供方。
 - 会话窗口右上角提供「删除会话」按钮：dsh 自带的「归档会话」只是把会话从列表里隐藏，日志仍留在磁盘上；该按钮会真正删掉当前会话的本地数据——会话目录（全部日志世代与写锁）、投影缓存行、该会话的溢出文件目录——随后侧边栏条目同步消失，并在原会话所属工作区直接开好一个新会话（等同 dsh 自带的「新会话」，不必再选一次工作区），全程局部更新、不刷新页面。
+- 「设置 → Skills」把 Agent Skills 收进同一套设置页，目录选择器分两栏（与 MCP 页同款：用户一枚显示器图标、项目一枚文件夹图标，鼠标悬浮弹出绝对路径）：
+  - **用户**：`~/.dsh/skills` 与 `~/.agents/skills` **各自一档**，不合并成一个"全局"——它们是两个不同的 home，混在一起就看不出技能住在哪；
+  - **项目**：**每个工作区一档**，名字用 dsh 自己存的 title（`$DSH_HOME/storages/workspace.json`，改名后跟着变），不是文件夹名。选中后列出**该项目自己技能目录里的全部技能**（`.dsh/skills` 与 `.agents/skills` 一起读，按 provider 的优先级排序），每行标出来自哪一个（`.dsh` / `.agents`）。
+
+  项目根取的是**最近的带 `.git` 的祖先目录**（dsh 自己的规则，因此工作区目录本身不一定就是项目根）；列表上方会写出**这次实际读了哪些目录**，为空时也一样，所以"看到的"和"读到的"永远对得上。右侧搜索框按名称、描述、适用场景与分组过滤。列表每行给出技能名、一句描述，以及它身上的标记：来自哪个目录（仅项目视图）、所在分组（嵌套技能）、`链接`、`已停用`。**点击整行**打开详情对话框（描述、适用场景、状态、调用方式、分组、根目录、文件路径，链接安装的技能另有实际路径）；行尾是**启停开关**与移除按钮。
+- 两个操作都按「名称 + 目录 + 项目 + 分组」四件事定位，且宿主要拿一份**新扫描**去解析它们，页面上过期的信息只会查不到，不会写到同名的另一个身上（同名技能在别的目录、别的分组里都是另一条）。移除前弹确认框，框里列出根目录与**将要删除的那个文件/目录**；启停则是把头部在 `SKILL.md` ↔ `SKILL.md.disabled` 之间**原地改名**——dsh 只认 `SKILL.md`（单文件技能只认 `*.md`），所以停用后 agent 不再加载它，但文件还在磁盘上、这一页照常列出并可随时启用，比"删掉再重建"温和得多。
+- 这一页直接扫描上面那四个根目录，而不是读 dsh 的技能注册表：web profile 里宿主层的 `skill-filesystem` 被关闭（本地发现按设计交给了各个 agent preset），宿主侧读不到这些目录，而这一页本来管的也正是磁盘上的这些目录。扫描比官方 provider 多做三件事：**跟随软连接与 Windows junction**（列出、可启停、可移除，行上标「链接」；详情里同时给出「文件路径」与解析后的「实际路径」，移除链接安装的技能时只删链接本身、**绝不穿过链接删除它指向的目录**）；**读取嵌套技能**（`<根>/<分组>/<技能>/SKILL.md`，官方只看一层，分组名显示在行上、也是定位的一部分）；**列出已停用的技能**（官方不认 `.disabled`，这一页认，否则停用后就再也看不见了）。列表每 3 秒刷新，文件未变则复用已解析的头部、不重复读盘；没有「新建」——技能是磁盘上的目录与 `SKILL.md`，本插件不代写它们。
+- 一处要留意的差别：技能目录是链接时，**启停作用于链接指向的那个目录**（头部就一个文件，所以对每个引用它的目录同时生效），而**移除只摘掉本目录里的链接**。这也是详情里同时给出「文件路径」和「实际路径」的原因——要动的是哪个文件，一眼能看出来。
 
 > [!NOTE]
 > 「删除会话」清理的是**属于该会话自己的数据**。图片与文件附件按内容哈希存放在 `~/.dsh/attachments` 下，同一个字节可能被多个会话引用，删掉会破坏其他会话的历史，因此不在删除范围内（dsh 本身也没有附件引用计数或回收机制）。
@@ -41,11 +49,14 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 
 ### 3. 图标来源
 
-插件的图标不从图标库引入运行时依赖，而是把上游的 SVG 数据逐字移植进 [`src/client/components/icons/`](src/client/components/icons/)：每个图标一个文件、以图标名命名，文件头部注明上游库、版本与许可。当前用到的图标如下：
+插件的图标不从图标库引入运行时依赖，而是把上游的 SVG 数据逐字移植进 [`src/client/platform/icons/`](src/client/platform/icons/)（多个页面共用的字形）与各特性的 `icons/` 目录（只有一个页面画的字形）：每个图标一个文件、以图标名命名，文件头部注明上游库、版本与许可。当前用到的图标如下：
 
-- `cable`：来自 [lucide](https://lucide.dev) 的同名图标，版本 v0.261.0（中文镜像站为 [lucide.nodejs.cn](https://lucide.nodejs.cn)）；用于设置导航栏「MCP」一行的字形，见 [`CableIcon.tsx`](src/client/components/icons/CableIcon.tsx)、[`nav-icon.ts`](src/client/runtime/nav-icon.ts) 与 [`nav-icon.css`](src/client/style/nav-icon.css) 的 `MCP_NAV_ICON_CSS`。
-- `loader-2`：同样来自 lucide v0.261.0（后续版本更名为 `loader-circle`）；是连接中/授权中的旋转弧线，由状态点在过渡态渲染，见 [`LoaderIcon.tsx`](src/client/components/icons/LoaderIcon.tsx) 与 [`pill.css`](src/client/style/pill.css) 的 `mm_statusSpin`。
-- `trash`（`ic_ds_trash_outline_16`）：来自宿主自带的 `@deepseek-ai/dsh-client-ui-primitives` 0.1.5-rc.2（MIT，© 2026 DeepSeek）；用于会话窗口右上角的删除会话按钮，见 [`TrashIcon.tsx`](src/client/components/icons/TrashIcon.tsx) 与 [`SessionDeleteButton.tsx`](src/client/components/SessionDeleteButton.tsx)。
+- `cable`：来自 [lucide](https://lucide.dev) 的同名图标，版本 v0.261.0（中文镜像站为 [lucide.nodejs.cn](https://lucide.nodejs.cn)）；用于设置导航栏「MCP」一行的字形，见 [`CableIcon.tsx`](src/client/features/mcp/icons/CableIcon.tsx)、[`styles.ts`](src/client/features/mcp/styles.ts) 的 `MCP_NAV_ICON_CSS` 与平台层的 [`settings-nav.css`](src/client/platform/style/settings-nav.css)。
+- `loader-2`：同样来自 lucide v0.261.0（后续版本更名为 `loader-circle`）；是连接中/授权中的旋转弧线，由状态点在过渡态渲染，见 [`LoaderIcon.tsx`](src/client/platform/icons/LoaderIcon.tsx) 与 [`spin.css`](src/client/platform/style/spin.css) 的 `mm_statusSpin`。
+- `trash`（`ic_ds_trash_outline_16`）：来自宿主自带的 `@deepseek-ai/dsh-client-ui-primitives` 0.1.5-rc.2（MIT，© 2026 DeepSeek）；用于会话窗口右上角的删除会话按钮，见 [`TrashIcon.tsx`](src/client/features/session-delete/icons/TrashIcon.tsx) 与 [`SessionDeleteButton.tsx`](src/client/features/session-delete/SessionDeleteButton.tsx)。
+- `wand-sparkles`：来自 lucide 的同名图标（中文镜像站为 [lucide.nodejs.cn](https://lucide.nodejs.cn)）；用于设置导航栏「Skills」一行的字形，见 [`WandSparklesIcon.tsx`](src/client/features/skills/icons/WandSparklesIcon.tsx) 与 [`styles.ts`](src/client/features/skills/styles.ts) 的 `SKILLS_NAV_ICON_CSS`。
+- `search`（`IconSearchOutline16`，来自宿主自带的 `@deepseek-ai/dsh-client-ui-primitives` 0.1.5-rc.2）与 `x`（lucide）：MCP 页与 Skills 页的搜索框共用同一个放大镜与清空按钮，因此两个字形都放在平台层 [`platform/icons/`](src/client/platform/icons/) 下，由两个页面一起引用。
+- `monitor`（`IconFollowsystemOutline16`）、`folder`（`IconFolderOpenOutline16`）、`chevron-down`（`IconChevronDownOutline14`）与 `check`（`IconCheckOutline16`）：同样来自 `@deepseek-ai/dsh-client-ui-primitives`，是作用域选择器的字形（全局 / 项目 / 展开箭头 / 选中打勾）；两页都在用，也放在平台层 [`platform/icons/`](src/client/platform/icons/) 下。选择器本体同样是平台层的：手写的图标下拉框在 [`platform/ui/IconSelect.tsx`](src/client/platform/ui/IconSelect.tsx)（选项可带图标、选中打勾、点击外部收起），它的胶囊触发器与菜单样式在 [`platform/style/picker.css`](src/client/platform/style/picker.css)，两页各只提供自己的选项表。悬浮提示气泡也是平台层的：`.mm_tip` 的样式在 [`platform/style/tip.css`](src/client/platform/style/tip.css)，气泡贴边时的位移修正由 [`platform/ui/tip.ts`](src/client/platform/ui/tip.ts) 的 `watchTipBoundaries()` 负责，两页各自挂一份。
 
 lucide 图标采用 ISC 许可：版权归 Lucide Contributors（2022）所有，其中部分版权归 Cole Bemis（2013 至 2022 年，源自 Feather 项目，MIT 许可）所有。
 

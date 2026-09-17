@@ -17,6 +17,7 @@
 import { customSettingsFeature } from './features/custom-settings/client'
 import { mcpFeature } from './features/mcp/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
+import { skillsFeature } from './features/skills/client'
 import { createApi } from './platform/api'
 import { PLATFORM_LOCALE_EN } from './platform/i18n/en'
 import { PLATFORM_LOCALE_ZH } from './platform/i18n/zh'
@@ -35,7 +36,12 @@ import type { ClientContext, ClientDeps, ClientFeature } from './platform/types'
 export const inject = ['slots', 'locale', 'sessions']
 
 /** The features this plugin ships; the order here is the order they register. */
-const FEATURES: ClientFeature[] = [mcpFeature, sessionDeleteFeature, customSettingsFeature]
+const FEATURES: ClientFeature[] = [
+  mcpFeature,
+  sessionDeleteFeature,
+  customSettingsFeature,
+  skillsFeature,
+]
 
 export function createPlugin(): { apply(ctx: ClientContext): void; inject: string[] } {
   const react = require('react')

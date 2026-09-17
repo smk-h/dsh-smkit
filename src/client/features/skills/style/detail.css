@@ -1,0 +1,109 @@
+/**
+ * The skill detail dialog (`SkillDetailDialog`) and the fact block the removal
+ * confirmation carries.
+ *
+ * The card itself is the platform's dialog frame (`.mm_dialog`, injected
+ * before this sheet), so only what is specific to a detail view lives here: a
+ * wider cap than the confirmation's narrow column, the title row with its close
+ * control, and the labelled fields — a stack of full-width ones, with the scope
+ * and status pair set side by side.
+ *
+ * One part of this feature's stylesheet. `skills/styles.ts` imports the parts
+ * and joins them in the order listed there.
+ */
+
+.sk_detail {
+  max-width: 560px;
+}
+
+.sk_detailHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sk_detailTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  color: var(--dsw-alias-label-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sk_detailClose {
+  flex: none;
+  border: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+.sk_detailClose:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+
+.sk_detailField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sk_detailLabel {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.sk_detailValue {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+  word-break: break-word;
+}
+
+/* A host path is one token with no spaces to break on, so it wraps anywhere. */
+.sk_detailPath {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+/* Scope and status: two short values that fit one row, the way a settings
+ * detail view pairs them. */
+.sk_detailPair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+/* The confirmation's fact block: the root the skill came from, and the file the
+ * delete takes with it. */
+.sk_facts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sk_fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sk_factLabel {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.sk_factValue {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  word-break: break-all;
+}

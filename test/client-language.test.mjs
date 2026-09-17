@@ -108,7 +108,7 @@ const content = (tree) =>
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings']) {
+  for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings', 'skills']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -142,6 +142,8 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'dsh-mcp-manager: session-delete/dictionaries',
     'dsh-mcp-manager: custom-settings/dictionaries',
     'dsh-mcp-manager: custom-settings settings nav row',
+    'dsh-mcp-manager: skills/dictionaries',
+    'dsh-mcp-manager: skills settings nav row',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared

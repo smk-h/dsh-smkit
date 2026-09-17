@@ -151,7 +151,7 @@ clientExports.apply({
     register: (spec) => { slotSpecs.set(spec.name, [...(slotSpecs.get(spec.name) ?? []), spec]) },
   },
 })
-for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings']) {
+for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings', 'skills']) {
   assert.ok(dictionaries[namespace], `the ${namespace} dictionary must be registered`)
   assert.deepEqual(
     Object.keys(dictionaries[namespace].zh).sort(),
@@ -173,7 +173,12 @@ assert.equal(settingsSlot.locale, 'mcp', 'the MCP section entry must bind the mc
 const customSlot = entryOf('settings.section', 'mcp-manager-custom-settings')
 assert.equal(customSlot.locale, 'custom-settings', 'the custom-settings entry must bind its own locale namespace')
 
+const skillsSlot = entryOf('settings.section', 'mcp-manager-skills')
+assert.equal(skillsSlot.locale, 'skills', 'the Skills section entry must bind the skills locale namespace')
+
 const deleteSlot = entryOf('conversation.session.header.utilities', 'mcp-manager-session-delete')
 assert.equal(deleteSlot.locale, 'session-delete', 'the delete control binds its own locale namespace')
 
-console.log('verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → MCP → 自定义设置.')
+console.log(
+  'verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → MCP → 自定义设置 → Skills.',
+)

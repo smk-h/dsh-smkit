@@ -16,6 +16,7 @@ import { createPrefixRoute } from './host/platform/routes.js'
 import { customSettingsFeature } from './host/features/custom-settings/host.js'
 import { mcpFeature } from './host/features/mcp/host.js'
 import { sessionDeleteFeature } from './host/features/session-delete/host.js'
+import { skillsFeature } from './host/features/skills/host.js'
 import type { HostFeature, HostPlatform, PluginContext } from './host/platform/context.js'
 import type { ApiHandler } from './host/platform/routes.js'
 import type { ServiceAccessor } from './host/platform/types.js'
@@ -29,7 +30,12 @@ export const name = 'mcp-manager'
 export const inject = ['tools']
 
 /** The features this plugin ships; the order here is the order they mount. */
-const FEATURES: HostFeature[] = [mcpFeature, sessionDeleteFeature, customSettingsFeature]
+const FEATURES: HostFeature[] = [
+  mcpFeature,
+  sessionDeleteFeature,
+  customSettingsFeature,
+  skillsFeature,
+]
 
 export function apply(ctx: PluginContext): void {
   // Collected here, filled by the features, consumed by the one route below.
@@ -108,6 +114,21 @@ export type {
   RetrySaveResponse,
 } from './shared/custom-settings/retry.js'
 export { encodeSegment, projectKey, sessionDir } from './host/features/session-delete/path.js'
+export {
+  deleteEntry,
+  listProject,
+  listRoot,
+  planRemoval,
+  removeSkill,
+  setSkillEnabled,
+  togglePaths,
+} from './host/features/skills/catalog.js'
+export { readSkillFrontmatter } from './host/features/skills/frontmatter.js'
+export { entryIsLink, scanRoot } from './host/features/skills/scan.js'
+export { isInsideRoot, rootOf, skillRoots } from './host/features/skills/roots.js'
+export { listSkillScopes } from './host/features/skills/workspaces.js'
+export type { Outcome, RemovalPlan } from './host/features/skills/catalog.js'
+export type { ScannedSkill, SkillScan } from './host/features/skills/scan.js'
 export { accessToken, authHeaders, hasToken, resolveHeaders } from './host/features/mcp/auth/credentials.js'
 export { createOAuth } from './host/features/mcp/auth/oauth.js'
 export type { OAuthMetadata, OAuthService } from './host/features/mcp/auth/oauth.js'
