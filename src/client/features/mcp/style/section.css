@@ -152,14 +152,16 @@
  * auto margin on the search box: an auto margin would push a wrapped search
  * to the right of its own line too. On one line the spacer absorbs the slack
  * and holds search+add against the right edge; when the search wraps, the
- * spacer stays behind on the scope's line and the search's line packs left. */
+ * spacer stays behind on the scope's line, where the row's two-line rules
+ * stand it down (see below). */
 .mm_toolbarSpacer {
   flex: 1 1 0;
 }
 
 /* The search and the add button travel as one cluster, so a wrapping search
  * never strands the add button on a line of its own; the spacer above owns
- * the right-edge pull, so the cluster packs left when it wraps. The cluster
+ * the right-edge pull, so the cluster packs left when it wraps — and then
+ * takes that whole line (see below). The cluster
  * itself stays shrinkable — `min-width: 0` waives the automatic minimum (the
  * content's intrinsic width, which would hold the pair at full size and let
  * it overflow the card) and lets a narrow panel squeeze the search box inside
@@ -170,6 +172,41 @@
   min-width: 0;
   display: flex;
   flex: 0 1 auto;
+}
+
+/* The row's two-line state, marked from the layout by `ui/rowWrap` (a wrap is
+ * the one thing a stylesheet cannot select): the pill takes the line it
+ * cleared, the search fills the line it landed on.
+ *
+ * The spacer is what the one-line look leans on for its right edge; here it
+ * only drops its `flex-grow`, never its box. A `display: none` would shorten
+ * the row by the spacer's gap and so move the very break point being measured —
+ * a row width inside that 10px window would wrap, unmark, unwrap and flip
+ * forever. Growing from zero adds nothing to the break sum, so both states
+ * break identically and the mark stays put. */
+.mm_toolbar[data-wrapped]>.mm_scope {
+  flex-grow: 1;
+}
+
+/* The pill's own slack goes to its label, which already carries the ellipsis,
+ * so the chevron stays on the pill's right edge as the pill stretches. Inert on
+ * one line: a trigger sized by its content has no slack to hand out. */
+.mm_toolbar[data-wrapped] .mm_scopeLabel {
+  flex: 1 1 auto;
+}
+
+.mm_toolbar[data-wrapped]>.mm_toolbarSpacer {
+  flex-grow: 0;
+}
+
+/* The cluster is alone on its line: it grows to the row's width, and the search
+ * inside it — free to grow, still based at its working width — grows to the
+ * cluster's. */
+.mm_toolbar[data-wrapped] .mm_toolbarActions {
+  flex-grow: 1;
+}
+.mm_toolbar[data-wrapped] .mm_search {
+  flex-grow: 1;
 }
 
 .mm_wsPathHint {

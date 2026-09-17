@@ -14,10 +14,14 @@
  * The list view opens with the section title and both counts on their own
  * line under the identity badge. Below it, a toolbar row pairs the scope
  * picker on the left with the search box and the add button against the right
- * edge; the box rides the same row while it fits and wraps to its own line,
- * packed left, when the row runs short. The filter is a per-scope map — one
- * query per scope — and it filters whichever lists the selected scope shows,
- * so a workspace view can be narrowed down exactly like the global one.
+ * edge; the box rides the same row while it fits, and once a long workspace
+ * name has pushed it onto a line of its own the picker takes the row it
+ * cleared and the search fills the one it landed on. Which of those two looks
+ * applies is read off the layout (`ui/rowWrap`) and marked on the row, because
+ * a wrap is the one thing a stylesheet cannot see. The filter is a per-scope
+ * map — one query per scope — and it filters whichever lists the selected
+ * scope shows, so a workspace view can be narrowed down exactly like the
+ * global one.
  *
  * Selecting a workspace switches the whole page into that workspace's scope:
  * its own servers on top, and the global servers below with a `hide` checkbox
@@ -35,6 +39,7 @@ import { createScopeSelect } from '../ui/ScopeSelect'
 import { createServerRow } from './ServerRow'
 import { createToolTimeoutForm } from './ToolTimeoutForm'
 import { createSwitch } from '../ui/Switch'
+import { watchRowWrap } from '../ui/rowWrap'
 import { watchTipBoundaries } from '../ui/tip'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
 import { isTransientStatus } from '../ui/StatusPill'
@@ -175,6 +180,21 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
       // Same-value sets bail out of the re-render, so the strip's identity is
       // the only thing that turns this effect into work.
       setHeaderStrip(actions?.closest('[class*="header"]') ?? null)
+    })
+
+    // Whether the toolbar's search has dropped to a line of its own — the row's
+    // one-line and two-line looks are different sizing rules, and only the
+    // layout can say which one applies (`ui/rowWrap` owns that reasoning). The
+    // row is located the way the strip above is, with the same two guards, and
+    // the check rides every render: a workspace renamed shorter or longer moves
+    // that break point without the row resizing, and the 3s poll re-renders
+    // this component anyway. Same-value sets bail out, so an unchanged wrap
+    // costs no render.
+    const [wrapped, setWrapped] = react.useState(false)
+    react.useEffect(() => {
+      if (typeof document === 'undefined') return
+      const bar = document.querySelector<HTMLElement>('.mm_toolbar')
+      return bar ? watchRowWrap(bar, setWrapped) : undefined
     })
 
     const refresh = react.useCallback(() => {
@@ -543,7 +563,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             {t('countWorkspace', { count: wsTotal })}
           </span>
         </div>
-        <div className="mm_toolbar">
+        <div className="mm_toolbar" data-wrapped={wrapped ? 'true' : undefined}>
           <ScopeSelect
             t={t}
             value={selected}
