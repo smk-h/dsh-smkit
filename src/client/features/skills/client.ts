@@ -52,10 +52,10 @@ export const skillsFeature: ClientFeature = {
         {
           name: 'settings.section',
           id: 'mcp-manager-skills',
-          // After the MCP and custom-settings rows: the three are sections of
-          // the same settings dialog, and the order here is the order the
-          // dialog lists them in.
-          order: 70,
+          // After the MCP rows, before the custom-settings row: the three are
+          // sections of the same settings dialog, and the order here is the
+          // order the dialog lists them in.
+          order: 60,
           label: () => t('sectionLabel'),
           locale: FEATURE_ID,
         },

@@ -56,9 +56,10 @@ export const customSettingsFeature: ClientFeature = {
         {
           name: 'settings.section',
           id: 'mcp-manager-custom-settings',
-          // After MCP's row: both are sections of the same settings dialog, and
-          // the order here is the order the dialog lists them in.
-          order: 60,
+          // After the MCP and skills rows: the three are sections of the same
+          // settings dialog, and the order here is the order the dialog lists
+          // them in.
+          order: 70,
           label: () => t('sectionLabel'),
           locale: FEATURE_ID,
         },
