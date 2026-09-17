@@ -11,15 +11,16 @@
  * class, so no rule's winner depends on this order; keep it in reading order
  * anyway. The platform layer's stylesheet is injected before this one.
  *
- * The one thing a stylesheet cannot hold is the settings-nav mask, a data URI
- * built from the icon spec at runtime: `nav-icon.css` consumes it as the
- * `--mm-nav-glyph` custom property and this module defines that property.
+ * The one thing a stylesheet cannot hold is this section's settings-nav mask, a
+ * data URI built from the icon spec at runtime: the platform layer's
+ * `style/settings-nav.css` consumes it as the `--dsh-smkit-nav-glyph` custom
+ * property and the rule below defines that property for this section's row.
  */
 
+import { SETTINGS_NAV_ATTRIBUTE } from '../../platform/ui/settings-nav'
 import breadcrumbCss from './style/breadcrumb.css'
 import cardCss from './style/card.css'
 import formCss from './style/form.css'
-import navIconCss from './style/nav-icon.css'
 import pillCss from './style/pill.css'
 import scopeCss from './style/scope.css'
 import searchCss from './style/search.css'
@@ -51,16 +52,17 @@ export const MCP_CSS = [
  * The shape is lucide's `cable`, taken from the same glyph the icon set
  * re-exports (`icons/CableIcon`), so the drawn SVG and the mask cannot drift:
  * this plugin manages connections to MCP servers, which the plug-and-cord reads
- * better than the gear the shell would otherwise fall back to (see `nav-icon`). */
+ * better than the gear the shell would otherwise fall back to. */
 const NAV_GLYPH = iconMaskDataUri(CABLE_SPEC)
 
 /** The glyph as a custom property — how a stylesheet receives a value only code
- * can produce: `nav-icon.css` consumes `--mm-nav-glyph` and stays static. */
-const NAV_GLYPH_RULE = `[data-mm-settings-nav]{--mm-nav-glyph:url("${NAV_GLYPH}")}`
+ * can produce. The platform layer's `style/settings-nav.css` consumes it on
+ * every marked row; this rule supplies it on this section's row alone, keyed by
+ * the marker's value (`platform/ui/settings-nav`). */
+const NAV_GLYPH_RULE = `[${SETTINGS_NAV_ATTRIBUTE}='mcp']{--dsh-smkit-nav-glyph:url("${NAV_GLYPH}")}`
 
-/** Settings-nav rules. `nav-icon` marks this section's row with
- * `data-mm-settings-nav`, because the shell picks row glyphs from a built-in id
- * list while a section registration carries no icon field: the fallback glyph is
- * hidden and this one is painted in its place. The mask is the data URI built
- * above, handed to those rules through the custom property they reference. */
-export const MCP_NAV_ICON_CSS = [NAV_GLYPH_RULE, navIconCss].join('\n')
+/** This section's settings-nav rules: the marker's value and the mask it stands
+ * for. The painting is shared — the shell picks row glyphs from a built-in id
+ * list while a registration carries no icon field, so every section that draws
+ * its own glyph marks its row and hands the paint one data URI. */
+export const MCP_NAV_ICON_CSS = NAV_GLYPH_RULE

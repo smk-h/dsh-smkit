@@ -9,7 +9,7 @@
 import { createMcpContent } from './components/McpContent'
 import { MCP_LOCALE_EN } from './i18n/en'
 import { MCP_LOCALE_ZH } from './i18n/zh'
-import { markSettingsNavRow } from './nav-icon'
+import { markSettingsNavRow } from '../../platform/ui/settings-nav'
 import { MCP_CSS, MCP_NAV_ICON_CSS } from './styles'
 import type { ClientContext, ClientDeps, ClientFeature, Translator } from '../../platform/types'
 
@@ -32,10 +32,11 @@ export const mcpFeature: ClientFeature = {
     // DSH projects only `id`, `order` and `label` out of a section registration
     // and picks each row's glyph from a closed list of built-in ids, so this
     // feature marks its own row and lets the stylesheet paint the glyph (see
-    // `nav-icon` and `MCP_NAV_ICON_CSS`). The marker owns no shell structure
-    // and is dropped again on disposal, which keeps the adaptation HMR-safe.
+    // `platform/ui/settings-nav` and `MCP_NAV_ICON_CSS`). The marker owns no
+    // shell structure and is dropped again on disposal, which keeps the
+    // adaptation HMR-safe.
     ctx.effect(
-      () => markSettingsNavRow(() => t('sectionLabel')),
+      () => markSettingsNavRow('mcp', () => t('sectionLabel')),
       'dsh-mcp-manager: settings nav row',
     )
     section ??= createMcpContent(deps)

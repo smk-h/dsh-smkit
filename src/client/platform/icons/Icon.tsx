@@ -1,8 +1,10 @@
 /**
- * Shared plumbing for the MCP section's icon set.
+ * Shared plumbing for the plugin's icon sets.
  *
  * Icons live one per file, named after the icon (`MonitorIcon.tsx`), so a call
- * site imports exactly what it renders. What they have in common lives here:
+ * site imports exactly what it renders. A glyph only one section draws lives in
+ * that section's own `icons/`; one two sections draw lives beside this file.
+ * What they have in common lives here:
  * the `<svg>` shell, `currentColor` (an icon takes the colour of the element
  * wrapping it, and follows both DSH themes with it), and the `h`-injection
  * every factory needs.

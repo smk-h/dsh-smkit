@@ -7,15 +7,17 @@
  * browser cannot fetch a stylesheet for.
  *
  * These rules go in first. They carry what every feature shares — the round
- * icon-button skeleton, the dialog card, the error line, the spinner arc — so a
- * feature stylesheet injected afterwards wins wherever the two overlap, which
- * is the same direction the single concatenated stylesheet had.
+ * icon-button skeleton, the dialog card, the error line, the spinner arc, the
+ * settings-nav glyph paint — so a feature stylesheet injected afterwards wins
+ * wherever the two overlap, which is the same direction the single concatenated
+ * stylesheet had.
  */
 
 import buttonCss from './style/button.css'
 import dialogCss from './style/dialog.css'
 import fieldErrorCss from './style/field-error.css'
 import iconButtonCss from './style/icon-button.css'
+import settingsNavCss from './style/settings-nav.css'
 import spinCss from './style/spin.css'
 
 /** The platform layer's rules, in cascade order. */
@@ -25,6 +27,7 @@ export const PLATFORM_CSS = [
   dialogCss,
   fieldErrorCss,
   spinCss,
+  settingsNavCss,
 ].join('\n')
 
 /**

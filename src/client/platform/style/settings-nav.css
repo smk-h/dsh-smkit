@@ -1,0 +1,27 @@
+/**
+ * Painting a section's own glyph over the settings shell's fallback gear (see
+ * `ui/settings-nav.ts` for why a section has to).
+ *
+ * The mask arrives as `--dsh-smkit-nav-glyph`, declared by the marked section's
+ * own stylesheet as a data URI it builds from its icon spec
+ * (`icons/Icon#iconMaskDataUri`): a stylesheet cannot know a serialized glyph,
+ * so the section supplies it and only the *use* of it is shared here — which is
+ * also what keeps the drawn icon and the mask from drifting.
+ *
+ * One part of the platform layer's stylesheet. `styles.ts` imports the parts
+ * and joins them in the order listed there.
+ */
+
+[data-dsh-smkit-nav]>svg:first-child {
+  display: none;
+}
+
+[data-dsh-smkit-nav]::before {
+  content: '';
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: var(--dsh-smkit-nav-glyph) center/contain no-repeat;
+  mask: var(--dsh-smkit-nav-glyph) center/contain no-repeat;
+}
