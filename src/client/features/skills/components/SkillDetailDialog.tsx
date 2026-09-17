@@ -73,9 +73,17 @@ export function createSkillDetailDialog(
           {skill.whenToUse ? field(t('detailWhenToUse'), skill.whenToUse) : null}
           <div className="sk_detailPair">
             {field(t('detailStatus'), skill.enabled ? t('statusEnabled') : t('statusDisabled'))}
+            {/* Both invocation flags matter: a header may narrow either side, and
+                "user only" is not what a `disable-model-invocation` alone means. */}
             {field(
               t('detailInvocation'),
-              skill.modelInvocable ? t('invocationBoth') : t('invocationUser'),
+              skill.modelInvocable && skill.userInvocable
+                ? t('invocationBoth')
+                : skill.modelInvocable
+                  ? t('invocationModel')
+                  : skill.userInvocable
+                    ? t('invocationUser')
+                    : t('invocationNone'),
             )}
           </div>
           {skill.rel ? field(t('group'), skill.rel) : null}

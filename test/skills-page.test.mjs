@@ -82,6 +82,14 @@ const VIEWS = {
         path: LINK_PATH,
         realPath: LINK_REAL,
       }),
+      skill({
+        name: 'restricted',
+        description: 'Only the model may reach it',
+        source: 'user-dsh',
+        userInvocable: false,
+        path: `${USER_ROOT}/restricted/SKILL.md`,
+        realPath: `${USER_ROOT}/restricted/SKILL.md`,
+      }),
     ],
     skipped: 1,
     complete: true,
@@ -332,6 +340,14 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
   pick((node) => node.props?.['aria-label'] === 'close').props.onClick()
   again()
   assert.doesNotMatch(view(), /detailDescription/)
+
+  // The invocation line reads both flags: `user-invocable: false` with the model
+  // side untouched is the model's alone, not "both".
+  pickAll((node) => node.props?.className === 'sk_open')[2].props.onClick()
+  again()
+  assert.match(view(), /detailInvocation invocationModel/)
+  pick((node) => node.props?.['aria-label'] === 'close').props.onClick()
+  again()
 
   // The switch posts the state it is moving to, with the skill's full address.
   const switchButton = () => pickAll((node) => node.props?.role === 'switch')[1]
