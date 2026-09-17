@@ -30,6 +30,26 @@ export type ServerStatus =
   | 'conflict'
   | 'configured'
 
+/**
+ * One registered MCP tool, as the settings page lists it.
+ *
+ * Deliberately the *raw* `tools/list` entry, not the registered definition: the
+ * definition is the model-facing surface (its description carries the
+ * `[<server> MCP]` tag and is length-capped, its name is the `mcp__…` public
+ * one), while the page shows what the server itself declared, keyed by the name
+ * that server knows the tool by.
+ */
+export interface ToolView {
+  /** The MCP `tools/list` name. */
+  name: string
+  /** The server's own description, empty when it sent none. */
+  description: string
+  /** Sanitised input schema — the same `convParams` output the registry
+   * accepts, i.e. a root object with `properties` and `required`. Always
+   * present; a tool declaring no input arrives as an empty property map. */
+  parameters: Record<string, unknown>
+}
+
 /** A global-tier server as `GET /servers` reports it. */
 export interface ServerView {
   id: string
@@ -37,7 +57,10 @@ export interface ServerView {
   type: ServerType
   enabled: boolean
   status: ServerStatus
+  /** Registered tool count; the length of `tools`. */
   toolCount: number
+  /** Empty unless the server is connected. */
+  tools: ToolView[]
   error: string
   command?: string
   args?: string[]
@@ -58,7 +81,10 @@ export interface WorkspaceServerView {
   authMode: AuthMode | ''
   source: 'workspace'
   status: ServerStatus
+  /** Registered tool count; the length of `tools`. */
   toolCount: number
+  /** Empty unless the server is connected. */
+  tools: ToolView[]
   error: string
   command?: string
   args?: string[]

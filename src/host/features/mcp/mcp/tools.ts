@@ -89,7 +89,7 @@ export function syncToolRegistrations(
   tools: McpToolInfo[],
   callFn: (name: string, args: unknown) => Promise<McpCallResult>,
 ): string[] {
-  const desired = new Map<string, { definition: ToolDefinition; signature: string }>()
+  const desired = new Map<string, { definition: ToolDefinition; info: McpToolInfo; signature: string }>()
   const publicNames = new Set<string>()
   for (const tool of tools) {
     if (!tool || typeof tool.name !== 'string' || !tool.name) {
@@ -110,13 +110,20 @@ export function syncToolRegistrations(
       )
     }
     publicNames.add(definition.name)
-    desired.set(tool.name, { definition, signature: registrationSignature(definition) })
+    desired.set(tool.name, { definition, info: tool, signature: registrationSignature(definition) })
   }
 
   const previous = new Map<string, RegisteredTool>()
   for (const [rawName, current] of registrations) {
     const next = desired.get(rawName)
-    if (next && next.signature === current.signature) continue
+    if (next && next.signature === current.signature) {
+      // Not a model-facing change: keep the registration (and with it the
+      // model's prompt cache) but refresh the raw entry, so a description the
+      // cap truncated — or one that only differs past the cap — still reaches
+      // the settings page.
+      current.info = next.info
+      continue
+    }
     previous.set(rawName, current)
     try {
       current.dispose()
@@ -132,6 +139,7 @@ export function syncToolRegistrations(
       if (registrations.has(rawName)) continue
       const entry: RegisteredTool = {
         definition: next.definition,
+        info: next.info,
         signature: next.signature,
         dispose: registry.register(next.definition),
       }

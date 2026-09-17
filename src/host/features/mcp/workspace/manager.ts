@@ -20,7 +20,7 @@ import { listAllTools } from '../mcp/tools.js'
 import { dropWorkspaceToken, effectiveToolCallTimeoutMs, saveState } from '../state.js'
 import { serviceOf } from '../../../platform/util/services.js'
 import { errorText, isRecord, toErrorMessage } from '../../../platform/util/text.js'
-import { applyTransportFields } from '../view.js'
+import { applyTransportFields, toolViews } from '../view.js'
 import { canonicalize, readWorkspaceConfig, sameServerConfig, wsConfigPath } from './config.js'
 import type { Transports } from '../mcp/transports.js'
 import type { Runtime } from '../runtime.js'
@@ -29,6 +29,7 @@ import type {
   AgentLike,
   LoggerLike,
   McpHandle,
+  McpToolInfo,
   ServerConfig,
   ServiceAccessor,
   WorkspaceConnection,
@@ -431,6 +432,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     status: WorkspaceServerView['status'],
     toolCount: number,
     error: string,
+    tools: McpToolInfo[],
   ): WorkspaceServerView {
     const view: WorkspaceServerView = {
       id: server.id,
@@ -440,6 +442,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       source: 'workspace',
       status,
       toolCount,
+      tools: toolViews(tools),
       error,
     }
     applyTransportFields(view, server)
@@ -450,7 +453,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     return {
       path: ws.rawPath ?? ws.path,
       servers: [...ws.servers.values()].map((conn) =>
-        workspaceServerView(conn.server, conn.status, conn.toolCount, conn.error),
+        workspaceServerView(conn.server, conn.status, conn.toolCount, conn.error, conn.tools),
       ),
       exclude: ws.exclude ?? [],
       error: ws.error ?? '',
@@ -484,7 +487,9 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
         const config = readWorkspaceConfig(path)
         discovered.push({
           path,
-          servers: config.servers.map((server) => workspaceServerView(server, 'configured', 0, '')),
+          // Never opened in this process, so nothing is registered yet: the row
+          // reports the config and an empty tool list.
+          servers: config.servers.map((server) => workspaceServerView(server, 'configured', 0, '', [])),
           exclude: config.exclude,
           error: config.error,
         })

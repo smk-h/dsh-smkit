@@ -15,7 +15,7 @@ import { closeHandleQuietly } from './mcp/handle.js'
 import { disposeRegistrations, listAllTools, syncToolRegistrations } from './mcp/tools.js'
 import { effectiveToolCallTimeoutMs } from './state.js'
 import { toErrorMessage } from '../../platform/util/text.js'
-import { applyTransportFields } from './view.js'
+import { applyTransportFields, toolViews } from './view.js'
 import type { Transports } from './mcp/transports.js'
 import type { Runtime } from './runtime.js'
 import type {
@@ -184,6 +184,9 @@ export function createRegistry(deps: RegistryDeps): Registry {
         ? 'disabled'
         : (conn?.status ?? (needsAuth(server) ? 'needs-auth' : 'disconnected')),
       toolCount: conn?.toolCount ?? 0,
+      // The registration map is keyed by raw tool name, so its values carry the
+      // entry the server declared (see `RegisteredTool.info`).
+      tools: conn ? toolViews([...conn.tools.values()].map((entry) => entry.info)) : [],
       error: conn?.error ?? '',
       authMode: type === 'stdio' ? undefined : server.authMode,
     }

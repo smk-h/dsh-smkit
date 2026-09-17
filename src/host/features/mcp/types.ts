@@ -25,6 +25,7 @@ export type {
   ServerType,
   ServerView,
   SettingsView,
+  ToolView,
   WorkspaceServerView,
   WorkspaceView,
 } from '../../../shared/mcp/contract.js'
@@ -173,6 +174,13 @@ export interface StdioTransport {
 /** One registered MCP tool plus the signature used for stable refreshes. */
 export interface RegisteredTool {
   definition: ToolDefinition
+  /**
+   * The raw `tools/list` entry this registration was built from. Kept because
+   * the definition is the *model-facing* projection of it — description tagged
+   * with the server name and capped, name rewritten to `mcp__<server>__<tool>`
+   * — while the settings page shows the tool as the server itself declared it.
+   */
+  info: McpToolInfo
   signature: string
   dispose: () => void
 }

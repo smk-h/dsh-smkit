@@ -173,6 +173,7 @@ export type {
   ServerStatus,
   ServerView,
   ToolCatalogEntry,
+  ToolView,
   ToolDefinition,
   ToolSearchResult,
   WorkspaceView,
