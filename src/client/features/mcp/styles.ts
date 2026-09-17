@@ -22,7 +22,6 @@ import breadcrumbCss from './style/breadcrumb.css'
 import cardCss from './style/card.css'
 import formCss from './style/form.css'
 import pillCss from './style/pill.css'
-import scopeCss from './style/scope.css'
 import searchCss from './style/search.css'
 import sectionCss from './style/section.css'
 import switchCss from './style/switch.css'
@@ -40,7 +39,6 @@ export const MCP_CSS = [
   formCss,
   searchCss,
   switchCss,
-  scopeCss,
   toolsCss,
   workspaceCss,
 ].join('\n')

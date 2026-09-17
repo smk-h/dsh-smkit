@@ -1,24 +1,31 @@
 /**
  * Auto-clamping for the `.mm_tip` hover bubbles.
  *
- * The bubble is a `::after` pseudo-element centered above its button, so a
- * button near a clipping edge (the panel's `overflow`, or the window itself)
- * pushes half of the bubble past the boundary and gets it cut. Rather than
- * hand-tagging edge buttons with alignment variants, the bubble's horizontal
- * shift is a CSS variable: one delegated `pointerover` measures the rendered
- * pseudo-element, walks the button's ancestors for real clip boundaries, and
- * writes the smallest shift that keeps the bubble inside them into
- * `--mm-tip-shift` (consumed by `.mm_tip::after`'s transform). Removing the
- * variable on leave resets for the next hover; `focusin` covers the keyboard
- * path, whose tooltip shows without any pointer event.
+ * The bubble is a `::after` pseudo-element centered above its element (the
+ * rules live in `platform/style/tip.css`, so every page that marks an element
+ * with the class gets the same bubble), which means an element near a clipping
+ * edge — the panel's `overflow`, or the window itself — pushes half of the
+ * bubble past the boundary and gets it cut. Rather than hand-tagging edge
+ * elements with alignment variants, the bubble's horizontal shift is a CSS
+ * variable: one delegated `pointerover` measures the rendered pseudo-element,
+ * walks the element's ancestors for real clip boundaries, and writes the
+ * smallest shift that keeps the bubble inside them into `--mm-tip-shift`
+ * (consumed by `.mm_tip::after`'s transform). Removing the variable on leave
+ * resets for the next hover; `focusin` covers the keyboard path, whose tooltip
+ * shows without any pointer event.
  *
  * Measuring works while the bubble is still invisible: it is hidden with
  * `opacity` only, so its layout — and therefore its width — exists from the
  * start, and the shift is in place before the hover fade-in begins.
  *
- * `clipBounds` is exported because the tool list's hover card is placed from
- * the same boundaries: it is a floating box too, and one parented outside the
- * panel would be clipped there exactly like a bubble.
+ * `clipBounds` is exported because a page may place a floating card of its own
+ * from the same boundaries: the MCP tool list's hover card is such a box, and
+ * one parented outside the panel would be clipped there exactly like a bubble.
+ *
+ * It sits in the platform layer rather than in a feature because both settings
+ * pages render bubbles — the MCP page's toolbar buttons and scope picker, the
+ * Skills page's scope picker — and one delegated listener set serves a whole
+ * document.
  */
 
 /** Horizontal breathing room kept between the bubble and a clip edge. */
@@ -90,15 +97,15 @@ function clampTip(button: HTMLElement): void {
 /**
  * Install the document-level listeners; returns the uninstaller for the
  * caller's effect cleanup. Delegation means one listener set serves every
- * `.mm_tip` on the page, present and future, and no button opts in beyond
+ * `.mm_tip` on the page, present and future, and no element opts in beyond
  * carrying the class and its `data-tip` label.
  */
 export function watchTipBoundaries(): () => void {
   // `document` is absent outside a browser (the hook test harness runs the
-  // bundle in a bare context) — the same guard `ScopeSelect` carries.
+  // bundle in a bare context) — the same guard the pickers carry.
   if (typeof document === 'undefined') return () => {}
   // Targets are matched as `Element`, not `HTMLElement`: the pointer usually
-  // sits on the button's inner `<svg>`, which is an SVGElement — rejecting
+  // sits on the element's inner `<svg>`, which is an SVGElement — rejecting
   // non-HTML targets would skip exactly the hover this exists for.
   const over = (event: PointerEvent): void => {
     const target = event.target
@@ -112,8 +119,8 @@ export function watchTipBoundaries(): () => void {
     if (!(target instanceof Element)) return
     const button = target.closest<HTMLElement>('.mm_tip')
     if (!button) return
-    // Moving between the button's own children fires `pointerout` too; only a
-    // leave that no longer lands inside the button clears the shift.
+    // Moving between the element's own children fires `pointerout` too; only a
+    // leave that no longer lands inside it clears the shift.
     const related = event.relatedTarget
     if (related instanceof Node && button.contains(related)) return
     button.style.removeProperty('--mm-tip-shift')

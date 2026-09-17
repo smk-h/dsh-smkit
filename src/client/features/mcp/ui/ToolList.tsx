@@ -54,8 +54,8 @@
  * announced role.
  */
 
-import { createChevronDownIcon } from '../icons/ChevronDownIcon'
-import { clipBounds } from './tip'
+import { createChevronDownIcon } from '../../../platform/icons/ChevronDownIcon'
+import { clipBounds } from '../../../platform/ui/tip'
 import type { ClientDeps, Translator } from '../../../platform/types'
 import type { ToolView } from '../types'
 

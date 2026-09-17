@@ -45,7 +45,7 @@
  */
 
 import { createLoaderIcon } from '../../platform/icons/LoaderIcon'
-import { createTrashIcon } from './icons/TrashIcon'
+import { createTrashIcon } from '../../platform/icons/TrashIcon'
 import { createConfirmDialog } from '../../platform/ui/ConfirmDialog'
 import { useAsyncAction } from '../../platform/ui/useAsyncAction'
 import type {

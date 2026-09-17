@@ -4,7 +4,7 @@
  * the auth/edit/delete actions, plus the delete confirmation overlay.
  */
 
-import { createChevronDownIcon } from '../icons/ChevronDownIcon'
+import { createChevronDownIcon } from '../../../platform/icons/ChevronDownIcon'
 import { createConfirmDialog } from '../../../platform/ui/ConfirmDialog'
 import { createServerDetails } from '../ui/ServerDetails'
 import { createStatusBadge, createStatusDot } from '../ui/StatusPill'

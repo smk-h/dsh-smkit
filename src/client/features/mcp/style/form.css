@@ -1,8 +1,10 @@
 /**
  * The add/edit form: its field grid, the key-value editor rows and the
  * dashed add-field row (ServerForm, ui/KeyValueEditor), plus the trigger of
- * the form's icon dropdowns (ui/IconSelect — their menu reuses the scope
- * picker styles from scope.css).
+ * the form's icon dropdowns. The dropdown itself is the platform layer's
+ * (`platform/ui/IconSelect`, whose `mm_scope*` rules live in
+ * `platform/style/picker.css`); only the field-shaped trigger family is this
+ * feature's own look, and the shared menu anchors to the root defined here.
  *
  * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
  * joins them in the order listed there, and the build inlines the result as one
@@ -42,9 +44,9 @@
   grid-column: 1 / -1;
 }
 
-/* The icon dropdown (ui/IconSelect, `field` variant): a trigger shaped like
-   the native select above it; the menu reuses the scope picker's styles, which
-   anchor to this root. */
+/* The shared dropdown's field family (`IconSelectProps.classes`, passed by
+   ServerForm): a trigger shaped like the native select above it, with the
+   shared menu anchored to this root. */
 .mm_fieldSelect {
   position: relative;
 }

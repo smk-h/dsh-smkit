@@ -1,10 +1,11 @@
 /**
  * The separator between breadcrumb levels (`ui/Breadcrumb.tsx`).
  *
- * Derived from the set's own `ChevronDownIcon` — the same glyph rotated -90°
- * around the viewBox centre, which lands it fully inside the 14px grid with its
- * apex pointing right — rather than a second upstream trace, so the two
- * chevrons match stroke for stroke by construction.
+ * Derived from the shared `ChevronDownIcon` (`platform/icons/`) — the same glyph
+ * rotated -90° around the viewBox centre, which lands it fully inside the 14px
+ * grid with its apex pointing right — rather than a second upstream trace, so
+ * the two chevrons match stroke for stroke by construction. Only this feature's
+ * breadcrumb draws it, so it stays here.
  */
 
 import { createIcon, type IconFactory } from '../../../platform/icons/Icon'

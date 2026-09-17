@@ -1,20 +1,24 @@
 /**
  * A dropdown whose options carry icons — something a native `<select>` cannot
- * render. Two visual families share this one behavior set (open/close, close
- * on an outside click, check mark on the selected row):
+ * render, and whose popup the embedded browser paints as a raw system menu over
+ * the page instead of inside the dialog.
  *
- * - `field` (default): a trigger shaped like a `.mm_form select`, for the
- *   server form's scope and workspace pickers.
- * - `scope`: the toolbar's pill trigger, for the list view's scope picker
- *   (`ui/ScopeSelect`, which maps its options onto this component).
+ * Two visual families share this one behavior set (open/close, close on an
+ * outside click, check mark on the selected row):
  *
- * Menus always render with the scope picker's item styles, so every dropdown
- * in the section reads the same.
+ * - the default: the scope pill both settings pages put above their lists
+ *   (`mm_scope*`, styled by this layer's own `style/picker.css`);
+ * - any family a caller names through `classes`: the MCP server form's
+ *   field-shaped trigger (`mm_fieldSelect*`), whose rules stay in that feature's
+ *   stylesheet because that look belongs to the form, not to the picker.
+ *
+ * Menus always render with one set of item styles, so every dropdown in the
+ * plugin reads the same whichever family opened it.
  */
 
 import { createCheckIcon } from '../icons/CheckIcon'
 import { createChevronDownIcon } from '../icons/ChevronDownIcon'
-import type { ClientDeps } from '../../../platform/types'
+import type { ClientDeps } from '../types'
 
 export interface IconSelectOption {
   value: string
@@ -24,20 +28,24 @@ export interface IconSelectOption {
   /** A non-empty group renders a header line above the option whenever it
    * differs from the previous option's group (options render in array order). */
   group?: string
-  /** Hover tooltip for the row and for the trigger while selected, rendered
-   * as the section's standard `.mm_tip` bubble (a workspace shows its full
-   * path here, its name in the label); rows without one show no bubble. */
+  /** Hover tooltip for the row and for the trigger while selected, rendered as
+   * the shared `.mm_tip` bubble (a project shows its full path here, its name
+   * in the label); rows without one show no bubble. */
   title?: string
 }
 
-/** The trigger's visual family; menus are shared. */
-type IconSelectVariant = 'field' | 'scope'
+/** Root, trigger and label classes of one trigger family. */
+export interface IconSelectClasses {
+  root: string
+  trigger: string
+  label: string
+}
 
-/** Root, trigger and label classes per family — the CSS stays where each look
- * is owned (form.css / scope.css). */
-const VARIANT_CLASSES: Record<IconSelectVariant, { root: string; trigger: string; label: string }> = {
-  field: { root: 'mm_fieldSelect', trigger: 'mm_fieldSelectTrigger', label: 'mm_fieldSelectLabel' },
-  scope: { root: 'mm_scope', trigger: 'mm_scopeTrigger', label: 'mm_scopeLabel' },
+/** The default family: the scope pill, whose rules this layer ships. */
+const SCOPE_CLASSES: IconSelectClasses = {
+  root: 'mm_scope',
+  trigger: 'mm_scopeTrigger',
+  label: 'mm_scopeLabel',
 }
 
 export interface IconSelectProps {
@@ -50,7 +58,8 @@ export interface IconSelectProps {
   /** The wrapping field div is not a `<label>`, so the accessible name is
    * carried here. */
   ariaLabel?: string
-  variant?: IconSelectVariant
+  /** The trigger's visual family; the menu is shared. */
+  classes?: IconSelectClasses
 }
 
 export function createIconSelect(deps: ClientDeps): (props: IconSelectProps) => JSX.Element {
@@ -64,10 +73,10 @@ export function createIconSelect(deps: ClientDeps): (props: IconSelectProps) => 
     onChange,
     disabled,
     ariaLabel,
-    variant = 'field',
+    classes = SCOPE_CLASSES,
   }: IconSelectProps): JSX.Element {
     const [open, setOpen] = react.useState(false)
-    const { root, trigger, label } = VARIANT_CLASSES[variant]
+    const { root, trigger, label } = classes
     const current = options.find((option) => option.value === value) ?? null
 
     // Clicks outside the picker close the menu. `document` is absent outside a

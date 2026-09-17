@@ -64,17 +64,6 @@
   text-align: left;
 }
 
-.mm_chevron {
-  color: var(--dsw-alias-label-tertiary);
-  flex: none;
-  margin-left: auto;
-  transition: transform .15s;
-  display: inline-flex;
-}
-.mm_chevron[data-open=true] {
-  transform: rotate(180deg);
-}
-
 .mm_details {
   border-top: 1px solid var(--dsw-alias-border-l2);
   flex-direction: column;

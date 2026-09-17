@@ -1,13 +1,17 @@
 /**
- * The caret on a picker trigger, rotating while its menu is open.
+ * The caret on a picker trigger or an expandable row.
  *
  * Glyph ported verbatim from @deepseek-ai/dsh-client-ui-primitives 0.1.5-rc.2 (MIT, © 2026 DeepSeek)
- * (`IconChevronDownOutline14`), so the section draws the same shapes DSH does without
- * taking a runtime dependency on that package.
+ * (`IconChevronDownOutline14`), so the pages draw the same shapes DSH does
+ * without taking a runtime dependency on that package.
+ *
+ * Shared for the same reason the two scope glyphs beside it are: both settings
+ * pages put it on a picker, and the MCP page also uses it on a server row's
+ * disclosure control (`Icon.tsx` owns that convention).
  */
 
-import { createIcon, type IconFactory } from '../../../platform/icons/Icon'
-import type { ClientDeps } from '../../../platform/types'
+import { createIcon, type IconFactory } from './Icon'
+import type { ClientDeps } from '../types'
 
 export function createChevronDownIcon(deps: ClientDeps): IconFactory {
   return createIcon(deps, {

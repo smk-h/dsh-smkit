@@ -1,16 +1,20 @@
 /**
- * Deleting a session: the trailing Session-header control's glyph.
+ * Deleting: the glyph of every destructive control in this plugin.
  *
  * Glyph ported verbatim from @deepseek-ai/dsh-client-ui-primitives 0.1.5-rc.2 (MIT, © 2026 DeepSeek)
- * (`IconTrashOutline16`), so the destructive control draws the same shape DSH
- * itself uses for deletion without taking a runtime dependency on that package.
- * It is a single filled path (DSH's own icon set is filled, not stroked like
- * the lucide glyphs beside it), which is why this file declares no stroke
- * defaults.
+ * (`IconTrashOutline16`), so a delete draws the same shape DSH itself uses for
+ * deletion without taking a runtime dependency on that package. It is a single
+ * filled path (DSH's own icon set is filled, not stroked like the lucide glyphs
+ * beside it), which is why this file declares no stroke defaults.
+ *
+ * It sits beside `Icon.tsx` rather than in a feature because two of them draw
+ * it — the conversation header's session delete and the Skills page's row
+ * action — and the icon convention above gives a glyph with more than one owner
+ * one home here.
  */
 
-import { createIcon, type IconFactory } from '../../../platform/icons/Icon'
-import type { ClientDeps } from '../../../platform/types'
+import { createIcon, type IconFactory } from './Icon'
+import type { ClientDeps } from '../types'
 
 export function createTrashIcon(deps: ClientDeps): IconFactory {
   return createIcon(deps, {

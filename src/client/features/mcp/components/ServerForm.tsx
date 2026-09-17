@@ -10,13 +10,25 @@
  * only their labels and placeholders differ.
  */
 
-import { createFolderIcon } from '../icons/FolderIcon'
-import { createMonitorIcon } from '../icons/MonitorIcon'
+import { createFolderIcon } from '../../../platform/icons/FolderIcon'
+import { createMonitorIcon } from '../../../platform/icons/MonitorIcon'
 import { createKeyValueEditor, toKeyValueMap, toKeyValueRows } from '../ui/KeyValueEditor'
-import { createIconSelect } from '../ui/IconSelect'
+import { createIconSelect } from '../../../platform/ui/IconSelect'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
 import type { ApiResult, ClientDeps, Translator } from '../../../platform/types'
+import type { IconSelectClasses } from '../../../platform/ui/IconSelect'
 import type { EditableServer, KeyValueRow } from '../types'
+
+/**
+ * The form's trigger family: a field-shaped select, not the list view's pill.
+ * `form.css` owns its look; the menu it opens is the shared one, anchored
+ * through the `position: relative` on the root class below.
+ */
+const FIELD_SELECT_CLASSES: IconSelectClasses = {
+  root: 'mm_fieldSelect',
+  trigger: 'mm_fieldSelectTrigger',
+  label: 'mm_fieldSelectLabel',
+}
 
 export interface ServerFormProps {
   t: Translator
@@ -236,6 +248,7 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
           <div className="wide mm_field">
             <span>{t('scope')}</span>
             <IconSelect
+              classes={FIELD_SELECT_CLASSES}
               value={formScope}
               disabled={editing}
               ariaLabel={t('scope')}
@@ -250,6 +263,7 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
             <div className="wide mm_field">
               <span>{t('workspace')}</span>
               <IconSelect
+                classes={FIELD_SELECT_CLASSES}
                 value={wsPath}
                 disabled={editing}
                 ariaLabel={t('workspace')}

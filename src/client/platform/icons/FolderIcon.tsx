@@ -1,13 +1,16 @@
 /**
- * The selected workspace, whose own servers live in its .dsh/dshmm/mcp.json.
+ * The project scope: the servers, or the skills, one workspace owns.
  *
  * Glyph ported verbatim from @deepseek-ai/dsh-client-ui-primitives 0.1.5-rc.2 (MIT, © 2026 DeepSeek)
- * (`IconFolderOpenOutline16`), so the section draws the same shapes DSH does without
- * taking a runtime dependency on that package.
+ * (`IconFolderOpenOutline16`), so a scope picker draws the same shapes DSH does
+ * without taking a runtime dependency on that package.
+ *
+ * Shared for the same reason the monitor beside it is: two settings pages render
+ * a scope or workspace picker (`Icon.tsx` owns that convention).
  */
 
-import { createIcon, type IconFactory } from '../../../platform/icons/Icon'
-import type { ClientDeps } from '../../../platform/types'
+import { createIcon, type IconFactory } from './Icon'
+import type { ClientDeps } from '../types'
 
 export function createFolderIcon(deps: ClientDeps): IconFactory {
   return createIcon(deps, {

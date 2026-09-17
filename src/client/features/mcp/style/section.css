@@ -83,49 +83,11 @@
   flex: 0 0 auto;
 }
 
-/* Shared hover bubble for the round icon buttons, DSH-settings style: a dark
- * pill floating above the button (`data-tip` carries the label; the native
- * `title` bubble is gone — it lags and cannot be styled). Theme-inverting on
- * purpose: the bubble paints itself with the label colour and writes with the
- * layer colour, so it reads as inverted in both themes. Fade-in waits out a
- * 500ms dwell (as native tooltips do) so sweeping the mouse across the toolbar
- * does not flash bubbles; fade-out is immediate. `pointer-events: none` keeps
- * the bubble itself from eating the hover. Fade-in waits out a 200ms dwell —
- * short enough to feel instant next to DSH's own bubbles, long enough that
- * sweeping the mouse across the toolbar does not flash bubbles on every
- * button it passes; fade-out is immediate.
- *
- * Edge clipping is not solved with alignment variants: the horizontal offset
- * is a variable that `watchTipBoundaries()` (ui/tip.ts) measures per hover and
- * writes before the fade-in, so a bubble near a clip edge — the ＋ button at
- * the section's right edge — slides just enough to stay inside it. */
-.mm_tip {
-  position: relative;
-}
-.mm_tip::after {
-  content: attr(data-tip);
-  box-sizing: border-box;
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(calc(-50% + var(--mm-tip-shift, 0px)));
-  background: var(--dsw-alias-label-primary);
-  color: var(--dsw-alias-bg-layer-2);
-  font-size: 12px;
-  line-height: 18px;
-  padding: 3px 12px;
-  border-radius: 8px;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 120ms ease 0s;
-  z-index: 20;
-}
-.mm_tip:hover::after,
-.mm_tip:focus-visible::after {
-  opacity: 1;
-  transition: opacity 120ms ease 200ms;
-}
+/* The `mm_tip` hover bubble the toolbar controls raise is not this sheet's: the
+ * paint is shared by every settings page and lives in the platform layer
+ * (`platform/style/tip.css`), together with the clamping that keeps a bubble
+ * near a clip edge — the ＋ button at this section's right edge — inside it
+ * (`platform/ui/tip.ts`). */
 
 .mm_wsList {
   display: flex;

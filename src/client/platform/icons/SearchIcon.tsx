@@ -1,13 +1,18 @@
 /**
- * The magnifier inside the server search field.
+ * The magnifier inside the settings pages' filter boxes.
  *
  * Glyph ported verbatim from @deepseek-ai/dsh-client-ui-primitives 0.1.5-rc.2 (MIT, © 2026 DeepSeek)
- * (`IconSearchOutline16`), so the section draws the same shapes DSH does without
+ * (`IconSearchOutline16`), so a section draws the same shapes DSH does without
  * taking a runtime dependency on that package.
+ *
+ * It sits beside `Icon.tsx` rather than in a feature because two sections draw
+ * it — the MCP server list and the Skills page — and the icon convention above
+ * puts a glyph with more than one owner here, where both import one component
+ * instead of keeping one copy each.
  */
 
-import { createIcon, type IconFactory } from '../../../platform/icons/Icon'
-import type { ClientDeps } from '../../../platform/types'
+import { createIcon, type IconFactory } from './Icon'
+import type { ClientDeps } from '../types'
 
 export function createSearchIcon(deps: ClientDeps): IconFactory {
   return createIcon(deps, {

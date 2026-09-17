@@ -1,13 +1,17 @@
 /**
- * The global scope: servers every workspace sees.
+ * The global scope: the servers, or the skills, every workspace sees.
  *
  * Glyph ported verbatim from @deepseek-ai/dsh-client-ui-primitives 0.1.5-rc.2 (MIT, © 2026 DeepSeek)
- * (`IconFollowsystemOutline16`), so the section draws the same shapes DSH does without
- * taking a runtime dependency on that package.
+ * (`IconFollowsystemOutline16`), so a scope picker draws the same shapes DSH
+ * does without taking a runtime dependency on that package.
+ *
+ * It sits beside `Icon.tsx` rather than in a feature because two settings pages
+ * draw it — the MCP page's scope pickers and the Skills page's — and the icon
+ * convention above gives a glyph with more than one owner one home here.
  */
 
-import { createIcon, type IconFactory } from '../../../platform/icons/Icon'
-import type { ClientDeps } from '../../../platform/types'
+import { createIcon, type IconFactory } from './Icon'
+import type { ClientDeps } from '../types'
 
 export function createMonitorIcon(deps: ClientDeps): IconFactory {
   return createIcon(deps, {

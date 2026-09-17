@@ -1,11 +1,23 @@
 /**
- * The scope picker (ui/ScopeSelect): trigger, menu, group label, items and
- * the check mark.
+ * The shared icon dropdown (`platform/ui/IconSelect`): its default trigger
+ * family — the scope pill both settings pages put above their lists — the menu
+ * every family renders, and the caret.
  *
- * One part of the Settings → MCP stylesheet. `index.ts` imports the parts and
- * joins them in the order listed there, and the build inlines the result as one
- * string: the split is a reading aid, the order in `index.ts` decides the
- * cascade.
+ * The menu rules are family-independent by design: whichever trigger opened it,
+ * an open menu looks the same, so a page cannot drift from the other's. A
+ * caller that wants another trigger look passes its own class names
+ * (`IconSelectProps.classes`) and keeps those rules in its own stylesheet — the
+ * MCP server form's field-shaped trigger is the one caller that does
+ * (`features/mcp/style/form.css`, `mm_fieldSelect*`), and it anchors this
+ * absolutely positioned menu through the `position: relative` on its own root.
+ *
+ * Why this exists at all, next to a perfectly good native `<select>`: the
+ * options carry glyphs here (the monitor/folder pair naming a scope), which a
+ * `<select>` cannot render, and the embedded browser paints a select's popup as
+ * a raw system menu over the page instead of inside the dialog.
+ *
+ * One part of the platform layer's stylesheet. `styles.ts` imports the parts and
+ * joins them in the order listed there.
  */
 
 .mm_scope {
@@ -106,4 +118,18 @@
   flex: none;
   display: inline-flex;
   color: var(--dsw-alias-state-business-primary);
+}
+
+/* The caret: on a picker trigger (a picker's own rule above cancels the auto
+ * margin, which would push it to the trigger's far edge) and on an expandable
+ * row, whose disclosure arrow rotates while its details are open. */
+.mm_chevron {
+  color: var(--dsw-alias-label-tertiary);
+  flex: none;
+  margin-left: auto;
+  transition: transform .15s;
+  display: inline-flex;
+}
+.mm_chevron[data-open=true] {
+  transform: rotate(180deg);
 }
