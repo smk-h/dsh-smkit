@@ -69,7 +69,14 @@ export function apply(ctx: PluginContext): void {
  * Re-exported helpers. They exist so the test suites can exercise host
  * behaviour without a live harness; none of them is needed to mount the plugin.
  */
-export { loadState, migrateLoadedState, persistServer, saveState } from './host/features/mcp/state.js'
+export {
+  effectiveToolCallTimeoutMs,
+  loadState,
+  migrateLoadedState,
+  normalizeToolCallTimeoutMs,
+  persistServer,
+  saveState,
+} from './host/features/mcp/state.js'
 export { createSessionDeleter, createSessionPreviewer } from './host/features/session-delete/delete.js'
 export type {
   SessionDeleteOutcome,

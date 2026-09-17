@@ -76,6 +76,13 @@
   background: var(--dsw-alias-interactive-bg-hover-solid);
 }
 
+/* The Advanced sub-view's entry: a text button on the toolbar. The round icon
+ * buttons there each name themselves with a hover bubble; a word needs none, so
+ * it only has to keep its own width when the row wraps. */
+.mm_toolbarAction {
+  flex: 0 0 auto;
+}
+
 /* Shared hover bubble for the round icon buttons, DSH-settings style: a dark
  * pill floating above the button (`data-tip` carries the label; the native
  * `title` bubble is gone — it lags and cannot be styled). Theme-inverting on

@@ -25,7 +25,7 @@ import { createBrokerRuntime } from './broker/runtime.js'
 import { createOAuth } from './auth/oauth.js'
 import { createRegistry, setServerAuthStatus } from './registry.js'
 import { createRuntime } from './runtime.js'
-import { loadState, migrateLoadedState, saveState } from './state.js'
+import { loadState, migrateLoadedState, normalizeToolCallTimeoutMs, saveState } from './state.js'
 import { toErrorMessage } from '../../platform/util/text.js'
 import { createAgentDecorators } from './workspace/agents.js'
 import { createWorkspaceManager } from './workspace/manager.js'
@@ -56,6 +56,11 @@ export const mcpFeature: HostFeature = {
     // mcp.json.
     if (!state.workspaceTokens) state.workspaceTokens = {}
     if (state.onDemandToolInjection !== true) state.onDemandToolInjection = false
+    // A hand-edited timeout outside the bounds is dropped, not clamped: the
+    // settings page then shows the timeout that is actually in force.
+    if (state.toolCallTimeoutMs !== undefined && normalizeToolCallTimeoutMs(state.toolCallTimeoutMs) === undefined) {
+      delete state.toolCallTimeoutMs
+    }
 
     // One-time migration for configs written by older plugin versions: assign the
     // missing per-server `id` (otherwise every id-addressed API 404s and all

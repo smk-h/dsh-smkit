@@ -27,6 +27,15 @@ export type {
   WorkspaceView,
 } from '../../../shared/mcp/contract'
 
+/**
+ * Mirror of the host's `DEFAULT_TOOL_CALL_TIMEOUT_MS` (`host/features/mcp/constants.ts`).
+ * The contract carries no runtime values, so the section needs one number of its
+ * own for the render before the first `/settings` answer arrives; every later
+ * render uses the value the host reported. The host re-validates every write, so
+ * this copy never has to know the bounds.
+ */
+export const DEFAULT_TOOL_CALL_TIMEOUT_MS = 60_000
+
 /** Props every settings section component receives from the slot system. */
 export interface SectionProps {
   t: Translator

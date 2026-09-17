@@ -201,6 +201,40 @@ it('renders English list, add form, and stdio fields using the same translator',
   assert.match(text(tree), /Environment variables/)
 })
 
+it('opens the Advanced sub-view and posts the tool-call timeout', async () => {
+  const calls = []
+  const app = mount(async (url, options) => {
+    calls.push({ url: String(url), body: options?.body })
+    return String(url).endsWith('/settings')
+      ? response({ onDemandToolInjection: false, toolCallTimeoutMs: 60_000 })
+      : response({ toolCallTimeoutMs: 120_000 })
+  })
+  app.effects()
+  await settle()
+
+  const entry = nodes(app.render()).find(
+    (node) => node.type === 'button' && node.children.includes('Advanced'),
+  )
+  assert.ok(entry, 'the toolbar must offer the Advanced sub-view')
+  entry.props.onClick()
+
+  // The sub-view's form is seeded from the value the poll reported.
+  const form = content(app.render())
+  assert.equal(form.props.current, 60_000)
+
+  app.reset()
+  let tree = app.render(form.type, form.props)
+  assert.match(text(tree), /Tool call timeout \(ms\)/)
+  nodes(tree).find((node) => node.props['aria-label'] === 'Tool call timeout (ms)').props.onChange({ target: { value: '120000' } })
+  tree = app.render(form.type, form.props)
+  nodes(tree).find((node) => node.type === 'button' && node.children.includes('Save')).props.onClick()
+  await settle()
+
+  const written = calls.find((call) => call.url.endsWith('/settings/tool-timeout'))
+  assert.ok(written, 'the form must post its draft to the settings route')
+  assert.deepEqual(JSON.parse(written.body), { timeoutMs: 120_000 })
+})
+
 it('offers a no-auth HTTP mode and hides the token field when selected', async () => {
   const app = mount(async () => response({}))
   let tree = app.render()

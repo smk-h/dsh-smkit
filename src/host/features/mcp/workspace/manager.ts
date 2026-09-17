@@ -17,7 +17,7 @@ import { hasToken, missingCredentialError } from '../auth/credentials.js'
 import { closeHandleQuietly } from '../mcp/handle.js'
 import { workspaceServerId, workspaceTokenKey } from '../mcp/naming.js'
 import { listAllTools } from '../mcp/tools.js'
-import { dropWorkspaceToken, saveState } from '../state.js'
+import { dropWorkspaceToken, effectiveToolCallTimeoutMs, saveState } from '../state.js'
 import { serviceOf } from '../../../platform/util/services.js'
 import { errorText, isRecord, toErrorMessage } from '../../../platform/util/text.js'
 import { applyTransportFields } from '../view.js'
@@ -180,7 +180,10 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       conn.toolCount = conn.tools.length
       conn.status = 'connected'
       conn.error = ''
-      conn.call = (name: string, args: unknown) => handle.call(name, args)
+      // Same per-call read as the global tier: the workspace transport is not
+      // reopened when the timeout changes.
+      conn.call = (name: string, args: unknown) =>
+        handle.call(name, args, effectiveToolCallTimeoutMs(runtime.state))
       transports.bindToolsChanged(server, handle, async () => {
         const list = await listAllTools(handle)
         if (conn.handle !== handle || handle.closed) return

@@ -90,6 +90,12 @@ export interface PluginState {
   servers: ServerConfig[]
   workspaceTokens: Record<string, WorkspaceTokenSlot>
   onDemandToolInjection: boolean
+  /**
+   * Global `tools/call` timeout in milliseconds. Absent — or a value outside the
+   * bounds — means the built-in default; `initialize` / `tools/list` never read
+   * it (they keep the fixed connect-phase timeout).
+   */
+  toolCallTimeoutMs?: number
   /** Legacy keys (e.g. `language`) are preserved verbatim but never read. */
   [key: string]: unknown
 }
@@ -148,7 +154,8 @@ export interface McpHandle {
   onNotification: ((message: RpcMessage) => void) | null
   notificationStarted?: boolean
   notificationController?: AbortController | null
-  call(name: string, args: unknown): Promise<McpCallResult>
+  /** `timeoutMs` overrides the transport default (the settings-paged tool timeout). */
+  call(name: string, args: unknown, timeoutMs?: number): Promise<McpCallResult>
   listTools(cursor?: string): Promise<McpListToolsResult>
   startNotifications(): void
   close(): void

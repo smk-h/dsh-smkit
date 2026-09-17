@@ -64,8 +64,8 @@ export function createTransports(deps: TransportsDeps): Transports {
           cursor === undefined ? {} : { cursor },
         ) as Promise<McpListToolsResult>
       handle.tools = await listAllTools(handle)
-      handle.call = (name: string, args: unknown) =>
-        transport.request('tools/call', { name, arguments: args }) as Promise<McpCallResult>
+      handle.call = (name: string, args: unknown, timeoutMs?: number) =>
+        transport.request('tools/call', { name, arguments: args }, timeoutMs) as Promise<McpCallResult>
       return handle
     } catch (error) {
       handle.close()

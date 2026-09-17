@@ -13,6 +13,7 @@ import { MAX_ERROR_LENGTH } from './constants.js'
 import { needsAuth } from './auth/credentials.js'
 import { closeHandleQuietly } from './mcp/handle.js'
 import { disposeRegistrations, listAllTools, syncToolRegistrations } from './mcp/tools.js'
+import { effectiveToolCallTimeoutMs } from './state.js'
 import { toErrorMessage } from '../../platform/util/text.js'
 import { applyTransportFields } from './view.js'
 import type { Transports } from './mcp/transports.js'
@@ -98,7 +99,9 @@ export function createRegistry(deps: RegistryDeps): Registry {
   function registerToolsGlobal(server: ServerConfig, conn: LiveConnection, list: McpToolInfo[]): void {
     const call = (name: string, args: unknown): Promise<McpCallResult> => {
       if (!conn.handle) return Promise.reject(new Error(`MCP server "${server.name}" is not connected`))
-      return conn.handle.call(name, args)
+      // Read per call: a timeout saved in Settings reaches the next tool call
+      // without reconnecting the server.
+      return conn.handle.call(name, args, effectiveToolCallTimeoutMs(runtime.state))
     }
     const names = syncToolRegistrations(tools, services, server, conn.tools, list, call)
     conn.toolCount = list.length

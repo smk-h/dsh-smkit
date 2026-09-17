@@ -39,6 +39,19 @@ export const MAX_TOOL_NAME_LENGTH = 64
 /** Per-server `mcp__<name>__*` name rule, enforced on both tiers. */
 export const SERVER_NAME_RE = /^[A-Za-z0-9_-]{1,32}$/
 
+/**
+ * `tools/call` timeout in force when the profile stores none, and the bounds the
+ * settings page may store. 60 s is the historical per-request value, still used
+ * verbatim for `initialize` / `tools/list` (a hung connect must fail fast).
+ */
+export const DEFAULT_TOOL_CALL_TIMEOUT_MS = 60_000
+export const MIN_TOOL_CALL_TIMEOUT_MS = 1_000
+export const MAX_TOOL_CALL_TIMEOUT_MS = 30 * 60_000
+
+/** Refusal of one `tools/call` timeout write, shared by the API and tests. */
+export const TOOL_CALL_TIMEOUT_ERROR =
+  `timeoutMs must be an integer between ${MIN_TOOL_CALL_TIMEOUT_MS} and ${MAX_TOOL_CALL_TIMEOUT_MS} milliseconds, or null to restore the default`
+
 /** Validation messages shared by the global API and the workspace config. */
 export const SERVER_NAME_ERROR =
   'name must be 1-32 chars of [A-Za-z0-9_-] (it becomes the mcp__<name>__ tool prefix)'

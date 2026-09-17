@@ -33,11 +33,13 @@ import { createServerForm } from './ServerForm'
 import { createBreadcrumb } from '../ui/Breadcrumb'
 import { createScopeSelect } from '../ui/ScopeSelect'
 import { createServerRow } from './ServerRow'
+import { createToolTimeoutForm } from './ToolTimeoutForm'
 import { createSwitch } from '../ui/Switch'
 import { watchTipBoundaries } from '../ui/tip'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
 import { isTransientStatus } from '../ui/StatusPill'
 import { createWorkspaceServerRow } from './WorkspaceServerRow'
+import { DEFAULT_TOOL_CALL_TIMEOUT_MS } from '../types'
 import type { ClientDeps } from '../../../platform/types'
 import type {
   SectionProps,
@@ -49,7 +51,7 @@ import type {
 
 const REFRESH_INTERVAL_MS = 3000
 
-type View = 'list' | 'add' | 'edit-global' | 'edit-ws'
+type View = 'list' | 'add' | 'edit-global' | 'edit-ws' | 'advanced'
 
 /** One optimistic status overlay: what a row should render and when the action
  * that predicted it was clicked (`polledAt` fences which polls may retire it). */
@@ -86,11 +88,15 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
   const SearchIcon = createSearchIcon(deps)
   const ClearIcon = createClearIcon(deps)
   const Settings2Icon = createSettings2Icon(deps)
+  const ToolTimeoutForm = createToolTimeoutForm(deps)
 
   return function McpContent({ t }: SectionProps): JSX.Element {
     const [servers, setServers] = react.useState<ServerView[]>([])
     const [workspaces, setWorkspaces] = react.useState<WorkspaceView[]>([])
-    const [settings, setSettings] = react.useState<SettingsView>({ onDemandToolInjection: false })
+    const [settings, setSettings] = react.useState<SettingsView>({
+      onDemandToolInjection: false,
+      toolCallTimeoutMs: DEFAULT_TOOL_CALL_TIMEOUT_MS,
+    })
     const [selected, setSelected] = react.useState('')
     const [view, setView] = react.useState<View>('list')
     const [editingId, setEditingId] = react.useState<string | null>(null)
@@ -180,7 +186,13 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           if (serversResult.ok) setServers(serversResult.body.servers ?? [])
           if (workspacesResult.ok) setWorkspaces(workspacesResult.body.workspaces ?? [])
           if (settingsResult.ok) {
-            setSettings({ onDemandToolInjection: settingsResult.body.onDemandToolInjection === true })
+            setSettings({
+              onDemandToolInjection: settingsResult.body.onDemandToolInjection === true,
+              toolCallTimeoutMs:
+                typeof settingsResult.body.toolCallTimeoutMs === 'number'
+                  ? settingsResult.body.toolCallTimeoutMs
+                  : DEFAULT_TOOL_CALL_TIMEOUT_MS,
+            })
           }
           setPolledAt(requestedAt)
         })
@@ -266,7 +278,12 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           body: JSON.stringify({ enabled }),
         })
         if (r.ok) {
-          setSettings({ onDemandToolInjection: r.body.onDemandToolInjection === true })
+          // Spread the rest: the timeout is part of the same settings object, and
+          // replacing it wholesale would drop whatever the last poll reported.
+          setSettings({
+            ...settings,
+            onDemandToolInjection: r.body.onDemandToolInjection === true,
+          })
           return
         }
         return r.body.error || t('toggleFailed', { status: r.status })
@@ -311,7 +328,9 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           ? t('editGlobal')
           : view === 'edit-ws'
             ? t('editWorkspace')
-            : null
+            : view === 'advanced'
+              ? t('advancedTitle')
+              : null
     const headerBreadcrumb =
       headerStrip && createPortal && subViewLabel
         ? createPortal(
@@ -322,6 +341,24 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             headerStrip,
           )
         : null
+
+    if (view === 'advanced') {
+      return (
+        <div className="mm_section">
+          {identityHeader}
+          <div className="mm_catalogHeading">
+            <h3>{t('advancedTitle')}</h3>
+          </div>
+          {headerBreadcrumb}
+          <ToolTimeoutForm
+            t={t}
+            current={settings.toolCallTimeoutMs}
+            onSaved={(timeoutMs) => setSettings({ ...settings, toolCallTimeoutMs: timeoutMs })}
+            onCancel={() => setView('list')}
+          />
+        </div>
+      )
+    }
 
     if (view === 'add') {
       return (
@@ -528,6 +565,13 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             onClick={openConfig}
           >
             <Settings2Icon size={14} />
+          </button>
+          <button
+            className="mm_btn mm_toolbarAction"
+            type="button"
+            onClick={() => setView('advanced')}
+          >
+            {t('advanced')}
           </button>
           <span className="mm_toolbarSpacer" aria-hidden="true" />
           <div className="mm_toolbarActions">

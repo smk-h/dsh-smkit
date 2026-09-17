@@ -79,4 +79,6 @@ export interface WorkspaceView {
 
 export interface SettingsView {
   onDemandToolInjection: boolean
+  /** `tools/call` timeout in force, in milliseconds (the built-in default included). */
+  toolCallTimeoutMs: number
 }

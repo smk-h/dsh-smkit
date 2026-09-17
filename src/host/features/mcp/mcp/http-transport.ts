@@ -88,16 +88,18 @@ export function createHttpTransport(deps: HttpTransportDeps): HttpTransport {
     method: string,
     params: unknown,
     conn: McpHandle | null,
-    options: { isNotification?: boolean } = {},
+    options: { isNotification?: boolean; timeoutMs?: number } = {},
   ): Promise<unknown> {
     const payload: Record<string, unknown> = { jsonrpc: '2.0', method }
     if (params !== undefined) payload.params = params
     const requestId = options.isNotification ? undefined : runtime.nextRpcId()
     if (!options.isNotification) payload.id = requestId
     const url = String(server.url)
-    let resp = await httpPostJson(url, authHeaders(server, conn), payload)
+    // `timeoutMs` is undefined for every call but `tools/call`, which falls back
+    // to the transport's own default (the fixed connect-phase timeout).
+    let resp = await httpPostJson(url, authHeaders(server, conn), payload, options.timeoutMs)
     if (resp.status === 401 && server.authMode === 'oauth' && (await deps.refreshTokens(server))) {
-      resp = await httpPostJson(url, authHeaders(server, conn), payload)
+      resp = await httpPostJson(url, authHeaders(server, conn), payload, options.timeoutMs)
     }
     if (resp.status >= 400) {
       throw new Error(`MCP ${method} HTTP ${resp.status}: ${String(resp.text).slice(0, 200)}`)
@@ -216,8 +218,8 @@ export function createHttpTransport(deps: HttpTransportDeps): HttpTransport {
     handle.listTools = (cursor?: string) =>
       mcpRpc(server, 'tools/list', cursor === undefined ? {} : { cursor }, handle) as Promise<McpListToolsResult>
     handle.tools = await listAllTools(handle)
-    handle.call = (name: string, args: unknown) =>
-      mcpRpc(server, 'tools/call', { name, arguments: args }, handle) as Promise<McpCallResult>
+    handle.call = (name: string, args: unknown, timeoutMs?: number) =>
+      mcpRpc(server, 'tools/call', { name, arguments: args }, handle, { timeoutMs }) as Promise<McpCallResult>
     const result = init.result as
       | { capabilities?: { tools?: { listChanged?: boolean } } }
       | undefined

@@ -10,7 +10,12 @@
 import { randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { STATE_PATH } from './constants.js'
+import {
+  DEFAULT_TOOL_CALL_TIMEOUT_MS,
+  MAX_TOOL_CALL_TIMEOUT_MS,
+  MIN_TOOL_CALL_TIMEOUT_MS,
+  STATE_PATH,
+} from './constants.js'
 import { workspaceTokenKey } from './mcp/naming.js'
 import { b64url, isRecord, normalizeEnvPairs } from '../../platform/util/text.js'
 import type { PluginState, ServerConfig } from './types.js'
@@ -32,6 +37,28 @@ export function loadState(): PluginState {
 export function saveState(state: PluginState): void {
   mkdirSync(dirname(STATE_PATH), { recursive: true })
   writeFileSync(STATE_PATH, JSON.stringify(state, null, 2))
+}
+
+/**
+ * Validate one `tools/call` timeout, as the state file or the settings route
+ * hands it over. Out-of-range values are dropped rather than clamped: the page
+ * must show what is actually in force, and "60000" is a better answer than a
+ * silently rewritten number.
+ * @returns the value when it is a whole number inside the bounds, else `undefined`.
+ */
+export function normalizeToolCallTimeoutMs(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return undefined
+  if (value < MIN_TOOL_CALL_TIMEOUT_MS || value > MAX_TOOL_CALL_TIMEOUT_MS) return undefined
+  return value
+}
+
+/**
+ * The timeout a `tools/call` request runs under: the stored setting, or the
+ * built-in default. Read per call, so a saved change reaches the next tool call
+ * without reconnecting the server.
+ */
+export function effectiveToolCallTimeoutMs(state: PluginState): number {
+  return normalizeToolCallTimeoutMs(state.toolCallTimeoutMs) ?? DEFAULT_TOOL_CALL_TIMEOUT_MS
 }
 
 /**
