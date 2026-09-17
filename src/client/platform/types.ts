@@ -129,7 +129,7 @@ export interface SlotOptions {
 
 /** One stylesheet a feature ships, keyed by its `data-plugin-css` name. */
 export interface FeatureStylesheet {
-  /** Suffix after `dsh-mcp-manager/` — `mcp`, `mcp/nav-icon`, `session-delete`. */
+  /** Suffix after `dsh-mcp-manager/` — `mcp`, `mcp/nav-icon`, `custom-settings`. */
   name: string
   css: string
 }

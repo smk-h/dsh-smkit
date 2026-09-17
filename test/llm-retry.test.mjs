@@ -1,5 +1,6 @@
 /**
- * Settings → 模型重试, end to end at the seam it depends on.
+ * The model-retry tab of Settings → 自定义设置, end to end at the seam it
+ * depends on.
  *
  * Two suites, one per half, each driven with stubs standing exactly where the
  * harness's own services stand:
@@ -447,7 +448,8 @@ const routing = ({ list, save } = {}) => (url) => {
 }
 
 /**
- * Mount the real client bundle with a hook harness and take the retry section.
+ * Mount the real client bundle with a hook harness and take the settings page
+ * that seats the retry tab (the section component the slot was handed).
  * @param options - the URL-routed fetch stub.
  * @returns `calls` (every request the page made) and `render()`.
  */
@@ -490,8 +492,8 @@ function mountClient({ fetch }) {
       register: (options, component) => { registrations.set(options.id, component) },
     },
   })
-  const Section = registrations.get('mcp-manager-llm-retry')
-  assert.equal(typeof Section, 'function', 'the retry section must be seated under its own entry id')
+  const Section = registrations.get('mcp-manager-custom-settings')
+  assert.equal(typeof Section, 'function', 'the settings page must be seated under its own entry id')
   return {
     calls,
     /** One render, flattened: safe to traverse as often as a case needs. */
@@ -523,6 +525,7 @@ it('renders the policy in force for every route, and what it stores', async () =
   const view = app.render()
 
   assert.equal(app.calls[0].url, '/mcp-manager/api/llm-retry/routes', 'the page asks the host first')
+  assert.ok(view.text.includes('tabRetry'), 'the page opens on the retry tab')
   assert.ok(view.text.includes('bigmodel') && view.text.includes('deepseek-official'), 'both routes are listed')
   assert.ok(view.text.includes('policyCustom'), 'the route with a stored policy is marked custom')
   assert.ok(view.text.includes('policyDefault'), 'the route inheriting defaults is marked default')
@@ -531,6 +534,25 @@ it('renders the policy in force for every route, and what it stores', async () =
   assert.ok(view.text.includes('summaryJitter'), 'and mentions jitter only when there is one')
   assert.ok(view.text.includes('readOnly'), 'a route with nowhere to write says so')
   assert.equal(view.button('edit').props.disabled, false, 'the editable route offers its form')
+})
+
+it('seats every area as a tab, and swaps the panel with the tab', async () => {
+  const app = mountClient({ fetch: routing({ list: { routes: [bigModelRoute] } }) })
+  app.render()
+  await settle()
+  const open = app.render()
+  assert.ok(open.text.includes('sectionLabel'), 'the page names itself above the strip')
+  assert.ok(open.text.includes('tabRetry') && open.text.includes('tabOther'), 'both areas have a tab')
+  assert.ok(open.text.includes('heading'), 'the retry tab is the one open')
+
+  app.render().button('tabOther').props.onClick()
+  const swapped = app.render()
+  assert.ok(swapped.text.includes('plannedToolCalls'), 'the other tab lists what is planned')
+  assert.ok(
+    swapped.text.includes('agent-loop · maxParallelToolCalls'),
+    'and where each planned value lives in dsh',
+  )
+  assert.equal(swapped.text.includes('countRoutes'), false, 'the retry panel is gone while it is closed')
 })
 
 it('seeds the form from the policy in force and posts the revision it read', async () => {

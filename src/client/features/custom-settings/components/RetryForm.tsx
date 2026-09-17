@@ -15,7 +15,7 @@
 
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
 import type { ApiResult, ClientDeps, Translator } from '../../../platform/types'
-import type { RetryMode, RetryPolicyFields, RetryRouteView } from '../../../../shared/llm-retry/contract'
+import type { RetryMode, RetryPolicyFields, RetryRouteView } from '../../../../shared/custom-settings/retry'
 
 /** Largest delay Node schedules without clamping; the adapters share this bound. */
 const MAX_TIMER_DELAY_MS = 2_147_483_647

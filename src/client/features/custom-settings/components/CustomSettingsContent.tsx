@@ -1,0 +1,79 @@
+/**
+ * The Custom settings page of the settings dialog: the shell around its tabs.
+ *
+ * A tab per configuration area this plugin exposes on this page; `TABS` below
+ * is the list, and adding an area is appending a panel component and its label
+ * key to it — the shell itself does not change. The shape follows DSH's own
+ * tabbed settings pages (a plain-text strip, `tablist`/`tab`/`tabpanel` roles,
+ * an underline on the active tab), so the page reads as part of the dialog.
+ *
+ * Nothing here reads or writes configuration: each tab owns its own reads, its
+ * own drafts and its own refusals, which is what keeps one area's polling and
+ * error lines out of another's.
+ */
+
+import { createOtherSettingsPanel } from './OtherSettingsPanel'
+import { createRetryPanel } from './RetryPanel'
+import type { ClientDeps, Translator } from '../../../platform/types'
+
+/** Props every settings section component receives from the slot system. */
+export interface CustomSettingsProps {
+  t: Translator
+}
+
+/** One configuration area: its key in the strip, its label, and its panel. */
+interface SettingsTab {
+  /** Stable id, used as the strip button's key and as the selection value. */
+  id: string
+  /** Dictionary key of the tab label. */
+  label: string
+  /** The panel rendered while the tab is active; takes the section's `t`. */
+  Panel: (props: CustomSettingsProps) => JSX.Element
+}
+
+export function createCustomSettingsContent(
+  deps: ClientDeps,
+): (props: CustomSettingsProps) => JSX.Element {
+  const { h, react } = deps
+  const RetryPanel = createRetryPanel(deps)
+  const OtherSettingsPanel = createOtherSettingsPanel(deps)
+
+  /** The page's areas, in strip order. */
+  const TABS: SettingsTab[] = [
+    { id: 'retry', label: 'tabRetry', Panel: RetryPanel },
+    { id: 'other', label: 'tabOther', Panel: OtherSettingsPanel },
+  ]
+
+  return function CustomSettingsContent({ t }: CustomSettingsProps): JSX.Element {
+    const [selected, setSelected] = react.useState(TABS[0].id)
+    const active = TABS.find((tab) => tab.id === selected) ?? TABS[0]
+    return (
+      <div className="cs_section">
+        {/* The page states its own name and purpose above the strip, the way
+            DSH's own tabbed settings pages do (see `page.css`): the dialog's own
+            header carries the section label too, and the two agree because both
+            read it from the registration. */}
+        <h2 className="cs_heading">{t('sectionLabel')}</h2>
+        <p className="cs_intro">{t('sectionIntro')}</p>
+        <div className="cs_tabs" role="tablist" aria-label={t('sectionLabel')}>
+          {TABS.map((tab) => (
+            <button
+              className="cs_tab"
+              type="button"
+              role="tab"
+              key={tab.id}
+              aria-selected={tab.id === active.id}
+              data-active={tab.id === active.id ? 'true' : undefined}
+              onClick={() => setSelected(tab.id)}
+            >
+              {t(tab.label)}
+            </button>
+          ))}
+        </div>
+        <div className="cs_panel" role="tabpanel">
+          <active.Panel t={t} />
+        </div>
+      </div>
+    )
+  }
+}

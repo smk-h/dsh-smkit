@@ -1,5 +1,5 @@
 /**
- * The Model retry section of Settings.
+ * The model-retry tab of the Custom settings page.
  *
  * One component drives two views: the route list and one route's form. The list
  * is re-polled every 3 seconds like the MCP section, because the settings
@@ -9,19 +9,19 @@
  * mid-edit cannot overwrite what the user is typing (only its `revision`, which
  * is what keeps the eventual save from clobbering that other edit).
  *
- * Everything the page shows is decided by the host: which routes exist, what
+ * Everything the panel shows is decided by the host: which routes exist, what
  * policy applies to each, whether it is writable here, and whether a write was
  * refused. This component renders those facts and posts one draft back.
  */
 
 import { createRetryForm } from './RetryForm'
 import type { ClientDeps, Translator } from '../../../platform/types'
-import type { RetryPolicyFields, RetryRouteView } from '../../../../shared/llm-retry/contract'
+import type { RetryPolicyFields, RetryRouteView } from '../../../../shared/custom-settings/retry'
 
 const REFRESH_INTERVAL_MS = 3000
 
-/** Props every settings section component receives from the slot system. */
-export interface RetrySectionProps {
+/** Props every tab panel receives from the page shell. */
+export interface RetryPanelProps {
   t: Translator
 }
 
@@ -47,11 +47,11 @@ function unavailableText(t: Translator, seam: string): string | undefined {
   return undefined
 }
 
-export function createRetryContent(deps: ClientDeps): (props: RetrySectionProps) => JSX.Element {
+export function createRetryPanel(deps: ClientDeps): (props: RetryPanelProps) => JSX.Element {
   const { h, react, api } = deps
   const RetryForm = createRetryForm(deps)
 
-  return function RetryContent({ t }: RetrySectionProps): JSX.Element {
+  return function RetryPanel({ t }: RetryPanelProps): JSX.Element {
     const [routes, setRoutes] = react.useState<RetryRouteView[]>([])
     const [unavailable, setUnavailable] = react.useState('')
     const [loadError, setLoadError] = react.useState('')
@@ -87,7 +87,7 @@ export function createRetryContent(deps: ClientDeps): (props: RetrySectionProps)
     const edited = editing === '' ? undefined : routes.find((route) => route.provider === editing)
     if (edited !== undefined) {
       return (
-        <div className="lr_section">
+        <div className="lr_panel">
           <div className="lr_catalogHeading">
             <h3>{t('editTitle')}</h3>
             <span>{edited.displayName}</span>
@@ -108,12 +108,12 @@ export function createRetryContent(deps: ClientDeps): (props: RetrySectionProps)
 
     const seamNotice = unavailableText(t, unavailable)
     return (
-      <div className="lr_section">
+      <div className="lr_panel">
         <div className="lr_catalogHeading">
           <h3>{t('heading')}</h3>
           <span>{t('countRoutes', { count: routes.length })}</span>
         </div>
-        <p className="lr_intro">{t('sectionIntro')}</p>
+        <p className="lr_intro">{t('retryIntro')}</p>
         {seamNotice ? <div className="mm_err">{seamNotice}</div> : null}
         {loadError ? <div className="mm_err">{loadError}</div> : null}
         {/* An absent seam already explains an empty list; saying "no routes"

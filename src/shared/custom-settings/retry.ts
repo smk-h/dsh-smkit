@@ -1,5 +1,5 @@
 /**
- * The wire contract of the Settings → 模型重试 feature.
+ * The wire contract of the model-retry tab (Settings → 自定义设置).
  *
  * The host projects every registered provider route and the retry policy that
  * currently applies to it into these shapes over
@@ -9,7 +9,8 @@
  * Type-only by design: the browser bundle is a single CommonJS script with no
  * module resolver, and `import type` is erased before bundling, so nothing here
  * reaches any emitted code. The MCP and session-delete features keep their own
- * contracts (`shared/mcp/contract.ts`, `shared/session-delete/contract.ts`).
+ * contracts (`shared/mcp/contract.ts`, `shared/session-delete/contract.ts`), and
+ * a later tab of this page adds a sibling file next to this one.
  */
 
 /** Retry mode, mirroring the adapters' `retryPolicy` union discriminant. */

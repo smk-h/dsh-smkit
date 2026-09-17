@@ -1,26 +1,27 @@
 /**
- * The Settings → 模型重试 stylesheet: the page shell, the route cards and the
+ * The model-retry tab of the Custom settings page: the route cards and the
  * policy form.
  *
- * One part of this feature's stylesheet. `features/llm-retry/styles.ts` is
- * where it is imported, and the build inlines the result as one string: the
- * browser half is a single script and cannot fetch a stylesheet.
+ * One part of this feature's stylesheet. `custom-settings/styles.ts` is where
+ * it is imported, and the build inlines the result as one string: the browser
+ * half is a single script and cannot fetch a stylesheet.
  *
- * Classes are namespaced `lr_*`, deliberately not the MCP page's `mm_*`: the
- * two pages are separate features and may only share what the platform layer
- * already owns (`mm_btn`, `mm_err`). The tokens and the rhythm below mirror
- * that page's rules so the two sections read as one settings dialog.
+ * Classes are namespaced `lr_*` (llm retry — this tab's own subject),
+ * deliberately not the page shell's `cs_*` nor the MCP page's `mm_*`: the three
+ * are separate owners and may only share what the platform layer already owns
+ * (`mm_btn`, `mm_err`). The tokens and the rhythm below mirror the MCP page's
+ * rules so both sections read as one settings dialog.
  */
 
-.lr_section {
-  width: 100%;
-  max-width: 760px;
-  color: var(--dsw-alias-label-primary);
+.lr_panel {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
+/* The tab's own heading. Smaller than the page's title above the strip (see
+ * `page.css`), because the page now names itself there: two headings of one
+ * size, one tab apart, would read as siblings instead of as page and area. */
 .lr_catalogHeading {
   align-items: baseline;
   gap: 7px;
@@ -28,9 +29,9 @@
   display: flex;
 }
 .lr_catalogHeading h3 {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 26px;
+  line-height: 22px;
   margin: 0;
 }
 .lr_catalogHeading span {

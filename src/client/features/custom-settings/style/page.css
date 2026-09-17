@@ -1,0 +1,86 @@
+/**
+ * The Custom settings page shell: the title, the intro line, the tab strip and
+ * the panel beneath it.
+ *
+ * The whole shell mirrors DSH's own tabbed settings pages — the same heading,
+ * the same intro line, the same strip sizes, tokens and active underline —
+ * because this page is the same kind of page: one tab per configuration area,
+ * so a new area costs a tab rather than a redesign.
+ *
+ * Classes are namespaced `cs_*`, deliberately not the MCP page's `mm_*` nor the
+ * model-retry tab's `lr_*`: the three are separate owners and may only share
+ * what the platform layer already owns (`mm_btn`, `mm_err`).
+ *
+ * One part of this feature's stylesheet. `custom-settings/styles.ts` imports
+ * the parts and joins them: the split is a reading aid, the order there decides
+ * the cascade.
+ */
+
+.cs_section {
+  width: 100%;
+  max-width: 760px;
+  color: var(--dsw-alias-label-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The page's name. The dialog's header carries it too, from the same
+ * registration label, so the two cannot disagree. */
+.cs_heading {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.cs_intro {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.cs_tabs {
+  border-bottom: .5px solid var(--dsw-alias-border-l2);
+  align-items: flex-end;
+  gap: 22px;
+  margin-top: 2px;
+  display: flex;
+}
+
+.cs_tab {
+  color: var(--dsw-alias-label-tertiary);
+  font: inherit;
+  cursor: pointer;
+  background: 0 0;
+  border: 0;
+  padding: 7px 1px 9px;
+  font-size: 13px;
+  line-height: 20px;
+  position: relative;
+}
+.cs_tab:hover,.cs_tab[data-active=true] {
+  color: var(--dsw-alias-label-primary);
+}
+.cs_tab[data-active=true]:after,.cs_tab:focus-visible:after {
+  background: var(--dsw-alias-label-primary);
+  content: '';
+  border-radius: 2px 2px 0 0;
+  height: 2px;
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+}
+.cs_tab:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+  color: var(--dsw-alias-label-primary);
+  border-radius: 2px;
+}
+
+.cs_panel {
+  min-width: 0;
+  padding-top: 2px;
+  display: flex;
+  flex-direction: column;
+}

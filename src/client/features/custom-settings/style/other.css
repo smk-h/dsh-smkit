@@ -1,0 +1,94 @@
+/**
+ * The Other settings tab: the list of settings this page is lined up to take.
+ *
+ * Read-only by design — a plan, not a form — so it only borrows the page's card
+ * rhythm (border, layer, radius) and adds nothing interactive.
+ *
+ * Classes are namespaced `ot_*`: the page's `cs_*` and the model-retry tab's
+ * `lr_*` are other owners, and the three may only share what the platform layer
+ * already owns.
+ *
+ * One part of this feature's stylesheet. `custom-settings/styles.ts` imports
+ * the parts and joins them in the order listed there.
+ */
+
+.ot_panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ot_intro,.ot_note {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+.ot_note {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.ot_list {
+  grid-template-columns: minmax(0,1fr);
+  align-items: start;
+  gap: 10px;
+  display: grid;
+}
+
+.ot_item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-3);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.ot_head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ot_title {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 20px;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Neutral, like the model-retry tab's override badge: "planned" is a fact, not
+ * a problem to flag. */
+.ot_badge {
+  margin-left: auto;
+  background: var(--dsw-alias-bg-layer-1);
+  min-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+  border-radius: 5px;
+  align-items: center;
+  padding: 1px 8px;
+  font-size: 11px;
+  line-height: 16px;
+  display: inline-flex;
+}
+
+.ot_help {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* The settings address: dsh's own namespace and path spellings, monospaced so
+ * they read as an address rather than as prose. */
+.ot_addr {
+  color: var(--dsw-alias-label-tertiary);
+  font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size: 12px;
+  line-height: 18px;
+  word-break: break-all;
+}

@@ -17,7 +17,7 @@ function walk(dir) {
 const I18N_MODULE = /[/\\]i18n[/\\]/
 
 // Run the real module factory with a tiny hook harness; no browser or dependencies.
-// The plugin seats several entries (Settings → MCP, Settings → 模型重试, and the
+// The plugin seats several entries (Settings → MCP, Settings → 自定义设置, and the
 // conversation header's delete control), two of them in the same slot, so
 // registrations are keyed by the entry id DSH itself addresses them by — a map
 // keyed by slot name would keep whichever feature registered last.
@@ -108,7 +108,7 @@ const content = (tree) =>
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'mcp', 'session-delete', 'llm-retry']) {
+  for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -125,13 +125,13 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
   const header = app.registrations.get('mcp-manager-session-delete')
   assert.equal(header.options.name, 'conversation.session.header.utilities')
   assert.equal(header.options.locale, 'session-delete')
-  // The third: the retry policy page, the second entry of the settings section
-  // slot. Its own entry id is what keeps the two pages from replacing each
-  // other in the shell's nav.
-  const retry = app.registrations.get('mcp-manager-llm-retry')
-  assert.equal(retry.options.name, 'settings.section')
-  assert.equal(retry.options.locale, 'llm-retry')
-  assert.equal(retry.options.label(), 'Model retry')
+  // The third: the custom-settings page, the second entry of the settings
+  // section slot. Its own entry id is what keeps the two pages from replacing
+  // each other in the shell's nav.
+  const custom = app.registrations.get('mcp-manager-custom-settings')
+  assert.equal(custom.options.name, 'settings.section')
+  assert.equal(custom.options.locale, 'custom-settings')
+  assert.equal(custom.options.label(), 'Custom settings')
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-locale'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-conversation'))
@@ -140,7 +140,8 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'dsh-mcp-manager: mcp/dictionaries',
     'dsh-mcp-manager: settings nav row',
     'dsh-mcp-manager: session-delete/dictionaries',
-    'dsh-mcp-manager: llm-retry/dictionaries',
+    'dsh-mcp-manager: custom-settings/dictionaries',
+    'dsh-mcp-manager: custom-settings settings nav row',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared

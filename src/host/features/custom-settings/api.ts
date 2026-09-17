@@ -1,5 +1,9 @@
 /**
- * The retry routes: `GET /llm-retry/routes` and `POST /llm-retry/policy`.
+ * The model-retry tab's routes: `GET /llm-retry/routes` and
+ * `POST /llm-retry/policy`.
+ *
+ * The paths name the resource rather than the page (`/llm-retry/*`), because
+ * that is what they serve; a later tab contributes its own under its own name.
  *
  * Both are thin transports over {@link RetryAdmin}: this module owns the path
  * matching and the HTTP mapping and nothing else — in particular it does not

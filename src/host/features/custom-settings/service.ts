@@ -1,6 +1,7 @@
 /**
- * The retry administration behind Settings → 模型重试: what every registered
- * provider route's policy currently is, and how one is written back.
+ * The retry administration behind the model-retry tab of Settings → 自定义设置:
+ * what every registered provider route's policy currently is, and how one is
+ * written back.
  *
  * Both facts come from the seams rather than from a file of this plugin's own:
  * the route set and the policy in force are the llm registry's (an adapter
@@ -24,7 +25,7 @@ import type {
   RetryRefusal,
   RetryRouteView,
   RetryRoutesResponse,
-} from '../../../shared/llm-retry/contract.js'
+} from '../../../shared/custom-settings/retry.js'
 import type {
   ConfigurableProviderLike,
   LlmProviderInfoLike,

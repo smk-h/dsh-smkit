@@ -1,6 +1,6 @@
 /**
  * Translation between one route's resolved retry policy and the flat shape the
- * settings page edits, plus the page's own input check.
+ * model-retry tab edits, plus the tab's own input check.
  *
  * The adapter's schema and its `resolveRetryPolicy` stay authoritative: this
  * module exists so the form can open on the values actually in force and can
@@ -9,7 +9,7 @@
  * past them is still refused by the settings write itself.
  */
 
-import type { RetryPolicyFields } from '../../../shared/llm-retry/contract.js'
+import type { RetryPolicyFields } from '../../../shared/custom-settings/retry.js'
 import type { ResolvedRetryPolicyLike } from './types.js'
 
 /** Largest delay Node schedules without clamping (the adapter's `MAX_TIMER_DELAY_MS`). */

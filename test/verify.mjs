@@ -11,7 +11,7 @@
  *   3. the bundle patch and manifest wiring still point at this package;
  *   4. the browser half loads through `window.__ModuleLoader__.load`, registers
  *      balanced `zh`/`en` dictionaries and seats the three slots it owns:
- *      Settings → MCP, Settings → 模型重试, and the conversation header's delete
+ *      Settings → MCP, Settings → 自定义设置, and the conversation header's delete
  *      control.
  *
  * Exits non-zero with a clear message on any failure, so `prepack` can never
@@ -151,7 +151,7 @@ clientExports.apply({
     register: (spec) => { slotSpecs.set(spec.name, [...(slotSpecs.get(spec.name) ?? []), spec]) },
   },
 })
-for (const namespace of ['platform', 'mcp', 'session-delete', 'llm-retry']) {
+for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings']) {
   assert.ok(dictionaries[namespace], `the ${namespace} dictionary must be registered`)
   assert.deepEqual(
     Object.keys(dictionaries[namespace].zh).sort(),
@@ -170,10 +170,10 @@ const entryOf = (slot, id) => {
 const settingsSlot = entryOf('settings.section', 'mcp-manager')
 assert.equal(settingsSlot.locale, 'mcp', 'the MCP section entry must bind the mcp locale namespace')
 
-const retrySlot = entryOf('settings.section', 'mcp-manager-llm-retry')
-assert.equal(retrySlot.locale, 'llm-retry', 'the retry section entry must bind its own locale namespace')
+const customSlot = entryOf('settings.section', 'mcp-manager-custom-settings')
+assert.equal(customSlot.locale, 'custom-settings', 'the custom-settings entry must bind its own locale namespace')
 
 const deleteSlot = entryOf('conversation.session.header.utilities', 'mcp-manager-session-delete')
 assert.equal(deleteSlot.locale, 'session-delete', 'the delete control binds its own locale namespace')
 
-console.log('verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → MCP → 模型重试.')
+console.log('verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → MCP → 自定义设置.')

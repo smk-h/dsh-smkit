@@ -1,8 +1,9 @@
 /**
- * Simplified Chinese dictionary for the `llm-retry` locale namespace.
+ * Simplified Chinese dictionary for the `custom-settings` locale namespace.
  *
- * The page's own copy: the route list, the policy form, the summary line each
- * row carries, and the refusals the host can answer with. The two button labels
+ * The page's own copy plus every tab's: the page label and intro, then the
+ * model-retry tab (its route list, the policy form, the summary line each row
+ * carries, and the refusals the host can answer with). The two button labels
  * every dialog shares (`cancel`, `delete`) live in the platform namespace, so
  * they are declared once for the whole plugin; `save` is this page's own
  * because nothing else in the plugin writes a settings section.
@@ -10,9 +11,27 @@
 
 import type { LocaleDict } from '../../../platform/types'
 
-export const RETRY_LOCALE_ZH: LocaleDict = {
-  "sectionLabel": "模型重试",
-  "sectionIntro": "为每个已注册的提供方路由配置模型请求失败后的自动重试：模式、次数与退避间隔。保存后立即生效——下一次失败就按新值退避，不需要重启 dsh。",
+export const CUSTOM_SETTINGS_LOCALE_ZH: LocaleDict = {
+  "sectionLabel": "自定义设置",
+  "sectionIntro": "把 DSH 里那些值得单独调、又不常改的配置收在这里，按标签页分区；改动写进 dsh 自己的 settings.yaml，保存后立即生效，不需要重启。",
+  "tabRetry": "模型重试",
+  "tabOther": "其他设置",
+  "otherIntro": "这里先列出后续准备接入的配置项：每一项都标了它在 dsh 里的位置，接入后会像「模型重试」一样可以直接在这里改。",
+  "otherPlanned": "待支持",
+  "otherNote": "在此之前，可以直接改 dsh 的 settings.yaml，保存后立即生效。",
+  "plannedToolCalls": "并发工具调用上限",
+  "plannedToolCallsHelp": "一条回复里最多同时执行几个工具调用，默认 10。调大能加快多工具任务，但也更容易撞上提供方的速率限制。",
+  "plannedShellLimits": "命令超时与输出上限",
+  "plannedShellLimitsHelp": "前台命令最长运行多久（默认 120 秒），以及最多有多少输出会回到模型（默认 64 KB）。",
+  "plannedStreamIdle": "模型流空闲超时",
+  "plannedStreamIdleHelp": "模型流多久没有新数据就判定为超时；长思考、慢首字节的端点需要放宽。",
+  "plannedRequestBudget": "单次请求的图片与文件预算",
+  "plannedRequestBudgetHelp": "一次请求最多带多少张图片、图片与文件各自允许多大；超出会先落成附件再引用。",
+  "plannedSearchUses": "联网搜索次数上限",
+  "plannedSearchUsesHelp": "一次回答里最多调用几次联网搜索，默认 5。",
+  "plannedSubagentModels": "子代理可用模型",
+  "plannedSubagentModelsHelp": "允许主代理为子代理挑选哪些模型；关闭时子代理跟随当前会话的模型。",
+  "retryIntro": "为每个已注册的提供方路由配置模型请求失败后的自动重试：模式、次数与退避间隔。保存后立即生效——下一次失败就按新值退避。",
   "heading": "提供方路由",
   "countRoutes": "{count} 个路由",
   "empty": "没有已注册的提供方路由。先在「模型」页配置一个提供方，这里就会列出它的重试策略。",

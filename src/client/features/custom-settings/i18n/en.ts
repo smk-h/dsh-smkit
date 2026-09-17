@@ -1,5 +1,5 @@
 /**
- * English dictionary for the `llm-retry` locale namespace.
+ * English dictionary for the `custom-settings` locale namespace.
  *
  * The same key set as `zh.ts`, which `test/verify.mjs` asserts key by key: a
  * label added to one side and forgotten on the other would otherwise ship as
@@ -8,9 +8,27 @@
 
 import type { LocaleDict } from '../../../platform/types'
 
-export const RETRY_LOCALE_EN: LocaleDict = {
-  "sectionLabel": "Model retry",
-  "sectionIntro": "Configure automatic retries for model-request failures on every registered provider route: mode, attempt count, and backoff. Saving applies to the next failure — no dsh restart.",
+export const CUSTOM_SETTINGS_LOCALE_EN: LocaleDict = {
+  "sectionLabel": "Custom settings",
+  "sectionIntro": "DSH settings worth tuning on their own, without reaching for the configuration file: one tab per area, written into dsh's own settings.yaml and applied on save — no restart.",
+  "tabRetry": "Model retry",
+  "tabOther": "Other settings",
+  "otherIntro": "The settings this page is lined up to take next: each entry names where it lives in dsh, and each becomes editable here the way Model retry is.",
+  "otherPlanned": "Planned",
+  "otherNote": "Until then the value can be edited in dsh's settings.yaml, applied on save.",
+  "plannedToolCalls": "Parallel tool calls",
+  "plannedToolCallsHelp": "How many tool calls one reply may run at once (default 10). Raising it speeds up multi-tool work and makes a provider's rate limits likelier.",
+  "plannedShellLimits": "Command timeout and output cap",
+  "plannedShellLimitsHelp": "How long a foreground command may run (default 120 s), and how much of its output reaches the model (default 64 KB).",
+  "plannedStreamIdle": "Model stream idle timeout",
+  "plannedStreamIdleHelp": "How long a model stream may stay silent before it counts as timed out; slow-thinking, slow-first-byte endpoints need more.",
+  "plannedRequestBudget": "Per-request image and file budget",
+  "plannedRequestBudgetHelp": "How many images one request may carry and how large images and files may get before they are offloaded and referenced instead.",
+  "plannedSearchUses": "Web search calls",
+  "plannedSearchUsesHelp": "How many web searches one answer may run (default 5).",
+  "plannedSubagentModels": "Models subagents may use",
+  "plannedSubagentModelsHelp": "Which models the main agent may pick for subagents; off leaves them on the session's own model.",
+  "retryIntro": "Configure automatic retries for model-request failures on every registered provider route: mode, attempt count, and backoff. Saving applies to the next failure.",
   "heading": "Provider routes",
   "countRoutes": "{count} routes",
   "empty": "No provider route is registered. Configure a provider on the Models page and its retry policy appears here.",

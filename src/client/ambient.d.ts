@@ -174,6 +174,7 @@ declare namespace JSX {
     span: CommonProps
     label: CommonProps
     nav: CommonProps
+    h2: CommonProps
     h3: CommonProps
     p: ParagraphProps
     a: AnchorProps

@@ -13,7 +13,7 @@
 
 import { API_PREFIX, ROUTE_PATH } from './host/platform/constants.js'
 import { createPrefixRoute } from './host/platform/routes.js'
-import { llmRetryFeature } from './host/features/llm-retry/host.js'
+import { customSettingsFeature } from './host/features/custom-settings/host.js'
 import { mcpFeature } from './host/features/mcp/host.js'
 import { sessionDeleteFeature } from './host/features/session-delete/host.js'
 import type { HostFeature, HostPlatform, PluginContext } from './host/platform/context.js'
@@ -29,7 +29,7 @@ export const name = 'mcp-manager'
 export const inject = ['tools']
 
 /** The features this plugin ships; the order here is the order they mount. */
-const FEATURES: HostFeature[] = [mcpFeature, sessionDeleteFeature, llmRetryFeature]
+const FEATURES: HostFeature[] = [mcpFeature, sessionDeleteFeature, customSettingsFeature]
 
 export function apply(ctx: PluginContext): void {
   // Collected here, filled by the features, consumed by the one route below.
@@ -85,10 +85,10 @@ export type {
   SessionPreviewer,
   SessionPreviewOutcome,
 } from './host/features/session-delete/delete.js'
-export { createRetryAdmin } from './host/features/llm-retry/service.js'
-export { createRetryHandlers, RETRY_POLICY_PATH, RETRY_ROUTES_PATH } from './host/features/llm-retry/api.js'
-export { normalizePolicy, parsePolicyFields, readAtPath, storedRetryableCodes } from './host/features/llm-retry/policy.js'
-export type { RetryAdmin, RetrySaveInput, RetrySaveOutcome, RetrySaveFailure } from './host/features/llm-retry/service.js'
+export { createRetryAdmin } from './host/features/custom-settings/service.js'
+export { createRetryHandlers, RETRY_POLICY_PATH, RETRY_ROUTES_PATH } from './host/features/custom-settings/api.js'
+export { normalizePolicy, parsePolicyFields, readAtPath, storedRetryableCodes } from './host/features/custom-settings/policy.js'
+export type { RetryAdmin, RetrySaveInput, RetrySaveOutcome, RetrySaveFailure } from './host/features/custom-settings/service.js'
 export type {
   ConfigurableProviderLike,
   LlmProviderInfoLike,
@@ -97,7 +97,7 @@ export type {
   SettingsDescriptorLike,
   SettingsPathOp,
   SettingsServiceLike,
-} from './host/features/llm-retry/types.js'
+} from './host/features/custom-settings/types.js'
 export type {
   RetryMode,
   RetryPolicyFields,
@@ -106,7 +106,7 @@ export type {
   RetryRoutesResponse,
   RetrySaveRequest,
   RetrySaveResponse,
-} from './shared/llm-retry/contract.js'
+} from './shared/custom-settings/retry.js'
 export { encodeSegment, projectKey, sessionDir } from './host/features/session-delete/path.js'
 export { accessToken, authHeaders, hasToken, resolveHeaders } from './host/features/mcp/auth/credentials.js'
 export { createOAuth } from './host/features/mcp/auth/oauth.js'
