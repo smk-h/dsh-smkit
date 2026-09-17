@@ -1,0 +1,202 @@
+/**
+ * The tool list of a connected server (ui/ToolList): the summary line that
+ * opens it, the chip row, the chip, and the hover card a chip opens.
+ *
+ * The chips stay hidden behind the summary line until it is clicked: a server
+ * may register dozens of tools, and the row should read as one line until the
+ * list is asked for.
+ *
+ * The card is real DOM, not a `.mm_tip::after` bubble, because it carries more
+ * than a label. Its geometry is measured in JS and written inline (`position:
+ * fixed`, so the section's scroll area cannot clip it); everything here is the
+ * look only — surface, shadow, and the scroll a long description needs. It is
+ * hoverable: the pointer that walks from a chip onto the card keeps it open
+ * (see ToolList), which is also why it must be able to scroll.
+ *
+ * One part of the Settings → MCP stylesheet. `features/mcp/styles.ts` imports
+ * the parts and joins them in the order listed there, and the build inlines the
+ * result as one string: the split is a reading aid, the order there decides the
+ * cascade.
+ */
+
+/* `flex-start`, not the default `stretch`: the chip row and the summary line
+ * each size to their own content, so the block never presents a wide invisible
+ * hover target beside the last chip of a line. */
+.mm_tools {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/* The summary line, wearing the old `.mm_meta` text as a button: the count is
+ * always readable, and the caret says the names are one click away. */
+.mm_toolsToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  margin-left: -4px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+.mm_toolsToggle:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-secondary);
+}
+.mm_toolsToggle:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+/* A connected server with no tools: the line still reports the zero, but there
+ * is nothing to open. */
+.mm_toolsToggle:disabled {
+  cursor: default;
+}
+.mm_toolsToggle:disabled:hover {
+  background: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The caret: right while closed, down while open. */
+.mm_toolsCaret {
+  display: inline-flex;
+  transform: rotate(-90deg);
+  transition: transform .15s;
+}
+.mm_toolsCaret[data-open=true] {
+  transform: rotate(0);
+}
+
+/* Names wrap as tags rather than as one long line: a server with 38 tools reads
+ * as a block of names, which is what the count alone cannot convey. */
+.mm_toolChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mm_toolChip {
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 11px;
+  line-height: 16px;
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  cursor: default;
+}
+.mm_toolChip:hover,
+.mm_toolChip:focus-visible {
+  border-color: var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-primary);
+  outline: none;
+}
+
+/* The hover card: anchored inline by JS, styled here. It is a hover target of
+ * its own — the pointer that travels from a chip onto the card keeps it open
+ * (see ToolList) — and it scrolls, because a tool may describe more than the
+ * viewport leaves room for and the card's height is capped at that room. Its
+ * text is there to be read and copied, hence the text cursor and the explicit
+ * selection: a tool description is exactly the kind of text one pastes into an
+ * issue. */
+.mm_toolCard {
+  position: fixed;
+  z-index: 40;
+  box-sizing: border-box;
+  overflow: auto;
+  overscroll-behavior: contain;
+  cursor: text;
+  user-select: text;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.mm_toolCardHead {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.mm_toolCardName {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  word-break: break-all;
+}
+
+/* The `[tool]` tag beside the title, as the shell's own tool lists show it. */
+.mm_toolCardKind {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.mm_toolCardDesc {
+  margin-top: 6px;
+  word-break: break-word;
+}
+
+.mm_toolCardEmpty {
+  margin-top: 6px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.mm_toolCardParams {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mm_toolParamHead {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mm_toolParamName {
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  word-break: break-all;
+}
+
+.mm_toolParamType {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.mm_toolParamRequired {
+  flex: none;
+  border-radius: 4px;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 15px;
+  color: var(--dsw-alias-state-business-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
+}
+
+.mm_toolParamDesc {
+  margin-top: 2px;
+  color: var(--dsw-alias-label-tertiary);
+  word-break: break-word;
+}

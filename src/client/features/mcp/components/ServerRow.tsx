@@ -6,7 +6,7 @@
 
 import { createChevronDownIcon } from '../icons/ChevronDownIcon'
 import { createConfirmDialog } from '../../../platform/ui/ConfirmDialog'
-import { serverDetails } from '../ui/ServerDetails'
+import { createServerDetails } from '../ui/ServerDetails'
 import { createStatusBadge, createStatusDot } from '../ui/StatusPill'
 import { createSwitch } from '../ui/Switch'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
@@ -33,6 +33,7 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
   const Switch = createSwitch(deps)
   const ConfirmDialog = createConfirmDialog(deps)
   const ChevronDownIcon = createChevronDownIcon(deps)
+  const serverDetails = createServerDetails(deps)
 
   return function ServerRow({
     t,
@@ -128,7 +129,7 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
         </button>
         {open ? (
           <div className="mm_details">
-            {serverDetails(deps, { t, server, status: server.status })}
+            {serverDetails({ t, server, status: server.status })}
             {error ? <div className="mm_err">{error}</div> : null}
             <div className="mm_cardActions">
               <Switch

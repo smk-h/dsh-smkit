@@ -15,14 +15,27 @@
  * Measuring works while the bubble is still invisible: it is hidden with
  * `opacity` only, so its layout — and therefore its width — exists from the
  * start, and the shift is in place before the hover fade-in begins.
+ *
+ * `clipBounds` is exported because the tool list's hover card is placed from
+ * the same boundaries: it is a floating box too, and one parented outside the
+ * panel would be clipped there exactly like a bubble.
  */
 
 /** Horizontal breathing room kept between the bubble and a clip edge. */
 const GUTTER = 4
 
+/** The rectangle a floating box has to fit inside, in viewport coordinates. */
+export interface ClipBounds {
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
+
 /**
- * The horizontal range a bubble may span: the clip ancestors between the
- * button and its fixed-positioned root, narrowed to the window itself.
+ * The area an element's floating box may span: the clip ancestors between the
+ * anchor and its fixed-positioned root, narrowed to the window itself, with
+ * `gutter` kept clear inside every edge.
  *
  * The walk must stop at the fixed root. A floating panel (DSH's settings
  * dialog, a modal overlay) is `position: fixed` and escapes plain `overflow`
@@ -32,25 +45,33 @@ const GUTTER = 4
  * the fixed subtree the clips are real: the dialog's own scroll area and
  * panel bounds are exactly what cuts a bubble on the right edge.
  */
-function clipBounds(button: HTMLElement): { left: number; right: number } {
+export function clipBounds(anchor: HTMLElement, gutter = 0): ClipBounds {
   let left = 0
   let right = window.innerWidth
+  let top = 0
+  let bottom = window.innerHeight
   let ceiling: HTMLElement | null = null
-  for (let node = button.parentElement; node; node = node.parentElement) {
+  for (let node = anchor.parentElement; node; node = node.parentElement) {
     if (getComputedStyle(node).position === 'fixed') ceiling = node
   }
-  for (let node = button.parentElement; node && node !== ceiling; node = node.parentElement) {
+  for (let node = anchor.parentElement; node && node !== ceiling; node = node.parentElement) {
     const style = getComputedStyle(node)
     const clips =
-      /(hidden|clip|auto|scroll)/.test(style.overflowX) || /paint|strict|content/.test(style.contain)
+      /(hidden|clip|auto|scroll)/.test(style.overflowX) ||
+      /(hidden|clip|auto|scroll)/.test(style.overflowY) ||
+      /paint|strict|content/.test(style.contain)
     if (!clips) continue
     const box = node.getBoundingClientRect()
-    const padLeft = Number.parseFloat(style.paddingLeft)
-    const padRight = Number.parseFloat(style.paddingRight)
-    left = Math.max(left, box.left + (Number.isFinite(padLeft) ? padLeft : 0))
-    right = Math.min(right, box.right - (Number.isFinite(padRight) ? padRight : 0))
+    const edge = (side: 'paddingLeft' | 'paddingRight' | 'paddingTop' | 'paddingBottom'): number => {
+      const value = Number.parseFloat(style[side])
+      return Number.isFinite(value) ? value : 0
+    }
+    left = Math.max(left, box.left + edge('paddingLeft'))
+    right = Math.min(right, box.right - edge('paddingRight'))
+    top = Math.max(top, box.top + edge('paddingTop'))
+    bottom = Math.min(bottom, box.bottom - edge('paddingBottom'))
   }
-  return { left: left + GUTTER, right: right - GUTTER }
+  return { left: left + gutter, right: right - gutter, top: top + gutter, bottom: bottom - gutter }
 }
 
 /** Write the shift keeping a centered bubble of `width` inside the bounds. */
@@ -59,7 +80,7 @@ function clampTip(button: HTMLElement): void {
   if (!width || !Number.isFinite(width)) return
   const box = button.getBoundingClientRect()
   const center = box.left + box.width / 2
-  const { left, right } = clipBounds(button)
+  const { left, right } = clipBounds(button, GUTTER)
   let shift = 0
   if (center - width / 2 < left) shift = left - (center - width / 2)
   else if (center + width / 2 > right) shift = right - (center + width / 2)

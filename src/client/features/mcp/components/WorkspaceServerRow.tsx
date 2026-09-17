@@ -8,7 +8,7 @@
  */
 
 import { createConfirmDialog } from '../../../platform/ui/ConfirmDialog'
-import { serverDetails } from '../ui/ServerDetails'
+import { createServerDetails } from '../ui/ServerDetails'
 import { createStatusBadge, createStatusDot } from '../ui/StatusPill'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
 import type { ClientDeps, Translator } from '../../../platform/types'
@@ -32,6 +32,7 @@ export function createWorkspaceServerRow(
   const StatusDot = createStatusDot(deps)
   const StatusBadge = createStatusBadge(deps)
   const ConfirmDialog = createConfirmDialog(deps)
+  const serverDetails = createServerDetails(deps)
 
   return function WorkspaceServerRow({
     t,
@@ -148,7 +149,7 @@ export function createWorkspaceServerRow(
             </button>
           </span>
         </div>
-        {serverDetails(deps, { t, server, status })}
+        {serverDetails({ t, server, status })}
         {error ? <div className="mm_err">{error}</div> : null}
         {confirming ? (
           <ConfirmDialog

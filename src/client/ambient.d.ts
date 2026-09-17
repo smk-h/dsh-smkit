@@ -61,6 +61,38 @@ declare namespace JSX {
     preventDefault(): void
   }
 
+  /**
+   * A pointer or focus event, as the tool list's hover card reads one:
+   * everything it needs is the element the handler is bound to, whose viewport
+   * rect decides where the fixed-position card opens. `currentTarget` is a live
+   * property for the duration of the handler in React, which is exactly how
+   * long it is read.
+   */
+  interface AnchorEventLike extends EventLike {
+    currentTarget: HTMLElement
+  }
+
+  /**
+   * A pointer event, plus where the pointer was: the tool list tells "moved
+   * onto the card" from "left the chip" by direction, and the position at the
+   * moment of the event is what answers it. Declared apart from
+   * `AnchorEventLike` because the focus events shepherded through the same
+   * handlers carry no coordinates.
+   */
+  interface PointerEventLike extends AnchorEventLike {
+    clientX: number
+    clientY: number
+  }
+
+  /**
+   * A focus event, plus where focus went. The tool list reads `relatedTarget`
+   * to tell focus moving inside a block (a click on the card) from focus
+   * leaving it (a keyboard walking on), which are the same event otherwise.
+   */
+  interface FocusEventLike extends AnchorEventLike {
+    relatedTarget: Node | null
+  }
+
   /** `key` is accepted on every element, intrinsic or component. */
   interface IntrinsicAttributes {
     key?: string | number
@@ -76,9 +108,20 @@ declare namespace JSX {
     className?: string
     title?: string
     role?: string
+    /** Inline geometry, as the tool list's hover card needs: it is placed from
+     * measured viewport coordinates, which no stylesheet can know. */
+    style?: Record<string, string>
+    /** Set only by the tool chips, which answer a keyboard walk with the same
+     * card a hover opens. */
+    tabIndex?: number
     children?: unknown
     onClick?: (event: EventLike) => void
     onChange?: (event: EventLike) => void
+    onMouseEnter?: (event: PointerEventLike) => void
+    onMouseLeave?: (event: PointerEventLike) => void
+    onMouseDown?: (event: PointerEventLike) => void
+    onFocus?: (event: AnchorEventLike) => void
+    onBlur?: (event: FocusEventLike) => void
     [attribute: `data-${string}`]: unknown
     [attribute: `aria-${string}`]: unknown
   }

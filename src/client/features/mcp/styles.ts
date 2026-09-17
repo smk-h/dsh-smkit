@@ -25,6 +25,7 @@ import scopeCss from './style/scope.css'
 import searchCss from './style/search.css'
 import sectionCss from './style/section.css'
 import switchCss from './style/switch.css'
+import toolsCss from './style/tools.css'
 import workspaceCss from './style/workspace.css'
 import { CABLE_SPEC } from './icons/CableIcon'
 import { iconMaskDataUri } from '../../platform/icons/Icon'
@@ -39,6 +40,7 @@ export const MCP_CSS = [
   searchCss,
   switchCss,
   scopeCss,
+  toolsCss,
   workspaceCss,
 ].join('\n')
 

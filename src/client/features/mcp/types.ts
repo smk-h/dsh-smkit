@@ -23,6 +23,7 @@ export type {
   ServerType,
   ServerView,
   SettingsView,
+  ToolView,
   WorkspaceServerView,
   WorkspaceView,
 } from '../../../shared/mcp/contract'
