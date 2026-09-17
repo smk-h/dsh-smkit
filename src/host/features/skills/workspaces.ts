@@ -60,12 +60,18 @@ function rootView(source: string, path: string, label: string): SkillRootView {
   return { source, scope: scopeOfSource(source), path, label }
 }
 
-/** Fold the user's home to `~`, so a label reads like the path a user would type. */
+/**
+ * Fold the user's home to `~`, so a label reads like the path a user would type.
+ * A label is display text, so its separators read `/` whatever the platform
+ * spells; the `path` beside it stays the native one.
+ */
 function homeLabel(path: string): string {
   const home = homedir()
-  if (path === home) return '~'
-  if (path.startsWith(home + sep)) return `~${path.slice(home.length)}`
-  return path
+  const shown = path.replaceAll(sep, '/')
+  const homeShown = home.replaceAll(sep, '/')
+  if (shown === homeShown) return '~'
+  if (shown.startsWith(`${homeShown}/`)) return `~${shown.slice(homeShown.length)}`
+  return shown
 }
 
 /** Every registered workspace path, in registry order, deduplicated. */

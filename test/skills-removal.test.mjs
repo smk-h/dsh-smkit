@@ -7,9 +7,10 @@
  * a scratch tree whose layout mirrors the harness's filesystem provider
  * (`<home>/.agents/skills`, `<home>/.dsh/skills`, `<project>/.dsh/skills`,
  * `<project>/.agents/skills` next to a `.git` entry, plus a flat `<name>.md`).
- * One skill is installed the way a machine usually installs them — a symlink from
- * a root to a directory somewhere else entirely — because removing it must take
- * the link and leave the directory it points at alone.
+ * One skill is installed the way a machine usually installs them — a link (a
+ * junction on Windows, where a bare symlink needs elevation) from a root to a
+ * directory somewhere else entirely — because removing it must take the link
+ * and leave the directory it points at alone.
  *
  * A test that writes creates what it writes first (or writes back what it
  * changed), so the fixtures the read-only checks assert on survive the ones that
@@ -78,7 +79,9 @@ writeHeader(join(agentsRoot, 'notaskill', 'readme.md'), 'name: ignored\ndescript
 writeHeader(join(agentsRoot, '.hidden', 'SKILL.md'), 'name: hidden\ndescription: dot directories are skipped')
 const elsewhere = join(scratch, 'elsewhere', 'through-a-link')
 makeBundle(join(scratch, 'elsewhere'), 'through-a-link')
-symlinkSync(elsewhere, join(agentsRoot, 'through-a-link'))
+// A junction on Windows: a bare symlink there needs an elevated shell or
+// Developer Mode, a junction needs neither, and the scan treats both as links.
+symlinkSync(elsewhere, join(agentsRoot, 'through-a-link'), process.platform === 'win32' ? 'junction' : 'dir')
 
 // --- the harness home: its own view, never merged with the shared one -------
 makeBundle(dshRoot, 'only-dsh')
