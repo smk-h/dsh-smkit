@@ -73,7 +73,7 @@ dsh --profile web --dump-config | grep smai-kit
 | `--fail` | `initialize` 延迟后返回错误 | 关闭 |
 | `--name=<名字>` | 写进 `serverInfo` 与应答文本，便于区分多实例 | `slow-mcp` |
 
-客户端每个请求 60 秒超时，所以 `--delay` 建议取 30～55；超过 60 必定以超时错误告终，那也是一个有效场景。注册为 stdio 服务器时写 `command = node`、`args = [<本文件绝对路径>, --delay=45]`。
+连接阶段（`initialize` / `tools/list`）的每个请求固定 60 秒超时，所以 `--delay` 建议取 30～55；超过 60 必定以超时错误告终，那也是一个有效场景。工具调用（`tools/call`）的超时可以在「设置 → MCP → 高级」里改（默认 60000 毫秒，见「四、6」）。注册为 stdio 服务器时写 `command = node`、`args = [<本文件绝对路径>, --delay=45]`。
 
 ### 3. http-mcp.mjs（HTTP 测试服务器）
 
@@ -371,6 +371,27 @@ curl -X POST http://127.0.0.1:8793/_test/expire-tokens
 | `mcp_describe_tool` | 传入工具全名后返回其入参 schema |
 | `mcp_execute_tool` | 传入工具全名与参数后返回该工具的真实结果 |
 | 越界工具 | 传入当前会话不可见的工具名时报 `is not visible in this session` |
+
+### 6. 工具调用超时
+
+「设置 → MCP → 高级」里的超时只作用于 `tools/call`，连接阶段仍是固定 60 秒。
+
+（1）配好并启用一个带有已知耗时工具的服务器（例如某个要跑几十秒的批量工具）；
+
+（2）在 MCP 页工具栏点「高级」，把超时改成小于该工具耗时的值（如 `1000`），保存；
+
+（3）在新会话里调用该工具。
+
+【**通过判据**】
+
+| 检查点 | 期望 |
+| ------ | ---- |
+| 调用结果 | 到设定的毫秒数即以错误结束，而不是挂满 60 秒 |
+| 生效时机 | 保存后不需要重启 dsh，也不需要重连服务器，下次调用就按新值 |
+| 恢复默认 | 点「恢复默认」后回到 `60000`，`~/.dsh/mcp-manager.json` 里的 `toolCallTimeoutMs` 键消失 |
+| 越界输入 | 小于 1000 或大于 1800000 的毫秒值被拒绝，磁盘上的值不变 |
+
+自动化覆盖见 [`test/tool-timeout.test.mjs`](../test/tool-timeout.test.mjs)：它断言了写入校验（越界 400）、落盘与清除，以及超时确实中断了在途的 `tools/call`。
 
 ## 五、 问题排查
 
