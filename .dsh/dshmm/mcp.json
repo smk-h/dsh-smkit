@@ -1,82 +1,13 @@
 {
   "mcpServers": {
-    "slow-mcp-delay-30": {
+    "sm_demo": {
       "type": "stdio",
       "command": "node",
       "args": [
-        "./scripts/slow-mcp.mjs",
-        "--delay=30"
+        "./scripts/sm_demo.mjs",
+        "1"
       ],
       "env": {}
-    },
-    "slow-mcp-delay-30-fail": {
-      "type": "stdio",
-      "command": "node",
-      "args": [
-        "./scripts/slow-mcp.mjs",
-        "--delay=30",
-        "--fail"
-      ],
-      "env": {}
-    },
-    "slow-mcp-delay-50": {
-      "type": "stdio",
-      "command": "node",
-      "args": [
-        "./scripts/slow-mcp.mjs",
-        "--delay=50"
-      ],
-      "env": {}
-    },
-    "node-stub": {
-      "type": "stdio",
-      "command": "node",
-      "args": [
-        "./scripts/ssh-stub-mcp.mjs",
-        "--name=node-stub",
-        "--lifetime=20000",
-        "--log=.tmp/node-stub.log"
-      ],
-      "env": {}
-    },
-    "ssh-stub": {
-      "type": "stdio",
-      "command": "ssh",
-      "args": [
-        "-p",
-        "36000",
-        "-o",
-        "StrictHostKeyChecking=accept-new",
-        "-o",
-        "ServerAliveInterval=60",
-        "-o",
-        "ServerAliveCountMax=3",
-        "127.0.0.1",
-        "cd /workspace/dsh-smkit && node ./scripts/ssh-stub-mcp.mjs --name=ssh-stub --lifetime=20000 --log=.tmp/ssh-stub.log"
-      ],
-      "env": {}
-    },
-    "http-mcp-none": {
-      "type": "http",
-      "url": "http://127.0.0.1:8791/mcp",
-      "authMode": "none",
-      "headers": {},
-      "headerEnv": {}
-    },
-    "http-mcp-static": {
-      "type": "http",
-      "url": "http://127.0.0.1:8792/mcp",
-      "authMode": "static",
-      "tokenEnv": "MCP_HTTP_TOKEN",
-      "headers": {},
-      "headerEnv": {}
-    },
-    "http-mcp-oauth": {
-      "type": "http",
-      "url": "http://127.0.0.1:8793/mcp",
-      "authMode": "oauth",
-      "headers": {},
-      "headerEnv": {}
     }
   }
 }
