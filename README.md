@@ -18,49 +18,68 @@
 
 ### 2. 项目介绍
 
-dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，把 MCP 服务器的配置与生命周期管理收进「设置 → MCP」页面，基于 MIT 协议开源。主要能力如下：
+dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供四个功能：MCP 管理、技能管理、会话删除与自定义配置。
 
-- 在设置页统一登记、启停、编辑、删除 MCP 服务器；停用的服务器不会在启动时被拉起。
-- 支持两种传输：远程 HTTP（OAuth PKCE + 动态客户端注册、静态 Bearer Token，或无鉴权），以及本地 stdio 进程。无鉴权模式不发送 `Authorization` 头，适合本机这类不做认证的端点（如 `http://127.0.0.1:9316/mcp`）。
-- 按工作区隔离：工作区独享的服务器写在 `<workspace>/.dsh/dshmm/mcp.json`，全局服务器也可按工作区屏蔽。工具栏作用域选择旁可一键直接打开配置文件（全局为 `~/.dsh/mcp-manager.json` 状态文件，工作区为该工作区的 `mcp.json`）。
-- 运行时可重启、关闭单个服务器的连接，长连接断开后不必重启 dsh。
-- 已连接的服务器不只知道「有几个工具」：行上是一句可点开的工具摘要（`N 个工具` + 折叠箭头），点开才列出注册的工具名——几十个工具也只是一行，不点不占地方；鼠标悬浮、或用键盘 Tab 到某个工具名，会弹出该工具在服务端声明的原始描述与入参，含每个参数的名称、类型、是否必填与说明。浮层可以走进去看（内容长时可滚动），点它也不会消失，文字可以直接选中复制——选中后浮层会留到下一次鼠标移动；只有鼠标离开浮层和工具行才收走。
-- 可选的按需工具代理（broker）：开启后 MCP 仅暴露 search、describe、execute 三个工具，避免大量工具污染上下文。
-- 「设置 → MCP → 高级」可配置工具调用超时（默认 60000 毫秒，范围 1000～1800000）：只作用于 `tools/call`，连接阶段（`initialize` / `tools/list`）仍是固定 60 秒；保存后立即生效，不需要重连服务器，也不需要重启 dsh。
-- 「设置 → 自定义设置」页收拢 DSH 里那些值得单独调、又不常改的配置，一个标签页一块：「模型重试」为每个已注册的提供方路由配置模型请求失败后的自动重试——模式（normal / always）、重试次数、退避间隔与抖动比例；「其他设置」先列出后续准备接入的配置项。写入的是 dsh 自己的 `settings.yaml` 对应配置段（`llm-pi-ai.providers.<路由>.retryPolicy`、`llm-deepseek.retryPolicy` 等），保存后立即生效、不需要重启 dsh；路由不在此页新增或删除，重试策略只跟随已注册的提供方。
-- 会话窗口右上角提供「删除会话」按钮：dsh 自带的「归档会话」只是把会话从列表里隐藏，日志仍留在磁盘上；该按钮会真正删掉当前会话的本地数据——会话目录（全部日志世代与写锁）、投影缓存行、该会话的溢出文件目录——随后侧边栏条目同步消失，并在原会话所属工作区直接开好一个新会话（等同 dsh 自带的「新会话」，不必再选一次工作区），全程局部更新、不刷新页面。
-- 「设置 → Skills」把 Agent Skills 收进同一套设置页，目录选择器分两栏（与 MCP 页同款：用户一枚显示器图标、项目一枚文件夹图标，鼠标悬浮弹出绝对路径）：
-  - **用户**：**两个 home 一档**，选择器里就叫「用户」（悬浮显示两个绝对路径），内部以两个标签页分开（`~/.dsh` / `~/.agents`，与「自定义设置」页共用同一个标签组件）——一次请求读齐两个目录，页面按目录分栏，目录分得清、又不用在两档之间来回切换；
-  - **项目**：**每个工作区一档**，名字用 dsh 自己存的 title（`$DSH_HOME/storages/workspace.json`，改名后跟着变），不是文件夹名。选中后项目下的两个技能目录（`.dsh/skills` 与 `.agents/skills`）**以两个标签页分开显示**：一次请求读齐两个目录，页面按目录分栏，默认落在 `.dsh`，路径行与计数都跟着活动标签走。
+#### 2.1 MCP 管理
 
-  两种视图的读法一致：两边标签都是**固定布局**——某个技能目录还不存在时，它的标签照常显示，空态提示「暂未安装技能」并给出路径，而不是整块消失（项目根取的是**最近的带 `.git` 的祖先目录**，dsh 自己的规则，因此工作区目录本身不一定就是项目根）；列表上方写出的就是**这次实际读的目录**（即活动标签所在的目录），所以"看到的"和"读到的"永远对得上。右侧搜索框按名称、描述、适用场景与分组过滤，紧挨着它的是刷新按钮（立即重读当前视图，不等下一次自动刷新）。列表每行给出技能名、一句描述，以及它身上的标记：所在分组（嵌套技能）、`链接`、`已停用`。**点击整行**打开详情对话框（描述、适用场景、状态、调用方式、分组、根目录、文件路径，链接安装的技能另有实际路径）；行尾是**启停开关**与移除按钮。
-- 两个操作都按「名称 + 目录 + 项目 + 分组」四件事定位，且宿主要拿一份**新扫描**去解析它们，页面上过期的信息只会查不到，不会写到同名的另一个身上（同名技能在别的目录、别的分组里都是另一条）。移除前弹确认框，框里列出根目录与**将要删除的那个文件/目录**；启停则是把头部在 `SKILL.md` ↔ `SKILL.md.disabled` 之间**原地改名**——dsh 只认 `SKILL.md`（单文件技能只认 `*.md`），所以停用后 agent 不再加载它，但文件还在磁盘上、这一页照常列出并可随时启用，比"删掉再重建"温和得多。
-- 这一页直接扫描上面那四个根目录，而不是读 dsh 的技能注册表：web profile 里宿主层的 `skill-filesystem` 被关闭（本地发现按设计交给了各个 agent preset），宿主侧读不到这些目录，而这一页本来管的也正是磁盘上的这些目录。扫描比官方 provider 多做三件事：**跟随软连接与 Windows junction**（列出、可启停、可移除，行上标「链接」；详情里同时给出「文件路径」与解析后的「实际路径」，移除链接安装的技能时只删链接本身、**绝不穿过链接删除它指向的目录**）；**读取嵌套技能**（`<根>/<分组>/<技能>/SKILL.md`，官方只看一层，分组名显示在行上、也是定位的一部分）；**列出已停用的技能**（官方不认 `.disabled`，这一页认，否则停用后就再也看不见了）。列表每 3 秒自动刷新一次，工具栏上的刷新按钮可随时主动读取（两者走的是同一条读路径：文件未变则复用已解析的头部、不重复读盘）；没有「新建」——技能是磁盘上的目录与 `SKILL.md`，本插件不代写它们。
-- 一处要留意的差别：技能目录是链接时，**启停作用于链接指向的那个目录**（头部就一个文件，所以对每个引用它的目录同时生效），而**移除只摘掉本目录里的链接**。这也是详情里同时给出「文件路径」和「实际路径」的原因——要动的是哪个文件，一眼能看出来。
+「设置 → MCP」页统一登记、启停、编辑、删除 MCP 服务器，停用的服务器不会在启动时被拉起：
 
-> [!NOTE]
-> 「删除会话」清理的是**属于该会话自己的数据**。图片与文件附件按内容哈希存放在 `~/.dsh/attachments` 下，同一个字节可能被多个会话引用，删掉会破坏其他会话的历史，因此不在删除范围内（dsh 本身也没有附件引用计数或回收机制）。
+- **传输**：远程 HTTP 支持 OAuth PKCE + 动态客户端注册、静态 Bearer Token 与无鉴权三种认证，无鉴权模式不发送 `Authorization` 头，适合本机这类不做认证的端点（如 `http://127.0.0.1:9316/mcp`）；本地 stdio 直接拉起子进程。
+- **工作区隔离**：工作区独享的服务器写在 `<workspace>/.dsh/dshmm/mcp.json`，全局服务器也可按工作区屏蔽；作用域选择旁可一键打开当前生效的配置文件（全局为 `~/.dsh/mcp-manager.json` 状态文件，工作区为该工作区的 `mcp.json`）。
+- **运行时控制**：可重启或关闭单个服务器的连接，长连接断开后不必重启 dsh。
 
-确认框会先列出这次要删的东西：会话 ID、标题、工作目录、创建时间，以及三个存储位置（会话目录、投影缓存、溢出文件）各自的**实测**占用与文件数、合计大小。这些数字来自宿主端的**干跑**——与真正删除走同一套路径解析与前置校验（未挂载、子代理、正在运行等），因此不会出现"确认框说能删、点下去被拒"或"显示的大小与实删不一致"。干跑在打开确认框**之前**完成，所以确认框一次成型，不会先占位再撑开（避免视觉抖动）。
+##### 2.1.1 工具清单
 
-按钮悬停时的提示气泡也是 dsh 界面里那一个：直接复用宿主平台的 `Tooltip` 组件（`@deepseek-ai/dsh-client-ui-primitives`，与标题栏右侧按钮同款），因此默认弹在按钮正下方，靠近视口左右边缘时自动内收、下方空间不足时翻到上方，不会被切掉；配色、动画与延迟也跟宿主保持一致。宿主模块表里没有该模块时退回浏览器原生的 `title` 提示，按钮功能不受影响。
+已连接的服务器不只知道「有几个工具」：
 
-插件分为宿主端与浏览器端两半，均以 TypeScript 编写：宿主端挂载 `/mcp-manager/api` 路由、管理 MCP 连接与工作区作用域，浏览器端负责渲染设置页与会话窗口中的删除按钮，两者通过同一组 API 通信。
+- 行上是一句可点开的工具摘要（`N 个工具` + 折叠箭头），点开才列出注册的工具名——几十个工具也只是一行，不点不占地方。
+- 鼠标悬浮、或用键盘 Tab 到某个工具名，弹出该工具在服务端声明的原始描述与入参（参数名、类型、是否必填与说明）；浮层可滚动、可走进去看，点它不会消失，文字可直接选中复制。
+
+##### 2.1.2 按需工具代理
+
+「设置 → MCP」页提供「按需 MCP 工具调用」开关（可选）：开启后该 MCP 仅暴露 search、describe、execute 三个 broker 工具，避免几十个工具一次性占满上下文。
+
+##### 2.1.3 工具调用超时
+
+「设置 → MCP → 高级」可配置工具调用超时，默认 60000 毫秒，范围 1000～1800000：
+
+- 只作用于 `tools/call`；连接阶段（`initialize` / `tools/list`）仍是固定 60 秒。
+- 保存后立即生效，不需要重连服务器，也不需要重启 dsh。
+
+#### 2.2 技能管理
+
+「设置 → Skills」把 Agent Skills 收进同一套设置页，目录选择器分两栏：
+
+- **用户**：两个 home 一档（`~/.dsh` 与 `~/.agents`），选择器里就叫「用户」，内部以两个标签页分开，一次请求读齐两个目录。
+- **项目**：每个工作区一档，名字用 dsh 自己存的 title（不是文件夹名）；选中后项目下的 `.dsh/skills` 与 `.agents/skills` 以两个标签页分开显示。
+- **列表与操作**：顶部写出的就是这次实际读的目录；搜索框按名称、描述、适用场景与分组过滤，紧挨着它的刷新按钮可立即重读，不等下一次轮询。每行给出技能名、一句描述与所在分组、`链接`、`已停用` 等标记，点击整行打开详情（描述、适用场景、状态、调用方式、分组、根目录、文件路径），行尾是启停开关与移除按钮；列表每 3 秒自动刷新一次。
+- **启停与移除**：启停是把头部在 `SKILL.md` ↔ `SKILL.md.disabled` 之间原地改名——dsh 只认 `SKILL.md`（单文件技能只认 `*.md`），所以停用后 agent 不再加载它，但文件仍留在磁盘上；移除前弹确认框，框里列出将要删除的那个文件或目录。
+- **直接读磁盘**：这一页扫描那四个根目录而非 dsh 的技能注册表，并比官方 provider 多做三件事——跟随软链接与 Windows junction（移除只摘掉链接本身，绝不穿过链接删除目标）、读取嵌套技能（`<根>/<分组>/<技能>/SKILL.md`）、列出已停用的技能。
+
+#### 2.3 删除会话
+
+会话窗口右上角提供「删除会话」按钮。dsh 自带的「归档会话」只是把会话从列表里隐藏、日志仍留在磁盘上，这个按钮会真正删掉当前会话的本地数据：
+
+- 删除范围是会话目录（全部日志世代与写锁）、投影缓存行与该会话的溢出文件目录，随后侧边栏条目同步消失，并在原工作区直接开好一个新会话（不必再选一次工作区），全程局部更新、不刷新页面。
+- 确认框先列出这次要删的东西：会话 ID、标题、工作目录、创建时间，以及三个存储位置各自的**实测**占用与文件数、合计大小。这些数字来自宿主端的干跑，与真正删除走同一套路径解析与前置校验，因此不会出现「确认框说能删、点下去被拒」或「显示的大小与实删不一致」。
+- 图片与文件附件按内容哈希存放在 `~/.dsh/attachments` 下，同一个字节可能被多个会话引用，删掉会破坏其他会话的历史，因此不在删除范围内。
+- 按钮悬停时的气泡也是 dsh 界面里那一个：复用宿主平台的 `Tooltip` 组件（`@deepseek-ai/dsh-client-ui-primitives`，与标题栏右侧按钮同款），配色、动画与延迟跟宿主一致；宿主模块表里没有该模块时退回浏览器原生的 `title`，按钮功能不受影响。
+
+#### 2.4 自定义配置
+
+「设置 → 自定义设置」页收拢 dsh 里那些值得单独调、又不常改的配置，一个标签页一块：
+
+- 「模型重试」为每个已注册的提供方路由配置模型请求失败后的自动重试——模式（normal / always）、重试次数、退避间隔与抖动比例；「其他设置」先列出后续准备接入的配置项。
+- 写入的是 dsh 自己的 `settings.yaml` 对应配置段（`llm-pi-ai.providers.<路由>.retryPolicy`、`llm-deepseek.retryPolicy` 等），保存后立即生效、不需要重启 dsh；路由不在此页新增或删除，重试策略只跟随已注册的提供方。
 
 ### 3. 图标来源
 
-插件的图标不从图标库引入运行时依赖，而是把上游的 SVG 数据逐字移植进 [`src/client/platform/icons/`](src/client/platform/icons/)（多个页面共用的字形）与各特性的 `icons/` 目录（只有一个页面画的字形）：每个图标一个文件、以图标名命名，文件头部注明上游库、版本与许可。当前用到的图标如下：
+插件的图标不从图标库引入运行时依赖，而是把上游的 SVG 数据内联进 [`src/client/platform/icons/`](src/client/platform/icons/)（多个页面共用的字形）与各特性的 `icons/` 目录（只有一个页面画的字形）：每个图标一个文件、以图标名命名，文件头部注明上游库、版本与许可。来源主要两处：
 
-- `cable`：来自 [lucide](https://lucide.dev) 的同名图标，版本 v0.261.0（中文镜像站为 [lucide.nodejs.cn](https://lucide.nodejs.cn)）；用于设置导航栏「MCP」一行的字形，见 [`CableIcon.tsx`](src/client/features/mcp/icons/CableIcon.tsx)、[`styles.ts`](src/client/features/mcp/styles.ts) 的 `MCP_NAV_ICON_CSS` 与平台层的 [`settings-nav.css`](src/client/platform/style/settings-nav.css)。
-- `loader-2`：同样来自 lucide v0.261.0（后续版本更名为 `loader-circle`）；是连接中/授权中的旋转弧线，由状态点在过渡态渲染，见 [`LoaderIcon.tsx`](src/client/platform/icons/LoaderIcon.tsx) 与 [`spin.css`](src/client/platform/style/spin.css) 的 `mm_statusSpin`。
-- `trash`（`ic_ds_trash_outline_16`）：来自宿主自带的 `@deepseek-ai/dsh-client-ui-primitives` 0.1.5-rc.2（MIT，© 2026 DeepSeek）；用于会话窗口右上角的删除会话按钮，见 [`TrashIcon.tsx`](src/client/features/session-delete/icons/TrashIcon.tsx) 与 [`SessionDeleteButton.tsx`](src/client/features/session-delete/SessionDeleteButton.tsx)。
-- `wand-sparkles`：来自 lucide 的同名图标（中文镜像站为 [lucide.nodejs.cn](https://lucide.nodejs.cn)）；用于设置导航栏「Skills」一行的字形，见 [`WandSparklesIcon.tsx`](src/client/features/skills/icons/WandSparklesIcon.tsx) 与 [`styles.ts`](src/client/features/skills/styles.ts) 的 `SKILLS_NAV_ICON_CSS`。
-- `search`（`IconSearchOutline16`，来自宿主自带的 `@deepseek-ai/dsh-client-ui-primitives` 0.1.5-rc.2）与 `x`（lucide）：MCP 页与 Skills 页的搜索框共用同一个放大镜与清空按钮，因此两个字形都放在平台层 [`platform/icons/`](src/client/platform/icons/) 下，由两个页面一起引用。
-- `monitor`（`IconFollowsystemOutline16`）、`folder`（`IconFolderOpenOutline16`）、`chevron-down`（`IconChevronDownOutline14`）与 `check`（`IconCheckOutline16`）：同样来自 `@deepseek-ai/dsh-client-ui-primitives`，是作用域选择器的字形（全局 / 项目 / 展开箭头 / 选中打勾）；两页都在用，也放在平台层 [`platform/icons/`](src/client/platform/icons/) 下。选择器本体同样是平台层的：手写的图标下拉框在 [`platform/ui/IconSelect.tsx`](src/client/platform/ui/IconSelect.tsx)（选项可带图标、选中打勾、点击外部收起），它的胶囊触发器与菜单样式在 [`platform/style/picker.css`](src/client/platform/style/picker.css)，两页各只提供自己的选项表。悬浮提示气泡也是平台层的：`.mm_tip` 的样式在 [`platform/style/tip.css`](src/client/platform/style/tip.css)，气泡贴边时的位移修正由 [`platform/ui/tip.ts`](src/client/platform/ui/tip.ts) 的 `watchTipBoundaries()` 负责，两页各自挂一份。
+- [lucide](https://lucide.dev)（中文镜像站为 [lucide.nodejs.cn](https://lucide.nodejs.cn)）：导航图标、搜索与清空、刷新、连接中的弧线等。采用 ISC 许可，版权归 Lucide Contributors（2022）所有，其中部分版权归 Cole Bemis（2013 至 2022 年，源自 Feather 项目，MIT 许可）所有。
+- 宿主自带的 `@deepseek-ai/dsh-client-ui-primitives`（MIT，© 2026 DeepSeek）：删除、作用域选择器（全局 / 项目 / 展开箭头 / 选中打勾）等与 dsh 界面保持一致的字形。
 
-lucide 图标采用 ISC 许可：版权归 Lucide Contributors（2022）所有，其中部分版权归 Cole Bemis（2013 至 2022 年，源自 Feather 项目，MIT 许可）所有。
-
-后续要升级或新增图标时，回到上游图标页复制 SVG，替换对应文件里 `nodes` 的路径数据，并同步更新文件头部与本节的版本记录；图标的渲染与 CSS mask 序列化统一由 [`Icon.tsx`](src/client/components/icons/Icon.tsx) 的 `createIcon()` 与 `iconMaskDataUri()` 负责，不需要为此引入任何依赖。
+后续要升级或新增图标时，回到上游图标页复制 SVG，替换对应文件里 `nodes` 的路径数据，并同步更新文件头部；图标的渲染与 CSS mask 序列化统一由 [`Icon.tsx`](src/client/platform/icons/Icon.tsx) 的 `createIcon()` 与 `iconMaskDataUri()` 负责，不需要为此引入任何依赖。
 
 ## 二、 插件工作原理
 
@@ -153,6 +172,10 @@ export class MyService extends Service {
   }
 }
 ```
+
+### 4. 两半的分工
+
+插件分为宿主端与浏览器端两半，均以 TypeScript 编写：宿主端挂载 `/mcp-manager/api` 路由、管理 MCP 连接与工作区作用域，浏览器端负责渲染设置页与会话窗口中的删除按钮，两者通过同一组 API 通信；界面上的图标、选择器、提示气泡等共用部分都收在浏览器端的 `platform/` 层，各功能只提供自己的内容与样式。
 
 ## 三、 快速开始
 
