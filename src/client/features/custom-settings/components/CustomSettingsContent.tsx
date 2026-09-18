@@ -14,6 +14,7 @@
  */
 
 import { createTabs } from '../../../platform/ui/Tabs'
+import { createVersionBadge } from '../../../platform/ui/VersionBadge'
 import { createOtherSettingsPanel } from './OtherSettingsPanel'
 import { createRetryPanel } from './RetryPanel'
 import type { ClientDeps, Translator } from '../../../platform/types'
@@ -40,6 +41,7 @@ export function createCustomSettingsContent(
   const Tabs = createTabs(deps)
   const RetryPanel = createRetryPanel(deps)
   const OtherSettingsPanel = createOtherSettingsPanel(deps)
+  const VersionBadge = createVersionBadge(deps)
 
   /** The page's areas, in strip order. */
   const TABS: SettingsTab[] = [
@@ -58,6 +60,9 @@ export function createCustomSettingsContent(
             read it from the registration. */}
         <h2 className="cs_heading">{t('sectionLabel')}</h2>
         <p className="cs_intro">{t('sectionIntro')}</p>
+        {/* The plugin pill the settings pages share (`platform/ui/VersionBadge`),
+            after the intro line the way the other pages' identity block reads. */}
+        <VersionBadge />
         <Tabs
           ariaLabel={t('sectionLabel')}
           active={active.id}

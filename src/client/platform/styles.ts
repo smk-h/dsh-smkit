@@ -22,6 +22,7 @@ import settingsNavCss from './style/settings-nav.css'
 import spinCss from './style/spin.css'
 import tabsCss from './style/tabs.css'
 import tipCss from './style/tip.css'
+import versionBadgeCss from './style/version-badge.css'
 
 /** The platform layer's rules, in cascade order. */
 export const PLATFORM_CSS = [
@@ -32,6 +33,7 @@ export const PLATFORM_CSS = [
   spinCss,
   tabsCss,
   tipCss,
+  versionBadgeCss,
   pickerCss,
   settingsNavCss,
 ].join('\n')

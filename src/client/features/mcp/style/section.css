@@ -226,33 +226,3 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-.mm_versionBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  padding: 4px 12px 4px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  background: var(--dsw-alias-bg-layer-2);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.mm_versionBadgeName {
-  color: var(--dsw-alias-label-primary);
-  font-weight: 600;
-  text-decoration: none;
-}
-.mm_versionBadgeName:hover {
-  color: var(--dsw-alias-label-primary);
-  text-decoration: underline;
-}
-
-.mm_versionBadgeTag {
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--dsw-alias-accent-soft,var(--dsw-alias-border-l2));
-  color: var(--dsw-alias-label-secondary);
-  font-variant-numeric: tabular-nums;
-}

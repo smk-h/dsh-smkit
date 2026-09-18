@@ -32,6 +32,7 @@
 import { createClearIcon } from '../../../platform/icons/ClearIcon'
 import { createSearchIcon } from '../../../platform/icons/SearchIcon'
 import { createTabs } from '../../../platform/ui/Tabs'
+import { createVersionBadge } from '../../../platform/ui/VersionBadge'
 import { createScopeSelect } from '../ui/ScopeSelect'
 import { createSkillRow } from './SkillRow'
 import { watchTipBoundaries } from '../../../platform/ui/tip'
@@ -186,6 +187,7 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
   const Tabs = createTabs(deps)
   const SearchIcon = createSearchIcon(deps)
   const ClearIcon = createClearIcon(deps)
+  const VersionBadge = createVersionBadge(deps)
 
   return function SkillsContent({ t }: SectionProps): JSX.Element {
     const [catalog, setCatalog] = react.useState<SkillsView>(EMPTY_CATALOG)
@@ -343,6 +345,9 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
           <span>{t('count', { count: view.length })}</span>
         </div>
         <p className="sk_intro">{t('sectionIntro')}</p>
+        {/* The plugin pill the settings pages share (`platform/ui/VersionBadge`),
+            after the intro line the way the MCP page's identity block reads. */}
+        <VersionBadge />
         <div className="sk_toolbar">
           {options.length > 0 ? (
             <ScopeSelect t={t} value={selected} options={options} onChange={setSelected} />

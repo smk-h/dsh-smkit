@@ -29,9 +29,12 @@
 declare function require(id: string): any
 
 /** package.json identity, injected at build time by tsdown `define`
- * (see tsdown.config.ts); the settings section badges itself with them. */
+ * (see tsdown.config.ts); the settings pages badge themselves with them. */
 declare const __PLUGIN_NAME__: string
 declare const __PLUGIN_VERSION__: string
+/** The package's repository browse URL, derived from `repository.url` at build
+ * time; empty when the package declares none, which renders the name unlinked. */
+declare const __PLUGIN_REPO_URL__: string
 
 /** One stylesheet, as the text the build's `cssTextPlugin` compiles it to
  * (see tsdown.config.ts). The client half injects the rules itself, because a

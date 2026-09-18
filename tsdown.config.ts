@@ -49,15 +49,25 @@ const CLIENT_EXTERNALS = ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-prim
 
 /**
  * The package identity, read once: the ModuleLoader id and the `__PLUGIN_NAME__`
- * / `__PLUGIN_VERSION__` defines the client badge renders all derive from
- * package.json, so a rename or version bump is a one-line change with nothing
- * to drift.
+ * / `__PLUGIN_VERSION__` / `__PLUGIN_REPO_URL__` defines the client badge
+ * renders all derive from package.json, so a rename or version bump is a
+ * one-line change with nothing to drift.
  */
-const { name, version } = JSON.parse(
+const { name, version, repository } = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
-) as { name: string; version: string }
+) as { name: string; version: string; repository?: { url?: string } }
 
 const PLUGIN_ID = name
+
+/**
+ * The browse URL the badge's name link points at, from package.json's
+ * `repository.url`: a `git+https` URL loses its transport prefix and `.git`
+ * tail. Empty when the package declares no repository, which the badge reads
+ * as "render the name without a link".
+ */
+const PLUGIN_REPO_URL = (repository?.url ?? '')
+  .replace(/^git\+/, '')
+  .replace(/\.git$/, '')
 
 /**
  * Virtual-id wrapper keeping module CSS away from tsdown's own css pipeline.
@@ -121,6 +131,7 @@ export default {
   define: {
     __PLUGIN_NAME__: JSON.stringify(name),
     __PLUGIN_VERSION__: JSON.stringify(version),
+    __PLUGIN_REPO_URL__: JSON.stringify(PLUGIN_REPO_URL),
   },
   entry: { client: 'src/client/entry.ts' },
   outDir: 'lib',

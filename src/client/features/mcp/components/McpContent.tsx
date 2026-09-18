@@ -39,6 +39,7 @@ import { createScopeSelect } from '../ui/ScopeSelect'
 import { createServerRow } from './ServerRow'
 import { createToolTimeoutForm } from './ToolTimeoutForm'
 import { createSwitch } from '../ui/Switch'
+import { createVersionBadge } from '../../../platform/ui/VersionBadge'
 import { watchRowWrap } from '../ui/rowWrap'
 import { watchTipBoundaries } from '../../../platform/ui/tip'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
@@ -65,13 +66,6 @@ interface StatusPreview {
   at: number
 }
 
-/** The plugin's own identity for the section header; the name links to the
- * repo. Name and version are tsdown defines read from package.json
- * (`__PLUGIN_NAME__` / `__PLUGIN_VERSION__`), so the badge cannot drift from
- * the package. */
-const PLUGIN_NAME = __PLUGIN_NAME__
-const PLUGIN_REPO_URL = 'https://github.com/smk-h/dsh-smkit'
-
 /** The label the scope picker shows for a workspace: its last path segment,
  * falling back to the whole path when there is no separator to split on.
  * Both separators count — the host hands out native paths, so on Windows a
@@ -94,6 +88,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
   const ClearIcon = createClearIcon(deps)
   const Settings2Icon = createSettings2Icon(deps)
   const ToolTimeoutForm = createToolTimeoutForm(deps)
+  const VersionBadge = createVersionBadge(deps)
 
   return function McpContent({ t }: SectionProps): JSX.Element {
     const [servers, setServers] = react.useState<ServerView[]>([])
@@ -137,24 +132,13 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     }
 
     // The section's identity block, shown above every view: one intro line,
-    // then the plugin pill (clickable name + version tag), so the page stays
-    // attributable at a glance. `__PLUGIN_VERSION__` is a tsdown build-time
-    // define of package.json's version.
+    // then the plugin pill (`platform/ui/VersionBadge`, shared with the other
+    // settings pages), so the page stays attributable at a glance.
     const identityHeader: JSX.Element[] = [
       <p className="mm_intro" key="intro">
         {t('sectionIntro')}
       </p>,
-      <div className="mm_versionBadge" key="badge">
-        <a
-          className="mm_versionBadgeName"
-          href={PLUGIN_REPO_URL}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {PLUGIN_NAME}
-        </a>
-        <span className="mm_versionBadgeTag">v{__PLUGIN_VERSION__}</span>
-      </div>,
+      <VersionBadge key="badge" />,
     ]
 
     /** The root crumb every sub-view's breadcrumb starts from: the list view
