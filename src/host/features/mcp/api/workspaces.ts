@@ -109,8 +109,8 @@ export const handleWorkspaces: McpHandler = async (req, res, facts, api) => {
       sendJson(res, 409, { error: `a server named ${name} already exists in this workspace` })
       return true
     }
-    if (api.workspaces.serverNameTaken(name, canonical)) {
-      sendJson(res, 409, { error: `a server named ${name} already exists (global or in another workspace)` })
+    if (api.workspaces.globalNameTaken(name)) {
+      sendJson(res, 409, { error: `a server named ${name} already exists as a global server` })
       return true
     }
     raw.mcpServers = raw.mcpServers && typeof raw.mcpServers === 'object' && !Array.isArray(raw.mcpServers)
@@ -162,8 +162,8 @@ export const handleWorkspaces: McpHandler = async (req, res, facts, api) => {
         sendJson(res, 409, { error: `a server named ${name} already exists in this workspace` })
         return true
       }
-      if (api.workspaces.serverNameTaken(name, canonical)) {
-        sendJson(res, 409, { error: `a server named ${name} already exists (global or in another workspace)` })
+      if (api.workspaces.globalNameTaken(name)) {
+        sendJson(res, 409, { error: `a server named ${name} already exists as a global server` })
         return true
       }
     }

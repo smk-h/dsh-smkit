@@ -81,7 +81,14 @@ export interface WorkspaceManager {
   /** Runtime-only stop: drop the transport, keep the row; false when not live. */
   stopWorkspaceServer(wsPath: string, name: string): boolean
   closeWorkspaceWatchers(ws: WorkspaceRuntime): void
-  serverNameTaken(name: string, exceptWsPath?: string): boolean
+  /** The global tier's own rule; see the implementation's note. */
+  serverNameTaken(name: string): boolean
+  /**
+   * The workspace tier's own rule: whether a **global** server already uses
+   * `name`. Another workspace's server of the same name is deliberately not a
+   * conflict — see the implementation's note.
+   */
+  globalNameTaken(name: string): boolean
   findServerById(id: string): FoundServer | null
 }
 
@@ -92,14 +99,36 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     return (runtime.state.workspaceTokens ?? {}) as Record<string, { oauth?: unknown }>
   }
 
-  /** A server name is globally unique across the global tier and every workspace. */
-  function serverNameTaken(name: string, exceptWsPath?: string): boolean {
+  /**
+   * The **global tier's** own rule: a name is taken once another global server
+   * holds it, or once a live workspace does.
+   *
+   * It carries the workspace half of the rule because a global server's tools
+   * are registered into the shared root registry — every agent sees them — so a
+   * live workspace already answering to `name` would put two `mcp__<name>__*`
+   * surfaces in front of that workspace's agents at once.
+   */
+  function serverNameTaken(name: string): boolean {
     if (runtime.state.servers.some((server) => server.name === name)) return true
-    for (const [path, other] of runtime.workspaces) {
-      if (path === exceptWsPath) continue
+    for (const other of runtime.workspaces.values()) {
       for (const otherName of other.servers.keys()) if (otherName === name) return true
     }
     return false
+  }
+
+  /**
+   * The **workspace tier's** only rule: a workspace server may not reuse a
+   * **global** server's name.
+   *
+   * That is the whole of it. A name another workspace already uses is not a
+   * conflict, and deliberately so: a workspace server's tools are registered
+   * into *its own* agents' tool registries (`WorkspaceScope`), while the global
+   * tier's live in the shared root registry. Two workspaces may therefore both
+   * declare `foo` and run two isolated connections, because no agent ever sees
+   * both surfaces.
+   */
+  function globalNameTaken(name: string): boolean {
+    return runtime.state.servers.some((server) => server.name === name)
   }
 
   function ensureWorkspace(wsPath: string, rawPath: string): WorkspaceRuntime {
@@ -303,7 +332,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     let changed = excludeChanged || errorChanged
     const desired = new Map<string, { conflict: boolean; server: ServerConfig }>()
     for (const server of config.servers) {
-      desired.set(server.name, { conflict: serverNameTaken(server.name, wsPath), server })
+      desired.set(server.name, { conflict: globalNameTaken(server.name), server })
     }
     let tokensDropped = false
     for (const [name, conn] of ws.servers) {
@@ -328,7 +357,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
             server: entry.server,
             handle: null,
             status: 'conflict',
-            error: `server name "${name}" is already used by another source`,
+            error: `server name "${name}" is already used by a global server`,
             toolCount: 0,
             tools: [],
             call: () => Promise.reject(new Error('conflict')),
@@ -659,6 +688,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     stopWorkspaceServer,
     closeWorkspaceWatchers,
     serverNameTaken,
+    globalNameTaken,
     findServerById,
   }
 }
