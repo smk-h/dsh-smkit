@@ -18,10 +18,11 @@
  *
  * Inside a view: a search box, one row per skill, and exactly two actions,
  * enable/disable and remove. Like the MCP section the page re-polls every three
- * seconds, because skills are files: something added, edited, enabled or deleted
- * outside the page (or by hand in a shell) shows up without a reload. The scan
- * the host runs is what makes the page agree with the disk rather than with a
- * provider's cache.
+ * seconds, since skills are files: something added, edited, enabled or deleted
+ * outside the page (or by hand in a shell) shows up without a reload. The
+ * toolbar's refresh button is the same read on demand, for the times a user does
+ * not want to wait out the tick. Either way the scan the host runs is what makes
+ * the page agree with the disk rather than with a provider's cache.
  *
  * Scope is part of the request rather than a client-side sift, and it is a
  * per-scope query map, so each scope keeps its own text. A removal is optimistic
@@ -31,6 +32,7 @@
 
 import { createClearIcon } from '../../../platform/icons/ClearIcon'
 import { createSearchIcon } from '../../../platform/icons/SearchIcon'
+import { createRefreshButton } from '../../../platform/ui/RefreshButton'
 import { createTabs } from '../../../platform/ui/Tabs'
 import { createVersionBadge } from '../../../platform/ui/VersionBadge'
 import { createScopeSelect } from '../ui/ScopeSelect'
@@ -188,6 +190,9 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
   const SearchIcon = createSearchIcon(deps)
   const ClearIcon = createClearIcon(deps)
   const VersionBadge = createVersionBadge(deps)
+  // The platform layer's own refresh control: same glyph, bubble and pending
+  // turn as any page that later reads something re-readable.
+  const RefreshButton = createRefreshButton(deps)
 
   return function SkillsContent({ t }: SectionProps): JSX.Element {
     const [catalog, setCatalog] = react.useState<SkillsView>(EMPTY_CATALOG)
@@ -206,15 +211,19 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
     // against a scan taken before the delete), so these keys hide it until an
     // answer no longer reports it.
     const [removed, setRemoved] = react.useState<string[]>([])
+    // Whether a read the user asked for by hand is still in flight; the timer's
+    // own polls never set it, so the button only turns for a click.
+    const [refreshing, setRefreshing] = react.useState(false)
 
     // The view is an argument, not a closure over state: the poll below restarts
     // on every selection change (which is also what refetches immediately), so
-    // the callback itself can stay identity-stable.
+    // the callback itself can stay identity-stable. It answers with the read it
+    // started, which is what the manual refresh below waits on.
     const refresh = react.useCallback((value: string) => {
       // An empty value is the default view: the host answers with the first user
       // root and names it, which is how a page that opens before it knows the
       // menu still gets a list in the same round trip.
-      Promise.all([api(`/skills${scopeQuery(value)}`), api('/skills/workspaces')])
+      return Promise.all([api(`/skills${scopeQuery(value)}`), api('/skills/workspaces')])
         .then(([catalogResult, scopesResult]) => {
           const answered =
             catalogResult.ok && typeof catalogResult.body.source === 'string'
@@ -266,6 +275,16 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
       refresh(selected)
       const timer = setInterval(() => refresh(selected), REFRESH_INTERVAL_MS)
       return () => clearInterval(timer)
+    }, [refresh, selected])
+
+    // The manual read: the same call the poll makes, on demand. The turn lasts
+    // exactly as long as that read, and `refresh` settles even when the request
+    // fails, so the pending state cannot stick. The timer is deliberately left
+    // running rather than restarted, so the wait after a click is never longer
+    // than the period.
+    const manualRefresh = react.useCallback(() => {
+      setRefreshing(true)
+      refresh(selected).finally(() => setRefreshing(false))
     }, [refresh, selected])
 
     const options = buildOptions(scopes, t)
@@ -353,27 +372,34 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
             <ScopeSelect t={t} value={selected} options={options} onChange={setSelected} />
           ) : null}
           <span className="sk_toolbarSpacer" aria-hidden="true" />
-          <label className="sk_search">
-            <SearchIcon size={14} />
-            <input
-              type="search"
-              value={query}
-              placeholder={t('search')}
-              aria-label={t('search')}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            {query ? (
-              <button
-                className="sk_searchClear"
-                type="button"
-                aria-label={t('clearSearch')}
-                title={t('clearSearch')}
-                onClick={() => setQuery('')}
-              >
-                <ClearIcon size={12} />
-              </button>
-            ) : null}
-          </label>
+          {/* The search box and the refresh button travel as one cluster — the
+              shape the MCP toolbar's search and add button already have — so a
+              narrow row moves both to the next line instead of leaving a lone
+              28px button behind. */}
+          <div className="sk_toolbarActions">
+            <label className="sk_search">
+              <SearchIcon size={14} />
+              <input
+                type="search"
+                value={query}
+                placeholder={t('search')}
+                aria-label={t('search')}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {query ? (
+                <button
+                  className="sk_searchClear"
+                  type="button"
+                  aria-label={t('clearSearch')}
+                  title={t('clearSearch')}
+                  onClick={() => setQuery('')}
+                >
+                  <ClearIcon size={12} />
+                </button>
+              ) : null}
+            </label>
+            <RefreshButton busy={refreshing} onClick={manualRefresh} />
+          </div>
         </div>
         {tabbed ? (
           <Tabs

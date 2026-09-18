@@ -66,12 +66,13 @@ export interface SkillScan {
 }
 
 /**
- * One file's header, remembered between polls. The page re-reads the roots
- * every three seconds; a skill file that has not changed (same size, same
- * modification time) is served from here instead of being read and parsed
- * again. Bounded because a long-running host could otherwise accumulate an
- * entry per path it ever saw — dropping the whole map is the cheapest correct
- * eviction, and a rebuild costs one pass over the roots.
+ * One file's header, remembered between reads. The page re-reads the roots on
+ * its timer (three seconds) and whenever its refresh button is clicked; a skill
+ * file that has not changed (same size, same modification time) is served from
+ * here instead of being read and parsed again. Bounded because a long-running
+ * host could otherwise accumulate an entry per path it ever saw — dropping the
+ * whole map is the cheapest correct eviction, and a rebuild costs one pass over
+ * the roots.
  */
 const headerCache = new Map<string, { mtimeMs: number; size: number; header: SkillFrontmatter | null }>()
 const HEADER_CACHE_LIMIT = 512

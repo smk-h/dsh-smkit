@@ -1,7 +1,10 @@
 /**
  * Page shell for the Skills section (SkillsContent): the container, its heading
- * and count, the toolbar (directory picker, search box, spacer), the shown
- * directory's path line and the standalone note lines.
+ * and count, the toolbar (directory picker, spacer, search box and the shared
+ * refresh button), the shown directory's path line and the standalone note
+ * lines. The refresh button itself is the platform layer's
+ * (`platform/ui/RefreshButton`, painted by `platform/style/refresh-button.css`);
+ * only the cluster that positions it is this page's.
  *
  * Classes are namespaced `sk_*`, deliberately not the MCP page's `mm_*` nor the
  * custom-settings page's `cs_*`: the three are separate owners and may only
@@ -71,11 +74,24 @@
   min-width: 0;
 }
 
-/* The right-hand pull for the search, as its own flex item rather than an auto
- * margin on the box: an auto margin would push a wrapped search to the right of
- * its own line too. */
+/* The right-hand pull for the search box, as its own flex item rather than an
+ * auto margin on the cluster below: an auto margin would push a wrapped cluster
+ * to the right of its own line too. */
 .sk_toolbarSpacer {
   flex: 1 1 0;
+}
+
+/* The search box and the refresh button, wrapped as one flex item so the pair
+ * moves to the next line together — the MCP toolbar's `.mm_toolbarActions` in
+ * this page's own namespace. `min-width: 0` waives the automatic minimum (the
+ * content's intrinsic width), which is what lets a narrow panel squeeze the
+ * search box down to its own floor instead of overflowing the section. */
+.sk_toolbarActions {
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  display: flex;
 }
 
 .sk_search {

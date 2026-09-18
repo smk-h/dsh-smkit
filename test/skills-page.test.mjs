@@ -230,6 +230,11 @@ function mount() {
     fetch: stubFetch(calls),
     setInterval: () => 1,
     clearInterval: () => {},
+    // The refresh button schedules the end of the busy floor it holds. Nothing
+    // here runs a clock — what is asserted about it is the click, which is what
+    // opens the face — so the timer only has to exist.
+    setTimeout: () => 1,
+    clearTimeout: () => {},
   })
   exported.apply({
     effect(fn) { fn() },
@@ -392,6 +397,31 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
   pick((node) => node.props?.['aria-label'] === 'clearSearch').props.onClick()
   again()
   assert.doesNotMatch(view(), /searchEmpty/)
+
+  // The toolbar's refresh button is the poll's own read, on demand: the same
+  // pair of requests, without waiting out the timer or reloading the page. At
+  // rest it is the refresh arrow…
+  const refreshButton = () => pick((node) => node.props?.['aria-label'] === 'refresh')
+  /** How many elements the button's glyph draws, expanded as React would. */
+  const glyphOf = (button) => {
+    const icon = button.children[0]
+    return icon.type(icon.props).children.length
+  }
+  assert.equal(glyphOf(refreshButton()), 4, 'the arrow is the resting glyph')
+  const callsBeforeRefresh = app.calls.length
+  refreshButton().props.onClick()
+  again()
+  // …and the click answers itself: the button is busy and locked before the host
+  // has answered anything, showing the platform's spinner instead of the arrow.
+  // A read that comes back in a millisecond would otherwise pass as a flicker.
+  assert.equal(refreshButton().props['data-busy'], 'true')
+  assert.equal(refreshButton().props.disabled, true, 'and it does not take a second click')
+  assert.equal(glyphOf(refreshButton()), 1, 'the arrow gives way to the spinner arc')
+  await settle()
+  assert.equal(app.calls.length, callsBeforeRefresh + 2, 'a refresh reads the view and the menu')
+  assert.match(app.calls.at(-2).url, /\/skills(\?|$)/)
+  assert.match(app.calls.at(-1).url, /\/skills\/workspaces$/)
+  again()
 
   // The remove button confirms with the facts, then deletes by name, root and
   // group — the host re-resolves all of them inside that one root.
