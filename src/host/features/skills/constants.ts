@@ -51,6 +51,18 @@ export const USER_SOURCES: readonly string[] = ['user-dsh', 'user-agents']
 export const PROJECT_SOURCES_LIST: readonly string[] = ['project-dsh', 'project-agents']
 
 /**
+ * The pseudo-source the user side's merged view answers with.
+ *
+ * The user side reads like the project side now: one picker entry, two tabs.
+ * The answer still names each row's own root (`user-dsh`, `user-agents`),
+ * which is what writes are addressed by — this name only says "the view was
+ * the user side", never a root that could be written to. It is deliberately
+ * not a key of `skillRoots`, so a request that names it as a source is
+ * refused.
+ */
+export const USER_SCOPE = 'user'
+
+/**
  * The pseudo-source a project's merged view answers with.
  *
  * A project is one entry in the picker, so its two roots are read together; the

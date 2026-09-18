@@ -2,13 +2,13 @@
  * The Skills page, driven through the real client bundle in a hook harness.
  *
  * What is checked is the page's shape as a user meets it: the first answer is
- * rendered (names, descriptions, a nested skill's group, a disabled skill's
- * marker), the picker offers the two user homes separately and every project as
- * one entry named the way the session list names it, a project answers with the
- * skills of its own directories merged (each row marked with the one it came
- * from), the switch posts the state it shows, the detail dialog opens straight
- * from the row's data, and both writes address the skill by name, root, project
- * and group — never by a path the page invented.
+ * the merged user view (names, descriptions, a nested skill's group, a disabled
+ * skill's marker) shown under two tabs, the picker offers the user side as one
+ * entry and every project as one entry named the way the session list names it,
+ * a project's two skill directories show as two tabs over one request's answer,
+ * the switch posts the state it shows, the detail dialog opens straight from
+ * the row's data, and both writes address the skill by name, root, project and
+ * group — never by a path the page invented.
  *
  * The translator is the identity, so every assertion about copy names the
  * dictionary key; the names, paths and descriptions below come from the fetch
@@ -63,6 +63,7 @@ const VIEWS = {
     source: 'user-dsh',
     root: USER_ROOT,
     roots: [USER_ROOT],
+    absentRoots: [],
     skills: [
       skill({
         name: 'demo',
@@ -98,6 +99,7 @@ const VIEWS = {
     source: 'user-agents',
     root: AGENTS_ROOT,
     roots: [AGENTS_ROOT],
+    absentRoots: [],
     skills: [
       skill({
         name: 'agents-only',
@@ -114,6 +116,7 @@ const VIEWS = {
     source: 'project',
     root: PROJECT,
     roots: [PROJECT_DSH, PROJECT_AGENTS],
+    absentRoots: [PROJECT_AGENTS],
     skills: [
       skill({
         name: 'proj-in-dsh',
@@ -123,18 +126,21 @@ const VIEWS = {
         path: `${PROJECT_DSH}/proj-in-dsh/SKILL.md`,
         realPath: `${PROJECT_DSH}/proj-in-dsh/SKILL.md`,
       }),
-      skill({
-        name: 'proj-in-agents',
-        description: 'From the project’s .agents',
-        source: 'project-agents',
-        scope: 'project',
-        path: `${PROJECT_AGENTS}/proj-in-agents/SKILL.md`,
-        realPath: `${PROJECT_AGENTS}/proj-in-agents/SKILL.md`,
-      }),
     ],
     skipped: 0,
     complete: true,
   },
+}
+
+/** The merged user view: both homes in rank order, answered for `GET /skills`. */
+VIEWS.user = {
+  source: 'user',
+  root: '/home/user/.dsh',
+  roots: [USER_ROOT, AGENTS_ROOT],
+  absentRoots: [],
+  skills: [...VIEWS['user-dsh'].skills, ...VIEWS['user-agents'].skills],
+  skipped: 1,
+  complete: true,
 }
 
 /** URL-routed fetch stub, recording every call (body included). */
@@ -149,7 +155,7 @@ function stubFetch(calls) {
     if (method === 'DELETE') return response({ name: url.match(/\/skills\/([^?]+)/)[1] })
     if (/[?&]project=/.test(url)) return response(VIEWS.project)
     const scope = /[?&]source=([^&]+)/.exec(url)
-    return response(VIEWS[scope === null ? 'user-dsh' : decodeURIComponent(scope[1])])
+    return response(VIEWS[scope === null ? 'user' : decodeURIComponent(scope[1])])
   }
 }
 
@@ -289,7 +295,8 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
     again()
   }
 
-  // The default view: the harness home, answered without the page naming a root.
+  // The default view is the merged user side, answered without the page naming
+  // a root: two tabs, the harness home's active.
   assert.equal(app.calls[0].url, '/mcp-manager/api/skills')
   const listed = view()
   assert.match(listed, /demo/)
@@ -297,33 +304,46 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
   assert.match(listed, /collection/, 'a nested skill shows its group')
   assert.match(listed, /disabled/, 'and a disabled one shows that instead of hiding')
   assert.match(listed, /skipped/)
-  assert.equal(trigger().props['data-tip'], USER_ROOT, 'the answered root is selected')
-  assert.equal(view().includes(USER_ROOT), true, 'and the directory it read is named')
+  assert.doesNotMatch(listed, /agents-only/, 'the other home waits behind its tab')
+  const userTabs = () => app.walk(() => findAll(tree, (node) => node.props?.role === 'tab'))
+  assert.deepEqual(
+    userTabs().map((node) => node.children[0]),
+    ['~/.dsh', '~/.agents'],
+  )
+  assert.deepEqual(userTabs().map((node) => node.props['aria-selected']), [true, false])
+  assert.equal(trigger().props['data-tip'], `${USER_ROOT} · ${AGENTS_ROOT}`, 'the user entry is selected')
+  assert.equal(view().includes(USER_ROOT), true, 'and the active directory is named')
 
-  // The menu: the two user homes are separate entries, and every project is one
-  // entry named the way the session list names it.
+  // The menu: the user side is one entry carrying both homes, and every project
+  // is one entry named the way the session list names it.
   trigger().props.onClick()
   again()
   assert.deepEqual(
     options().map((node) => node.props['data-tip']),
-    [USER_ROOT, AGENTS_ROOT, PROJECT],
+    [`${USER_ROOT} · ${AGENTS_ROOT}`, PROJECT],
   )
   const menu = view()
-  assert.match(menu, /scopeUser/)
+  assert.match(menu, /scopeUser/, 'the user side is one entry, named plainly')
   assert.match(menu, /scopeProject/)
-  assert.match(menu, /~\/\.dsh\/skills/)
-  assert.match(menu, /~\/\.agents\/skills/)
   assert.match(menu, /My App/, 'a project is labelled with its stored title')
+  // Close the menu again: the strip below it is what the next steps drive.
+  trigger().props.onClick()
+  again()
 
-  // Picking another home moves the page to it, and its list is that home's.
-  await select(1)
-  assert.equal(trigger().props['data-tip'], AGENTS_ROOT)
+  // The other tab moves the page to the shared home — its rows, its path line —
+  // without another request: the strip only narrows the answer in hand.
+  const callsBeforeTab = app.calls.length
+  userTabs()[1].props.onClick()
+  again()
+  assert.deepEqual(userTabs().map((node) => node.props['aria-selected']), [false, true])
   assert.match(view(), /agents-only/)
   assert.doesNotMatch(view(), /A demo bundle/)
+  assert.equal(view().includes(AGENTS_ROOT), true, 'the path line follows the active tab')
+  assert.equal(app.calls.length, callsBeforeTab, 'switching tabs reads nothing')
 
-  // …and back.
-  await select(0)
-  assert.equal(trigger().props['data-tip'], USER_ROOT)
+  // …and back to the harness home, whose rows the writes below address.
+  userTabs()[0].props.onClick()
+  again()
   assert.match(view(), /A demo bundle/)
 
   // Clicking a row opens its dialog from the row's own data — no fetch for it.
@@ -389,16 +409,34 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
   again()
   assert.doesNotMatch(view(), /A demo bundle/, 'the row leaves at once')
 
-  // A project is one entry, and selecting it lists that project's own skills —
-  // both of its directories, each row marked with the one it came from.
-  await select(2)
+  // A project is one entry, and selecting it asks for the project as a whole —
+  // one request — and shows its two directories as two tabs, the first active.
+  await select(1)
   assert.equal(trigger().props['data-tip'], PROJECT)
-  const projectView = view()
-  assert.match(projectView, /proj-in-dsh/)
-  assert.match(projectView, /proj-in-agents/)
-  assert.match(projectView, /\.dsh/, 'a merged view marks which directory a row came from')
-  assert.match(projectView, /\.agents/)
-  assert.equal(projectView.includes(PROJECT_DSH), true, 'and names every directory it read')
-  assert.equal(projectView.includes(PROJECT_AGENTS), true)
   assert.equal(app.calls.some((call) => call.url.includes(`project=${encodeURIComponent(PROJECT)}`)), true)
+  const tabs = () => app.walk(() => findAll(tree, (node) => node.props?.role === 'tab'))
+  assert.deepEqual(
+    tabs().map((node) => node.children[0]),
+    ['.dsh', '.agents'],
+  )
+  assert.deepEqual(tabs().map((node) => node.props['aria-selected']), [true, false])
+  let projectView = view()
+  assert.match(projectView, /proj-in-dsh/)
+  assert.doesNotMatch(projectView, /proj-in-agents/, 'the other directory waits behind its tab')
+  assert.equal(projectView.includes(PROJECT_DSH), true, 'the path line names the active directory')
+  assert.equal(projectView.includes(PROJECT_AGENTS), false)
+
+  // The other tab is the directory that does not exist yet: the tab stays up —
+  // the layout is the harness's — and the empty state says not installed, with
+  // the path line still naming where skills would go. No new request: the
+  // strip only narrows the answer in hand.
+  const callsBeforeProjectTab = app.calls.length
+  tabs()[1].props.onClick()
+  again()
+  assert.deepEqual(tabs().map((node) => node.props['aria-selected']), [false, true])
+  projectView = view()
+  assert.match(projectView, /emptyAbsent/, 'the absent directory says not installed')
+  assert.doesNotMatch(projectView, /proj-in-agents/)
+  assert.equal(projectView.includes(PROJECT_AGENTS), true, 'and still names where it would be')
+  assert.equal(app.calls.length, callsBeforeProjectTab, 'switching tabs reads nothing')
 })

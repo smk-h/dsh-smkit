@@ -321,6 +321,7 @@ it('reads a project as one view, merging the roots that exist there', async () =
     [join(both, '.dsh', 'skills'), join(both, '.agents', 'skills')],
     'both of the project’s directories exist, in rank order',
   )
+  assert.deepEqual(view.absentRoots, [])
   assert.deepEqual(
     view.skills.map((skill) => [skill.name, skill.source]),
     [['from-dsh', 'project-dsh'], ['from-agents', 'project-agents']],
@@ -328,18 +329,21 @@ it('reads a project as one view, merging the roots that exist there', async () =
   )
   assert.deepEqual([...new Set(view.skills.map((skill) => skill.scope))], ['project'])
 
-  // A project with only one of the two directories lists only that one: the page
-  // must not name a directory that is not there.
+  // A project with only one of the two directories still names both — the tabs
+  // are the layout, not a survey of what happens to be installed — and the
+  // absent one is reported, which is what its "not installed" tab is keyed by.
   const oneRoot = join(scratch, 'work', 'one')
   mkdirSync(join(oneRoot, '.git'), { recursive: true })
   makeBundle(join(oneRoot, '.dsh', 'skills'), 'only-here')
   const single = await mod.listProject(oneRoot, logger)
-  assert.deepEqual(single.roots, [join(oneRoot, '.dsh', 'skills')])
+  assert.deepEqual(single.roots, [join(oneRoot, '.dsh', 'skills'), join(oneRoot, '.agents', 'skills')])
+  assert.deepEqual(single.absentRoots, [join(oneRoot, '.agents', 'skills')])
   assert.deepEqual(single.skills.map((skill) => skill.name), ['only-here'])
 
-  // And a project with neither says so by having nothing to read.
+  // And a project with neither still carries both roots, all of them absent.
   const empty = await mod.listProject(join(scratch, 'work', 'bare'), logger)
-  assert.deepEqual(empty.roots, [])
+  assert.deepEqual(empty.roots, [join(empty.root, '.dsh', 'skills'), join(empty.root, '.agents', 'skills')])
+  assert.deepEqual(empty.absentRoots, empty.roots)
   assert.deepEqual(empty.skills, [])
   assert.equal(empty.complete, true)
 })
@@ -469,13 +473,19 @@ it('answers one root per request, and refuses a root it does not manage', async 
   assert.equal((await call('GET', '/skills?project=relative/dir')).status, 400)
   assert.equal((await call('GET', '/skills?project=')).status, 200, 'an empty value is not a project')
 
-  // A read may name no root: it then answers with the default view and says
-  // which root that was, so a page that has not fetched the menu yet still gets
-  // a list. Writing never has that luxury — the delete below requires a source.
+  // A read may name no root: it then answers with the merged user view, so a
+  // page that has not fetched the menu yet still lands on the tabs. Writing
+  // never has that luxury — the delete below requires a source.
   const fallback = await call('GET', '/skills')
   assert.equal(fallback.status, 200)
-  assert.equal(fallback.body.source, 'user-dsh')
-  assert.equal(fallback.body.root, dshRoot)
+  assert.equal(fallback.body.source, 'user')
+  assert.equal(fallback.body.root, join(scratch, '.dsh'))
+  assert.deepEqual(fallback.body.roots, [dshRoot, agentsRoot])
+  assert.deepEqual(fallback.body.absentRoots, [])
+  assert.ok(
+    fallback.body.skills.every((skill) => skill.scope === 'global'),
+    'the user view only ever carries the two homes’ skills',
+  )
 
   assert.equal((await call('GET', '/skills?source=bundled')).status, 400, 'an unknown source')
   assert.equal((await call('GET', '/skills?source=project-dsh')).status, 400, 'a project root needs a project')

@@ -11,13 +11,14 @@
  * module resolver, and `import type` is erased before bundling, so nothing here
  * reaches any emitted code.
  *
- * A page view is *one root*, named by `source` in the registry's own vocabulary
- * (`user-dsh`, `project-agents`, …): the two user roots are separate views
- * rather than one merged "global" list, so a row can never be mistaken for a
- * skill of the other home, and what a removal addresses is exactly what the
- * page showed. The client still carries the raw source, and the host still
- * composes the labels, so a root a future harness adds renders without a code
- * change.
+ * A page view is one scope: the merged user side (`user`), one project
+ * (`project`), or — on the write routes, and on a direct read — one root, named
+ * by `source` in the registry's own vocabulary (`user-dsh`, `project-agents`,
+ * …). A merged view reads its roots together in rank order and still names each
+ * row's own root, so what a removal addresses is exactly one of the roots the
+ * page showed, never its namesake in the other one. The client still carries
+ * the raw source, and the host still composes the labels, so a root a future
+ * harness adds renders without a code change.
  */
 
 /** Which side a root belongs to: the user's homes, or the selected project's. */
@@ -46,8 +47,8 @@ export interface SkillRootView {
  *
  * A project is *one* entry, not one per root: the roots below it are the
  * provider's own layout detail, and a user thinks in projects — "this project's
- * skills". The two roots a project may have are therefore read together, in rank
- * order, and each row still says which of them it came from.
+ * skills". The two roots a project may have are therefore read together, in
+ * rank order, and each row still names the root writes address it by.
  */
 export interface SkillWorkspaceView {
   path: string
@@ -103,7 +104,10 @@ export interface SkillView {
 
 /** One view's catalog, as `GET /skills` reports it. */
 export interface SkillsView {
-  /** The root key that was read, or `project` for a project's merged view. */
+  /**
+   * The root key a single-root read answered with, or `user` / `project` for
+   * the merged user / project view.
+   */
   source: string
   /**
    * What the picker selected and this answer is about: a skill directory for a
@@ -111,13 +115,18 @@ export interface SkillsView {
    */
   root: string
   /**
-   * The directories actually read, in rank order — one for a user root, and a
-   * project's as many as exist there. Echoed back rather than composed in the
-   * browser, because only the host resolves where a project's roots are (the
-   * project root is the nearest ancestor carrying `.git`, which a workspace
-   * directory may not be itself).
+   * The directories of this view, in rank order — a merged view always carries
+   * both of its sides' roots, whether or not they exist on disk yet, because
+   * the tabs above the list name the layout rather than the accidents of what
+   * has been installed so far.
    */
   roots: string[]
+  /**
+   * The entries of `roots` that do not exist on disk. A tab over one of them
+   * lists nothing and says the skill directory has not been installed yet,
+   * instead of hiding it — the layout is fixed even when only half of it is.
+   */
+  absentRoots: string[]
   skills: SkillView[]
   /** Entries whose header was unusable: not listed, only counted. */
   skipped: number

@@ -16,22 +16,18 @@
 
 import { isAbsolute } from 'node:path'
 import { readBody, sendJson } from '../../platform/util/http.js'
-import { listProject, listRoot, removeSkill, setSkillEnabled } from './catalog.js'
+import { listProject, listRoot, listUser, removeSkill, setSkillEnabled } from './catalog.js'
 import {
   SKILL_CWD_ERROR,
   SKILL_ENABLED_ERROR,
   SKILL_NAME_ERROR,
   SKILL_NAME_RE,
   SKILL_SOURCE_ERROR,
-  USER_SOURCES,
 } from './constants.js'
 import { rootOf } from './roots.js'
 import { listSkillScopes } from './workspaces.js'
 import type { RequestFacts } from '../../platform/routes.js'
 import type { SkillsHandler } from './types.js'
-
-/** The view a read falls back to when it names no root: the harness home's. */
-const DEFAULT_SOURCE = USER_SOURCES[0]
 
 /** One request's scope: the root it addresses, and the project that root means. */
 interface Scope {
@@ -42,19 +38,15 @@ interface Scope {
 
 /**
  * Resolve the `source` (and, for a project root, the absolute `cwd`) a request
- * addresses.
- *
- * Reading is allowed to name no source at all, which means the default view —
- * the first user root. A settings page opens before it knows which roots exist
- * (that is what it is fetching), so a default read saves it a round trip, and
- * the answer names the root it chose so the page can select it. Writing is not:
- * both write routes require a source, so nothing can be deleted or switched by
- * accident.
+ * addresses. Writing never names a default: both write routes require a
+ * source, so nothing can be deleted or switched by accident — only a read may
+ * come unnamed, and the route answers that with the merged user view before
+ * this resolver runs.
  *
  * @returns the scope, or the error text to answer with.
  */
-function scopeOf(facts: RequestFacts, fallback: boolean): Scope | string {
-  const source = (facts.url.searchParams.get('source') ?? '').trim() || (fallback ? DEFAULT_SOURCE : '')
+function scopeOf(facts: RequestFacts): Scope | string {
+  const source = (facts.url.searchParams.get('source') ?? '').trim()
   const cwd = (facts.url.searchParams.get('cwd') ?? '').trim()
   if (source === '') return SKILL_SOURCE_ERROR
   const project = source.startsWith('project-')
@@ -84,7 +76,15 @@ export const handleSkills: SkillsHandler = async (req, res, facts, deps) => {
       sendJson(res, 200, await listProject(project, deps.logger))
       return true
     }
-    const scope = scopeOf(facts, true)
+    // A read that names no source is the default view — the merged user side,
+    // which is what the page's picker opens on. The answer names `user`, so a
+    // page that has not fetched the menu yet still lands on the right entry.
+    const named = (facts.url.searchParams.get('source') ?? '').trim()
+    if (named === '') {
+      sendJson(res, 200, await listUser(deps.logger))
+      return true
+    }
+    const scope = scopeOf(facts)
     if (typeof scope === 'string') {
       sendJson(res, 400, { error: scope })
       return true
@@ -127,7 +127,7 @@ export const handleSkills: SkillsHandler = async (req, res, facts, deps) => {
       sendJson(res, 400, { error: SKILL_NAME_ERROR })
       return true
     }
-    const scope = scopeOf(facts, false)
+    const scope = scopeOf(facts)
     if (typeof scope === 'string') {
       sendJson(res, 400, { error: scope })
       return true

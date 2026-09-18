@@ -20,11 +20,13 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { LOG_PREFIX } from '../../platform/constants.js'
 import { isRecord } from '../../platform/util/text.js'
 import { entryIsLink, isDirectory, isFile, scanRoot } from './scan.js'
-import { isInsideRoot, rootOf } from './roots.js'
+import { dshHome, isInsideRoot, rootOf } from './roots.js'
 import {
   DISABLED_SUFFIX,
-  PROJECT_SCOPE,
   PROJECT_SOURCES_LIST,
+  PROJECT_SCOPE,
+  USER_SOURCES,
+  USER_SCOPE,
   SKILL_BOTH_HEADERS_ERROR,
   SKILL_FILE_NAME,
   SKILL_NOT_FOUND_ERROR,
@@ -85,6 +87,7 @@ export async function listRoot(
     source,
     root,
     roots: [root],
+    absentRoots: (await isDirectory(root)) ? [] : [root],
     skills: scan.skills.map(toView),
     skipped: scan.skipped,
     complete: scan.complete,
@@ -92,43 +95,85 @@ export async function listRoot(
 }
 
 /**
+ * Read the user side's catalog: both homes are the view, its roots are not.
+ *
+ * The user side reads like the project side — one picker entry, two tabs — so
+ * one request reads both homes in rank order (`~/.dsh` before `~/.agents`,
+ * which is also the order the harness resolves a duplicate name in), and each
+ * row still names the root writes address it by. Both roots are always named:
+ * a home whose skills directory has not been created yet keeps its tab, and
+ * the page's empty state is what says so.
+ *
+ * @param logger - the host logger, for directories and entries that are skipped.
+ */
+export async function listUser(logger: LoggerLike): Promise<SkillsView> {
+  const roots: Array<{ source: string; dir: string; exists: boolean }> = []
+  for (const source of USER_SOURCES) {
+    const dir = rootOf(source, '')
+    if (dir !== null) roots.push({ source, dir, exists: await isDirectory(dir) })
+  }
+  return mergeViews(USER_SCOPE, dshHome(), roots, logger)
+}
+
+/**
  * Read one project's catalog: the project is the view, its roots are not.
  *
  * A workspace's project root is the nearest ancestor carrying `.git` — which a
  * workspace directory may not be itself, so both roots are resolved here rather
- * than in the browser. Only roots that exist are read: most projects have just
- * one of the two, and listing an absent directory would put a path on the page
- * that is not there. The merge keeps rank order (`.dsh` before `.agents`), which
- * is also the order the harness resolves a duplicate name in.
+ * than in the browser. Both are always named, in rank order (`.dsh` before
+ * `.agents`), whether or not they exist yet; only the ones that exist are read,
+ * and the rest surface on the page as a "not installed yet" empty tab.
  *
  * @param cwd - the selected workspace directory.
  * @param logger - the host logger, for directories and entries that are skipped.
  */
 export async function listProject(cwd: string, logger: LoggerLike): Promise<SkillsView> {
-  const roots: Array<{ source: string; dir: string }> = []
+  const roots: Array<{ source: string; dir: string; exists: boolean }> = []
   for (const source of PROJECT_SOURCES_LIST) {
     const dir = rootOf(source, cwd)
-    if (dir !== null && (await isDirectory(dir))) roots.push({ source, dir })
+    if (dir !== null) roots.push({ source, dir, exists: await isDirectory(dir) })
   }
-  const scans = await Promise.all(
-    roots.map(async (root) => ({ scan: await scanRoot(root.dir, root.source, logger) })),
+  return mergeViews(PROJECT_SCOPE, resolve(cwd), roots, logger)
+}
+
+/**
+ * Scan the roots that exist, in rank order, into one merged view; the absent
+ * ones keep their place in `roots` and are reported in `absentRoots`, which is
+ * what a tab's "not installed yet" empty state is keyed by.
+ */
+function mergeViews(
+  scope: string,
+  root: string,
+  roots: Array<{ source: string; dir: string; exists: boolean }>,
+  logger: LoggerLike,
+): Promise<SkillsView> {
+  const scanned = Promise.all(
+    roots
+      .filter((entry) => entry.exists)
+      .map(async (entry) => ({
+        source: entry.source,
+        scan: await scanRoot(entry.dir, entry.source, logger),
+      })),
   )
-  const skills: SkillView[] = []
-  let skipped = 0
-  let complete = true
-  for (const { scan } of scans) {
-    for (const skill of scan.skills) skills.push(toView(skill))
-    skipped += scan.skipped
-    if (!scan.complete) complete = false
-  }
-  return {
-    source: PROJECT_SCOPE,
-    root: resolve(cwd),
-    roots: roots.map((root) => root.dir),
-    skills,
-    skipped,
-    complete,
-  }
+  return scanned.then((views) => {
+    const skills: SkillView[] = []
+    let skipped = 0
+    let complete = true
+    for (const { scan } of views) {
+      for (const skill of scan.skills) skills.push(toView(skill))
+      skipped += scan.skipped
+      if (!scan.complete) complete = false
+    }
+    return {
+      source: scope,
+      root,
+      roots: roots.map((entry) => entry.dir),
+      absentRoots: roots.filter((entry) => !entry.exists).map((entry) => entry.dir),
+      skills,
+      skipped,
+      complete,
+    }
+  })
 }
 
 /**

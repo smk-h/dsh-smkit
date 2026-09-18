@@ -6,9 +6,10 @@
  * disables it, and the button that removes it. Clicking anywhere in the row body
  * opens the detail dialog (`SkillDetailDialog`), which shows the file path and,
  * for a skill installed through a link, the directory it resolves to. The
- * markers after the text say what is not the default: which directory the row
- * came from when the view reads several (a project), the group of a nested
- * skill, a link, a disabled state.
+ * markers after the text say what is not the default: the group of a nested
+ * skill, a link, a disabled state. Which directory the row came from is the
+ * view's own job to say — a user root is one directory, and a project's are
+ * named by the strip above the list (`platform/ui/Tabs`).
  *
  * Both actions are addressed by the same four facts the row was rendered from —
  * name, root, project and group — and the host resolves them against a fresh
@@ -33,19 +34,6 @@ import type { SkillView } from '../types'
 /** Which overlay the row has open, if any. */
 type RowDialog = 'none' | 'detail' | 'remove'
 
-/**
- * How each root is shortened on a row that has to say which one it came from.
- * A user root needs no marker (a user view *is* that root), so these are only
- * read in a merged project view; the paths are the provider's own directory
- * names, not strings to translate.
- */
-const SOURCE_MARKS: Record<string, string> = {
-  'user-dsh': '~/.dsh',
-  'user-agents': '~/.agents',
-  'project-dsh': '.dsh',
-  'project-agents': '.agents',
-}
-
 export interface SkillRowProps {
   t: Translator
   skill: SkillView
@@ -55,8 +43,6 @@ export interface SkillRowProps {
   cwd: string
   /** The root's absolute path, shown in the dialog and the confirmation. */
   root: string
-  /** Whether the view reads more than one directory, so a row must name its own. */
-  merged: boolean
   /** Called after a successful removal, so the row can leave the list at once. */
   onRemoved(skill: SkillView): void
   /** Re-poll the view after a write. */
@@ -76,7 +62,6 @@ export function createSkillRow(deps: ClientDeps): (props: SkillRowProps) => JSX.
     source,
     cwd,
     root,
-    merged,
     onRemoved,
     onChanged,
   }: SkillRowProps): JSX.Element {
@@ -172,7 +157,6 @@ export function createSkillRow(deps: ClientDeps): (props: SkillRowProps) => JSX.
             {skill.description ? <span className="sk_desc">{skill.description}</span> : null}
           </span>
         </button>
-        {merged ? <span className="sk_chip">{SOURCE_MARKS[skill.source] ?? skill.source}</span> : null}
         {skill.rel ? <span className="sk_chip">{skill.rel}</span> : null}
         {skill.linked ? <span className="sk_chip">{t('linked')}</span> : null}
         {enabled ? null : <span className="sk_chip sk_chipOff">{t('disabled')}</span>}
