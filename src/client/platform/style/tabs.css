@@ -1,0 +1,48 @@
+/**
+ * The default tab-strip family, shared by every page that renders `Tabs`.
+ *
+ * The rules mirror DSH's own tabbed settings pages: a hairline under the whole
+ * strip, plain-text buttons that darken on hover, and a 2px underline on the
+ * active one (and on keyboard focus, whose outline stays the business colour).
+ * A page that needs a different look names another class family on the
+ * component and keeps its rules in its own stylesheet, the way the MCP form's
+ * field-shaped picker does; these rules are what a page gets without asking.
+ */
+
+.mm_tabs {
+  border-bottom: .5px solid var(--dsw-alias-border-l2);
+  align-items: flex-end;
+  gap: 22px;
+  display: flex;
+}
+
+.mm_tab {
+  color: var(--dsw-alias-label-tertiary);
+  font: inherit;
+  cursor: pointer;
+  background: 0 0;
+  border: 0;
+  padding: 7px 1px 9px;
+  font-size: 13px;
+  line-height: 20px;
+  position: relative;
+}
+.mm_tab:hover,.mm_tab[data-active=true] {
+  color: var(--dsw-alias-label-primary);
+}
+.mm_tab[data-active=true]:after,.mm_tab:focus-visible:after {
+  background: var(--dsw-alias-label-primary);
+  content: '';
+  border-radius: 2px 2px 0 0;
+  height: 2px;
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+}
+.mm_tab:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+  color: var(--dsw-alias-label-primary);
+  border-radius: 2px;
+}

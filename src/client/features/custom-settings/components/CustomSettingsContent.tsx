@@ -3,15 +3,17 @@
  *
  * A tab per configuration area this plugin exposes on this page; `TABS` below
  * is the list, and adding an area is appending a panel component and its label
- * key to it — the shell itself does not change. The shape follows DSH's own
- * tabbed settings pages (a plain-text strip, `tablist`/`tab`/`tabpanel` roles,
- * an underline on the active tab), so the page reads as part of the dialog.
+ * key to it — the shell itself does not change. The strip is the platform
+ * layer's `Tabs`, the same one the skills page renders for a project's skill
+ * directories, so the pages read as one dialog family and the strip's roles
+ * and active underline live in exactly one place.
  *
  * Nothing here reads or writes configuration: each tab owns its own reads, its
  * own drafts and its own refusals, which is what keeps one area's polling and
  * error lines out of another's.
  */
 
+import { createTabs } from '../../../platform/ui/Tabs'
 import { createOtherSettingsPanel } from './OtherSettingsPanel'
 import { createRetryPanel } from './RetryPanel'
 import type { ClientDeps, Translator } from '../../../platform/types'
@@ -35,6 +37,7 @@ export function createCustomSettingsContent(
   deps: ClientDeps,
 ): (props: CustomSettingsProps) => JSX.Element {
   const { h, react } = deps
+  const Tabs = createTabs(deps)
   const RetryPanel = createRetryPanel(deps)
   const OtherSettingsPanel = createOtherSettingsPanel(deps)
 
@@ -55,21 +58,12 @@ export function createCustomSettingsContent(
             read it from the registration. */}
         <h2 className="cs_heading">{t('sectionLabel')}</h2>
         <p className="cs_intro">{t('sectionIntro')}</p>
-        <div className="cs_tabs" role="tablist" aria-label={t('sectionLabel')}>
-          {TABS.map((tab) => (
-            <button
-              className="cs_tab"
-              type="button"
-              role="tab"
-              key={tab.id}
-              aria-selected={tab.id === active.id}
-              data-active={tab.id === active.id ? 'true' : undefined}
-              onClick={() => setSelected(tab.id)}
-            >
-              {t(tab.label)}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          ariaLabel={t('sectionLabel')}
+          active={active.id}
+          onChange={setSelected}
+          tabs={TABS.map((tab) => ({ id: tab.id, label: t(tab.label) }))}
+        />
         <div className="cs_panel" role="tabpanel">
           <active.Panel t={t} />
         </div>
