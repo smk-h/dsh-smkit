@@ -54,6 +54,7 @@
     "mock-provider": "node scripts/mock-provider.mjs --status 429",
     "http-mcp:serve": "node scripts/http-mcp-cli.mjs serve",
     "http-mcp:stop": "node scripts/http-mcp-cli.mjs stop",
+    "ssh-stub": "node scripts/ssh-stub-mcp.mjs",
     "prepack": "tsc -p tsconfig.json && tsdown && node test/verify.mjs",
     "prepare": "tsc -p tsconfig.json && tsdown"
   },
