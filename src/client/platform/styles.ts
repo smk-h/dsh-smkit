@@ -8,9 +8,9 @@
  *
  * These rules go in first. They carry what every feature shares — the round
  * icon-button skeleton, the dialog card, the error line, the spinner arc, the
- * settings-nav glyph paint — so a feature stylesheet injected afterwards wins
- * wherever the two overlap, which is the same direction the single concatenated
- * stylesheet had.
+ * refresh button, the settings-nav glyph paint — so a feature stylesheet
+ * injected afterwards wins wherever the two overlap, which is the same direction
+ * the single concatenated stylesheet had.
  */
 
 import buttonCss from './style/button.css'
@@ -18,6 +18,7 @@ import dialogCss from './style/dialog.css'
 import fieldErrorCss from './style/field-error.css'
 import iconButtonCss from './style/icon-button.css'
 import pickerCss from './style/picker.css'
+import refreshButtonCss from './style/refresh-button.css'
 import settingsNavCss from './style/settings-nav.css'
 import spinCss from './style/spin.css'
 import tabsCss from './style/tabs.css'
@@ -28,6 +29,7 @@ import versionBadgeCss from './style/version-badge.css'
 export const PLATFORM_CSS = [
   iconButtonCss,
   buttonCss,
+  refreshButtonCss,
   dialogCss,
   fieldErrorCss,
   spinCss,

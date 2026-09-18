@@ -10,4 +10,5 @@ import type { LocaleDict } from '../types'
 export const PLATFORM_LOCALE_EN: LocaleDict = {
   "cancel": "Cancel",
   "delete": "Delete",
+  "refresh": "Refresh",
 }

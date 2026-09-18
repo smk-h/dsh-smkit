@@ -1,0 +1,41 @@
+/**
+ * The shared refresh icon button (`platform/ui/RefreshButton`): the 28px round
+ * skeleton every toolbar action in this plugin wears (`.mm_iconBtn`), painted
+ * the way the settings toolbars paint theirs.
+ *
+ * It sits in the platform stylesheet because the button sits in the platform
+ * layer: a section that reads something re-readable drops it in and keeps no
+ * rules of its own for it.
+ *
+ * The busy face is the plugin's usual one — a dimmed control with the platform
+ * spinner in it — so what is declared here is only the dimming and the arc's
+ * tint. The turn itself, and its `prefers-reduced-motion` fallback, belong to
+ * `style/spin.css`, which the arc wears directly (`mm_statusSpin`).
+ */
+
+.mm_refreshBtn {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-primary);
+  border: 1px solid var(--dsw-alias-border-l2);
+  /* Both ends of the busy face are a dimming — in when the click lands, out when
+   * the read is done — so both fade instead of snapping. The glyph swaps in the
+   * same frame either way; without the fade, dim, swap and unfill all land at
+   * once and the whole button reads as a glitch rather than as work starting. */
+  transition: opacity .15s ease, background-color .15s ease;
+}
+.mm_refreshBtn:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+.mm_refreshBtn:disabled {
+  cursor: default;
+  opacity: .5;
+}
+
+/* The dimmed button carries the arc, so the arc has to be told to keep its ink:
+ * `mm_statusSpin` would otherwise paint it in the tertiary label colour, which
+ * through the 50% the button is already wearing lands somewhere near invisible.
+ * The primary ink at half strength is the secondary tone by construction, and it
+ * follows both themes without naming either. */
+.mm_refreshBtn[data-busy=true] {
+  --mm-status-color: var(--dsw-alias-label-primary);
+}
