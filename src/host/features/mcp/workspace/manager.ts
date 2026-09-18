@@ -63,6 +63,16 @@ export interface WorkspaceManager {
   releaseWorkspace(wsPath: string, agent: AgentLike): void
   knownWorkspacePath(path: string): string | null
   listWorkspaces(): WorkspaceView[]
+  /**
+   * Tear down everything one workspace owns and forget its runtime record.
+   * Returns whether anything was actually released.
+   */
+  forgetWorkspace(wsPath: string): boolean
+  /**
+   * Release every live workspace the DSH registry no longer lists. Cheap enough
+   * to run on the settings page's poll; a no-op when no registry is reachable.
+   */
+  pruneRemovedWorkspaces(): void
   closeWorkspaceServer(conn: WorkspaceConnection): void
   /** Runtime-only restart of one live workspace server; false when not live. */
   restartWorkspaceServer(wsPath: string, name: string): Promise<boolean>
@@ -441,6 +451,90 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     }
   }
 
+  /**
+   * Release everything one workspace owns: live connections, the config
+   * watcher, its agents' tool registrations, its OAuth slots and the runtime
+   * record itself. Unlike `releaseWorkspace` this is not a session ending — the
+   * workspace is gone — so the tokens go too: they are keyed by the workspace
+   * path and the `mcp.json` that earned them went with the directory.
+   *
+   * The on-disk config is deliberately not touched (there is nothing to write
+   * to once the directory is gone); should the same path be registered again,
+   * the next scan reads whatever is there.
+   */
+  function forgetWorkspace(wsPath: string): boolean {
+    let changed = false
+    for (const [agent, agentState] of [...runtime.agentScopeState]) {
+      if (agentState.wsPath !== wsPath) continue
+      scope.disposeAgentScope(agentState)
+      runtime.agentScopeState.delete(agent)
+      changed = true
+    }
+    const ws = runtime.workspaces.get(wsPath)
+    if (ws) {
+      for (const conn of ws.servers.values()) closeWorkspaceServer(conn)
+      ws.servers.clear()
+      closeWorkspaceWatchers(ws)
+      if (ws.watchTimer) clearTimeout(ws.watchTimer)
+      ws.watchTimer = null
+      runtime.workspaces.delete(wsPath)
+      runtime.workspaceRescans.delete(wsPath)
+      changed = true
+    }
+    let droppedToken = false
+    for (const key of Object.keys(workspaceTokens())) {
+      if (!key.startsWith(`${wsPath}\n`)) continue
+      if (dropWorkspaceToken(runtime.state, key)) droppedToken = true
+    }
+    if (droppedToken) saveState(runtime.state)
+    if (changed) scope.reconcileRestrictions()
+    return changed || droppedToken
+  }
+
+  /**
+   * The paths the registry currently lists, canonicalized, or `null` when no
+   * registry is reachable. `null` means "unknown" — never "none" — so callers
+   * must not prune on it (a headless/TUI composition has no registry and its
+   * agent-opened directories must survive).
+   */
+  function registeredWorkspacePaths(): Set<string> | null {
+    const registry = serviceOf(services, 'workspaceRegistry')
+    if (!isRecord(registry) || typeof registry.list !== 'function') return null
+    let listed: unknown
+    try {
+      listed = (registry.list as () => unknown)()
+    } catch {
+      return null
+    }
+    if (!Array.isArray(listed)) return null
+    const paths = new Set<string>()
+    for (const entry of listed) {
+      const path = isRecord(entry) ? entry.path : undefined
+      if (typeof path === 'string' && path.length > 0) paths.add(canonicalize(path))
+    }
+    return paths
+  }
+
+  /**
+   * Release the live workspaces the DSH registry no longer lists.
+   *
+   * The plugin never sees a "workspace removed" event, so its poll (and the
+   * settings page's, which lands here) is where the two views of the world
+   * meet: with a registry reachable, every live workspace comes from a session
+   * whose directory the user registered, so one that is absent from the
+   * registry has been removed — and its connections, watcher, per-agent tools
+   * and tokens must go with it, even while the old session is still attached.
+   * Without a registry (headless/TUI) nothing is pruned: those directories are
+   * the sessions' own and there is no list to reconcile against.
+   */
+  function pruneRemovedWorkspaces(): void {
+    const registered = registeredWorkspacePaths()
+    if (!registered) return
+    for (const wsPath of [...runtime.workspaces.keys()]) {
+      if (!registered.has(wsPath)) forgetWorkspace(wsPath)
+    }
+  }
+
   function knownWorkspacePath(path: string): string | null {
     if (!isAbsolute(path)) return null
     let canonical: string
@@ -498,8 +592,14 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
   /**
    * Enumerate discovered workspaces for the settings UI: every registered
    * workspace (web) plus every directory an agent has actually opened.
+   *
+   * Reconciliation happens here because this is the only place the registry and
+   * the live map are read together — and the settings page polls it every few
+   * seconds, so a workspace removed from the DSH sidebar stops being listed (and
+   * stops running) without waiting for its session to end.
    */
   function listWorkspaces(): WorkspaceView[] {
+    pruneRemovedWorkspaces()
     const discovered: WorkspaceView[] = []
     const seen = new Set<string>([...runtime.workspaces.values()].map((ws) => ws.rawPath ?? ws.path))
     const registry = serviceOf(services, 'workspaceRegistry')
@@ -551,6 +651,8 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     releaseWorkspace,
     knownWorkspacePath,
     listWorkspaces,
+    forgetWorkspace,
+    pruneRemovedWorkspaces,
     closeWorkspaceServer,
     restartWorkspaceServer,
     recoverWorkspaceServer,

@@ -53,6 +53,13 @@ import type { Registry } from './registry.js'
 import type { WorkspaceManager } from './workspace/manager.js'
 import type { WorkspaceScope } from './workspace/scope.js'
 
+/**
+ * How often the workspace registry is checked for removals the plugin has no
+ * event for. Cost is one `registry.list()` plus a set comparison, so it can be
+ * frequent; the settings page reconciles on its own poll as well.
+ */
+const WORKSPACE_PRUNE_INTERVAL_MS = 10_000
+
 export const mcpFeature: HostFeature = {
   id: 'mcp',
 
@@ -220,9 +227,21 @@ export const mcpFeature: HostFeature = {
       }).dispose,
     )
 
+    // The DSH registry emits no "workspace removed" event, so poll it: a
+    // workspace removed from the sidebar must not keep its MCP servers running
+    // until the settings page happens to be opened (that page's own poll
+    // reconciles too — this only covers the case where nobody is looking).
+    // `unref()` keeps the timer from holding the process — or a test run — open.
+    const pruneTimer = setInterval(
+      () => manager.pruneRemovedWorkspaces(),
+      WORKSPACE_PRUNE_INTERVAL_MS,
+    )
+    pruneTimer.unref?.()
+
     // On unload/reload, kill every live global + workspace stdio child process and
     // stop every workspace config watcher.
     ctx.effect(() => () => {
+      clearInterval(pruneTimer)
       // First: a retry or probe that fires while the rest of this teardown runs
       // would rebuild a connection the user is closing.
       supervisor.cancelAll()
