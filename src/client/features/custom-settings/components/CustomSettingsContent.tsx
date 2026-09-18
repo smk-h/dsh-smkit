@@ -54,15 +54,14 @@ export function createCustomSettingsContent(
     const active = TABS.find((tab) => tab.id === selected) ?? TABS[0]
     return (
       <div className="cs_section">
-        {/* The page states its own name and purpose above the strip, the way
-            DSH's own tabbed settings pages do (see `page.css`): the dialog's own
-            header carries the section label too, and the two agree because both
-            read it from the registration. */}
-        <h2 className="cs_heading">{t('sectionLabel')}</h2>
+        {/* The page's areas, in strip order — the identity block reads the way
+            the MCP and skills pages' does: intro line, plugin pill, then the
+            section's own heading above the strip. The dialog's own header
+            carries the section label too, and the two agree because both read
+            it from the registration. */}
         <p className="cs_intro">{t('sectionIntro')}</p>
-        {/* The plugin pill the settings pages share (`platform/ui/VersionBadge`),
-            after the intro line the way the other pages' identity block reads. */}
         <VersionBadge />
+        <h3 className="cs_heading">{t('sectionLabel')}</h3>
         <Tabs
           ariaLabel={t('sectionLabel')}
           active={active.id}

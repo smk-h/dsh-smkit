@@ -28,18 +28,25 @@
   gap: 12px;
 }
 
-/* The page's name. The dialog's header carries it too, from the same
- * registration label, so the two cannot disagree. */
+/* The section's heading, sized to the other pages' catalogHeading (an 18px/600
+ * title on a 26px line) so the three pages' identity blocks read as one. The
+ * dialog's header carries the section label too, from the same registration. */
 .cs_heading {
   margin: 0;
+  padding: 0 2px;
   font-size: 18px;
   font-weight: 600;
+  line-height: 26px;
 }
 
+/* The intro line, on the same 12px/18px secondary-color rule as the MCP and
+ * skills pages' intros. */
 .cs_intro {
   margin: 0;
-  font-size: 13px;
-  color: var(--dsw-alias-label-tertiary);
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
 }
 
 .cs_section>.mm_tabs {
