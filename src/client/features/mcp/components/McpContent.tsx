@@ -35,6 +35,7 @@ import { createSearchIcon } from '../../../platform/icons/SearchIcon'
 import { createSettings2Icon } from '../../../platform/icons/Settings2Icon'
 import { createServerForm } from './ServerForm'
 import { createBreadcrumb } from '../ui/Breadcrumb'
+import { createReconnectForm } from './ReconnectForm'
 import { createScopeSelect } from '../ui/ScopeSelect'
 import { createServerRow } from './ServerRow'
 import { createToolTimeoutForm } from './ToolTimeoutForm'
@@ -45,7 +46,7 @@ import { watchTipBoundaries } from '../../../platform/ui/tip'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
 import { isTransientStatus } from '../ui/StatusPill'
 import { createWorkspaceServerRow } from './WorkspaceServerRow'
-import { DEFAULT_TOOL_CALL_TIMEOUT_MS } from '../types'
+import { DEFAULT_RECONNECT_SETTINGS, DEFAULT_TOOL_CALL_TIMEOUT_MS } from '../types'
 import type { ClientDeps } from '../../../platform/types'
 import type {
   SectionProps,
@@ -56,6 +57,14 @@ import type {
 } from '../types'
 
 const REFRESH_INTERVAL_MS = 3000
+
+/** The numeric half of the reconnection settings (the fourth field is a switch). */
+type ReconnectNumberKey = 'reconnectMaxAttempts' | 'reconnectMaxDelayMs' | 'healthCheckIntervalMs'
+
+/** One numeric reconnection setting from a `/settings` answer, default when absent. */
+function reconnectNumber(value: unknown, key: ReconnectNumberKey): number {
+  return typeof value === 'number' ? value : DEFAULT_RECONNECT_SETTINGS[key]
+}
 
 type View = 'list' | 'add' | 'edit-global' | 'edit-ws' | 'advanced'
 
@@ -88,6 +97,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
   const ClearIcon = createClearIcon(deps)
   const Settings2Icon = createSettings2Icon(deps)
   const ToolTimeoutForm = createToolTimeoutForm(deps)
+  const ReconnectForm = createReconnectForm(deps)
   const VersionBadge = createVersionBadge(deps)
 
   return function McpContent({ t }: SectionProps): JSX.Element {
@@ -96,6 +106,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     const [settings, setSettings] = react.useState<SettingsView>({
       onDemandToolInjection: false,
       toolCallTimeoutMs: DEFAULT_TOOL_CALL_TIMEOUT_MS,
+      ...DEFAULT_RECONNECT_SETTINGS,
     })
     const [selected, setSelected] = react.useState('')
     const [view, setView] = react.useState<View>('list')
@@ -190,12 +201,23 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           if (serversResult.ok) setServers(serversResult.body.servers ?? [])
           if (workspacesResult.ok) setWorkspaces(workspacesResult.body.workspaces ?? [])
           if (settingsResult.ok) {
+            const reported = settingsResult.body
             setSettings({
-              onDemandToolInjection: settingsResult.body.onDemandToolInjection === true,
+              onDemandToolInjection: reported.onDemandToolInjection === true,
               toolCallTimeoutMs:
-                typeof settingsResult.body.toolCallTimeoutMs === 'number'
-                  ? settingsResult.body.toolCallTimeoutMs
+                typeof reported.toolCallTimeoutMs === 'number'
+                  ? reported.toolCallTimeoutMs
                   : DEFAULT_TOOL_CALL_TIMEOUT_MS,
+              autoReconnect:
+                typeof reported.autoReconnect === 'boolean'
+                  ? reported.autoReconnect
+                  : DEFAULT_RECONNECT_SETTINGS.autoReconnect,
+              reconnectMaxAttempts: reconnectNumber(reported.reconnectMaxAttempts, 'reconnectMaxAttempts'),
+              reconnectMaxDelayMs: reconnectNumber(reported.reconnectMaxDelayMs, 'reconnectMaxDelayMs'),
+              healthCheckIntervalMs: reconnectNumber(
+                reported.healthCheckIntervalMs,
+                'healthCheckIntervalMs',
+              ),
             })
           }
           setPolledAt(requestedAt)
@@ -354,6 +376,11 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             <h3>{t('advancedTitle')}</h3>
           </div>
           {headerBreadcrumb}
+          <ReconnectForm
+            t={t}
+            current={settings}
+            onSaved={(next) => setSettings({ ...settings, ...next })}
+          />
           <ToolTimeoutForm
             t={t}
             current={settings.toolCallTimeoutMs}

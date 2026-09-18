@@ -22,18 +22,20 @@
 .mm_statusDot.connected {
   --mm-status-color: var(--dsw-alias-state-success-primary);
 }
-.mm_statusDot.needs-auth,.mm_statusDot.authorizing,.mm_statusDot.connecting {
+.mm_statusDot.needs-auth,.mm_statusDot.authorizing,.mm_statusDot.connecting,.mm_statusDot.reconnecting {
   --mm-status-color: var(--dsw-alias-state-business-primary);
 }
 .mm_statusDot.error,.mm_statusDot.conflict {
   --mm-status-color: var(--dsw-alias-state-error-primary);
 }
 
-/* A connection that is being established (`connecting`/`authorizing`) draws as
- * a spinning arc in the status colour instead of sitting as a dot — motion
- * carries "working on it". Rows start the spin at click time by previewing
- * the transient status (McpContent's `statusPreviews`), so the indicator no
- * longer waits for the 3-second poll that feeds it. */
+/* A connection that is being established or rebuilt
+ * (`connecting`/`authorizing`/`reconnecting`) draws as a spinning arc in the
+ * status colour instead of sitting as a dot — motion carries "working on it".
+ * Row actions start the spin at click time by previewing the transient status
+ * (McpContent's `statusPreviews`), so the indicator no longer waits for the
+ * 3-second poll that feeds it; `reconnecting` arrives on the poll itself, from
+ * the supervisor's retry. */
 .mm_statusDot[data-spin=true] {
   width: auto;
   height: auto;
@@ -60,7 +62,7 @@
   background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
   color: var(--dsw-alias-state-error-primary);
 }
-.mm_badge.needs-auth,.mm_badge.authorizing,.mm_badge.connecting {
+.mm_badge.needs-auth,.mm_badge.authorizing,.mm_badge.connecting,.mm_badge.reconnecting {
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
   color: var(--dsw-alias-state-business-primary);
 }

@@ -18,6 +18,7 @@ import { toErrorMessage } from '../../platform/util/text.js'
 import { applyTransportFields, toolViews } from './view.js'
 import type { Transports } from './mcp/transports.js'
 import type { Runtime } from './runtime.js'
+import type { Supervisor } from './supervisor.js'
 import type {
   LiveConnection,
   LoggerLike,
@@ -36,6 +37,8 @@ export interface RegistryDeps {
   services: ServiceAccessor | null | undefined
   tools: ToolsRegistry
   transports: Transports
+  /** Takes over a live transport so a drop is retried instead of left dead. */
+  supervisor: Supervisor
   /** Workspace-tier hook: re-apply `exclude` masks after a tool set changes. */
   reconcileRestrictions(serverName?: string): void
 }
@@ -135,6 +138,11 @@ export function createRegistry(deps: RegistryDeps): Registry {
         handle.tools = list
         registerToolsGlobal(server, conn, handle.tools)
       })
+      // Watched last, and only on this path: a connection becomes retryable once
+      // it has actually been up. An open that fails below leaves no watcher, so a
+      // server that never connected — unreachable endpoint, bad command, missing
+      // token, auth still pending — is never retried.
+      deps.supervisor.watch({ tier: 'global', server }, handle)
     } catch (error) {
       disposeRegistrations(conn.tools)
       conn.toolCount = 0
@@ -163,6 +171,9 @@ export function createRegistry(deps: RegistryDeps): Registry {
   }
 
   function disconnect(serverId: string): void {
+    // First, before anything can be reconnected: a stop, a disable, a delete or
+    // an edit all land here, and none of them may be undone by a pending retry.
+    deps.supervisor.cancelGlobal(serverId)
     const conn = runtime.live.get(serverId)
     if (!conn) return
     disposeRegistrations(conn.tools)

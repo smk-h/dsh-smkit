@@ -10,10 +10,16 @@
  *   quoting of its own, so every token goes through `quoteWindowsToken` or
  *   `cmd.exe` truncates paths containing spaces.
  * POSIX passes args through untouched: **no shell expansion**.
+ *
+ * The command is frequently not the server itself but a bridge to it — the
+ * documented remote setup runs `ssh <windows-host> remote-start-mcp.bat`, so the
+ * child dies whenever that link drops. `onExit` exists for exactly that case:
+ * it fires only when the child went away **by itself**, never for a `close()`
+ * the caller asked for.
  */
 
 import { spawn } from 'node:child_process'
-import { quoteWindowsToken } from '../../../platform/util/text.js'
+import { errorText, quoteWindowsToken } from '../../../platform/util/text.js'
 import type { RpcMessage, ServerConfig, StdioTransport } from '../types.js'
 
 const STDERR_TAIL_LIMIT = 2000
@@ -29,6 +35,7 @@ interface PendingRequest {
 export function spawnStdio(
   server: ServerConfig,
   onNotification: (message: RpcMessage) => void,
+  onExit?: (reason: string) => void,
 ): StdioTransport {
   const isWin = process.platform === 'win32'
   const command = isWin ? quoteWindowsToken(server.command) : String(server.command)
@@ -83,26 +90,37 @@ export function spawnStdio(
     stderrTail = (stderrTail + chunk.toString('utf8')).slice(-STDERR_TAIL_LIMIT)
   })
 
-  const fail = (error: Error): void => {
-    if (closed) return
+  /**
+   * Reject every in-flight request and mark the channel dead.
+   * @returns whether this call was the one that tore it down. `close()` sets
+   * `closed` before killing the child, so a `false` here means the shutdown was
+   * already requested and is not a drop to report.
+   */
+  const fail = (error: Error): boolean => {
+    if (closed) return false
     closed = true
     for (const request of pending.values()) {
       clearTimeout(request.timer)
       request.reject(error)
     }
     pending.clear()
+    return true
   }
 
-  child.on('error', fail)
-  child.on('close', () =>
-    fail(
-      new Error(
-        stderrTail
-          ? `stdio process exited: ${stderrTail.slice(-STDERR_MESSAGE_LIMIT)}`
-          : 'stdio process exited',
-      ),
-    ),
-  )
+  /** The child's exit, as the diagnostic the settings page shows. */
+  const exitReason = (): string =>
+    stderrTail
+      ? `stdio process exited: ${stderrTail.slice(-STDERR_MESSAGE_LIMIT)}`
+      : 'stdio process exited'
+
+  // 'error' (spawn failed, pipe broke) precedes 'close' whenever both fire;
+  // `fail` is idempotent, so only the first one reports the exit.
+  child.on('error', (error) => {
+    if (fail(error instanceof Error ? error : new Error(String(error)))) onExit?.(errorText(error))
+  })
+  child.on('close', () => {
+    if (fail(new Error(exitReason()))) onExit?.(exitReason())
+  })
 
   function send(payload: unknown): void {
     if (closed) throw new Error('stdio process closed')

@@ -5,6 +5,10 @@
  * HTTP half is in `http-transport.ts`. `bindToolsChanged` is re-exported so
  * callers (the registry and the workspace manager) do not need to know which
  * transport a handle came from.
+ *
+ * The facade is also where a handle learns to report its own death: an HTTP
+ * session has no process to watch, so only stdio wires `onExit` — an HTTP drop
+ * is found by the supervisor's health probe instead.
  */
 
 import { MCP_CLIENT_INFO, MCP_PROTOCOL_VERSION } from '../constants.js'
@@ -49,7 +53,17 @@ export function createTransports(deps: TransportsDeps): Transports {
         handle.transport?.close()
       },
     }
-    const transport = spawnStdio(server, (message) => handle.onNotification?.(message))
+    const transport = spawnStdio(
+      server,
+      (message) => handle.onNotification?.(message),
+      (reason) => {
+        // The child exited on its own: mark the handle dead so no later call is
+        // answered from a corpse, then hand the drop to whoever watches this
+        // connection (the supervisor decides whether to rebuild it).
+        handle.closed = true
+        handle.onExit?.(reason)
+      },
+    )
     handle.transport = transport
     try {
       await transport.request('initialize', {

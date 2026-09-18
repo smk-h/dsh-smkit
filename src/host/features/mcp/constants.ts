@@ -52,6 +52,40 @@ export const MAX_TOOL_CALL_TIMEOUT_MS = 30 * 60_000
 export const TOOL_CALL_TIMEOUT_ERROR =
   `timeoutMs must be an integer between ${MIN_TOOL_CALL_TIMEOUT_MS} and ${MAX_TOOL_CALL_TIMEOUT_MS} milliseconds, or null to restore the default`
 
+/*
+ * Automatic reconnection of a dropped transport, and the health probe that
+ * notices a transport which died without saying so.
+ */
+export const DEFAULT_AUTO_RECONNECT = true
+
+/** Retry attempts before giving up; 0 keeps retrying for the life of the mount. */
+export const DEFAULT_RECONNECT_MAX_ATTEMPTS = 0
+export const MIN_RECONNECT_MAX_ATTEMPTS = 0
+export const MAX_RECONNECT_MAX_ATTEMPTS = 100
+
+/** First retry waits this long; every later one doubles, up to the cap below. */
+export const RECONNECT_BASE_DELAY_MS = 1_000
+export const DEFAULT_RECONNECT_MAX_DELAY_MS = 30_000
+export const MIN_RECONNECT_MAX_DELAY_MS = 1_000
+export const MAX_RECONNECT_MAX_DELAY_MS = 600_000
+
+/**
+ * How often a connected transport proves it is still alive (`tools/list`, the
+ * one request every server answers — it is how the connection was established).
+ * 0 turns the probe off and leaves only the transports' own exit signals.
+ */
+export const DEFAULT_HEALTH_CHECK_INTERVAL_MS = 30_000
+export const MIN_HEALTH_CHECK_INTERVAL_MS = 1_000
+export const MAX_HEALTH_CHECK_INTERVAL_MS = 600_000
+
+/** Refusals of one reconnect-settings write, shared by the API and tests. */
+export const RECONNECT_ATTEMPTS_ERROR =
+  `reconnectMaxAttempts must be an integer between ${MIN_RECONNECT_MAX_ATTEMPTS} and ${MAX_RECONNECT_MAX_ATTEMPTS} (0 retries forever), or null to restore the default`
+export const RECONNECT_DELAY_ERROR =
+  `reconnectMaxDelayMs must be an integer between ${MIN_RECONNECT_MAX_DELAY_MS} and ${MAX_RECONNECT_MAX_DELAY_MS} milliseconds, or null to restore the default`
+export const HEALTH_CHECK_ERROR =
+  `healthCheckIntervalMs must be 0 (probe off) or an integer between ${MIN_HEALTH_CHECK_INTERVAL_MS} and ${MAX_HEALTH_CHECK_INTERVAL_MS} milliseconds, or null to restore the default`
+
 /** Validation messages shared by the global API and the workspace config. */
 export const SERVER_NAME_ERROR =
   'name must be 1-32 chars of [A-Za-z0-9_-] (it becomes the mcp__<name>__ tool prefix)'

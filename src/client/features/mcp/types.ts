@@ -9,7 +9,7 @@
  */
 
 import type { Translator } from '../../platform/types'
-import type { ServerView, WorkspaceServerView } from '../../../shared/mcp/contract'
+import type { ReconnectSettings, ServerView, WorkspaceServerView } from '../../../shared/mcp/contract'
 
 /*
  * The MCP half of the wire contract shared with the host half. Re-exported so
@@ -19,6 +19,7 @@ import type { ServerView, WorkspaceServerView } from '../../../shared/mcp/contra
 export type {
   AuthMode,
   EnvMap,
+  ReconnectSettings,
   ServerStatus,
   ServerType,
   ServerView,
@@ -36,6 +37,19 @@ export type {
  * this copy never has to know the bounds.
  */
 export const DEFAULT_TOOL_CALL_TIMEOUT_MS = 60_000
+
+/**
+ * The same mirror for the reconnection knobs (`DEFAULT_AUTO_RECONNECT`,
+ * `DEFAULT_RECONNECT_MAX_ATTEMPTS`, `DEFAULT_RECONNECT_MAX_DELAY_MS`,
+ * `DEFAULT_HEALTH_CHECK_INTERVAL_MS`), for the same reason and under the same
+ * rule: the host owns the bounds, this copy only fills the first render.
+ */
+export const DEFAULT_RECONNECT_SETTINGS: ReconnectSettings = {
+  autoReconnect: true,
+  reconnectMaxAttempts: 0,
+  reconnectMaxDelayMs: 30_000,
+  healthCheckIntervalMs: 30_000,
+}
 
 /** Props every settings section component receives from the slot system. */
 export interface SectionProps {

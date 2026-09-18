@@ -19,8 +19,8 @@ import type { ClientDeps, Translator } from '../../../platform/types'
 import { createLoaderIcon } from '../../../platform/icons/LoaderIcon'
 
 /** Statuses that mean "in between", reported while a connection is being
- * established: rendered as a spinner rather than a dot. */
-const TRANSIENT_STATUSES = ['connecting', 'authorizing']
+ * established or rebuilt: rendered as a spinner rather than a dot. */
+const TRANSIENT_STATUSES = ['connecting', 'authorizing', 'reconnecting']
 
 export function isTransientStatus(status: string): boolean {
   return TRANSIENT_STATUSES.includes(status)

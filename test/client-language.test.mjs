@@ -102,9 +102,16 @@ const text = (tree) =>
 // section can render helper components ahead of the form (e.g. the header
 // breadcrumb, which resolves to `null` in this harness — the fake `require`
 // hands back the react stub without `createPortal`), so "first function node"
-// alone is not a form locator.
-const content = (tree) =>
-  nodes(tree).find((node) => typeof node.type === 'function' && node.props?.t != null)
+// alone is not a form locator. `name` pins one specific form for the views that
+// host more than one (the Advanced sub-view renders the reconnect form above the
+// tool-call timeout).
+const content = (tree, name = null) =>
+  nodes(tree).find(
+    (node) =>
+      typeof node.type === 'function' &&
+      node.props?.t != null &&
+      (name === null || node.type.name === name),
+  )
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
@@ -222,7 +229,7 @@ it('opens the Advanced sub-view and posts the tool-call timeout', async () => {
   entry.props.onClick()
 
   // The sub-view's form is seeded from the value the poll reported.
-  const form = content(app.render())
+  const form = content(app.render(), 'ToolTimeoutForm')
   assert.equal(form.props.current, 60_000)
 
   app.reset()
@@ -236,6 +243,67 @@ it('opens the Advanced sub-view and posts the tool-call timeout', async () => {
   const written = calls.find((call) => call.url.endsWith('/settings/tool-timeout'))
   assert.ok(written, 'the form must post its draft to the settings route')
   assert.deepEqual(JSON.parse(written.body), { timeoutMs: 120_000 })
+})
+
+it('posts the reconnect settings, and nulls every field to restore their defaults', async () => {
+  const calls = []
+  const app = mount(async (url, options) => {
+    calls.push({ url: String(url), body: options?.body })
+    return String(url).endsWith('/settings')
+      ? response({
+          onDemandToolInjection: false,
+          toolCallTimeoutMs: 60_000,
+          autoReconnect: true,
+          reconnectMaxAttempts: 0,
+          reconnectMaxDelayMs: 30_000,
+          healthCheckIntervalMs: 30_000,
+        })
+      : response({ autoReconnect: true, reconnectMaxAttempts: 5, reconnectMaxDelayMs: 30_000, healthCheckIntervalMs: 0 })
+  })
+  app.effects()
+  await settle()
+
+  nodes(app.render())
+    .find((node) => node.type === 'button' && node.children.includes('Advanced'))
+    .props.onClick()
+
+  // The Advanced sub-view's first form is the reconnect block, seeded from the
+  // values the poll reported.
+  const form = content(app.render(), 'ReconnectForm')
+  assert.equal(form.props.current.autoReconnect, true)
+  assert.equal(form.props.current.reconnectMaxAttempts, 0)
+  assert.equal(form.props.current.healthCheckIntervalMs, 30_000)
+
+  app.reset()
+  let tree = app.render(form.type, form.props)
+  assert.match(text(tree), /Max reconnect attempts/)
+  nodes(tree).find((node) => node.props['aria-label'] === 'Max reconnect attempts').props.onChange({ target: { value: '5' } })
+  nodes(tree).find((node) => node.props['aria-label'] === 'Health check interval (ms)').props.onChange({ target: { value: '0' } })
+  tree = app.render(form.type, form.props)
+  nodes(tree).find((node) => node.type === 'button' && node.children.includes('Save')).props.onClick()
+  await settle()
+
+  const written = calls.filter((call) => call.url.endsWith('/settings/reconnect')).pop()
+  assert.ok(written, 'the form must post to the reconnect route')
+  assert.deepEqual(JSON.parse(written.body), {
+    autoReconnect: true,
+    reconnectMaxAttempts: 5,
+    reconnectMaxDelayMs: 30_000,
+    healthCheckIntervalMs: 0,
+  })
+
+  // "Restore default" clears every stored value: one null per field.
+  nodes(app.render(form.type, form.props))
+    .find((node) => node.type === 'button' && node.children.includes('Restore default'))
+    .props.onClick()
+  await settle()
+  const restored = calls.filter((call) => call.url.endsWith('/settings/reconnect')).pop()
+  assert.deepEqual(JSON.parse(restored.body), {
+    autoReconnect: null,
+    reconnectMaxAttempts: null,
+    reconnectMaxDelayMs: null,
+    healthCheckIntervalMs: null,
+  })
 })
 
 it('offers a no-auth HTTP mode and hides the token field when selected', async () => {

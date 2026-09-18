@@ -11,8 +11,18 @@ import { randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import {
+  DEFAULT_AUTO_RECONNECT,
+  DEFAULT_HEALTH_CHECK_INTERVAL_MS,
+  DEFAULT_RECONNECT_MAX_ATTEMPTS,
+  DEFAULT_RECONNECT_MAX_DELAY_MS,
   DEFAULT_TOOL_CALL_TIMEOUT_MS,
+  MAX_HEALTH_CHECK_INTERVAL_MS,
+  MAX_RECONNECT_MAX_ATTEMPTS,
+  MAX_RECONNECT_MAX_DELAY_MS,
   MAX_TOOL_CALL_TIMEOUT_MS,
+  MIN_HEALTH_CHECK_INTERVAL_MS,
+  MIN_RECONNECT_MAX_ATTEMPTS,
+  MIN_RECONNECT_MAX_DELAY_MS,
   MIN_TOOL_CALL_TIMEOUT_MS,
   STATE_PATH,
 } from './constants.js'
@@ -59,6 +69,51 @@ export function normalizeToolCallTimeoutMs(value: unknown): number | undefined {
  */
 export function effectiveToolCallTimeoutMs(state: PluginState): number {
   return normalizeToolCallTimeoutMs(state.toolCallTimeoutMs) ?? DEFAULT_TOOL_CALL_TIMEOUT_MS
+}
+
+/** A whole number inside `[min, max]`, else `undefined` (never clamped). */
+function normalizeBoundedInt(value: unknown, min: number, max: number): number | undefined {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return undefined
+  if (value < min || value > max) return undefined
+  return value
+}
+
+/** Retry attempts before giving up; 0 means "keep trying". */
+export function normalizeReconnectMaxAttempts(value: unknown): number | undefined {
+  return normalizeBoundedInt(value, MIN_RECONNECT_MAX_ATTEMPTS, MAX_RECONNECT_MAX_ATTEMPTS)
+}
+
+export function effectiveReconnectMaxAttempts(state: PluginState): number {
+  return normalizeReconnectMaxAttempts(state.reconnectMaxAttempts) ?? DEFAULT_RECONNECT_MAX_ATTEMPTS
+}
+
+/** Ceiling of the exponential backoff between retries. */
+export function normalizeReconnectMaxDelayMs(value: unknown): number | undefined {
+  return normalizeBoundedInt(value, MIN_RECONNECT_MAX_DELAY_MS, MAX_RECONNECT_MAX_DELAY_MS)
+}
+
+export function effectiveReconnectMaxDelayMs(state: PluginState): number {
+  return normalizeReconnectMaxDelayMs(state.reconnectMaxDelayMs) ?? DEFAULT_RECONNECT_MAX_DELAY_MS
+}
+
+/**
+ * Liveness-probe period. `0` is a valid, meaningful value — it turns the probe
+ * off — so unlike the others it is not "outside the bounds", and the range
+ * check only applies to the non-zero values.
+ */
+export function normalizeHealthCheckIntervalMs(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return undefined
+  if (value === 0) return 0
+  return normalizeBoundedInt(value, MIN_HEALTH_CHECK_INTERVAL_MS, MAX_HEALTH_CHECK_INTERVAL_MS)
+}
+
+export function effectiveHealthCheckIntervalMs(state: PluginState): number {
+  return normalizeHealthCheckIntervalMs(state.healthCheckIntervalMs) ?? DEFAULT_HEALTH_CHECK_INTERVAL_MS
+}
+
+/** Whether a dropped transport is rebuilt automatically. Defaults to on. */
+export function isAutoReconnectEnabled(state: PluginState): boolean {
+  return typeof state.autoReconnect === 'boolean' ? state.autoReconnect : DEFAULT_AUTO_RECONNECT
 }
 
 /**

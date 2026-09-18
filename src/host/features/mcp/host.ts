@@ -8,7 +8,7 @@
  *    id-addressed API can be reached),
  * 2. build the per-mount runtime container,
  * 3. wire the subsystems in dependency order (credentials → oauth →
- *    transports → registry/workspace → broker),
+ *    transports → supervisor → registry/workspace → broker),
  * 4. contribute the handlers, and mount the agent decorators **lazily**,
  *    because a headless/TUI profile has no webserver and the agent registry may
  *    appear after this plugin,
@@ -25,7 +25,16 @@ import { createBrokerRuntime } from './broker/runtime.js'
 import { createOAuth } from './auth/oauth.js'
 import { createRegistry, setServerAuthStatus } from './registry.js'
 import { createRuntime } from './runtime.js'
-import { loadState, migrateLoadedState, normalizeToolCallTimeoutMs, saveState } from './state.js'
+import { createSupervisor } from './supervisor.js'
+import {
+  loadState,
+  migrateLoadedState,
+  normalizeHealthCheckIntervalMs,
+  normalizeReconnectMaxAttempts,
+  normalizeReconnectMaxDelayMs,
+  normalizeToolCallTimeoutMs,
+  saveState,
+} from './state.js'
 import { toErrorMessage } from '../../platform/util/text.js'
 import { createAgentDecorators } from './workspace/agents.js'
 import { createWorkspaceManager } from './workspace/manager.js'
@@ -40,6 +49,7 @@ import type { HostFeature, HostPlatform } from '../../platform/context.js'
 import type { ApiHandler } from '../../platform/routes.js'
 import type { McpApiDeps } from './api/context.js'
 import type { BrokerRuntime } from './broker/runtime.js'
+import type { Registry } from './registry.js'
 import type { WorkspaceManager } from './workspace/manager.js'
 import type { WorkspaceScope } from './workspace/scope.js'
 
@@ -60,6 +70,29 @@ export const mcpFeature: HostFeature = {
     // settings page then shows the timeout that is actually in force.
     if (state.toolCallTimeoutMs !== undefined && normalizeToolCallTimeoutMs(state.toolCallTimeoutMs) === undefined) {
       delete state.toolCallTimeoutMs
+    }
+    // Same rule for the reconnection knobs, for the same reason: absent means
+    // the built-in default, and the page must report what is truly in force.
+    if (
+      state.reconnectMaxAttempts !== undefined &&
+      normalizeReconnectMaxAttempts(state.reconnectMaxAttempts) === undefined
+    ) {
+      delete state.reconnectMaxAttempts
+    }
+    if (
+      state.reconnectMaxDelayMs !== undefined &&
+      normalizeReconnectMaxDelayMs(state.reconnectMaxDelayMs) === undefined
+    ) {
+      delete state.reconnectMaxDelayMs
+    }
+    if (
+      state.healthCheckIntervalMs !== undefined &&
+      normalizeHealthCheckIntervalMs(state.healthCheckIntervalMs) === undefined
+    ) {
+      delete state.healthCheckIntervalMs
+    }
+    if (state.autoReconnect !== undefined && typeof state.autoReconnect !== 'boolean') {
+      delete state.autoReconnect
     }
 
     // One-time migration for configs written by older plugin versions: assign the
@@ -107,19 +140,33 @@ export const mcpFeature: HostFeature = {
       logger,
       refreshTokens: (server) => oauth.refreshTokens(server),
     })
-    const registry = createRegistry({
+    // The supervisor sits between the two connect paths and the transports they
+    // open: it needs both paths in order to retry, and both paths need it in
+    // order to report a drop. So the two callbacks are lazy — the same shape
+    // `refreshTokens` uses to reach `oauth` from inside the transports.
+    let registry: Registry
+    let manager: WorkspaceManager
+    const supervisor = createSupervisor({
+      runtime,
+      logger,
+      reconnectGlobal: (server) => registry.connect(server),
+      reconnectWorkspace: (wsPath, name) => manager.recoverWorkspaceServer(wsPath, name),
+    })
+    registry = createRegistry({
       runtime,
       logger,
       services,
       tools,
       transports,
+      supervisor,
       reconcileRestrictions: (serverName) => scope.reconcileRestrictions(serverName),
     })
-    const manager: WorkspaceManager = createWorkspaceManager({
+    manager = createWorkspaceManager({
       runtime,
       logger,
       services,
       transports,
+      supervisor,
       scope,
     })
     const broker: BrokerRuntime = createBrokerRuntime({
@@ -176,6 +223,9 @@ export const mcpFeature: HostFeature = {
     // On unload/reload, kill every live global + workspace stdio child process and
     // stop every workspace config watcher.
     ctx.effect(() => () => {
+      // First: a retry or probe that fires while the rest of this teardown runs
+      // would rebuild a connection the user is closing.
+      supervisor.cancelAll()
       runtime.brokerRuntimeDispose?.()
       runtime.brokerRuntimeDispose = null
       for (const agentState of runtime.agentScopeState.values()) scope.disposeAgentScope(agentState)

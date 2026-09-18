@@ -21,6 +21,7 @@ import type { AgentLike, ToolDefinition } from '../../platform/types.js'
 export type {
   AuthMode,
   EnvMap,
+  ReconnectSettings,
   ServerStatus,
   ServerType,
   ServerView,
@@ -97,6 +98,15 @@ export interface PluginState {
    * it (they keep the fixed connect-phase timeout).
    */
   toolCallTimeoutMs?: number
+  /**
+   * Reconnection settings. Every one of them is read at the moment it applies
+   * (the state object is live, not a snapshot), so a saved value reaches the
+   * next drop without a remount; absent or out-of-range means the default.
+   */
+  autoReconnect?: boolean
+  reconnectMaxAttempts?: number
+  reconnectMaxDelayMs?: number
+  healthCheckIntervalMs?: number
   /** Legacy keys (e.g. `language`) are preserved verbatim but never read. */
   [key: string]: unknown
 }
@@ -153,6 +163,13 @@ export interface McpHandle {
   tools: McpToolInfo[]
   closed: boolean
   onNotification: ((message: RpcMessage) => void) | null
+  /**
+   * Called once when the transport dies **on its own** — a stdio child that
+   * exited, an HTTP session that went away — never for `close()`, which is the
+   * caller saying it is done. `handle.closed` is already true by then. Only
+   * stdio sets it today; HTTP drops are found by the health probe instead.
+   */
+  onExit?: ((reason: string) => void) | null
   notificationStarted?: boolean
   notificationController?: AbortController | null
   /** `timeoutMs` overrides the transport default (the settings-paged tool timeout). */

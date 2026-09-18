@@ -24,6 +24,7 @@ import { applyTransportFields, toolViews } from '../view.js'
 import { canonicalize, readWorkspaceConfig, sameServerConfig, wsConfigPath } from './config.js'
 import type { Transports } from '../mcp/transports.js'
 import type { Runtime } from '../runtime.js'
+import type { Supervisor } from '../supervisor.js'
 import type { WorkspaceScope } from './scope.js'
 import type {
   AgentLike,
@@ -46,6 +47,7 @@ export interface WorkspaceManagerDeps {
   logger: LoggerLike
   services: ServiceAccessor | null | undefined
   transports: Transports
+  supervisor: Supervisor
   scope: WorkspaceScope
 }
 
@@ -64,6 +66,8 @@ export interface WorkspaceManager {
   closeWorkspaceServer(conn: WorkspaceConnection): void
   /** Runtime-only restart of one live workspace server; false when not live. */
   restartWorkspaceServer(wsPath: string, name: string): Promise<boolean>
+  /** Re-open in place for the supervisor's retry; keeps the retry entry alive. */
+  recoverWorkspaceServer(wsPath: string, name: string): Promise<void>
   /** Runtime-only stop: drop the transport, keep the row; false when not live. */
   stopWorkspaceServer(wsPath: string, name: string): boolean
   closeWorkspaceWatchers(ws: WorkspaceRuntime): void
@@ -106,6 +110,10 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
   }
 
   function closeWorkspaceServer(conn: WorkspaceConnection): void {
+    // First, before the transport is torn down: this path covers stop, delete,
+    // rescan-replacement and workspace release, and none of them may be undone
+    // by a retry that was already scheduled.
+    deps.supervisor.cancelWorkspace(String(conn.server.wsPath), conn.server.name)
     closeHandleQuietly(conn.handle)
     conn.handle = null
     conn.call = () => Promise.reject(new Error('not connected'))
@@ -145,6 +153,30 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     for (const agent of ws.agents) scope.rebuildAgentWorkspace(agent, wsPath)
     scope.reconcileRestrictions()
     return true
+  }
+
+  /**
+   * Re-open one live row **in place**, for the supervisor's retry.
+   *
+   * The difference from `restartWorkspaceServer` is the one thing that matters
+   * here: this does **not** go through `closeWorkspaceServer`, and so does not
+   * cancel the supervisor's own entry. That cancel is exactly what makes a
+   * user's stop win over a scheduled retry, so it has to keep living where the
+   * user's actions land; a retry that cancelled its own entry would lose the
+   * next attempt whenever the re-open failed, which is the common case (a
+   * bridge that is still down).
+   */
+  async function recoverWorkspaceServer(wsPath: string, name: string): Promise<void> {
+    const ws = runtime.workspaces.get(wsPath)
+    const conn = ws?.servers.get(name)
+    // `handle === null` means the row was dropped (stopped, released, replaced
+    // by a rescan): whatever owns it now decides what happens, not this retry.
+    if (!ws || !conn || conn.status === 'conflict' || !conn.handle) return
+    conn.tools = []
+    conn.toolCount = 0
+    await connectWorkspaceConn(conn.server, conn)
+    for (const agent of ws.agents) scope.rebuildAgentWorkspace(agent, wsPath)
+    scope.reconcileRestrictions()
   }
 
   function stopWorkspaceServer(wsPath: string, name: string): boolean {
@@ -194,6 +226,9 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
         if (ws?.servers.get(server.name) !== conn) return
         for (const agent of ws.agents) scope.rebuildAgentWorkspace(agent, wsPath)
       })
+      // Only a row that came up is watched; see the registry's note on why the
+      // watch lives at the end of the successful path (and nowhere else).
+      deps.supervisor.watch({ tier: 'workspace', wsPath, name: server.name }, handle)
     } catch (error) {
       conn.status = 'error'
       conn.error = toErrorMessage(error, MAX_ERROR_LENGTH)
@@ -518,6 +553,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     listWorkspaces,
     closeWorkspaceServer,
     restartWorkspaceServer,
+    recoverWorkspaceServer,
     stopWorkspaceServer,
     closeWorkspaceWatchers,
     serverNameTaken,

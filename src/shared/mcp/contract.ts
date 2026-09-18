@@ -24,6 +24,8 @@ export type ServerStatus =
   | 'needs-auth'
   | 'authorizing'
   | 'connecting'
+  /** The transport dropped and an automatic retry is pending. */
+  | 'reconnecting'
   | 'error'
   | 'disconnected'
   | 'disabled'
@@ -103,7 +105,22 @@ export interface WorkspaceView {
   error: string
 }
 
-export interface SettingsView {
+/**
+ * The reconnection knobs (`Settings → MCP → 高级`), split out because the
+ * feature's own settings view and its write route both carry exactly this set.
+ */
+export interface ReconnectSettings {
+  /** Rebuild a transport that dropped, instead of leaving it dead. */
+  autoReconnect: boolean
+  /** Attempts before giving up; 0 retries for the life of the mount. */
+  reconnectMaxAttempts: number
+  /** Ceiling of the exponential backoff, in milliseconds. */
+  reconnectMaxDelayMs: number
+  /** Liveness probe period in milliseconds; 0 turns the probe off. */
+  healthCheckIntervalMs: number
+}
+
+export interface SettingsView extends ReconnectSettings {
   onDemandToolInjection: boolean
   /** `tools/call` timeout in force, in milliseconds (the built-in default included). */
   toolCallTimeoutMs: number
