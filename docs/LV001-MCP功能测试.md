@@ -50,11 +50,12 @@ dsh --profile web --dump-config | grep smai-kit
 
 ### 1. 脚本分工
 
-仓库内置四个测试用脚本，按职责分工，都不随 npm 包发布（`package.json` 的 `files` 只含 `lib`）：
+仓库内置五个测试用脚本，按职责分工，都不随 npm 包发布（`package.json` 的 `files` 只含 `lib`）：
 
 | 脚本 | 角色 | 传输 |
 | ---- | ---- | ---- |
 | [`scripts/slow-mcp.mjs`](../scripts/slow-mcp.mjs) | 连接阶段可控的 MCP 服务器 | stdio |
+| [`scripts/ssh-stub-mcp.mjs`](../scripts/ssh-stub-mcp.mjs) | 连上之后自己断开的 MCP 服务器（验掉线自动重连） | stdio（经 ssh） |
 | [`scripts/http-mcp.mjs`](../scripts/http-mcp.mjs) | 本地回环的 MCP 服务器，覆盖三种鉴权 | Streamable HTTP |
 | [`scripts/http-mcp-cli.mjs`](../scripts/http-mcp-cli.mjs) | 上面那个的一键起停命令 | —— |
 | [`scripts/kill-port.mjs`](../scripts/kill-port.mjs) | 端口占用排查与终止 | —— |
@@ -150,6 +151,41 @@ pnpm http-mcp:stop oauth
 pnpm dsh:kill-port 8793     # 列出占用该端口的进程，确认后终止
 pnpm dsh:kill-port 3080 -y  # -y 跳过确认
 ```
+
+### 6. ssh-stub-mcp.mjs（ssh 自断线测试服务器）
+
+单文件、零依赖。它被拉起后过一段时间**自己断开**，用来验证插件的掉线自动重连（测试步骤见「四、7」）。与 `slow-mcp.mjs` 的分工不同：那个测连接阶段，这个测"连上之后掉线"。
+
+两种断开方式的差别，正好对应插件区分的那两条检测路径：
+
+| `--mode` | 断开的物理含义 | 插件靠什么发现 |
+| ---- | ---- | ---- |
+| `exit`（默认） | 进程自己退出 → sshd 关会话 → 本地 ssh 退出 | 子进程退出事件，**立即**触发重连 |
+| `hang` | 进程与 ssh 会话都活着，只是不再应答 | 探活（定期 `tools/list`），卡满 60 秒超时后判定掉线 |
+
+| 参数 | 含义 | 默认 |
+| ---- | ---- | ---- |
+| `--lifetime=<毫秒>` | 多久后自动断开；`0` 表示不自动断开 | `20000` |
+| `--mode=<exit\|hang>` | 断开方式（见上表） | `exit` |
+| `--log=<路径>` | 启动/断开/协议流水写到这里（同时写 stderr）。相对路径按 cwd 解析，父目录不存在会自动创建——配合配置里的 `cd <仓库> &&`，`--log=.tmp/ssh-stub.log` 落在仓库根的 `.tmp/`（已在 `.gitignore` 里）。每行开头是**北京时间**定宽时间戳（`2026-09-18 10:45:26.096`，UTC+8） | 只写 stderr |
+| `--name=<名字>` | 写进 `serverInfo`、应答文本，并作为**每行日志的前缀**（`--name=node-stub` → `[node-stub] …`），同一份脚本起多个实例时用它区分 | `ssh-stub` |
+
+除定时断开外，它还提供三个工具便于在对话里**精确控制**时机，不必等定时器：`stub_echo`（回显）、`stub_die`（应答后退出）、`stub_hang`（应答后停止应答）。
+
+同一个脚本也能当**本地 node** 服务器用（不经 ssh），此时验的是"子进程退出即瞬时发现"这条路径——比 ssh 那条少一跳，不依赖 sshd / 密钥 / 端口：
+
+```json
+"node-stub": {
+  "type": "stdio",
+  "command": "node",
+  "args": ["./scripts/ssh-stub-mcp.mjs", "--name=node-stub", "--lifetime=20000", "--log=.tmp/node-stub.log"],
+  "env": {}
+}
+```
+
+本地条目的**相对脚本路径与相对 `--log` 都由插件按工作区根解析**（工作区级 `cwd` 默认就是工作区根），所以不需要 `cd`，日志直接落在仓库的 `.tmp/`（已被 `.gitignore` 忽略）。判据与「四、7」相同，只是"掉线"改成 `kill -9 <node 的 pid>`。
+
+每次启动都会往 `--log` 追加一行 `===== START pid=… =====`，所以 `grep -c START <log>` 就是"被拉起了几次"——这是重连是否生效的直接判据。`--help` 打印全部参数。
 
 ## 三、 测试配置写法
 
@@ -392,6 +428,68 @@ curl -X POST http://127.0.0.1:8793/_test/expire-tokens
 | 越界输入 | 小于 1000 或大于 1800000 的毫秒值被拒绝，磁盘上的值不变 |
 
 自动化覆盖见 [`test/tool-timeout.test.mjs`](../test/tool-timeout.test.mjs)：它断言了写入校验（越界 400）、落盘与清除，以及超时确实中断了在途的 `tools/call`。
+
+### 7. stdio over ssh 掉线自动重连
+
+验证「**连上过的**服务器掉线后会被自己拉起来」。用 [`scripts/ssh-stub-mcp.mjs`](../scripts/ssh-stub-mcp.mjs) 经本地回环 ssh 拉起，走的是真实 `ssh → sshd → node` 三段，与线上经 ssh 拉起远端 MCP 的形态一致。
+
+【**前置条件**】本机有 sshd 且能免密回环登录：
+
+```sh
+ssh -o BatchMode=yes 127.0.0.1 'node -v'
+```
+
+返回版本号即可用。报 `Permission denied` 就先做免密（`ssh-keygen -t ed25519`，公钥追加到 `~/.ssh/authorized_keys`）；报 `Connection refused` 说明 sshd 没在监听——**先确认端口**：容器/沙箱里的 sshd 常常不在 22（本仓库的开发容器就是 36000），此时命令与配置都要加 `-p <端口>`，配置里那句远端命令的 `-p` 也要同步。
+
+【**配置**】把 `<仓库绝对路径>` 换成实际路径，作为 stdio 条目加入（「设置 → MCP」右上 ＋ 添加，或写进 `.dsh/dshmm/mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "ssh-stub": {
+      "type": "stdio",
+      "command": "ssh",
+      "args": [
+        "-i", "~/.ssh/id_ed25519",
+        "-o", "ServerAliveInterval=60", "-o", "ServerAliveCountMax=3",
+        "127.0.0.1",
+        "cd <仓库绝对路径> && node ./scripts/ssh-stub-mcp.mjs --name=ssh-stub --lifetime=20000 --log=.tmp/ssh-stub.log"
+      ]
+    }
+  }
+}
+```
+
+四个容易踩的点：
+
+- 末位那个 `cd … && node …` 是**一整条远端命令**（ssh 把它交给远端 shell 执行），不要拆成多个数组元素；`--lifetime` 之类的参数只能写在命令行里——`env` 到不了远端，ssh 默认不转发环境变量；
+- 开头的 `cd <仓库绝对路径> &&` 不能省：远端 shell 的 cwd 默认是登录目录（家目录），不先锚到仓库根，`./scripts/…` 会解析成 `<家目录>/scripts/…`，报 `Cannot find module`（`remote-start-mcp.bat` 用 `cd /d "%~dp0"` 锚定项目根，是同一个套路）；
+- 正因为 cwd 被锚到了仓库根，`--log=.tmp/ssh-stub.log` 会落在仓库的 `.tmp/`（`.gitignore` 已忽略该目录，不存在时脚本自动创建）；
+- `-o ServerAliveInterval=60 -o ServerAliveCountMax=3` 是给真实链路用的：前者让空闲连接不被 NAT/隧道回收，后者让链路真断时本地 ssh 最迟 180 秒自己退出，插件才有即时可靠的触发点。
+
+【**步骤**】
+
+（1）「设置 → MCP → 高级」确认「自动重连」为开，「探活间隔」`30000`、「最大重试次数」`0`（不限制），保存；
+
+（2）加入上面的条目，等该行变成「已启用」；
+
+（3）另开一个终端盯日志：`tail -f .tmp/ssh-stub.log`，此时应已有第一行 `===== START pid=… =====`；
+
+（4）等 `--lifetime` 到期（默认 20 秒），或在对话里让它调用 `stub_die`（想手动控制时机就用这个）。
+
+【**通过判据**】
+
+| 检查点 | 期望 |
+| ------ | ---- |
+| 行状态 | 掉线瞬间变成「重连中」并转圈，行内 `error` 能看到 `stdio process exited: … self-exit: lifetime 20000ms elapsed (mode=exit)`（stub 的生命周期日志走 stderr，会作为断开原因回传） |
+| 重启次数 | `grep -c START .tmp/ssh-stub.log` 变成 `2`，且新的 `pid` 与上一次不同 |
+| 工具可用 | 重连后 `stub_echo` 仍能调用（工具重新注册，不需要重启 dsh） |
+| 关闭优先 | 在「重连中」时点该行的「关闭」，等 3 秒以上：`START` 行数不再增加，状态停在「未连接」 |
+| 探活路径 | 改用 `--mode=hang` 重跑：状态先长时间保持「已启用」（探活未到点），约「探活间隔」+ 60 秒后才变「重连中」——那 60 秒是探活请求自身的固定超时 |
+| 未连上的不重试 | 把末位命令改成不存在的脚本（如 `node /nope.mjs`）重跑：状态落在「错误」，且**一条 `START` 行都不会有**——首次连接就失败的不进重试队列 |
+| 状态留在磁盘 | 上面四步改的四个值写在 `~/.dsh/mcp-manager.json`（`autoReconnect` / `healthCheckIntervalMs` / `reconnectMaxAttempts` / `reconnectMaxDelayMs`），保存后立即生效，不需要重连服务器 |
+
+自动化覆盖见 [`test/auto-reconnect.test.mjs`](../test/auto-reconnect.test.mjs)：六项用例用真子进程（kill 掉）、真端点（HTTP 桩）覆盖同一套状态机，但不经过 ssh；本脚本补的就是 ssh 这一段。
 
 ## 五、 问题排查
 
