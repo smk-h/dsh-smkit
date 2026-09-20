@@ -20,6 +20,23 @@
  * from coordinates measured when it opened, so a header that moved under it
  * would leave it pointing at nothing.
  *
+ * **A hover is movement, not position.** The gesture listened for is the pointer
+ * moving *on* the control, never the control arriving under a pointer that has
+ * not moved — and out here the second really happens: this seat is part of the
+ * conversation header's right-aligned utilities, and that run travels whenever
+ * the frame beside it changes width. Collapsing the sidebar (closing its last
+ * tab does it) widens the conversation, and the whole run slides sideways under
+ * a pointer that is still where its last click left it; the browser reports the
+ * slide as an `enter`, because it is one. Opening there would answer a gesture
+ * nobody made, and hang the panel off a control the user never reached for. A
+ * hand-made `enter`, though, is always followed by a move *inside* the control
+ * — the browser dispatches both from one pointer sample, enter first, in the
+ * same task — so opening on the move costs nothing and cannot be fooled by a
+ * reflow. Which is also why no `enter` handler is registered at all: it cannot
+ * tell the two cases apart, and cancelling the pending dismissal on it would let
+ * a control that slid back under an idle pointer keep a panel the pointer had
+ * already left.
+ *
  * **The host decides everything shown here.** The panel renders what
  * `GET /openspec` answered: whether `openspec/` exists, its layout parts and
  * tree, and every `openspec-*` skill directory and `opsx*` command entry the
@@ -786,7 +803,13 @@ export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) =
     return (
       <span
         className="os_host"
-        onMouseEnter={(event) => show(event.currentTarget)}
+        // The opening gesture: a pointer that *moves* on the control. Not its
+        // `enter` — see the note at the top of this file for why that one is
+        // ambiguous here, and for why the move always follows it when a hand
+        // did the entering. The pointer stays inside while the panel is open,
+        // so this fires again and again; `show` answers every call after the
+        // first with an early return, so each arrival still reads once.
+        onMouseMove={(event) => show(event.currentTarget)}
         // Keyboard focus opens it too: a control whose only affordance is a
         // hover would be unusable from the keyboard.
         onFocus={(event) => show(event.currentTarget)}

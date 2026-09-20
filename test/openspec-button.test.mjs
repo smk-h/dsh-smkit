@@ -3,13 +3,16 @@
  * bundle in a hook harness: hover opens the panel, the panel shows what the
  * host answered, and the delete asks first and then reports what it did.
  *
- * Three things are worth testing beyond "the paths are rendered":
+ * Four things are worth testing beyond "the paths are rendered":
  *
  * - the panel is placed from measured coordinates — right-aligned under the
  *   control, and on the side with room — which is the one piece of geometry
  *   this control computes rather than reads;
  * - hovering is what reads the workspace, so a control that has not been
  *   hovered must have requested nothing;
+ * - the hover that counts is a pointer *moving* on the control: the header can
+ *   slide the control under a still pointer, and that arrival must open
+ *   nothing;
  * - the delete is one action over the whole footprint, and a partial failure is
  *   reported inside the panel rather than read as a success.
  *
@@ -325,12 +328,37 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
       for (const handler of pending) handler()
       return this.render()
     },
-    /** Hover the control and let the host answer. */
+    /**
+     * Hover the control the way a browser reports a hand doing it: the pointer
+     * enters the control and then moves within it, both dispatched from one
+     * pointer sample, enter first. Both halves are delivered because which one
+     * the control opens on is the point of the reflow test below.
+     */
     async hover() {
       const host = withClass(this.render(), 'os_host')
       assert.ok(host, 'the control must render a host element')
-      host.props.onMouseEnter({ currentTarget: node })
+      if (typeof host.props.onMouseEnter === 'function') host.props.onMouseEnter({ currentTarget: node })
+      this.move()
       await flush()
+      return this.render()
+    },
+    /** Move the pointer on the control: the gesture the panel opens on. */
+    move() {
+      const host = withClass(this.render(), 'os_host')
+      assert.ok(host, 'the control must render a host element')
+      host.props.onMouseMove({ currentTarget: node, clientX: 1010, clientY: 30 })
+      return this.render()
+    },
+    /**
+     * The enter alone: what the browser reports when the header reflows and
+     * the control arrives under a pointer that never moved. Delivered to
+     * whatever handler the control declares for it, if any — an implementation
+     * that opens on this is the bug, not this harness.
+     */
+    arrive() {
+      const host = withClass(this.render(), 'os_host')
+      assert.ok(host, 'the control must render a host element')
+      if (typeof host.props.onMouseEnter === 'function') host.props.onMouseEnter({ currentTarget: node })
       return this.render()
     },
     /**
@@ -709,6 +737,26 @@ it('lets the pointer come back before the grace period is up', async () => {
   await app.hover()
 
   app.leave({ x: 990, y: 30 })
-  withClass(app.render(), 'os_host').props.onMouseEnter({ currentTarget: app.node })
+  // Coming back is a move onto the control: there is no other way back onto it.
+  app.move()
   assert.ok(withClass(app.runTimers(), 'os_panel'), 'returning to the control cancels the leave too')
+})
+
+it('does not open for a control that reflowed under a still pointer', () => {
+  const app = mount({ fetch: routing() })
+
+  // Closing the sidebar's last tab collapses it, the conversation grows, and
+  // the header's utilities — this control among them — slide sideways under a
+  // pointer that is still where its last click left it. The browser reports
+  // that arrival as an enter, and no move follows it.
+  assert.equal(
+    withClass(app.arrive(), 'os_panel'),
+    undefined,
+    'a control that came to the pointer is not a hover',
+  )
+  assert.deepEqual(app.calls, [], 'and a gesture nobody made reads nothing from the host')
+
+  // The smallest move on the control is a hand, and opens it.
+  assert.ok(withClass(app.move(), 'os_panel'), 'moving on the control is what opens the panel')
+  assert.equal(app.calls.length, 1, 'and the arrival reads the workspace once, as it always did')
 })

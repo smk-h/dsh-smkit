@@ -121,6 +121,10 @@ declare namespace JSX {
     onClick?: (event: EventLike) => void
     onChange?: (event: EventLike) => void
     onMouseEnter?: (event: PointerEventLike) => void
+    /** The arrival a hand made, for controls that must not read it off an
+     * `enter`: the OpenSpec control opens on the move, because the header can
+     * slide it under a pointer that never moved (`features/openspec`). */
+    onMouseMove?: (event: PointerEventLike) => void
     onMouseLeave?: (event: PointerEventLike) => void
     onMouseDown?: (event: PointerEventLike) => void
     onFocus?: (event: AnchorEventLike) => void
