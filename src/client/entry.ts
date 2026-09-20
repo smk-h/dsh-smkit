@@ -19,7 +19,7 @@ import { mcpFeature } from './features/mcp/client'
 import { openSpecFeature } from './features/openspec/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
 import { skillsFeature } from './features/skills/client'
-import { createApi } from './platform/api'
+import { createApi, createStream } from './platform/api'
 import { PLATFORM_LOCALE_EN } from './platform/i18n/en'
 import { PLATFORM_LOCALE_ZH } from './platform/i18n/zh'
 import { PLATFORM_CSS, installStylesheet } from './platform/styles'
@@ -98,6 +98,7 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
         react,
         h: react.createElement,
         api: createApi(),
+        stream: createStream(),
         platformT: ctx.locale.bind('platform'),
         createPortal,
         Tooltip,

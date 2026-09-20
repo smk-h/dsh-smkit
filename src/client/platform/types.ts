@@ -173,6 +173,19 @@ export interface ApiResult {
 export type ApiFn = (path: string, options?: RequestInit) => Promise<ApiResult>
 
 /**
+ * One call to a route that answers with an event stream rather than a JSON body.
+ *
+ * `onEvent` fires once per frame as it arrives, so a caller can render progress
+ * live; the promise settles only when the stream closes. It is the browser-read
+ * half of the SSE the OpenSpec upgrade route writes.
+ */
+export type StreamFn = (
+  path: string,
+  options: RequestInit,
+  onEvent: (event: Record<string, any>) => void,
+) => Promise<void>
+
+/**
  * The shell's hover bubble, as this plugin uses it: a structural slice of
  * `Tooltip` from the platform's ui-primitives module. Every member below exists
  * on the real component (`label`, `side`, `delayMs`, `disabled`, `maxWidth`,
@@ -201,6 +214,11 @@ export interface ClientDeps {
   react: ReactLike
   h: CreateElement
   api: ApiFn
+  /**
+   * The event-stream sibling of `api`, for the OpenSpec upgrade call whose
+   * output is painted line by line while the command runs.
+   */
+  stream: StreamFn
   /**
    * Translator bound to the `platform` namespace. The platform layer's own
    * components read their copy from here — today the confirmation dialog's two

@@ -44,6 +44,42 @@ export const OPENSPEC_INIT_ARGS: readonly string[] = ['init', '--tools', 'agents
 export const OPENSPEC_INIT_COMMAND_LINE = `${OPENSPEC_INIT_COMMAND} ${OPENSPEC_INIT_ARGS.join(' ')}`
 
 /**
+ * The npm package the CLI is installed from, and the two commands the panel's
+ * update button runs, in order.
+ *
+ * The CLI ships no self-update command — `openspec update` refreshes a
+ * workspace's instruction files, not the installed binary — so upgrading the
+ * tool is npm's job (`npm update -g @fission-ai/openspec`), and a newer tool
+ * then leaves the workspace's own generated files behind until `openspec update`
+ * rewrites them. The button does both: the global upgrade, then the local
+ * refresh. Each command line is fixed and carries no caller input, which is what
+ * lets them run through a shell on Windows (where npm and the CLI are `.cmd`
+ * shims) with nothing of a request's to interpret.
+ */
+export const OPENSPEC_PACKAGE = '@fission-ai/openspec'
+export const OPENSPEC_UPDATE_COMMAND = 'npm'
+export const OPENSPEC_UPDATE_ARGS: readonly string[] = ['update', '-g', OPENSPEC_PACKAGE]
+
+/** The refresh that follows the upgrade: rewrite this workspace's files. */
+export const OPENSPEC_REFRESH_COMMAND = 'openspec'
+export const OPENSPEC_REFRESH_ARGS: readonly string[] = ['update']
+
+/** Each command as the panel shows it, so what is offered is what runs. */
+export const OPENSPEC_UPDATE_COMMAND_LINE = `${OPENSPEC_UPDATE_COMMAND} ${OPENSPEC_UPDATE_ARGS.join(' ')}`
+export const OPENSPEC_REFRESH_COMMAND_LINE = `${OPENSPEC_REFRESH_COMMAND} ${OPENSPEC_REFRESH_ARGS.join(' ')}`
+
+/**
+ * How long the npm upgrade may take before it is killed.
+ *
+ * Unlike `init`, this one reaches the registry over the network and reconciles
+ * the whole global tree, so its budget is a real one rather than a runaway
+ * guard: a slow connection can legitimately spend a minute fetching. Past this
+ * the run is assumed stuck and reported as a timeout. The refresh that follows is
+ * local file work, so it shares `init`'s shorter bound.
+ */
+export const OPENSPEC_UPDATE_TIMEOUT_MS = 180_000
+
+/**
  * How long the CLI may take before it is killed. Generating instruction files
  * is local work — no registry query is made (see `initEnv`) — so this is a
  * runaway guard, not a budget.

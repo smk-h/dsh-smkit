@@ -447,3 +447,170 @@ it('runs the CLI through the route, and refuses a cwd that is not a path', async
   assert.deepEqual(runs[0].args, ['init', '--tools', 'agents', '--force'])
   assert.equal(runs[0].cwd, project)
 })
+
+// --- the update: a two-command chain, streamed ------------------------------
+
+// Fresh roots: the delete test above took `project/openspec` away, and the
+// chain's step 2 keys off whether a store is present, so the two cases need
+// their own roots that were never touched.
+const storeRoot = join(scratch, 'upd', 'store')
+mkdirSync(join(storeRoot, '.git'), { recursive: true })
+write(join(storeRoot, 'openspec', 'config.yaml'), 'profile: core\n')
+const bareRoot = join(scratch, 'upd', 'bare')
+mkdirSync(join(bareRoot, '.git'), { recursive: true })
+
+/**
+ * A scripted {@link OpenSpecUpdateRunner}: one entry per command, in order.
+ * Each may emit lines and override the run's verdict; the default is a clean
+ * exit-0. Records how each command was actually spawned.
+ */
+function scriptedRunner(script) {
+  const runs = []
+  let index = 0
+  const run = async (command, args, options, onLine) => {
+    const entry = script[index] ?? {}
+    runs.push({ command, args: [...args], cwd: options.cwd, env: options.env, timeoutMs: options.timeoutMs })
+    index += 1
+    for (const line of entry.lines ?? []) onLine(line)
+    return { notFound: false, timedOut: false, exitCode: 0, ...entry.result }
+  }
+  return { run, runs }
+}
+
+/** Run `updateOpenSpec` against a script, collecting every emitted event. */
+async function collectUpdate(cwd, script) {
+  const events = []
+  const { run, runs } = scriptedRunner(script)
+  await mod.updateOpenSpec(cwd, { logger, run }, (event) => events.push(event))
+  return { events, runs }
+}
+
+/** The emitted line texts, in order — the running commentary minus the frames. */
+const lineTexts = (events) =>
+  events.filter((event) => event.type === 'line').map((event) => event.text)
+
+it('upgrades the tool then refreshes the store, at the project root, streaming both', async () => {
+  const { events, runs } = await collectUpdate(storeRoot, [
+    { lines: [{ type: 'line', stream: 'out', text: 'changed 1 package in 4s' }] },
+    { lines: [{ type: 'line', stream: 'out', text: 'Refreshed instruction files' }] },
+  ])
+
+  assert.equal(runs.length, 2, 'both commands of the chain run')
+  assert.equal(runs[0].command, 'npm')
+  assert.deepEqual(runs[0].args, ['update', '-g', '@fission-ai/openspec'])
+  assert.equal(runs[0].cwd, storeRoot)
+  assert.equal(runs[0].env.NO_COLOR, '1')
+  assert.equal(runs[0].env.npm_config_progress, 'false', 'no animated progress bar over a pipe')
+  assert.equal(runs[0].env.npm_config_update_notifier, 'false')
+  assert.equal(runs[0].timeoutMs, 180_000, 'the registry-bound step gets the long budget')
+  assert.equal(runs[1].command, 'openspec')
+  assert.deepEqual(runs[1].args, ['update'])
+  assert.equal(runs[1].env.OPENSPEC_TELEMETRY, '0', 'the refresh reuses the CLI-safe env')
+  assert.equal(runs[1].timeoutMs, 60_000, 'and the short local budget')
+
+  assert.deepEqual(lineTexts(events), [
+    '$ npm update -g @fission-ai/openspec',
+    'changed 1 package in 4s',
+    '$ openspec update',
+    'Refreshed instruction files',
+  ], 'each command is echoed before its own output')
+  assert.deepEqual(events.at(-1), { type: 'done', status: 'ok', exitCode: 0 })
+})
+
+it('skips the store refresh where there is no openspec/ directory', async () => {
+  const { events, runs } = await collectUpdate(bareRoot, [{}])
+  assert.equal(runs.length, 1, 'a bare workspace still gets the tool upgraded, and only that')
+  assert.ok(lineTexts(events).some((text) => text.includes('instruction-file refresh skipped')))
+  assert.deepEqual(events.at(-1), { type: 'done', status: 'ok', exitCode: 0 }, 'a skip is not a failure')
+})
+
+it('tells a missing npm, a timeout and a failed upgrade apart', async () => {
+  const missing = await collectUpdate(storeRoot, [{ result: { notFound: true, exitCode: null } }])
+  assert.equal(missing.runs.length, 1, 'with no npm there is nothing to refresh either')
+  assert.deepEqual(missing.events.at(-1), { type: 'done', status: 'npm-missing', exitCode: null })
+  assert.ok(lineTexts(missing.events).some((text) => text.includes('command not found on PATH')))
+
+  const timedOut = await collectUpdate(storeRoot, [{ result: { timedOut: true, exitCode: null } }])
+  assert.deepEqual(timedOut.events.at(-1), { type: 'done', status: 'timeout', exitCode: null })
+
+  const failed = await collectUpdate(storeRoot, [{ result: { exitCode: 1 } }])
+  assert.deepEqual(failed.events.at(-1), { type: 'done', status: 'failed', exitCode: 1 })
+  assert.equal(failed.runs.length, 1, 'a failed upgrade never reaches the refresh')
+})
+
+it('classifies the refresh step on its own', async () => {
+  const badRefresh = await collectUpdate(storeRoot, [{}, { result: { exitCode: 2 } }])
+  assert.deepEqual(badRefresh.events.at(-1), { type: 'done', status: 'failed', exitCode: 2 })
+
+  const refreshTimeout = await collectUpdate(storeRoot, [{}, { result: { timedOut: true } }])
+  assert.deepEqual(refreshTimeout.events.at(-1), { type: 'done', status: 'timeout', exitCode: null })
+
+  const missingCli = await collectUpdate(storeRoot, [{}, { result: { notFound: true, exitCode: null } }])
+  assert.deepEqual(missingCli.events.at(-1), { type: 'done', status: 'failed', exitCode: null },
+    'the store is there but the CLI vanished mid-upgrade: still a failure')
+})
+
+/**
+ * One call against the handler for the streaming route. The fake `res` records
+ * the SSE headers and every `write`, and resolves only once `end` closes the
+ * stream — which is the `done` frame the orchestrator emits.
+ */
+async function streamHandle(method, rest, body, deps) {
+  let settle
+  const answered = new Promise((resolve) => { settle = resolve })
+  const chunks = []
+  let code = 0
+  let headers
+  const res = {
+    writeHead(status, hdrs) { code = status; headers = hdrs },
+    write(chunk) { chunks.push(chunk) },
+    end(chunk) { if (chunk !== undefined) chunks.push(chunk); settle({ code, headers, raw: chunks.join('') }) },
+  }
+  const payload = body === undefined ? [] : [Buffer.from(JSON.stringify(body))]
+  const req = {
+    method,
+    url: `/mcp-manager/api${rest}`,
+    headers: { host: '127.0.0.1:3080' },
+    async*[Symbol.asyncIterator]() { yield* payload },
+  }
+  const facts = {
+    url: new URL(`http://localhost/mcp-manager/api${rest}`),
+    rest: rest.split('?')[0],
+    origin: 'http://localhost',
+    idMatch: null,
+  }
+  const claimed = await mod.handleOpenSpec(req, res, facts, deps)
+  assert.equal(claimed, true, 'the update route must claim its own request')
+  return answered
+}
+
+/** Parse an SSE body into the events it carried. */
+function sseEvents(raw) {
+  return raw
+    .split('\n\n')
+    .filter((frame) => frame.startsWith('data: '))
+    .map((frame) => JSON.parse(frame.slice('data: '.length)))
+}
+
+it('answers the update route as an event stream that ends on the done frame', async () => {
+  const { run } = scriptedRunner([
+    { lines: [{ type: 'line', stream: 'out', text: 'changed 1 package' }] },
+    {},
+  ])
+  const answered = await streamHandle('POST', '/openspec/update', { cwd: storeRoot }, { logger, runUpdate: run })
+  assert.equal(answered.code, 200)
+  assert.match(answered.headers['Content-Type'], /text\/event-stream/, 'the type DSH never gzips')
+  const events = sseEvents(answered.raw)
+  assert.deepEqual(events.at(0), { type: 'line', stream: 'out', text: '$ npm update -g @fission-ai/openspec' })
+  assert.ok(events.some((event) => event.text === 'changed 1 package'), 'each line is its own frame')
+  assert.deepEqual(events.at(-1), { type: 'done', status: 'ok', exitCode: 0 })
+  assert.ok(answered.raw.endsWith('\n\n'), 'every frame, including the last, is terminated')
+})
+
+it('refuses a relative cwd on the update route with a plain 400', async () => {
+  const { runs } = scriptedRunner([])
+  const answered = await streamHandle('POST', '/openspec/update', { cwd: 'work/app' }, { logger, runUpdate: async () => { throw new Error('must not run') } })
+  assert.equal(answered.code, 400, 'a cwd the host cannot resolve is rejected before the stream opens')
+  assert.deepEqual(runs, [])
+  assert.match(answered.raw, /absolute workspace path/)
+})

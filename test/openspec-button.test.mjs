@@ -45,6 +45,28 @@ const flush = async (rounds = 5) => {
 /** One HTTP answer in the shape the client's `api()` helper expects. */
 const response = (body, ok = true, status = 200) => ({ ok, status, json: async () => body })
 
+/**
+ * One SSE answer in the shape the client's `stream()` helper expects: an open
+ * response whose body reader hands back one encoded frame per `read()`, so the
+ * panel paints each line as it arrives rather than in one block.
+ */
+const streamResponse = (events) => ({
+  ok: true,
+  status: 200,
+  body: {
+    getReader() {
+      const frames = events.map((event) => `data: ${JSON.stringify(event)}\n\n`)
+      let index = 0
+      return {
+        read: async () =>
+          index >= frames.length
+            ? { done: true, value: undefined }
+            : { done: false, value: new TextEncoder().encode(frames[index++]) },
+      }
+    },
+  },
+})
+
 /** Flatten a rendered tree, expanding function components the way React would. */
 function nodes(tree) {
   if (tree === null || tree === undefined || typeof tree !== 'object') return []
@@ -283,6 +305,9 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
     },
     document: fakeDocument,
     Element: SandboxElement,
+    // The streaming reader decodes the SSE bytes as they arrive; the harness
+    // hands it the platform's own decoder so the update path runs unchanged.
+    TextDecoder: globalThis.TextDecoder,
     setTimeout: (handler) => { const id = nextTimer++; timers.set(id, handler); return id },
     clearTimeout: (id) => { timers.delete(id) },
     fetch: async (url, options) => {
@@ -406,6 +431,18 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
 
 const routing = (view = VIEW, remove = { removed: ['openspec'], failed: [], bytes: 2048 }) => (url) =>
   url.includes('/openspec/delete') ? response(remove) : response(view)
+
+/**
+ * A fetch stub for the upgrade: the update POST answers with a live SSE stream,
+ * and every read answers with `view`. The stream's events are handed in as the
+ * frames the host emits.
+ */
+const updateRouting = (events, view = VIEW) => (url) =>
+  url.includes('/openspec/update') ? streamResponse(events) : response(view)
+
+/** The index in the rendered tree at which a class token first appears. */
+const orderOf = (tree, name) =>
+  nodes(tree).findIndex((node) => String(node.props?.className ?? '').split(' ').includes(name))
 
 it('reads nothing until it is hovered, and opens closed', () => {
   const app = mount({ fetch: routing() })
@@ -817,4 +854,97 @@ it('does not open for a control that reflowed under a still pointer', () => {
   // The smallest move on the control is a hand, and opens it.
   assert.ok(withClass(app.move(), 'os_panel'), 'moving on the control is what opens the panel')
   assert.equal(app.calls.length, 1, 'and the arrival reads the workspace once, as it always did')
+})
+
+// --- the head's update button ------------------------------------------------
+
+it('sits between the status chip and the refresh button, showing the command it runs', async () => {
+  const app = mount({ fetch: routing() })
+  const shown = await app.hover()
+
+  const chip = token(shown, 'os_chip')
+  const update = token(shown, 'os_update')
+  const refresh = token(shown, 'os_refresh')
+  assert.ok(chip && update && refresh, 'the head carries all three')
+  assert.ok(orderOf(shown, 'os_chip') < orderOf(shown, 'os_update'), 'the update sits after the chip')
+  assert.ok(orderOf(shown, 'os_update') < orderOf(shown, 'os_refresh'), 'and before the refresh button')
+  // Offered as a green primary button, the same shape as the initialise.
+  assert.ok(String(update.props.className).includes('primary'))
+  assert.equal(update.props.title, 'openSpecUpdateCommand', 'the hover names the commands it runs')
+  assert.equal(update.props.disabled, false)
+})
+
+it('marks the button busy and the panel running while the stream is open', async () => {
+  const app = mount({ fetch: updateRouting([{ type: 'line', stream: 'out', text: 'working' }]) })
+  const shown = await app.hover()
+  token(shown, 'os_update').props.onClick()
+
+  // The click flips `updating` synchronously, before the first awaited read; a
+  // render taken here sees the run in flight.
+  const busy = app.render()
+  assert.equal(token(busy, 'os_update').props.disabled, true, 'the button cannot start a second upgrade')
+  assert.ok(texts(busy).join(' | ').includes('openSpecUpdateRunning'), 'and the panel says the run is going')
+})
+
+it('streams the upgrade into the panel, then reads the footprint back', async () => {
+  const app = mount({
+    fetch: updateRouting([
+      { type: 'line', stream: 'out', text: '$ npm update -g @fission-ai/openspec' },
+      { type: 'line', stream: 'out', text: 'changed 1 package in 4s' },
+      { type: 'line', stream: 'out', text: '$ openspec update' },
+      { type: 'done', status: 'ok', exitCode: 0 },
+    ]),
+  })
+  const shown = await app.hover()
+  token(shown, 'os_update').props.onClick()
+  await flush(20)
+
+  const post = app.calls.find((call) => call.url === '/mcp-manager/api/openspec/update')
+  assert.ok(post, 'the click POSTs to the streaming route')
+  assert.deepEqual(post.body, { cwd: '/work/app' }, 'and names the workspace')
+
+  const after = app.render()
+  const text = texts(after).join(' | ')
+  assert.ok(text.includes('openSpecUpdateDone'), 'the closing frame becomes the block heading')
+  const output = withClass(after, 'os_output')
+  assert.ok(output, 'the streamed lines are painted into the panel')
+  assert.ok(text.includes('changed 1 package in 4s'), 'verbatim, as npm wrote them')
+  assert.ok(text.includes('$ openspec update'), 'including the second command echo')
+  assert.equal(token(after, 'os_update').props.disabled, false, 'the button frees once the run lands')
+  assert.ok(app.calls.at(-1).url.startsWith('/mcp-manager/api/openspec?cwd='), 'and the footprint is re-read')
+})
+
+it('turns a failed upgrade into its localized reason, in the error style', async () => {
+  const app = mount({
+    fetch: updateRouting([
+      { type: 'line', stream: 'out', text: '$ npm update -g @fission-ai/openspec' },
+      { type: 'line', stream: 'err', text: 'npm ERR! 404' },
+      { type: 'done', status: 'failed', exitCode: 1 },
+    ]),
+  })
+  const shown = await app.hover()
+  token(shown, 'os_update').props.onClick()
+  await flush(20)
+
+  const after = app.render()
+  const text = texts(after).join(' | ')
+  assert.ok(text.includes('openSpecUpdateFailed'), 'a non-zero exit is reported as a failure')
+  assert.ok(text.includes('npm ERR! 404'), 'and the CLI\u2019s own words still reach the block')
+  const heading = withClass(after, 'os_error')
+  assert.ok(heading && texts(heading).includes('openSpecUpdateFailed'), 'the heading wears the error style')
+})
+
+it('phrases a missing npm as an instruction, not a stack', async () => {
+  const app = mount({
+    fetch: updateRouting([
+      { type: 'line', stream: 'out', text: '$ npm update -g @fission-ai/openspec' },
+      { type: 'line', stream: 'err', text: 'npm: command not found on PATH' },
+      { type: 'done', status: 'npm-missing', exitCode: null },
+    ]),
+  })
+  const shown = await app.hover()
+  token(shown, 'os_update').props.onClick()
+  await flush(20)
+
+  assert.ok(texts(app.render()).join(' | ').includes('openSpecUpdateNpmMissing'))
 })

@@ -190,3 +190,44 @@ export interface OpenSpecRemoveResponse {
   /** Measured bytes the removed targets held. */
   bytes: number
 }
+
+/* ------------------------------------------------------- the tool upgrade */
+
+/**
+ * How an `npm install -g @fission-ai/openspec@latest` run ended.
+ *
+ * The four ways are the four things the panel can say back: it worked, the CLI
+ * ran and npm refused, npm itself is not on PATH (so nothing can be upgraded),
+ * and the run was killed for taking too long. They travel as a stable code
+ * rather than a status number because the panel localises each into its own
+ * instruction, and only `ok` needs no instruction.
+ */
+export type OpenSpecUpdateStatus = 'ok' | 'failed' | 'npm-missing' | 'timeout'
+
+/** One line the upgrade command wrote, streamed as it was produced. */
+export interface OpenSpecUpdateLine {
+  type: 'line'
+  /** Which stream the line came from; the two are kept apart so the panel can
+   * mark npm's own warnings differently from its progress. */
+  stream: 'out' | 'err'
+  text: string
+}
+
+/** The upgrade's closing event: how it ended, and the exit code when it ran. */
+export interface OpenSpecUpdateDone {
+  type: 'done'
+  status: OpenSpecUpdateStatus
+  /** The command's exit code, or `null` when it never started or was killed. */
+  exitCode: number | null
+}
+
+/**
+ * One frame of `POST /openspec/update`'s event stream.
+ *
+ * The upgrade is the feature's only long-running action — a global npm install
+ * can take tens of seconds — and a button that shows nothing while it works
+ * reads as a hung plugin. So the route answers not with a result but with the
+ * command's own output, line by line, and this is the shape of each line. The
+ * `done` frame closes the stream and carries the verdict.
+ */
+export type OpenSpecUpdateEvent = OpenSpecUpdateLine | OpenSpecUpdateDone

@@ -114,6 +114,18 @@
   color: var(--dsw-alias-state-business-primary);
 }
 
+/* The head's upgrade button wears the platform's solid primary (`mm_btn
+ * primary`), so it is the palette's business green like the footer's initialise —
+ * the two are the same kind of thing, an action that runs the CLI. It is sized
+ * down only to sit inside the 12px head beside the status chip without making
+ * that row taller than it needs to be. */
+.os_update {
+  flex: none;
+  padding: 1px 8px;
+  font-size: 11px;
+  line-height: 16px;
+}
+
 .os_refresh {
   display: inline-flex;
   align-items: center;

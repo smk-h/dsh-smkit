@@ -130,13 +130,14 @@ export { entryIsLink, scanRoot } from './host/features/skills/scan.js'
 export { isInsideRoot, rootOf, skillRoots } from './host/features/skills/roots.js'
 export { listSkillScopes } from './host/features/skills/workspaces.js'
 export { handleOpenSpec } from './host/features/openspec/api.js'
-export { OPENSPEC_INIT_COMMAND_LINE } from './host/features/openspec/constants.js'
+export { OPENSPEC_INIT_COMMAND_LINE, OPENSPEC_UPDATE_COMMAND_LINE } from './host/features/openspec/constants.js'
 export { initEnv, initOpenSpec, runOpenSpec } from './host/features/openspec/init.js'
 export { inspectOpenSpec, projectRootOf as openSpecRootOf } from './host/features/openspec/inspect.js'
 export { removalRefusal, removeOpenSpec } from './host/features/openspec/remove.js'
+export { streamOpenSpecUpdate, updateEnv, updateOpenSpec } from './host/features/openspec/update.js'
 export type { OpenSpecRemovalTarget } from './host/features/openspec/remove.js'
 export type { OpenSpecInitOutcome } from './host/features/openspec/init.js'
-export type { OpenSpecRunner } from './host/features/openspec/types.js'
+export type { OpenSpecRunner, OpenSpecUpdateEmitter, OpenSpecUpdateRunner } from './host/features/openspec/types.js'
 export type {
   OpenSpecArtifactEntry,
   OpenSpecArtifacts,

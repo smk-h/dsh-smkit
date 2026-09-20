@@ -1,13 +1,15 @@
 /**
- * The OpenSpec API: `GET /openspec`, `POST /openspec/delete` and
- * `POST /openspec/init`.
+ * The OpenSpec API: `GET /openspec`, `POST /openspec/delete`,
+ * `POST /openspec/init` and `POST /openspec/update`.
  *
- * Three routes, all inside the plugin's API prefix. The read answers with the
- * whole footprint (`OpenSpecView`); the two writes are the panel's two
- * actions — remove everything, or create it — and each answers with what it
- * did.
+ * Four routes, all inside the plugin's API prefix. The read answers with the
+ * whole footprint (`OpenSpecView`); the writes are the panel's actions — remove
+ * everything, create it, or upgrade the tool — and each answers with what it
+ * did. The upgrade is the one that streams: it answers with an event stream of
+ * the install's own output rather than a single result, because it is the one
+ * action long enough that a silent wait would read as a hang.
  *
- * All three take exactly one input — the workspace directory, as `cwd` in the
+ * All four take exactly one input — the workspace directory, as `cwd` in the
  * query or in the body — and derive everything else themselves. That is the
  * point of the split: the browser half renders paths it was handed and can
  * never name one, so a stale panel, a hand-typed URL or a replayed request all
@@ -24,11 +26,36 @@ import { OPENSPEC_CWD_ERROR } from './constants.js'
 import { initOpenSpec, runOpenSpec } from './init.js'
 import { inspectOpenSpec } from './inspect.js'
 import { removeOpenSpec } from './remove.js'
+import { streamOpenSpecUpdate, updateOpenSpec } from './update.js'
 import type { OpenSpecHandler } from './types.js'
+import type { ResponseLike } from '../../platform/types.js'
+import type { OpenSpecUpdateEvent } from '../../../shared/openspec/contract.js'
 
 /** Read the one field either route carries, trimmed, or `''` when unusable. */
 function cwdOf(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+/**
+ * Open a response as an event stream.
+ *
+ * `text/event-stream` is the one content type DSH's webserver never gzips (its
+ * compression filter skips it by name), which is what lets each frame reach the
+ * browser as it is written rather than in one buffered block at the end — the
+ * whole point of streaming an install that can take half a minute.
+ */
+function startEventStream(res: ResponseLike): void {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-store',
+    Connection: 'keep-alive',
+  })
+}
+
+/** Write one frame; the closing `done` frame also ends the response. */
+function sendEvent(res: ResponseLike, event: OpenSpecUpdateEvent): void {
+  res.write(`data: ${JSON.stringify(event)}\n\n`)
+  if (event.type === 'done') res.end()
 }
 
 export const handleOpenSpec: OpenSpecHandler = async (req, res, facts, deps) => {
@@ -69,6 +96,33 @@ export const handleOpenSpec: OpenSpecHandler = async (req, res, facts, deps) => 
     // spawning one; a composition that passes none gets the real `execFile`.
     const outcome = await initOpenSpec(cwd, { logger: deps.logger, run: deps.run ?? runOpenSpec })
     sendJson(res, outcome.status, outcome.body)
+    return true
+  }
+
+  if (req.method === 'POST' && rest === '/openspec/update') {
+    const body = await readBody(req)
+    const cwd = cwdOf(body.cwd)
+    if (!isAbsolute(cwd)) {
+      sendJson(res, 400, { error: OPENSPEC_CWD_ERROR })
+      return true
+    }
+    // The upgrade is the feature's one long-running action, so it answers with
+    // the commands' output as it happens rather than a result at the end. The
+    // orchestrator spawns each command in turn and keeps writing to `res` from
+    // its own callbacks, so this route claims the request and steps out of the
+    // way; the closing `done` frame is what ends the response, and the catch is a
+    // backstop so a throw can never leave the connection hanging.
+    startEventStream(res)
+    const send = (event: OpenSpecUpdateEvent): void => sendEvent(res, event)
+    void updateOpenSpec(cwd, { logger: deps.logger, run: deps.runUpdate ?? streamOpenSpecUpdate }, send).catch(
+      () => {
+        try {
+          res.end()
+        } catch {
+          // The stream was already closed by the frame that ended it.
+        }
+      },
+    )
     return true
   }
 

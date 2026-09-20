@@ -59,6 +59,16 @@
  * which a host without that column leaves unset, and a click that does nothing
  * is a fairer answer there than a row that looks like a link and is not one.
  *
+ * **The head's update button upgrades the tool, and streams it.** OpenSpec is
+ * installed once per machine and goes stale independently of any workspace, so
+ * the button asks the host to run the upgrade chain — `npm update -g
+ * @fission-ai/openspec`, then `openspec update` to rewrite this workspace's
+ * files — and reads back its event stream, painting each line as it arrives.
+ * The progress lives on the control rather than the panel because a global
+ * install outlasts a hover: the pointer may leave while npm still works, and
+ * the next hover should find the output already there rather than a box that
+ * forgot the run.
+ *
  * Nothing here reloads anything: the panel is a view over the filesystem, and
  * after a delete it simply reads again.
  */
@@ -82,6 +92,7 @@ import type {
   OpenSpecRemoveFailure,
   OpenSpecStore,
   OpenSpecTreeNode,
+  OpenSpecUpdateStatus,
   OpenSpecView,
 } from '../../../shared/openspec/contract'
 
@@ -282,7 +293,7 @@ export function createOpenSpecButton(
   deps: ClientDeps,
   hooks: OpenSpecHooks = {},
 ): (props: OpenSpecProps) => JSX.Element {
-  const { h, react, api, createPortal } = deps
+  const { h, react, api, stream, createPortal } = deps
   const ConfirmDialog = createConfirmDialog(deps)
   const AtomIcon = createAtomIcon(deps)
   const ChevronDownIcon = createChevronDownIcon(deps)
@@ -336,6 +347,18 @@ export function createOpenSpecButton(
     const [asking, setAsking] = react.useState(false)
     /** What the CLI said the last time it was run, kept until the next open. */
     const [initOutput, setInitOutput] = react.useState('')
+    /**
+     * The live output of a running upgrade, and how it ended.
+     *
+     * These live on the control, not the panel: the panel is a hover surface
+     * that unmounts the moment the pointer leaves, while the upgrade keeps
+     * running on the host. Keeping the progress here means a run that outlives
+     * the hover it started on is still there to be read on the next one, rather
+     * than a blank box that forgot everything in between.
+     */
+    const [updating, setUpdating] = react.useState(false)
+    const [updateLog, setUpdateLog] = react.useState('')
+    const [updateStatus, setUpdateStatus] = react.useState<OpenSpecUpdateStatus | ''>('')
     const { busy, error: removeError, run } = useAsyncAction(react)
     const { busy: initing, error: initError, run: runInit } = useAsyncAction(react)
     // Both hooks run on every render: they are ordinary store subscriptions
@@ -504,6 +527,52 @@ export function createOpenSpecButton(
         await load()
         return undefined
       })
+    }
+
+    /**
+     * Upgrade the CLI, streaming npm's own words into the panel as they arrive.
+     *
+     * The command runs on the host; this reads the event stream it answers with
+     * and appends each line, so the panel shows the install working rather than
+     * a button frozen mid-request. When the stream closes the footprint is read
+     * again: a newer CLI can leave a different store, and the panel's whole
+     * subject is what is on disk right now.
+     */
+    const upgrade = (): void => {
+      if (target === undefined || updating) return
+      setUpdating(true)
+      setUpdateLog('')
+      setUpdateStatus('')
+      // Accumulated in the closure rather than through the state setter: the
+      // harness's `useState` stores a value outright and does not run updater
+      // functions, so the running total is kept here and pushed whole.
+      let log = ''
+      void (async () => {
+        try {
+          await stream('/openspec/update', {
+            method: 'POST',
+            body: JSON.stringify({ cwd: target }),
+          }, (event) => {
+            if (event.type === 'line') {
+              const text = typeof event.text === 'string' ? event.text : ''
+              log = log === '' ? text : `${log}\n${text}`
+              setUpdateLog(log)
+            } else if (event.type === 'done') {
+              setUpdateStatus(
+                event.status === 'ok' || event.status === 'npm-missing' || event.status === 'timeout'
+                  ? event.status
+                  : 'failed',
+              )
+            }
+          })
+        } catch {
+          // A stream that never opened has no line to show; the status carries it.
+          setUpdateStatus('failed')
+        } finally {
+          setUpdating(false)
+          await load()
+        }
+      })()
     }
 
     /** The delete's confirmation, which names exactly what the request will remove. */
@@ -746,11 +815,35 @@ export function createOpenSpecButton(
     // Everything the last read or action had to say travels as one block, so
     // the dividers fall between the panel's four answers rather than between
     // two lines of the same message.
+    /** Whether the running or finished upgrade has anything to show. */
+    const hasUpdate = updating || updateLog !== '' || updateStatus !== ''
+    /** The upgrade block's heading: what it is doing, or how it ended. */
+    const updateLabel = (): string =>
+      updating
+        ? t('openSpecUpdateRunning')
+        : updateStatus === 'ok'
+          ? t('openSpecUpdateDone')
+          : updateStatus === 'npm-missing'
+            ? t('openSpecUpdateNpmMissing')
+            : updateStatus === 'timeout'
+              ? t('openSpecUpdateTimeout')
+              : updateStatus === 'failed'
+                ? t('openSpecUpdateFailed')
+                : t('openSpecUpdateRunning')
+    /** A finished upgrade that ended badly is an error; a running or good one is not. */
+    const updateFailed =
+      !updating && (updateStatus === 'failed' || updateStatus === 'npm-missing' || updateStatus === 'timeout')
     const messages = (
       <div className="os_messages">
         {error === '' ? null : <div className="os_error">{error}</div>}
         {initError === '' ? null : <div className="os_error">{initError}</div>}
         {initing ? <div className="os_note">{t('openSpecInitRunning')}</div> : null}
+        {hasUpdate ? (
+          <div className="os_section">
+            <div className={updateFailed ? 'os_error' : 'os_sectionTitle'}>{updateLabel()}</div>
+            {updateLog === '' ? null : <div className="os_output">{updateLog}</div>}
+          </div>
+        ) : null}
         {failures.length === 0 ? null : (
           <div className="os_section">
             <div className="os_error">{t('openSpecPartial')}</div>
@@ -772,6 +865,7 @@ export function createOpenSpecButton(
       error !== '' ||
       initError !== '' ||
       initing ||
+      hasUpdate ||
       failures.length > 0 ||
       initOutput !== '' ||
       (reading && view === undefined)
@@ -830,6 +924,21 @@ export function createOpenSpecButton(
             <span className="os_chip" data-ready={view.initialized ? 'true' : 'false'}>
               {view.initialized ? t('openSpecStatusReady') : t('openSpecStatusAbsent')}
             </span>
+          )}
+          {view === undefined ? null : (
+            <button
+              className="mm_btn primary os_update"
+              type="button"
+              // The two commands the click runs, shown rather than described: a
+              // translation of a command line would only obscure what it fetches.
+              title={t('openSpecUpdateCommand')}
+              disabled={updating}
+              data-pending={updating ? 'true' : undefined}
+              aria-busy={updating}
+              onClick={upgrade}
+            >
+              {t('openSpecUpdate')}
+            </button>
           )}
           <button
             className="os_refresh"

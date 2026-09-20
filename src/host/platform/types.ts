@@ -153,6 +153,16 @@ export interface RequestLike {
 
 export interface ResponseLike {
   writeHead(code: number, headers?: Record<string, string>): void
+  /**
+   * Write one chunk of a not-yet-finished body.
+   *
+   * Present because the real object DSH hands a route is a Node
+   * `http.ServerResponse`, and one route — the OpenSpec tool upgrade — keeps the
+   * connection open to stream its output as `text/event-stream`. Every other
+   * response here is a single `end`; this is the seam that lets one of them not
+   * be.
+   */
+  write(chunk: string): boolean
   end(chunk?: string): void
 }
 
