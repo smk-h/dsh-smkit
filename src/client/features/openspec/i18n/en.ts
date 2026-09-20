@@ -21,6 +21,7 @@ export const OPENSPEC_LOCALE_EN: LocaleDict = {
   "openSpecArtifacts": "Skills & commands",
   "openSpecExpand": "Expand",
   "openSpecCollapse": "Collapse",
+  "openSpecOpenFile": "Open in the sidebar",
   "openSpecMissing": "The layout expects these and the disk has none: {names}",
   "openSpecKindSkills": "Skills",
   "openSpecKindCommands": "Commands",

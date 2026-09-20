@@ -307,6 +307,45 @@
   white-space: nowrap;
 }
 
+/* The tree's rows are controls: a directory opens and closes, a file goes to
+ * the shell's sidebar viewer. Both wear the row they replace — connector,
+ * caret, name, size — and answer a hover the way the sidebar's own file tree
+ * does, with the wash rather than with a colour of their own. */
+.os_tree button.os_node {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 4px;
+  background: 0 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.os_tree button.os_node:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.os_tree button.os_node:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -1px;
+}
+
+/* The caret column: every row carries one so both kinds of name start at the
+ * same character — a file's is invisible rather than absent. */
+.os_tree .os_caret {
+  flex: none;
+  width: 12px;
+  margin-right: 3px;
+}
+
+.os_caret[data-leaf='true'] {
+  visibility: hidden;
+}
+
 .os_group {
   display: flex;
   flex-direction: column;

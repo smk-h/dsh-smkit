@@ -112,6 +112,17 @@ export interface ClientContext {
    * no sessions service, and the Settings → MCP page must never depend on one.
    */
   sessions?: ClientSessionsLike
+  /**
+   * Cordis's reflection layer: a service read without declaring the name in
+   * the bundle's `inject` list.
+   *
+   * The OpenSpec feature reaches the shell's right-sidebar navigation face
+   * (`sidebarRight`) through it, at click time rather than at load: declaring
+   * the service would make the whole plugin unloadable on a host whose shell
+   * predates the column, while a read that answers `undefined` there costs one
+   * gesture, not the bundle.
+   */
+  reflect?: { get(name: string): unknown }
 }
 
 /**

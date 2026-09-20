@@ -51,6 +51,14 @@
  * success. The confirmation carries the same list, so the question and the
  * action name the same things.
  *
+ * **The tree folds the way the sidebar's file tree does.** Directories start
+ * closed — the store's own root excepted, so the block is never one bare line —
+ * and open on a click; the children are already in the payload the read
+ * brought, so folding is a drawing rule, not a request. A file row is a click
+ * too: it goes to the shell's sidebar viewer through `OpenSpecHooks.openFile`,
+ * which a host without that column leaves unset, and a click that does nothing
+ * is a fairer answer there than a row that looks like a link and is not one.
+ *
  * Nothing here reloads anything: the panel is a view over the filesystem, and
  * after a delete it simply reads again.
  */
@@ -87,6 +95,25 @@ export interface OpenSpecProps {
   useSessions: SessionListSelector
   /** Workspace selector hook (the `useWorkspaces` global standard prop). */
   useWorkspaces: WorkspaceSelector
+}
+
+/**
+ * What the shell can do on the panel's behalf, where it can.
+ *
+ * Optional by design: every hook is a seat the host may not have, and a panel
+ * on a host without it shows the same facts with one gesture less.
+ */
+export interface OpenSpecHooks {
+  /**
+   * Open one file of the store in the shell's own sidebar viewer.
+   *
+   * @param sessionId - the session whose workspace resolves the path.
+   * @param root - the session's working directory, so a path under it travels
+   *   workspace-relative the way the sidebar's own tree sends it.
+   * @param path - absolute path of the file the row was clicked for.
+   * @returns whether the shell took it; `false` leaves the click a no-op.
+   */
+  openFile?: (sessionId: string, root: string, path: string) => boolean
 }
 
 /** How wide the panel wants to be, before the viewport has a say. */
@@ -251,7 +278,10 @@ function formatBytes(bytes: number): string {
   return `${rounded} ${units[unit]}`
 }
 
-export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) => JSX.Element {
+export function createOpenSpecButton(
+  deps: ClientDeps,
+  hooks: OpenSpecHooks = {},
+): (props: OpenSpecProps) => JSX.Element {
   const { h, react, api, createPortal } = deps
   const ConfirmDialog = createConfirmDialog(deps)
   const AtomIcon = createAtomIcon(deps)
@@ -293,6 +323,16 @@ export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) =
     const [failures, setFailures] = react.useState<OpenSpecRemoveFailure[]>([])
     /** Whether the generated-entry list is showing; closed until it is asked for. */
     const [artifactsOpen, setArtifactsOpen] = react.useState(false)
+    /**
+     * The directories the user opened, or `null` until the first toggle.
+     *
+     * `null` is the default rather than an empty set: the store's own root
+     * starts open — a tree that opens as one bare line answers nothing — and
+     * every directory under it starts closed, the way the sidebar's file tree
+     * opens. Materialising the set on the first click is what lets a collapse
+     * of the root be recorded like any other toggle.
+     */
+    const [expanded, setExpanded] = react.useState<Set<string> | null>(null)
     const [asking, setAsking] = react.useState(false)
     /** What the CLI said the last time it was run, kept until the next open. */
     const [initOutput, setInitOutput] = react.useState('')
@@ -488,24 +528,84 @@ export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) =
     }
 
     /**
+     * Whether one directory of the tree is showing its children: everything
+     * the user opened, or — before the first toggle — the store's root alone.
+     */
+    const dirOpen = (rel: string): boolean =>
+      expanded === null ? rel === view?.store?.rel : expanded.has(rel)
+
+    /** Open what is closed and close what is open, recording the whole set. */
+    const toggleDir = (rel: string): void => {
+      const next = new Set(expanded ?? (view?.store === undefined ? [] : [view.store.rel]))
+      if (next.has(rel)) next.delete(rel)
+      else next.add(rel)
+      setExpanded(next)
+    }
+
+    /**
+     * Hand one file of the store to the shell's sidebar viewer.
+     *
+     * The tree's nodes carry project-relative paths and the store carries its
+     * own absolute one, so the file's absolute path is the store's directory
+     * joined with what its `rel` adds to the store's — the same join the host
+     * made when it derived the `rel`, in reverse.
+     */
+    const openInSidebar = (node: OpenSpecTreeNode): void => {
+      const store = view?.store
+      if (store === undefined || hooks.openFile === undefined) return
+      if (!node.rel.startsWith(`${store.rel}/`)) return
+      hooks.openFile(sessionId, target ?? '', `${store.path}/${node.rel.slice(store.rel.length + 1)}`)
+    }
+
+    /**
      * The tree as the `tree` command prints one: every entry carries its own
      * branch connector (`├──`, `└──` for the last of a level), and a directory
      * that is not last continues its `│` down through its children — so the
      * block reads as a shape, not as a list of indented names. A directory's
      * child count would be redundant here, where the children are on screen.
+     *
+     * A directory draws its children only while it is open; a closed one keeps
+     * its row and its connector and nothing under it. Every row carries a
+     * caret column — a file's is invisible rather than absent — so the names
+     * of both kinds start at the same character.
      */
-    const treeRows = (nodes: OpenSpecTreeNode[], prefix: string): unknown[] =>
-      nodes.flatMap((node, index) => {
-        const last = index === nodes.length - 1
+    const treeRows = (list: OpenSpecTreeNode[], prefix: string): unknown[] =>
+      list.flatMap((node, index) => {
+        const last = index === list.length - 1
+        const branch = `${prefix}${last ? '└── ' : '├── '}`
+        if (node.kind === 'file') {
+          return [
+            <button
+              className="os_node os_fileRow"
+              type="button"
+              key={node.rel}
+              title={t('openSpecOpenFile')}
+              onClick={() => openInSidebar(node)}
+            >
+              <span className="os_branch">{branch}</span>
+              <span className="os_caret" data-leaf="true" />
+              <span className="os_name" data-kind="file">{node.name}</span>
+              <span className="os_size">{formatBytes(node.bytes)}</span>
+            </button>,
+          ]
+        }
+        const open = dirOpen(node.rel)
         return [
-          <div className="os_node" key={node.rel}>
-            <span className="os_branch">{`${prefix}${last ? '└── ' : '├── '}`}</span>
-            <span className="os_name" data-kind={node.kind}>{node.name}</span>
-            {node.kind === 'file' ? <span className="os_size">{formatBytes(node.bytes)}</span> : null}
-          </div>,
-          ...(node.children === undefined
-            ? []
-            : treeRows(node.children, `${prefix}${last ? '    ' : '│   '}`)),
+          <button
+            className="os_node os_dirRow"
+            type="button"
+            key={node.rel}
+            aria-expanded={open}
+            title={open ? t('openSpecCollapse') : t('openSpecExpand')}
+            onClick={() => toggleDir(node.rel)}
+          >
+            <span className="os_branch">{branch}</span>
+            <span className="os_caret" data-open={open ? 'true' : undefined}>
+              <ChevronDownIcon size={12} />
+            </span>
+            <span className="os_name" data-kind="dir">{node.name}</span>
+          </button>,
+          ...(open ? treeRows(node.children ?? [], `${prefix}${last ? '    ' : '│   '}`) : []),
         ]
       })
 
@@ -535,6 +635,7 @@ export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) =
     /** The store as a tree — the panel's one picture of what is on disk. */
     const treeSection = (store: OpenSpecStore): JSX.Element => {
       const missing = missingParts(store)
+      const open = dirOpen(store.rel)
       return (
         <div className="os_section">
           <div className="os_sectionTitle">
@@ -546,10 +647,19 @@ export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) =
             </span>
           </div>
           <div className="os_tree">
-            <div className="os_node">
+            <button
+              className="os_node os_dirRow"
+              type="button"
+              aria-expanded={open}
+              title={open ? t('openSpecCollapse') : t('openSpecExpand')}
+              onClick={() => toggleDir(store.rel)}
+            >
+              <span className="os_caret" data-open={open ? 'true' : undefined}>
+                <ChevronDownIcon size={12} />
+              </span>
               <span className="os_root">{store.rel}</span>
-            </div>
-            {treeRows(store.tree, '')}
+            </button>
+            {open ? treeRows(store.tree, '') : []}
           </div>
           {missing.length === 0
             ? null

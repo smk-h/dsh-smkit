@@ -63,6 +63,19 @@ const token = (tree, name) =>
   nodes(tree).find(node => String(node.props?.className ?? '').split(' ').includes(name))
 
 /**
+ * The one tree row of a kind (`os_dirRow`, `os_fileRow`) whose own text names
+ * `name`. A row's text is just its connector and its name — a directory's
+ * children are siblings of its row, not descendants of it — so a name matches
+ * exactly one row.
+ */
+const rowFor = (tree, kind, name) =>
+  nodes(tree).find(node => String(node.props?.className ?? '').includes(kind) && texts(node).includes(name))
+
+/** The tree's connectors, top to bottom: the shape the block is drawn in. */
+const branchesOf = (tree) =>
+  nodes(tree).filter(node => node.props?.className === 'os_branch').map(node => node.children[0])
+
+/**
  * The control's own stand-in: the panel is placed from its viewport rect, which
  * no headless render can produce, so the harness hands over the box a header
  * utility at the right edge of a 1280×800 window would have.
@@ -189,8 +202,11 @@ const workspaceState = (items = []) => ({ items, archivedSessionIds: [], state: 
  *   read, and the control's stand-in geometry.
  * @returns the render, hover and click helpers plus the recorded calls.
  */
-function mount({ fetch, session = sessionState(), workspace = workspaceState(), node = anchorNode() }) {
+function mount({ fetch, session = sessionState(), workspace = workspaceState(), node = anchorNode(), sidebar = false }) {
   const calls = []
+  /** The addresses the shell's sidebar viewer was asked to open, in order. */
+  const opened = []
+  const sidebarFace = sidebar ? { openResource: (address) => { opened.push(address) } } : undefined
   const registrations = new Map()
   let exported
   let states = []
@@ -284,6 +300,9 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
       // Keyed by entry id: two features seat this same utilities list.
       register: (options, component) => { registrations.set(options.id, component) },
     },
+    // The shell's right sidebar, as cordis's reflection layer hands it over:
+    // present when this mount says the host has the column, absent otherwise.
+    reflect: { get: (name) => (name === 'sidebarRight' ? sidebarFace : undefined) },
   }
   exported.apply(ctx)
   const OpenSpec = registrations.get('mcp-manager-openspec')
@@ -296,6 +315,7 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
   }
   return {
     calls,
+    opened,
     document: fakeDocument,
     node,
     render() {
@@ -399,7 +419,7 @@ it('reads nothing until it is hovered, and opens closed', () => {
 })
 
 it('opens on hover, right-aligned under the control, and shows the footprint', async () => {
-  const app = mount({ fetch: routing() })
+  const app = mount({ fetch: routing(), sidebar: true })
   const shown = await app.hover()
 
   assert.equal(app.calls[0].url, '/mcp-manager/api/openspec?cwd=%2Fwork%2Fapp')
@@ -420,19 +440,57 @@ it('opens on hover, right-aligned under the control, and shows the footprint', a
   )
   assert.ok(text.includes('openSpecMissing') === false, 'a healthy store has no gap to report')
   assert.ok(text.includes('openSpecTree'), 'the tree is a block of its own')
-  assert.ok(text.includes('add-login'), 'and the store is drawn in it')
 
-  // The tree is drawn the way `tree` draws one: a connector per entry, with the
-  // ancestor's `│` carried down through the levels that are not last.
-  const branches = nodes(shown)
-    .filter((node) => node.props?.className === 'os_branch')
-    .map((node) => node.children[0])
-  assert.deepEqual(branches, ['├── ', '│   └── ', '│       └── ', '└── '])
-  const root = nodes(shown).find((node) => node.props?.className === 'os_root')
-  assert.equal(root.children[0], 'openspec', 'the block starts at the store, as tree names the directory it was given')
+  // The tree folds the way the sidebar's file tree does: the store's root
+  // starts open and every directory under it starts closed, so the block is
+  // two rows — the closed directory and the file beside it — until a click
+  // says otherwise.
+  assert.deepEqual(branchesOf(shown), ['├── ', '└── '])
+  assert.ok(text.includes('add-login') === false, 'a closed directory keeps its children to itself')
+  const rootRow = rowFor(shown, 'os_dirRow', 'openspec')
+  assert.equal(rootRow.props['aria-expanded'], true, 'the store\u2019s own root is the one directory that opens open')
+  assert.equal(
+    rootRow.children.at(-1).children[0],
+    'openspec',
+    'the block starts at the store, as tree names the directory it was given',
+  )
+
+  // Opening a directory draws its children under it, connectors and all — a
+  // connector per entry, with the ancestor's `│` carried down through the
+  // levels that are not last — and one level at a time.
+  rowFor(shown, 'os_dirRow', 'changes').props.onClick()
+  const unfolded = app.render()
+  assert.deepEqual(branchesOf(unfolded), ['├── ', '│   └── ', '└── '])
+  assert.ok(texts(unfolded).includes('add-login'), 'the open directory shows what is under it')
+  assert.ok(texts(unfolded).includes('proposal.md') === false, 'and only what is directly under it')
+
+  rowFor(unfolded, 'os_dirRow', 'add-login').props.onClick()
+  const deep = app.render()
+  assert.deepEqual(branchesOf(deep), ['├── ', '│   └── ', '│       └── ', '└── '])
+
+  // A file row goes to the shell's sidebar viewer, addressed the way the
+  // sidebar's own tree addresses one: session-scoped and workspace-relative.
+  rowFor(deep, 'os_fileRow', 'proposal.md').props.onClick()
+  assert.deepEqual(app.opened, ['dsh-resource://file/session/s1/openspec/changes/add-login/proposal.md'])
+
+  // Closing a directory hides its children again, down to the default fold.
+  rowFor(deep, 'os_dirRow', 'changes').props.onClick()
+  assert.deepEqual(branchesOf(app.render()), ['├── ', '└── '])
 
   const chip = nodes(shown).find((node) => node.props?.className === 'os_chip')
   assert.equal(chip.props['data-ready'], 'true')
+})
+
+it('leaves a file click alone on a host without the sidebar column', async () => {
+  const app = mount({ fetch: routing() })
+  const shown = await app.hover()
+
+  rowFor(shown, 'os_dirRow', 'changes').props.onClick()
+  const unfolded = app.render()
+  rowFor(unfolded, 'os_fileRow', 'config.yaml').props.onClick()
+
+  assert.deepEqual(app.opened, [], 'nothing is handed to a sidebar that does not exist')
+  assert.ok(withClass(app.render(), 'os_panel'), 'and the panel is none the worse for the click')
 })
 
 it('keeps the generated entries behind a toggle, and the tree at the bottom', async () => {

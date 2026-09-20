@@ -24,6 +24,7 @@ export const OPENSPEC_LOCALE_ZH: LocaleDict = {
   "openSpecArtifacts": "技能与命令",
   "openSpecExpand": "展开",
   "openSpecCollapse": "收起",
+  "openSpecOpenFile": "在侧边栏中打开",
   "openSpecMissing": "布局中应当存在的部分磁盘上没有：{names}",
   "openSpecKindSkills": "技能",
   "openSpecKindCommands": "命令",
