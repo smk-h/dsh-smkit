@@ -16,6 +16,7 @@
 
 import { customSettingsFeature } from './features/custom-settings/client'
 import { mcpFeature } from './features/mcp/client'
+import { openSpecFeature } from './features/openspec/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
 import { skillsFeature } from './features/skills/client'
 import { createApi } from './platform/api'
@@ -41,6 +42,7 @@ const FEATURES: ClientFeature[] = [
   sessionDeleteFeature,
   customSettingsFeature,
   skillsFeature,
+  openSpecFeature,
 ]
 
 export function createPlugin(): { apply(ctx: ClientContext): void; inject: string[] } {

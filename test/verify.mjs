@@ -151,7 +151,7 @@ clientExports.apply({
     register: (spec) => { slotSpecs.set(spec.name, [...(slotSpecs.get(spec.name) ?? []), spec]) },
   },
 })
-for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings', 'skills']) {
+for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings', 'skills', 'openspec']) {
   assert.ok(dictionaries[namespace], `the ${namespace} dictionary must be registered`)
   assert.deepEqual(
     Object.keys(dictionaries[namespace].zh).sort(),
@@ -179,6 +179,12 @@ assert.equal(skillsSlot.locale, 'skills', 'the Skills section entry must bind th
 const deleteSlot = entryOf('conversation.session.header.utilities', 'mcp-manager-session-delete')
 assert.equal(deleteSlot.locale, 'session-delete', 'the delete control binds its own locale namespace')
 
+// The fifth seat: the OpenSpec control, immediately before the delete control
+// in the same utilities list, so the two read as one pair.
+const openSpecSlot = entryOf('conversation.session.header.utilities', 'mcp-manager-openspec')
+assert.equal(openSpecSlot.locale, 'openspec', 'the OpenSpec control binds its own locale namespace')
+assert.ok(openSpecSlot.order < deleteSlot.order, 'it sits before the destructive control')
+
 console.log(
-  'verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → MCP → 自定义设置 → Skills.',
+  'verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → MCP → 自定义设置 → Skills → the header pair.',
 )

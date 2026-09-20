@@ -1,0 +1,402 @@
+/**
+ * The conversation header's OpenSpec control and the panel it opens
+ * (features/openspec/OpenSpecButton).
+ *
+ * These rules ship in this feature's own <style> tag (`styles.ts` beside this
+ * file): the MCP and session-delete stylesheets are not involved. The 28px
+ * round skeleton comes from the platform layer's `.mm_iconBtn`, which is
+ * injected first, so only what makes this control *this* control is declared
+ * here.
+ *
+ * The control sits beside the header's session-delete button, so it is dressed
+ * to match it: a 28px glyph button, no border at rest, a colour and a wash on
+ * hover. Where the delete turns red because it destroys the session, this one
+ * turns the palette's business colour — it opens a view of the workspace rather
+ * than acting on it, and the destructive action lives inside the panel, behind
+ * a confirmation, at the end of a deliberate path.
+ *
+ * The panel is `position: fixed` and placed from measured coordinates
+ * (`OpenSpecButton.tsx`), because no stylesheet can know where a header button
+ * is on screen. It is portaled to the document body the way the confirmation
+ * dialog is: the header is a shallow strip inside the app frame's own stacking
+ * and clipping layers, and a panel rendered from there would ride them. The
+ * overlay's own 1000 stays above it, so a confirmation opened from the panel
+ * covers it rather than landing underneath.
+ */
+
+.os_host {
+  display: inline-flex;
+  align-items: center;
+}
+
+.os_btn {
+  border: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* One treatment for the three ways the panel can be live: pointer over the
+ * control, keyboard focus on it, and the panel being open (the state survives
+ * the pointer leaving the button on its way to the panel). */
+.os_btn:hover:not(:disabled),
+.os_btn:focus-visible:not(:disabled),
+.os_btn[data-open='true'] {
+  color: var(--dsw-alias-state-business-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
+}
+
+.os_btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* The spinner arc is the status pill's class and carries the status palette, so
+ * this control re-tints it with its own colour. */
+.os_btn .mm_statusSpin {
+  color: inherit;
+}
+
+.os_panel {
+  position: fixed;
+  z-index: 900;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  overflow: hidden;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-3);
+  box-shadow: var(--dsw-shadow-lv1);
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: left;
+}
+
+.os_head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.os_title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The init status: pushed to the far end of the head, so it reads as the
+ * panel's answer rather than as part of its title. */
+.os_chip {
+  margin-left: auto;
+  padding: 0 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 9px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.os_chip[data-ready='true'] {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 40%, transparent);
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.os_refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: 0 0;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.os_refresh:hover:not(:disabled) {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.os_refresh:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* The scrolling half: a tall store must not push the delete button off screen,
+ * so the head and foot are fixed and only this absorbs the overflow. */
+.os_body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+}
+
+/* Every block but the first is separated from the one above it by a hairline,
+ * inset by the body's own padding: four answers (where it is, what the layout
+ * holds, what the tree is, what was generated) that read as one column rather
+ * than as a run-on. */
+.os_body > * + * {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+/* Everything the last action or read had to say, kept as one block so the
+ * messages do not each get a divider of their own. */
+.os_messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.os_note {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.os_error {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.os_section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.os_sectionTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* A section heading that opens, wearing the plain one's shape: the count is the
+ * answer an open usually wants, and the twenty generated names under it are not
+ * until they are asked for. Content-width, like the settings page's own
+ * expanders, so the click target is the words rather than the whole row. */
+.os_toggle {
+  align-self: flex-start;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: 0 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--dsw-alias-label-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.os_toggle:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.os_toggle:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* The caret: right while closed, down while open. */
+.os_caret {
+  align-self: center;
+  display: inline-flex;
+  transform: rotate(-90deg);
+  transition: transform 0.15s;
+}
+
+.os_caret[data-open='true'] {
+  transform: rotate(0);
+}
+
+.os_count {
+  font-weight: 400;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The facts: one flat label/value stream laid out as a two-column grid, so rows
+ * need no wrapper and the value column absorbs the free width. Labels size to
+ * content; values wrap inside themselves because a path has no spaces. */
+.os_grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 10px;
+}
+
+.os_label {
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
+
+.os_value {
+  color: var(--dsw-alias-label-primary);
+  overflow-wrap: anywhere;
+}
+
+/* The tree, drawn the way the `tree` command draws one: monospace, so the
+ * `├──`/`└──` connectors line up column for column down the block, with the
+ * branch run kept as literal whitespace (`white-space: pre`) so the indent
+ * after a connector is the width of the connector above it and not one space.
+ * No inner scroll: the body is the one scrolling surface, so a deep store is
+ * scrolled with everything else instead of in a box of its own. */
+.os_tree {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 17px;
+}
+
+.os_node {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.os_tree .os_node {
+  gap: 0;
+}
+
+.os_branch {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: pre;
+}
+
+/* The root line of the tree carries no connector, so it starts the block the
+ * way `tree` names the directory it was pointed at. */
+.os_root {
+  color: var(--dsw-alias-label-secondary);
+  overflow-wrap: anywhere;
+}
+
+.os_tree .os_name[data-kind='dir'] {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+}
+
+.os_name {
+  overflow-wrap: anywhere;
+}
+
+.os_size {
+  margin-left: auto;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
+
+.os_group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.os_groupHead {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.os_kind {
+  color: var(--dsw-alias-label-secondary);
+  white-space: nowrap;
+}
+
+.os_path {
+  color: var(--dsw-alias-label-tertiary);
+  overflow-wrap: anywhere;
+}
+
+/* The generated entries, two to a row: a dozen names read as a table rather
+ * than as a ragged run of chips. Equal columns and one line each — a wrapped
+ * name would give two rows different heights, which is the thing the grid is
+ * here to prevent — so a name too long for its column ends in an ellipsis and
+ * carries its full path in the `title` the markup already sets. */
+.os_chips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+}
+
+.os_chipItem {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The one entry that is not a skill or a command: the CLI's ownership marker,
+ * outlined and dimmed so a dotfile does not read as one of them — while still
+ * counting among what the delete removes, because it is. */
+.os_chipMarker {
+  border: 1px dashed var(--dsw-alias-border-l2);
+  background: 0 0;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* What the CLI said, after an initialise: a scrollable log box, because a
+ * command that wrote the whole store has more to report than fits in a note
+ * line and less than deserves a dialog. */
+.os_output {
+  max-height: 120px;
+  overflow: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.os_foot {
+  display: flex;
+  justify-content: flex-end;
+  flex: none;
+  padding: 8px 10px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+/* The confirmation's fact block: the same two-column grid the session-delete
+ * dialog uses, declared here because the panel is what filled it. */
+.os_confirm {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 5px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.os_confirmLabel {
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
+
+.os_confirmValue {
+  color: var(--dsw-alias-label-primary);
+  overflow-wrap: anywhere;
+}

@@ -18,7 +18,7 @@
 
 ### 2. 项目介绍
 
-dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供四个功能：MCP 管理、技能管理、会话删除与自定义配置。
+dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供五个功能：MCP 管理、技能管理、会话删除、自定义配置与 OpenSpec 管理。
 
 #### 2.1 MCP 管理
 
@@ -107,6 +107,19 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 
 - 「模型重试」为每个已注册的提供方路由配置模型请求失败后的自动重试——模式（normal / always）、重试次数、退避间隔与抖动比例；「其他设置」先列出后续准备接入的配置项。
 - 写入的是 dsh 自己的 `settings.yaml` 对应配置段（`llm-pi-ai.providers.<路由>.retryPolicy`、`llm-deepseek.retryPolicy` 等），保存后立即生效、不需要重启 dsh；路由不在此页新增或删除，重试策略只跟随已注册的提供方。
+
+#### 2.5 管理 OpenSpec
+
+会话窗口右上角「删除会话」按钮旁是一个 atom 按钮，用来管理当前工作区的 [OpenSpec](https://github.com/Fission-AI/OpenSpec)。鼠标悬浮即弹出面板，面板里写清三件事：
+
+- **初始化状态**：这个工作区跑没跑过 `openspec init`（判据就是项目根目录下有没有 `openspec/`）；此外只报一件目录树答不了的事——布局里该有、磁盘上却没有的部分（`specs`、`changes`、`config.yaml` 这些当前 CLI 会写的）。项目根目录取最近的含 `.git` 的祖先，所以工作区在仓库子目录里（`packages/app`）也能定位到真正写入 `openspec/` 的那个根；早先版本留下的 `project.md` / `AGENTS.md` 不在「该有」之列，缺了不吭声。
+- **技能与命令**：`openspec init --tools …` 留在各编辑器目录里的技能与命令（`.agents/skills/openspec-propose`、`.claude/commands/opsx`、`.cursor/commands/opsx-apply.md` 之类）按目录分组，收在标题后面、默认折叠，点标题展开（标题上的计数始终可见）；展开后条目两列排开，等宽对齐，超长名省略并把完整路径放在悬停提示里。同一目录被多个工具写入时（Codex、Zed 与厂商中立的 `agents` 都写 `.agents/skills`）只列一次并注明是哪几个工具。
+- **文件树**：`openspec/` 放在面板最下面，按 `tree` 命令的格式展开（`├──` / `└──` 连线、等宽字体对齐，目录加粗，文件给实测大小，标题上带文件数与目录数）——生成物是本面板要回答的问题，store 的布局是读它时的参照。
+- **一键初始化**：没初始化过时，面板底部给的是「初始化 OpenSpec」按钮，点击即在项目根目录执行 `openspec init --tools agents --force`。`agents` 是写入 `.agents/skills` 的厂商中立目标，正好是 dsh 加载技能的项目根之一，所以刚生成的技能立刻就能被看到；`--force` 与环境变量（`OPENSPEC_NO_ANIMATION` / `OPENSPEC_NO_UPDATE_CHECK` / `OPENSPEC_TELEMETRY=0` / `NO_COLOR`）把动画、颜色和版本检查都关掉，标准输入也是关闭的管道，因此没有终端也不会卡在提问上。失败分三类：没装 CLI（提示安装命令）、超时、CLI 自己报错（原文照搬），CLI 的输出直接显示在面板里。
+- **一键删除**：面板底部的删除按钮，确认框里先列出将要删除的全部内容（`openspec/` 目录算一项，技能与命令各算一项），确认后连同技能一起删除；没能删掉的条目会留在面板里并写明原因，不会读成「已删干净」。`openspec/` 被手删、技能还在时不在这两种状态之间二选一，面板会同时给出「初始化」与「删除」。
+- **只动 OpenSpec 自己的东西**：`.agents/skills`、`.claude/commands` 这类目录是共享的——前者装着机器上所有技能，后者装着使用者自己写的所有命令——所以删除的单位始终是一个条目（技能目录以 `openspec-` 开头，命令以 `opsx` 开头），**共享目录本身永远不是删除目标**。CLI 自己的归属标记 `.openspec-target` 也在删除范围内：它既不是技能也不是命令，但留着它，下次 `openspec update` 就会把刚删掉的技能装回来。真正确认时，确认框会写明这些目录里还有多少条目不属于 OpenSpec、会被保留；宿主端在删除前还会按前缀再校验一次目标，名字对不上就不删。
+
+面板只呈现宿主端读到的结果，浏览器不自己拼路径：删除时宿主会用同一张工具表重新推导一遍目标，逐个校验「落在项目根内 + 位于该组目录的直接子级 + 仍带着 `openspec-` / `opsx` 前缀」，符号链接与 Windows junction 都只摘掉链接本身。
 
 ### 3. 图标来源
 

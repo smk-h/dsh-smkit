@@ -1,0 +1,46 @@
+/**
+ * English dictionary for the `openspec` locale namespace.
+ *
+ * Key set must stay identical to `zh.ts`.
+ */
+
+import type { LocaleDict } from '../../../platform/types'
+
+export const OPENSPEC_LOCALE_EN: LocaleDict = {
+  "manageOpenSpec": "Manage OpenSpec",
+  "openSpecStatusReady": "Initialised",
+  "openSpecStatusAbsent": "Not initialised",
+  "openSpecRefresh": "Read again",
+  "openSpecReading": "Reading…",
+  "openSpecNoWorkspace": "This session has no working directory, so OpenSpec cannot be located",
+  "openSpecLoadFailed": "Reading the OpenSpec state failed (HTTP {status})",
+  "openSpecRemoveFailed": "Removing OpenSpec failed (HTTP {status})",
+  "openSpecRoot": "Project root",
+  "openSpecStore": "Spec store",
+  "openSpecTree": "Tree",
+  "openSpecArtifacts": "Skills & commands",
+  "openSpecExpand": "Expand",
+  "openSpecCollapse": "Collapse",
+  "openSpecMissing": "The layout expects these and the disk has none: {names}",
+  "openSpecKindSkills": "Skills",
+  "openSpecKindCommands": "Commands",
+  "openSpecKindExtra": "Other generated files",
+  "openSpecSharedBy": "Shared by {tools}",
+  "openSpecKeptShort": "keeps {count}",
+  "openSpecMarker": "OpenSpec\u2019s ownership marker (not a skill or a command): it is how openspec update knows this directory is its business, and removing it is what stops the skills being restored \u00b7 {path}",
+  "openSpecEntries": "{count} entries",
+  "openSpecFiles": "{count} files",
+  "openSpecDirs": "{count} directories",
+  "openSpecTruncated": "There is more here than fits; only the first part was measured",
+  "openSpecEmpty": "This workspace has not initialised OpenSpec (no openspec/ directory). The button below creates it here.",
+  "openSpecInit": "Initialise OpenSpec",
+  "openSpecInitCommand": "openspec init --tools agents --force",
+  "openSpecInitRunning": "Running openspec init…",
+  "openSpecInitDone": "Initialised",
+  "openSpecInitNotInstalled": "The openspec command was not found. Install it first: npm install -g @fission-ai/openspec",
+  "openSpecInitTimeout": "openspec init timed out",
+  "openSpecInitFailed": "Initialising OpenSpec failed (HTTP {status})",
+  "openSpecRemove": "Delete OpenSpec and its skills",
+  "openSpecConfirm": "This deletes the openspec/ directory and the OpenSpec-generated entries listed above (skills named openspec-*, commands named opsx*). Everything else in those directories belongs to someone else and is left alone. It cannot be undone.",
+  "openSpecPartial": "Some of it could not be deleted; see below",
+}

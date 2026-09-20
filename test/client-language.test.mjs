@@ -115,7 +115,7 @@ const content = (tree, name = null) =>
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings', 'skills']) {
+  for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings', 'skills', 'openspec']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -139,6 +139,12 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
   assert.equal(custom.options.name, 'settings.section')
   assert.equal(custom.options.locale, 'custom-settings')
   assert.equal(custom.options.label(), 'Custom settings')
+  // The fourth: the OpenSpec control, in the same conversation-header utilities
+  // list as the delete control and just before it.
+  const openSpec = app.registrations.get('mcp-manager-openspec')
+  assert.equal(openSpec.options.name, 'conversation.session.header.utilities')
+  assert.equal(openSpec.options.locale, 'openspec')
+  assert.ok(openSpec.options.order < header.options.order, 'it sits beside, not on, the delete control')
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-locale'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-conversation'))
@@ -151,6 +157,7 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'dsh-mcp-manager: custom-settings settings nav row',
     'dsh-mcp-manager: skills/dictionaries',
     'dsh-mcp-manager: skills settings nav row',
+    'dsh-mcp-manager: openspec/dictionaries',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared

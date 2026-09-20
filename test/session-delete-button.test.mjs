@@ -113,7 +113,11 @@ function mount({ fetch, session, workspace, create, primitives }) {
     },
     slots: {
       inject: (_name, callback) => callback(),
-      register: (options, component) => { registrations.set(options.name, component) },
+      // Keyed by the entry id DSH itself addresses entries by: more than one
+      // feature seats the conversation header's utilities list (the OpenSpec
+      // control sits beside this one), and a map keyed by slot name would keep
+      // whichever feature registered last.
+      register: (options, component) => { registrations.set(options.id, component) },
     },
     sessions: {
       create: create ?? (async (options) => { created.push(options); return 'created-1' }),
@@ -123,7 +127,7 @@ function mount({ fetch, session, workspace, create, primitives }) {
     },
   }
   exported.apply(ctx)
-  const SessionDelete = registrations.get('conversation.session.header.utilities')
+  const SessionDelete = registrations.get('mcp-manager-session-delete')
   assert.equal(typeof SessionDelete, 'function', 'the header slot must seat the delete control')
   const props = {
     sessionId: 's1',
