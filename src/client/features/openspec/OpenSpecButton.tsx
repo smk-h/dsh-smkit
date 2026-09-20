@@ -10,12 +10,15 @@
  * **Hover, not click, is the primary gesture**, which is why this control wears
  * no tooltip: the shell's bubble and the panel would be two answers to the same
  * hover, and the panel's own head names the control. The panel stays open while
- * the pointer travels from the button to it — a geometric check rather than a
- * timer: the pointer must have crossed the control on the side the panel opened
- * and be inside the panel's horizontal span — and closes on leave, on Escape,
- * on a press outside it, and on scroll or resize. The last two are because the
- * panel is placed from coordinates measured when it opened, so a header that
- * moved under it would leave it pointing at nothing.
+ * the pointer travels from the button to it, and what keeps it open is a grace
+ * period (`HOVER_GRACE_MS`) rather than a geometric test — the pointer has to
+ * cross the gap, and for the panel's far half it does so diagonally, leaving the
+ * control's small box through its side at a height no geometry can tell apart
+ * from walking away. It closes on Escape, on a press outside it, on scroll or
+ * resize, and of course once the grace period runs out with the pointer on
+ * neither surface. The scroll and resize cases are because the panel is placed
+ * from coordinates measured when it opened, so a header that moved under it
+ * would leave it pointing at nothing.
  *
  * **The host decides everything shown here.** The panel renders what
  * `GET /openspec` answered: whether `openspec/` exists, its layout parts and
@@ -77,6 +80,18 @@ const PANEL_GAP = 6
 const PANEL_GUTTER = 6
 /** The shortest panel worth showing: below this the other side is tried instead. */
 const PANEL_MIN_ROOM = 180
+/**
+ * How long a leave is given before it is believed.
+ *
+ * The pointer has to cross the gap between the control and the panel, and a
+ * user heading for the panel's far half moves diagonally — leaving the
+ * control's 28px box through its *side*, at a height where no geometric test can
+ * tell that move apart from walking away. So a leave starts a timer instead of
+ * closing, and reaching either surface cancels it; the panel only goes once the
+ * pointer has genuinely gone. Comfortably longer than any real crossing, short
+ * enough that a real departure still feels immediate.
+ */
+const HOVER_GRACE_MS = 240
 /** The panel's own class, so document-level listeners can tell it from the page. */
 const PANEL_CLASS = 'os_panel'
 
@@ -119,8 +134,8 @@ interface PanelBox {
 
 /** One open panel, from the control that placed it. */
 interface Anchor {
+  /** The control that placed it, so re-entering the same one is not a reopen. */
   node: HTMLElement
-  rect: AnchorRect
   box: PanelBox
 }
 
@@ -178,18 +193,6 @@ function panelStyle(box: PanelBox): Record<string, string> {
   return style
 }
 
-/**
- * Whether a pointer at `(x, y)` is heading onto the panel rather than away from
- * the control: past the control on the side the panel opened, and within the
- * panel's horizontal span. The panel's height is deliberately not part of this
- * — the question is only which way the pointer went, and the box's own edges
- * answer that.
- */
-function headingToPanel(box: PanelBox, rect: AnchorRect, x: number, y: number): boolean {
-  if (x < box.left || x > box.left + box.width) return false
-  return box.below ? y >= rect.bottom : y <= rect.top
-}
-
 /** Whether an event target is part of the panel (or of the control hosting it). */
 function insideOwnSurface(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
@@ -238,6 +241,26 @@ export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) =
   const ChevronDownIcon = createChevronDownIcon(deps)
   const RefreshIcon = createRefreshIcon(deps)
   const LoaderIcon = createLoaderIcon(deps)
+  /**
+   * The pending "the pointer left" dismissal, if any.
+   *
+   * It lives here rather than in a state cell on purpose: it is a scalar written
+   * by one event handler and read by the next one, and those two events
+   * routinely straddle a re-render, so a state cell would be read stale.
+   */
+  let closeTimer: number | undefined
+  /** Believe the last leave no longer: the pointer came back. */
+  const cancelClose = (): void => {
+    if (closeTimer !== undefined) {
+      clearTimeout(closeTimer)
+      closeTimer = undefined
+    }
+  }
+  /** Start believing it: close unless the pointer reaches a surface first. */
+  const scheduleClose = (close: () => void): void => {
+    cancelClose()
+    closeTimer = setTimeout(close, HOVER_GRACE_MS)
+  }
 
   return function OpenSpecButton({
     sessionId,
@@ -277,6 +300,10 @@ export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) =
       const onKey = (event: KeyboardEvent): void => {
         if (event.key === 'Escape') setOpen(false)
       }
+      // A pending leave belongs to the panel being open: closing it — or
+      // unmounting the control — takes the timer with it.
+      const cancel = cancelClose
+
       const onDown = (event: PointerEvent): void => {
         // A press inside the panel (its own buttons, or the text between them)
         // or on the control is not a dismissal; the control's own click toggle
@@ -307,6 +334,7 @@ export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) =
       window.addEventListener('scroll', onScroll, true)
       window.addEventListener('resize', onResize)
       return () => {
+        cancel()
         document.removeEventListener('keydown', onKey)
         document.removeEventListener('pointerdown', onDown)
         window.removeEventListener('scroll', onScroll, true)
@@ -349,12 +377,15 @@ export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) =
     }
 
     const show = (node: HTMLElement): void => {
+      // Whatever the pointer crossed on its way here, it is back: the last leave
+      // is not to be believed after all.
+      cancelClose()
       // Re-entering the control from the panel (the pointer crossed the gap
       // back) must not throw the reading away and start another one.
       if (open && anchor !== null && anchor.node === node) return
       const rect = node.getBoundingClientRect()
       const box = panelBox(rect, node)
-      setAnchor({ node, rect, box })
+      setAnchor({ node, box })
       setOpen(true)
       setFailures([])
       setInitOutput('')
@@ -652,13 +683,17 @@ export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) =
         style={anchor === null ? undefined : panelStyle(anchor.box)}
         role="dialog"
         aria-label={t('manageOpenSpec')}
+        // Reaching the panel is the whole point of the grace period: it is what
+        // cancels the leave that started on the control.
+        onMouseEnter={cancelClose}
         // Leaving the panel — including for a control inside it, which is a
-        // leave only in the sense that the pointer moved — closes it, except
-        // while the confirmation is what the pointer went to, and except for a
-        // leave the pointer did not actually make (a right-press and its menu).
+        // leave only in the sense that the pointer moved — starts the same
+        // timer, except while the confirmation is what the pointer went to, and
+        // except for a leave the pointer did not actually make (a right-press
+        // and its menu).
         onMouseLeave={(event) => {
           if (insideBox(event.currentTarget.getBoundingClientRect(), event.clientX, event.clientY)) return
-          dismiss()
+          scheduleClose(dismiss)
         }}
       >
         <div className="os_head">
@@ -778,10 +813,12 @@ export function createOpenSpecButton(deps: ClientDeps): (props: OpenSpecProps) =
           // pointer never moved, and the coordinates are still inside the box.
           if (insideBox(event.currentTarget.getBoundingClientRect(), event.clientX, event.clientY)) return
           // The gap between the control and the panel is not part of the host,
-          // so crossing it fires this leave as well: the direction test decides,
-          // or the safety net would close the panel on its way to the pointer.
-          if (headingToPanel(anchor.box, anchor.rect, event.clientX, event.clientY)) return
-          close()
+          // so crossing it fires this leave as well. Whether this is a crossing
+          // or a departure is not decided here — no geometry can tell the two
+          // apart for a diagonal move — but by the grace period: reaching the
+          // panel (or coming back) cancels it, and nothing cancels it otherwise.
+          if (!open) return
+          scheduleClose(close)
         }}
       >
         <button

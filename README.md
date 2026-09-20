@@ -110,7 +110,7 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 
 #### 2.5 管理 OpenSpec
 
-会话窗口右上角「删除会话」按钮旁是一个 atom 按钮，用来管理当前工作区的 [OpenSpec](https://github.com/Fission-AI/OpenSpec)。鼠标悬浮即弹出面板，面板里写清三件事：
+会话窗口右上角「删除会话」按钮旁是一个 atom 按钮，用来管理当前工作区的 [OpenSpec](https://github.com/Fission-AI/OpenSpec)。鼠标悬浮即弹出面板（离开控件后有约 240 毫秒宽限，够鼠标斜着移到面板上；指针进到面板或回到按钮就取消），面板里写清三件事：
 
 - **初始化状态**：这个工作区跑没跑过 `openspec init`（判据就是项目根目录下有没有 `openspec/`）；此外只报一件目录树答不了的事——布局里该有、磁盘上却没有的部分（`specs`、`changes`、`config.yaml` 这些当前 CLI 会写的）。项目根目录取最近的含 `.git` 的祖先，所以工作区在仓库子目录里（`packages/app`）也能定位到真正写入 `openspec/` 的那个根；早先版本留下的 `project.md` / `AGENTS.md` 不在「该有」之列，缺了不吭声。
 - **技能与命令**：`openspec init --tools …` 留在各编辑器目录里的技能与命令（`.agents/skills/openspec-propose`、`.claude/commands/opsx`、`.cursor/commands/opsx-apply.md` 之类）按目录分组，收在标题后面、默认折叠，点标题展开（标题上的计数始终可见）；展开后条目两列排开，等宽对齐，超长名省略并把完整路径放在悬停提示里。同一目录被多个工具写入时（Codex、Zed 与厂商中立的 `agents` 都写 `.agents/skills`）只列一次并注明是哪几个工具。

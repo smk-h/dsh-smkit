@@ -237,6 +237,11 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
   }
   const onDocument = registry()
   const onWindow = registry()
+  // A controllable clock. The panel's dismissal is deliberately delayed so the
+  // pointer can cross to it, so a suite that never advances the clock would
+  // only ever see the panel still open.
+  const timers = new Map()
+  let nextTimer = 1
   const body = new SandboxElement('BODY', () => null)
   // `installStylesheet` runs at bundle load and needs a document that can take
   // a <style>; nothing else here is a real DOM, only what the bundle asks for.
@@ -259,6 +264,8 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
     },
     document: fakeDocument,
     Element: SandboxElement,
+    setTimeout: (handler) => { const id = nextTimer++; timers.set(id, handler); return id },
+    clearTimeout: (id) => { timers.delete(id) },
     fetch: async (url, options) => {
       calls.push({ url, body: options?.body === undefined ? undefined : JSON.parse(options.body) })
       return fetch(url)
@@ -311,6 +318,13 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
     /** A target inside the panel, and one outside everything the panel owns. */
     inside: () => new SandboxElement('DIV', (selector) => (selector === '.os_panel' ? 'panel' : null)),
     outside: () => new SandboxElement('DIV', () => null),
+    /** Let the grace period elapse, then render what it did. */
+    runTimers() {
+      const pending = [...timers.values()]
+      timers.clear()
+      for (const handler of pending) handler()
+      return this.render()
+    },
     /** Hover the control and let the host answer. */
     async hover() {
       const host = withClass(this.render(), 'os_host')
@@ -473,6 +487,7 @@ it('posts the workspace, keeps the panel through the question, and reports what 
   // question is what it is there to show.
   app.leavePanel()
   assert.ok(withClass(app.render(), 'os_panel'), 'the panel outlives the confirmation')
+  assert.ok(withClass(app.runTimers(), 'os_panel'), 'and the pending leave is refused while the question is up')
 
   nodes(app.render()).find((node) => node.props?.className === 'mm_btn danger').props.onClick()
   await flush()
@@ -666,14 +681,34 @@ it('keeps the panel through a right-press, which reports a leave it never made',
 
   // A leave the pointer did make is still a leave.
   app.leavePanel({ x: 4, y: 4 })
-  assert.equal(withClass(app.render(), 'os_panel'), undefined)
+  assert.equal(withClass(app.runTimers(), 'os_panel'), undefined)
 })
 
-it('closes when the pointer leaves without heading into the panel', async () => {
+it('gives the pointer time to cross to the panel', async () => {
   const app = mount({ fetch: routing() })
   await app.hover()
-  assert.ok(withClass(app.render(), 'os_panel'))
+  assert.ok(withClass(app.render(), 'os_panel'), 'the hover opened it')
 
-  const left = app.leave()
-  assert.equal(withClass(left, 'os_panel'), undefined, 'the leave closes it')
+  // A diagonal move toward the panel's far half leaves the control's 28px box
+  // through its *side*, at a height no geometric test can tell apart from
+  // walking away — so the leave starts a timer rather than closing.
+  app.leave({ x: 990, y: 30 })
+  assert.ok(withClass(app.render(), 'os_panel'), 'the panel is still there the moment the pointer leaves')
+
+  // Reaching the panel is what the grace period is for.
+  withClass(app.render(), 'os_panel').props.onMouseEnter()
+  assert.ok(withClass(app.runTimers(), 'os_panel'), 'and stays once the pointer got there')
+
+  // Walking away instead lets the timer have it.
+  app.leave({ x: 990, y: 30 })
+  assert.equal(withClass(app.runTimers(), 'os_panel'), undefined, 'a leave nothing cancels closes it')
+})
+
+it('lets the pointer come back before the grace period is up', async () => {
+  const app = mount({ fetch: routing() })
+  await app.hover()
+
+  app.leave({ x: 990, y: 30 })
+  withClass(app.render(), 'os_host').props.onMouseEnter({ currentTarget: app.node })
+  assert.ok(withClass(app.runTimers(), 'os_panel'), 'returning to the control cancels the leave too')
 })
