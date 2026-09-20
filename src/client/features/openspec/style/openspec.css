@@ -66,7 +66,16 @@
   border: 1px solid var(--dsw-alias-border-l1);
   border-radius: 10px;
   background: var(--dsw-alias-bg-layer-3);
-  box-shadow: var(--dsw-shadow-lv1);
+  /* Lifted the way the MCP tool card is (`features/mcp/style/tools.css`): the
+   * same wide, soft shadow, because the two are the same kind of thing — a card
+   * hanging over the page, read while the pointer is somewhere else — and
+   * because `--dsw-shadow-lv1` is the level a menu *inside* a panel wears, which
+   * out here on top of the conversation reads as barely off the page.
+   *
+   * Two layers rather than one: a tight, dark line is the contact edge that says
+   * the panel has thickness, and the wide one is the ambient height under it. A
+   * wide shadow alone leaves a card this big looking like it floats in fog. */
+  box-shadow: 0 1px 2px rgb(0 0 0 / 10%), 0 8px 24px rgb(0 0 0 / 18%);
   color: var(--dsw-alias-label-primary);
   font-size: 12px;
   line-height: 18px;
