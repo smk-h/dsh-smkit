@@ -76,8 +76,8 @@
  */
 
 import { createAtomIcon } from './icons/AtomIcon'
-import { createDatabaseMinusIcon } from './icons/DatabaseMinusIcon'
-import { createDatabasePlusIcon } from './icons/DatabasePlusIcon'
+import { createEyeIcon } from './icons/EyeIcon'
+import { createEyeOffIcon } from './icons/EyeOffIcon'
 import { createChevronDownIcon } from '../../platform/icons/ChevronDownIcon'
 import { createLoaderIcon } from '../../platform/icons/LoaderIcon'
 import { createRefreshIcon } from '../../platform/icons/RefreshIcon'
@@ -374,8 +374,8 @@ export function createOpenSpecButton(
   const { h, react, api, stream, createPortal } = deps
   const ConfirmDialog = createConfirmDialog(deps)
   const AtomIcon = createAtomIcon(deps)
-  const DatabaseMinusIcon = createDatabaseMinusIcon(deps)
-  const DatabasePlusIcon = createDatabasePlusIcon(deps)
+  const EyeIcon = createEyeIcon(deps)
+  const EyeOffIcon = createEyeOffIcon(deps)
   const ChevronDownIcon = createChevronDownIcon(deps)
   const RefreshIcon = createRefreshIcon(deps)
   const LoaderIcon = createLoaderIcon(deps)
@@ -1281,15 +1281,15 @@ export function createOpenSpecButton(
               // What the click asks git, in the order it asks it — the whole
               // point being that a tracked file is not ignored by a rule, so
               // the untracking is part of the deal and must be said. The
-              // hover holds the sentence; the glyph reads against the store,
-              // so hiding entries from git wears the minus.
+              // hover holds the sentence; the glyph is the struck-out eye —
+              // git will stop looking at these paths.
               title={t('openSpecGitignoreCommand')}
               disabled={ignoring}
               data-pending={ignoring ? 'true' : undefined}
               aria-busy={ignoring}
               onClick={ignore}
             >
-              <DatabaseMinusIcon size={14} />
+              <EyeOffIcon size={14} />
             </button>
           ) : null}
           {canIgnore ? (
@@ -1301,14 +1301,14 @@ export function createOpenSpecButton(
               // lines come out and which files that empties — and that git is
               // asked nothing, so the index keeps whatever it holds. The hover
               // holds the whole sentence; returning entries to git's view
-              // wears the plus.
+              // wears the open eye.
               title={t('openSpecUntrackCommand')}
               disabled={untracking}
               data-pending={untracking ? 'true' : undefined}
               aria-busy={untracking}
               onClick={untrack}
             >
-              <DatabasePlusIcon size={14} />
+              <EyeIcon size={14} />
             </button>
           ) : null}
           {canRemove ? (
