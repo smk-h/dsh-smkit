@@ -5,8 +5,9 @@
  * 2022, portions © 2013-2022 Cole Bemis, MIT) —
  * https://lucide.nodejs.cn/icons/database-minus — which reads at a glance as
  * what the button does: the store (lucide's database, top ellipse and two
- * belly curves), opened on its lower right by a minus — entries leaving the
- * ignored set and coming back to the index. The break is in the glyph itself:
+ * belly curves), opened on its lower right by a minus — hiding entries from
+ * git takes them out of the repository's view, so the ignore button wears
+ * this glyph while its undo wears the plus. The break is in the glyph itself:
  * the right edge stops at `M21 15V5` and the lower arc stops at 13.318, both
  * leaving room for `M22 19h-6`, so the minus is carved out of the database
  * rather than laid on top of it. Like the `atom` this file sits beside, it

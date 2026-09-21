@@ -5,8 +5,10 @@
  * 2022, portions © 2013-2022 Cole Bemis, MIT) —
  * https://lucide.nodejs.cn/icons/database-plus — the deliberate twin of the
  * `database-minus` beside it: the same store, the same break in its lower
- * right, only the sign reversed — entries leaving the index and going into
- * git's ignore list. The two glyphs read as one pair at 14px, which is what
+ * right, only the sign reversed. The signs read against the repository, not
+ * against the ignore file: un-hiding entries puts them back in git's view,
+ * so the untrack button wears the plus and the ignore button the minus.
+ * The two glyphs read as one pair at 14px, which is what
  * the footer's reversible-actions row is: one action and its undo.
  */
 

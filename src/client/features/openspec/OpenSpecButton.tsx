@@ -1281,15 +1281,15 @@ export function createOpenSpecButton(
               // What the click asks git, in the order it asks it — the whole
               // point being that a tracked file is not ignored by a rule, so
               // the untracking is part of the deal and must be said. The
-              // hover holds the sentence; the glyph is the twin of the
-              // database-minus beside it.
+              // hover holds the sentence; the glyph reads against the store,
+              // so hiding entries from git wears the minus.
               title={t('openSpecGitignoreCommand')}
               disabled={ignoring}
               data-pending={ignoring ? 'true' : undefined}
               aria-busy={ignoring}
               onClick={ignore}
             >
-              <DatabasePlusIcon size={14} />
+              <DatabaseMinusIcon size={14} />
             </button>
           ) : null}
           {canIgnore ? (
@@ -1300,15 +1300,15 @@ export function createOpenSpecButton(
               // The undo of the button beside it, said the same way: which
               // lines come out and which files that empties — and that git is
               // asked nothing, so the index keeps whatever it holds. The hover
-              // holds the whole sentence; the button itself just wears the
-              // glyph, so the footer stays one row of quiet controls.
+              // holds the whole sentence; returning entries to git's view
+              // wears the plus.
               title={t('openSpecUntrackCommand')}
               disabled={untracking}
               data-pending={untracking ? 'true' : undefined}
               aria-busy={untracking}
               onClick={untrack}
             >
-              <DatabaseMinusIcon size={14} />
+              <DatabasePlusIcon size={14} />
             </button>
           ) : null}
           {canRemove ? (
