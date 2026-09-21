@@ -169,17 +169,6 @@ const REPLACE_TOLERANCE = 1
 /** The panel's own class, so document-level listeners can tell it from the page. */
 const PANEL_CLASS = 'os_panel'
 /**
- * How many further panel openings a finished upgrade is shown for.
- *
- * The record outlives the hover it ran on — that is the point of keeping it on
- * the control — but it is a receipt, not a notice board. After this many
- * openings that found it finished, it is dropped, so a daily-opened workspace
- * is not carrying last week's `npm` output forever. A run still in flight is
- * never counted against this: it is still news.
- */
-const UPDATE_RECORD_VIEWS = 3
-
-/**
  * Count one `.gitignore` answer the way its rows are drawn: per outcome, with
  * the refusals kept whole because each one names its own path.
  */
@@ -378,6 +367,17 @@ function formatBytes(bytes: number): string {
   return `${rounded} ${units[unit]}`
 }
 
+/**
+ * One receipt the panel holds, named after the action that wrote it.
+ *
+ * The panel keeps the last answer of every action taken while it was open, and
+ * within one visit they stack — an ignore and then its undo are two answers to
+ * two questions, and showing both in full is eight lines of grey above the
+ * facts. So the keys are recorded in the order they arrived, and the panel
+ * shows the newest one with everything older folded behind a count.
+ */
+type LogKey = 'ignore' | 'untrack' | 'cleaned' | 'remove' | 'init' | 'update'
+
 export function createOpenSpecButton(
   deps: ClientDeps,
   hooks: OpenSpecHooks = {},
@@ -463,12 +463,18 @@ export function createOpenSpecButton(
      * running on the host. Keeping the progress here means a run that outlives
      * the hover it started on is still there to be read on the next one, rather
      * than a blank box that forgot everything in between.
+     *
+     * How long the record survives is a two-part rule. While the run is in
+     * flight it shows on every arrival, because it is still happening. Once it
+     * has ended it is a receipt: the next arrival prints it, and the arrival
+     * after that drops it, so a daily-opened workspace is not carrying last
+     * week's `npm` output forever.
      */
     const [updating, setUpdating] = react.useState(false)
     const [updateLog, setUpdateLog] = react.useState('')
     const [updateStatus, setUpdateStatus] = react.useState<OpenSpecUpdateStatus | ''>('')
-    /** How many panel openings the finished record has already been shown on. */
-    const [updateViews, setUpdateViews] = react.useState(0)
+    /** Whether the finished record has already had its one showing. */
+    const [updateShown, setUpdateShown] = react.useState(false)
     /**
      * The last answer of the `.gitignore` action, kept until the next open.
      *
@@ -490,6 +496,18 @@ export function createOpenSpecButton(
      * rewriting of the other's.
      */
     const [untrackAnswer, setUntrack] = react.useState<OpenSpecUntrackResponse | null>(null)
+    /**
+     * Which receipts the panel is holding, newest first.
+     *
+     * The receipts themselves are the states above; this is only their order,
+     * and what it buys is the right to show one and fold the rest. An action
+     * stamps its own key at the front, so the thing the user just did is the
+     * thing on screen, and the thing they did before that is one click away
+     * rather than eight lines tall.
+     */
+    const [logOrder, setLogOrder] = react.useState<LogKey[]>([])
+    /** Whether the folded receipts are showing; every arrival folds them again. */
+    const [logOpen, setLogOpen] = react.useState(false)
     const { busy, error: removeError, run } = useAsyncAction(react)
     const { busy: initing, error: initError, run: runInit } = useAsyncAction(react)
     const { busy: ignoring, error: ignoreError, run: runIgnore } = useAsyncAction(react)
@@ -605,6 +623,16 @@ export function createOpenSpecButton(
     }
 
     /** Read the current workspace's footprint, and show what came back. */
+    /**
+     * Record that these receipts are the newest, in the order given.
+     *
+     * One call can stamp several keys — a delete leaves both a tidy-up and a
+     * failure list — and they should read as one moment rather than two.
+     */
+    const noteLog = (...keys: LogKey[]): void => {
+      setLogOrder([...keys, ...logOrder.filter(held => !keys.includes(held))])
+    }
+
     const load = async (): Promise<void> => {
       if (target === undefined) {
         setView(undefined)
@@ -641,16 +669,21 @@ export function createOpenSpecButton(
       setInitOutput('')
       setGitignore(null)
       setUntrack(null)
-      // A finished upgrade's record is shown for `UPDATE_RECORD_VIEWS` openings
-      // past the one it ran on, then dropped. Only arrivals count: the refresh
-      // button re-reads in place, and the panel staying open is not a viewing.
+      // The log is one visit's memory: what the panel folds away is what the
+      // user did in *this* opening, and an arrival starts that story again.
+      setLogOrder([])
+      setLogOpen(false)
+      // A finished upgrade's record gets one printing past the hover it ran on,
+      // then drops. Only arrivals count: the refresh button re-reads in place,
+      // and a panel staying open is not a viewing. A run still in flight is
+      // never part of the rule — it is not a receipt yet.
       if (!updating && (updateLog !== '' || updateStatus !== '')) {
-        if (updateViews >= UPDATE_RECORD_VIEWS) {
+        if (updateShown) {
           setUpdateLog('')
           setUpdateStatus('')
-          setUpdateViews(0)
+          setUpdateShown(false)
         } else {
-          setUpdateViews(updateViews + 1)
+          setUpdateShown(true)
         }
       }
       // Every open re-reads: the panel's whole subject is what is on disk right
@@ -685,6 +718,7 @@ export function createOpenSpecButton(
         const cleaned: unknown = result.body.ignoreFiles
         setAsking(false)
         setFailures(Array.isArray(failed) ? (failed as OpenSpecRemoveFailure[]) : [])
+        noteLog('remove', 'cleaned')
         setPruned(Array.isArray(cleaned) ? (cleaned as OpenSpecIgnoreCleanup[]) : [])
         await load()
         return undefined
@@ -710,6 +744,7 @@ export function createOpenSpecButton(
         })
         if (!result.ok) return messageFor(result, 'openSpecInitFailed')
         setInitOutput(typeof result.body.output === 'string' ? result.body.output : '')
+        noteLog('init')
         await load()
         return undefined
       })
@@ -735,6 +770,7 @@ export function createOpenSpecButton(
         if (!result.ok) return messageFor(result, 'openSpecGitignoreFailed')
         const body = result.body as OpenSpecIgnoreResponse
         setGitignore(body)
+        noteLog('ignore')
         // Nothing written means nothing on disk moved, so nothing to re-read.
         if (body.files !== undefined && body.files.length > 0) await load()
         return undefined
@@ -762,6 +798,7 @@ export function createOpenSpecButton(
         if (!result.ok) return messageFor(result, 'openSpecUntrackFailed')
         const body = result.body as OpenSpecUntrackResponse
         setUntrack(body)
+        noteLog('untrack')
         if (body.files !== undefined && body.files.length > 0) await load()
         return undefined
       })
@@ -779,9 +816,13 @@ export function createOpenSpecButton(
     const upgrade = (): void => {
       if (target === undefined || updating) return
       setUpdating(true)
+      // Stamped as the newest receipt on the click, not on the last line: the
+      // run is the thing the user just did, and its output has to be the one
+      // showing while it streams.
+      noteLog('update')
       setUpdateLog('')
       setUpdateStatus('')
-      setUpdateViews(0)
+      setUpdateShown(false)
       // Accumulated in the closure rather than through the state setter: the
       // harness's `useState` stores a value outright and does not run updater
       // functions, so the running total is kept here and pushed whole.
@@ -1072,12 +1113,34 @@ export function createOpenSpecButton(
     /** A finished upgrade that ended badly is an error; a running or good one is not. */
     const updateFailed =
       !updating && (updateStatus === 'failed' || updateStatus === 'npm-missing' || updateStatus === 'timeout')
+    // The upgrade's own receipt. It is the one answer that outlives the hover it
+    // ran on, because the run does: while it streams the panel keeps showing it,
+    // and once it has ended the next arrival prints it, with the last-looking
+    // notice that goes with that printing.
+    const updateBlock = !hasUpdate ? null : (
+      <div
+        className="os_logItem"
+        key="update"
+        data-tone={updating ? 'running' : updateFailed ? 'error' : 'ok'}
+      >
+        <div className={updateFailed ? 'os_error' : 'os_sectionTitle'}>{updateLabel()}</div>
+        {updateLog === '' ? null : <div className="os_output">{updateLog}</div>}
+        {updateShown ? <div className="os_note">{t('openSpecUpdateExpiryLast')}</div> : null}
+      </div>
+    )
     // The `.gitignore` answer, once there is one: outside a repo the whole
     // reply is the reason; inside one, the counts say what changed and what
     // git had already decided on its own.
     const ignoreTally = gitignore === null ? null : tallyIgnore(gitignore.results)
+    // A receipt's tone is also its refusal to fold: what went wrong stays open.
+    const ignoreBad =
+      gitignore !== null && ignoreTally !== null && (ignoreTally.failed.length > 0 || !gitignore.repo)
     const gitignoreBlock = gitignore === null || ignoreTally === null ? null : (
-      <div className="os_section">
+      <div
+        className="os_logItem"
+        key="ignore"
+        data-tone={ignoreBad ? 'error' : 'ok'}
+      >
         <div className={ignoreTally.failed.length === 0 ? 'os_sectionTitle' : 'os_error'}>
           {t('openSpecGitignore')}
         </div>
@@ -1122,8 +1185,13 @@ export function createOpenSpecButton(
     // came out of the ignore files and what was never in them. Git is not
     // asked anything, so there is nothing to report about the index.
     const untrackTally = untrackAnswer === null ? null : tallyUntrack(untrackAnswer.results)
+    const untrackBad = untrackTally !== null && untrackTally.failed.length > 0
     const untrackBlock = untrackAnswer === null || untrackTally === null ? null : (
-      <div className="os_section">
+      <div
+        className="os_logItem"
+        key="untrack"
+        data-tone={untrackBad ? 'error' : 'ok'}
+      >
         <div className={untrackTally.failed.length === 0 ? 'os_sectionTitle' : 'os_error'}>
           {t('openSpecUntrack')}
         </div>
@@ -1155,76 +1223,112 @@ export function createOpenSpecButton(
           ]}
       </div>
     )
-    const messages = (
-      <div className="os_messages">
-        {error === '' ? null : <div className="os_error">{error}</div>}
-        {initError === '' ? null : <div className="os_error">{initError}</div>}
-        {ignoreError === '' ? null : <div className="os_error">{ignoreError}</div>}
-        {untrackError === '' ? null : <div className="os_error">{untrackError}</div>}
-        {initing ? <div className="os_note">{t('openSpecInitRunning')}</div> : null}
-        {ignoring ? <div className="os_note">{t('openSpecGitignoreRunning')}</div> : null}
-        {untracking ? <div className="os_note">{t('openSpecUntrackRunning')}</div> : null}
-        {hasUpdate ? (
-          <div className="os_section">
-            <div className={updateFailed ? 'os_error' : 'os_sectionTitle'}>{updateLabel()}</div>
-            {updateLog === '' ? null : <div className="os_output">{updateLog}</div>}
-            {!updating && (updateLog !== '' || updateStatus !== '') ? (
-              UPDATE_RECORD_VIEWS - updateViews > 0
-                ? <div className="os_note">{t('openSpecUpdateExpiry', { left: UPDATE_RECORD_VIEWS - updateViews, total: UPDATE_RECORD_VIEWS })}</div>
-                : <div className="os_note">{t('openSpecUpdateExpiryLast')}</div>
-            ) : null}
+    // The delete's two answers: what came back with the footprint, and what the
+    // request refused to take. The first is a tidy-up notice, the second a
+    // failure, and only the second is loud.
+    const cleanedBlock = pruned.length === 0 ? null : (
+      <div className="os_logItem" key="cleaned" data-tone="ok">
+        <div className="os_sectionTitle">{t('openSpecIgnoreCleaned')}</div>
+        {pruned.map(cleaned => (
+          <div className="os_note" key={cleaned.rel}>
+            {cleaned.deleted
+              ? t('openSpecIgnoreFileDeleted', { path: cleaned.rel })
+              : t('openSpecIgnoreFilePruned', { path: cleaned.rel, count: cleaned.lines })}
           </div>
-        ) : null}
-        {gitignoreBlock}
-        {untrackBlock}
-        {pruned.length === 0 ? null : (
-          <div className="os_section">
-            <div className="os_sectionTitle">{t('openSpecIgnoreCleaned')}</div>
-            {pruned.map(cleaned => (
-              <div className="os_note" key={cleaned.rel}>
-                {cleaned.deleted
-                  ? t('openSpecIgnoreFileDeleted', { path: cleaned.rel })
-                  : t('openSpecIgnoreFilePruned', { path: cleaned.rel, count: cleaned.lines })}
-              </div>
-            ))}
-          </div>
-        )}
-        {failures.length === 0 ? null : (
-          <div className="os_section">
-            <div className="os_error">{t('openSpecPartial')}</div>
-            {failures.map(failure => (
-              <div className="os_note" key={failure.rel} title={failure.error}>{failure.rel}</div>
-            ))}
-          </div>
-        )}
-        {initOutput === '' ? null : (
-          <div className="os_section">
-            <div className="os_sectionTitle">{t('openSpecInitDone')}</div>
-            <div className="os_output">{initOutput}</div>
-          </div>
-        )}
-        {reading && view === undefined ? <div className="os_note">{t('openSpecReading')}</div> : null}
+        ))}
       </div>
     )
-    const hasMessages =
-      error !== '' ||
-      initError !== '' ||
-      ignoreError !== '' ||
-      untrackError !== '' ||
-      initing ||
-      ignoring ||
-      untracking ||
-      gitignore !== null ||
-      untrackAnswer !== null ||
-      hasUpdate ||
-      failures.length > 0 ||
-      pruned.length > 0 ||
-      initOutput !== '' ||
-      (reading && view === undefined)
+    const removeBlock = failures.length === 0 ? null : (
+      <div className="os_logItem" key="remove" data-tone="error">
+        <div className="os_error">{t('openSpecPartial')}</div>
+        {failures.map(failure => (
+          <div className="os_note" key={failure.rel} title={failure.error}>{failure.rel}</div>
+        ))}
+      </div>
+    )
+    const initBlock = initOutput === '' ? null : (
+      <div className="os_logItem" key="init" data-tone="ok">
+        <div className="os_sectionTitle">{t('openSpecInitDone')}</div>
+        <div className="os_output">{initOutput}</div>
+      </div>
+    )
+    /** The receipt each log key draws, or `null` when that action has no answer. */
+    const receipts: Record<LogKey, JSX.Element | null> = {
+      update: updateBlock,
+      ignore: gitignoreBlock,
+      untrack: untrackBlock,
+      cleaned: cleanedBlock,
+      remove: removeBlock,
+      init: initBlock,
+    }
+    // Which receipts refuse to fold: one that reports a failure is still asking
+    // to be read, and a run that is in flight is still running.
+    const loud: Record<LogKey, boolean> = {
+      update: updating || updateFailed,
+      ignore: ignoreBad,
+      untrack: untrackBad,
+      cleaned: false,
+      remove: failures.length > 0,
+      init: false,
+    }
+    // An arrival empties the visit-log, so the upgrade record carried over from a
+    // run that outlived its hover is not in it; it joins the tail, as the oldest
+    // answer still standing.
+    const queue: LogKey[] = logOrder.includes('update') || updateBlock === null
+      ? logOrder
+      : [...logOrder, 'update']
+    const keys = queue.filter(key => receipts[key] !== null)
+    const quiet = keys.filter(key => !loud[key])
+    // The failure-first order: what went wrong on top, then the newest answer
+    // that did not, then whatever the user has already seen folded away.
+    const openKeys = [...keys.filter(key => loud[key]), ...quiet.slice(0, 1)]
+    const folded = quiet.slice(1)
+    const nodesFor = (list: LogKey[]): JSX.Element[] =>
+      list.map(key => receipts[key]).filter((node): node is JSX.Element => node !== null)
+    // What an action is doing right now, and what it said went wrong, are not
+    // receipts to be filed: they are the panel answering "did that work", so
+    // they stay above the log, unfolded.
+    const alerts: JSX.Element[] = []
+    if (error !== '') alerts.push(<div className="os_error" key="error">{error}</div>)
+    if (initError !== '') alerts.push(<div className="os_error" key="init-error">{initError}</div>)
+    if (ignoreError !== '') alerts.push(<div className="os_error" key="ignore-error">{ignoreError}</div>)
+    if (untrackError !== '') alerts.push(<div className="os_error" key="untrack-error">{untrackError}</div>)
+    if (initing) alerts.push(<div className="os_note" key="initing">{t('openSpecInitRunning')}</div>)
+    if (ignoring) alerts.push(<div className="os_note" key="ignoring">{t('openSpecGitignoreRunning')}</div>)
+    if (untracking) alerts.push(<div className="os_note" key="untracking">{t('openSpecUntrackRunning')}</div>)
+    if (reading && view === undefined) {
+      alerts.push(<div className="os_note" key="reading">{t('openSpecReading')}</div>)
+    }
+    const messages = (
+      <div className="os_messages">
+        {alerts}
+        {nodesFor(openKeys)}
+        {folded.length === 0 ? null : (
+          <div className="os_older">
+            <button
+              className="os_toggle"
+              type="button"
+              aria-expanded={logOpen}
+              title={logOpen ? t('openSpecCollapse') : t('openSpecExpand')}
+              onClick={() => setLogOpen(!logOpen)}
+            >
+              <span className="os_caret" data-open={logOpen ? 'true' : undefined}>
+                <ChevronDownIcon size={12} />
+              </span>
+              {t('openSpecLogEarlier', { count: folded.length })}
+            </button>
+            {logOpen ? nodesFor(folded) : null}
+          </div>
+        )}
+      </div>
+    )
 
     const body = (
       <div className="os_body">
-        {hasMessages ? messages : null}
+        {/* Mounted even when it has nothing to say. A block that appears and
+            disappears is a block that moves the divider under it, and that jump
+            is the flicker; the empty log collapses itself in CSS instead. */}
+        {messages}
         {facts}
         {/* The generated entries above the tree: what OpenSpec put in the
          * workspace is the question the control was clicked for, and the store's

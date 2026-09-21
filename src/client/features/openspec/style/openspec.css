@@ -177,7 +177,49 @@
 .os_messages {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+}
+
+/* An empty log takes no room. It is mounted on every render rather than
+ * appearing and disappearing, because a block that appears is a block that
+ * moves the divider under it — that jump was the flicker. */
+.os_messages:empty {
+  display: none;
+}
+
+/* One answer, in its own shallow box with a two-pixel tone bar up the left.
+ * The receipts used to be eight loose lines in the column, where nothing said
+ * which of them belonged to the same action. */
+.os_logItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px 6px 9px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-left-width: 2px;
+  border-radius: 7px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+/* The bar says how the action ended, in the three colours the status dot
+ * already resolves from the same tokens. */
+.os_logItem[data-tone='ok'] {
+  border-left-color: var(--dsw-alias-state-success-primary);
+}
+
+.os_logItem[data-tone='error'] {
+  border-left-color: var(--dsw-alias-state-error-primary);
+}
+
+.os_logItem[data-tone='running'] {
+  border-left-color: var(--dsw-alias-label-tertiary);
+}
+
+/* The answers this visit has already folded away, under one line of its own. */
+.os_older {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .os_note {

@@ -1140,7 +1140,7 @@ it('phrases a missing npm as an instruction, not a stack', async () => {
   assert.ok(texts(app.render()).join(' | ').includes('openSpecUpdateNpmMissing'))
 })
 
-it('keeps a finished upgrade for three more openings, then drops it', async () => {
+it('prints a finished upgrade on the next opening, then drops it', async () => {
   const app = mount({
     fetch: updateRouting([
       { type: 'line', stream: 'out', text: 'changed 1 package in 4s' },
@@ -1152,7 +1152,7 @@ it('keeps a finished upgrade for three more openings, then drops it', async () =
   await flush(20)
   const done = texts(app.render()).join(' | ')
   assert.ok(done.includes('openSpecUpdateDone'), 'the opening the run finished on shows the record')
-  assert.ok(done.includes('openSpecUpdateExpiry({"left":3,"total":3})'), 'and says three more openings remain')
+  assert.ok(!done.includes('openSpecUpdateExpiryLast'), 'and does not call itself the last viewing yet')
 
   /** Walk the pointer out, let the grace period close the panel, hover back in. */
   const reopen = async () => {
@@ -1160,23 +1160,15 @@ it('keeps a finished upgrade for three more openings, then drops it', async () =
     app.runTimers()
     return await app.hover()
   }
-  for (const view of [1, 2, 3]) {
-    const again = await reopen()
-    const text = texts(again).join(' | ')
-    assert.ok(text.includes('openSpecUpdateDone'), `still shown on reopening (view ${view} of 3)`)
-    if (view < 3) {
-      assert.ok(
-        text.includes(`openSpecUpdateExpiry({"left":${3 - view},"total":3})`),
-        `the hint counts down on view ${view}`,
-      )
-    } else {
-      assert.ok(text.includes('openSpecUpdateExpiryLast'), 'the last viewing says so plainly')
-    }
-  }
+  const once = await reopen()
+  const first = texts(once).join(' | ')
+  assert.ok(first.includes('openSpecUpdateDone'), 'the next opening prints the record')
+  assert.ok(first.includes('openSpecUpdateExpiryLast'), 'and says plainly that this is the last of it')
+
   const gone = await reopen()
   const text = texts(gone).join(' | ')
-  assert.ok(!text.includes('openSpecUpdateDone'), 'the fourth opening drops the receipt')
-  assert.ok(!text.includes('openSpecUpdateExpiry'), 'and the hint goes with it')
+  assert.ok(!text.includes('openSpecUpdateDone'), 'the opening after that drops the receipt')
+  assert.ok(!text.includes('openSpecUpdateExpiry'), 'and the notice goes with it')
   assert.equal(withClass(gone, 'os_output'), undefined, 'and its output goes with it')
 })
 
@@ -1599,4 +1591,86 @@ it('clears its answer when the panel opens again', async () => {
     false,
     'last time\u2019s answer is not this opening\u2019s news',
   )
+})
+
+// --- how the log is laid out -------------------------------------------------
+
+/** The receipts the panel holds open, top to bottom. */
+const openItems = (tree) =>
+  nodes(tree).filter(node => String(node.props?.className ?? '').split(' ').includes('os_logItem'))
+
+/**
+ * A panel that answers both ignore actions, so two receipts can stack up in the
+ * one visit and the log has to decide which of them to show.
+ */
+async function withTwoAnswers(ignore, untrack) {
+  const route = routing()
+  const app = mount({
+    fetch: (url) =>
+      url.includes('/openspec/gitignore')
+        ? response(ignore)
+        : url.includes('/openspec/untrack')
+          ? response(untrack)
+          : route(url),
+  })
+  const shown = await app.hover()
+  return { app, shown }
+}
+
+it('mounts the log before there is anything in it', async () => {
+  const app = mount({ fetch: routing() })
+  const shown = await app.hover()
+  const messages = withClass(shown, 'os_messages')
+  assert.ok(messages, 'the block is on the panel with no receipt to report')
+  assert.equal(nodes(messages).length, 1, 'and nothing hangs off it, so it takes no room')
+  assert.equal(openItems(shown).length, 0)
+})
+
+it('shows the newest receipt and folds the older one behind a count', async () => {
+  const { app, shown } = await withTwoAnswers(ignoreBody(), untrackBody())
+  token(shown, 'os_ignore').props.onClick()
+  await flush()
+  let tree = app.render()
+  assert.equal(openItems(tree).length, 1, 'the answer just earned is the one showing')
+  assert.equal(withClass(tree, 'os_older'), undefined, 'and there is nothing older to fold yet')
+
+  token(tree, 'os_untrack').props.onClick()
+  await flush()
+  tree = app.render()
+  const text = texts(tree).join(' | ')
+  assert.ok(text.includes('openSpecUntrackUnlisted({"count":1})'), 'the newest answer stays on screen')
+  assert.equal(
+    text.includes('openSpecGitignoreUntracked'),
+    false,
+    'the older one leaves the screen rather than being forgotten',
+  )
+  assert.ok(text.includes('openSpecLogEarlier({"count":1})'), 'one line says how many are folded away')
+
+  const fold = withClass(tree, 'os_older')
+  const toggle = nodes(fold).find(node => node.type === 'button')
+  assert.equal(toggle.props['aria-expanded'], false, 'the fold is shut, and says so')
+  toggle.props.onClick()
+  const opened = texts(app.render()).join(' | ')
+  assert.ok(opened.includes('openSpecGitignoreUntracked'), 'the click prints what was folded')
+  assert.ok(opened.includes('openSpecUntrackUnlisted'), 'without taking the newest answer away')
+})
+
+it('keeps a receipt that failed open, above the one that came after it', async () => {
+  const refused = ignoreBody()
+  refused.results[2].error = 'EPERM: operation not permitted'
+  const { app, shown } = await withTwoAnswers(refused, untrackBody())
+  token(shown, 'os_ignore').props.onClick()
+  await flush()
+  token(app.render(), 'os_untrack').props.onClick()
+  await flush()
+
+  const tree = app.render()
+  assert.equal(withClass(tree, 'os_older'), undefined, 'two answers, nothing folded')
+  const items = openItems(tree)
+  assert.equal(items.length, 2)
+  assert.ok(
+    texts(items[0]).join(' ').includes('openSpecGitignorePartial'),
+    'what went wrong is on top, because it is still asking to be read',
+  )
+  assert.ok(texts(items[1]).join(' ').includes('openSpecUntrack'), 'and the clean answer sits under it')
 })
