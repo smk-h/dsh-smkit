@@ -100,13 +100,25 @@ const branchesOf = (tree) =>
 /**
  * The control's own stand-in: the panel is placed from its viewport rect, which
  * no headless render can produce, so the harness hands over the box a header
- * utility at the right edge of a 1280×800 window would have.
+ * utility at the right edge of a 1280×800 window would have. The rect is one
+ * shared object so a test can slide it — the way a reflowing header or a
+ * scrolling page moves the real control under a panel that stays open.
  */
 function anchorNode() {
+  const rect = { left: 1000, top: 20, right: 1028, bottom: 48, width: 28, height: 28 }
   return {
-    parentElement: null,
-    contains: () => false,
-    getBoundingClientRect: () => ({ left: 1000, top: 20, right: 1028, bottom: 48, width: 28, height: 28 }),
+    node: {
+      parentElement: null,
+      contains: () => false,
+      // A live node in a live document: what the re-measure asks before it
+      // trusts the box it is about to follow.
+      isConnected: true,
+      // A fresh object every call, the way a real rect is: the panel keeps the
+      // box it measured as its comparison baseline, and a shared object would
+      // let a moved control silently move its own baseline with it.
+      getBoundingClientRect: () => ({ ...rect }),
+    },
+    rect,
   }
 }
 
@@ -228,7 +240,14 @@ const workspaceState = (items = []) => ({ items, archivedSessionIds: [], state: 
  *   read, and the control's stand-in geometry.
  * @returns the render, hover and click helpers plus the recorded calls.
  */
-function mount({ fetch, session = sessionState(), workspace = workspaceState(), node = anchorNode(), sidebar = false }) {
+function mount({
+  fetch,
+  session = sessionState(),
+  workspace = workspaceState(),
+  anchor = anchorNode(),
+  sidebar = false,
+}) {
+  const node = anchor.node
   const calls = []
   /** The addresses the shell's sidebar viewer was asked to open, in order. */
   const opened = []
@@ -287,6 +306,11 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
   // only ever see the panel still open.
   const timers = new Map()
   let nextTimer = 1
+  // The re-measure of the control rides one animation frame; the harness runs
+  // frames on demand, the way it runs timers, so a test can say "the browser
+  // painted once after that scroll" and read what the panel decided.
+  const frames = new Map()
+  let nextFrame = 1
   const body = new SandboxElement('BODY', () => null)
   // The leave guards ask the browser's own question — what is under this
   // point — so the stub document answers it. Both surfaces are rounded for
@@ -330,6 +354,10 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
     TextDecoder: globalThis.TextDecoder,
     setTimeout: (handler) => { const id = nextTimer++; timers.set(id, handler); return id },
     clearTimeout: (id) => { timers.delete(id) },
+    // The panel's re-measure rides one animation frame; the harness queues it
+    // and a test runs it with `flushFrames`, the same way it drives the clock.
+    requestAnimationFrame: (handler) => { const id = nextFrame++; frames.set(id, handler); return id },
+    cancelAnimationFrame: (id) => { frames.delete(id) },
     fetch: async (url, options) => {
       calls.push({ url, body: options?.body === undefined ? undefined : JSON.parse(options.body) })
       return fetch(url)
@@ -392,6 +420,26 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
       timers.clear()
       for (const handler of pending) handler()
       return this.render()
+    },
+    /** Run the queued animation frames (the control's re-measure), then render. */
+    flushFrames() {
+      const queued = [...frames.values()]
+      frames.clear()
+      for (const handler of queued) handler()
+      return this.render()
+    },
+    /**
+     * Slide the control's box vertically, the way a reflow or a scrolling page
+     * moves it under an open panel.
+     */
+    moveNode({ top, bottom }) {
+      anchor.rect.top = top
+      anchor.rect.bottom = bottom
+      return { ...anchor.rect }
+    },
+    /** Take the control out of the document, as an unmount would. */
+    detachNode() {
+      anchor.node.isConnected = false
     },
     /**
      * Hover the control the way a browser reports a hand doing it: the pointer
@@ -759,18 +807,69 @@ it('reports a failed read inside the panel rather than as an empty workspace', a
   assert.equal(withClass(shown, 'os_chip'), undefined, 'and claims no status it could not read')
 })
 
-it('stays open while its own body scrolls, and closes when the page moves under it', async () => {
+it('survives the page scrolling under it, and follows the control instead', async () => {
   const app = mount({ fetch: routing() })
   await app.hover()
   assert.ok(withClass(app.render(), 'os_panel'), 'the hover opened it')
 
-  // Reading past the fold scrolls the panel's own body, which is a scroll event
-  // like any other: it must not be mistaken for the page moving away.
+  // Reading past the fold scrolls the panel's own body: a re-measure finds the
+  // control exactly where it was, and the panel keeps its placement.
   app.dispatch('scroll', { type: 'scroll', target: app.inside() })
+  app.flushFrames()
   assert.ok(withClass(app.render(), 'os_panel'), 'scrolling the panel is reading it')
 
+  // The streaming bug: a chat auto-scrolling under a reply dispatches page
+  // scrolls the panel used to treat as a dismissal, closing it under a pointer
+  // that never left. The control has not moved, so the answer is still no.
   app.dispatch('scroll', { type: 'scroll', target: app.outside() })
-  assert.equal(withClass(app.render(), 'os_panel'), undefined, 'a page scroll leaves the placement stale')
+  app.flushFrames()
+  assert.ok(withClass(app.render(), 'os_panel'), 'a page scroll that leaves the header alone is not a leave')
+})
+
+it('re-places itself when the control moves, and goes when the control leaves the viewport', async () => {
+  const app = mount({ fetch: routing() })
+  const before = await app.hover()
+  const panelBefore = withClass(before, 'os_panel')
+  assert.ok(panelBefore)
+
+  // A header the page scrolled sideways: the panel follows the measured box
+  // rather than pointing at where the control used to be.
+  app.moveNode({ top: 120, bottom: 148 })
+  app.dispatch('resize', { type: 'resize' })
+  const moved = app.flushFrames()
+  const panelMoved = withClass(moved, 'os_panel')
+  assert.ok(panelMoved, 'a moved control is followed, not abandoned')
+  assert.notEqual(
+    panelMoved.props.style.top,
+    panelBefore.props.style.top,
+    'and the placement carries the new coordinates',
+  )
+
+  // The control scrolled out of the window for real: there is nothing left to
+  // point at, which is the one case the dismissal belongs to.
+  app.moveNode({ top: -40, bottom: -12 })
+  app.dispatch('scroll', { type: 'scroll', target: app.outside() })
+  assert.equal(
+    withClass(app.flushFrames(), 'os_panel'),
+    undefined,
+    'a control off the viewport closes the panel that pointed at it',
+  )
+})
+
+it('closes when its control leaves the document', async () => {
+  const app = mount({ fetch: routing() })
+  await app.hover()
+  assert.ok(withClass(app.render(), 'os_panel'))
+
+  // The header re-rendering away the seat: the measured node is gone, and a
+  // panel hung off a detached control would float over nothing.
+  app.detachNode()
+  app.dispatch('scroll', { type: 'scroll', target: app.outside() })
+  assert.equal(
+    withClass(app.flushFrames(), 'os_panel'),
+    undefined,
+    'a panel whose control no longer exists has nothing to follow',
+  )
 })
 
 it('stays open when the press lands on a part of it that cannot be focused', async () => {

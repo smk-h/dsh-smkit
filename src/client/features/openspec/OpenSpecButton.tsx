@@ -14,11 +14,13 @@
  * period (`HOVER_GRACE_MS`) rather than a geometric test — the pointer has to
  * cross the gap, and for the panel's far half it does so diagonally, leaving the
  * control's small box through its side at a height no geometry can tell apart
- * from walking away. It closes on Escape, on a press outside it, on scroll or
- * resize, and of course once the grace period runs out with the pointer on
- * neither surface. The scroll and resize cases are because the panel is placed
- * from coordinates measured when it opened, so a header that moved under it
- * would leave it pointing at nothing.
+ * from walking away. It closes on Escape, on a press outside it, and of course
+ * once the grace period runs out with the pointer on neither surface. A scroll
+ * or a resize is not: the panel is placed from coordinates measured when it
+ * opened, so instead of going away it is re-placed from a fresh measurement of
+ * the control — which is what keeps it alive over a chat that auto-scrolls
+ * under a streaming reply, and only closes it once the control itself has
+ * scrolled out of the viewport and there is nothing left to point at.
  *
  * **A hover is movement, not position.** The gesture listened for is the pointer
  * moving *on* the control, never the control arriving under a pointer that has
@@ -155,6 +157,13 @@ const PANEL_MIN_ROOM = 180
  * enough that a real departure still feels immediate.
  */
 const HOVER_GRACE_MS = 240
+/**
+ * How far the control may drift before its panel is re-placed.
+ *
+ * One pixel: the remeasure is meant to swallow the subpixel jitter a scrolling
+ * container reports, and follow anything a real reflow moved.
+ */
+const REPLACE_TOLERANCE = 1
 /** The panel's own class, so document-level listeners can tell it from the page. */
 const PANEL_CLASS = 'os_panel'
 /**
@@ -485,10 +494,10 @@ export function createOpenSpecButton(
     // session that has not been given one yet.
     const target = typeof cwd === 'string' && cwd !== '' ? cwd : workspacePath
 
-    // A panel placed from measured coordinates cannot survive the page moving
-    // under it, and a box that ignores Escape is a trap. The listeners are
-    // installed only while it is open, and the `true` on the scroll listener is
-    // what catches a scroll in any container, not just the window.
+    // A box that ignores Escape is a trap, and a box whose control leaves the
+    // viewport points at nothing. The listeners are installed only while it is
+    // open, and the `true` on the scroll listener is what catches a scroll in
+    // any container, not just the window.
     react.useEffect(() => {
       if (!open || typeof document === 'undefined') return undefined
       const onKey = (event: KeyboardEvent): void => {
@@ -507,32 +516,68 @@ export function createOpenSpecButton(
         if (asking || insideOwnSurface(event.target)) return
         setOpen(false)
       }
+      /** The control the panel hangs off, or `null` once it has lost it. */
+      const node = anchor?.node ?? null
+      /** The control's rect as last measured; the comparison baseline. */
+      let placed: AnchorRect | null = node?.getBoundingClientRect() ?? null
+      let frame: number | undefined
       /**
-       * A scroll anywhere but inside the panel is a reason to close: the box is
-       * placed from coordinates measured when it opened, so a page that moved
-       * under it would leave it pointing at nothing.
+       * Re-measure the control, and follow it.
        *
-       * A scroll *inside* it is the opposite — the panel scrolls its own body
-       * when a store is longer than the panel, and that is reading it, not
-       * leaving it — so the event's target decides. The capture flag is what
-       * lets the listener see a scroll from any container at all rather than
-       * only the document's own.
+       * A scroll anywhere — a chat auto-scrolling under a streaming reply, the
+       * window's own, a container halfway down the tree — and any resize is
+       * first a question, not a reason to close: what does the control's box
+       * say now? Only a control that really moved (past subpixel jitter) is
+       * worth a re-place, and only one that left the viewport entirely is worth
+       * a close; a panel over a control that went off-screen points at nothing,
+       * which is the stale-placement the old unconditional close was standing
+       * in for. The measurement rides one animation frame, so a scroll that
+       * fires per wheel-tick pays for the walk once per frame, not once per
+       * tick.
        */
-      const onScroll = (event: Event): void => {
-        if (insideOwnSurface(event.target)) return
-        setOpen(false)
+      const remeasure = (): void => {
+        if (node === null || frame !== undefined) return
+        frame = requestAnimationFrame(() => {
+          frame = undefined
+          if (!node.isConnected) {
+            setOpen(false)
+            return
+          }
+          const rect = node.getBoundingClientRect()
+          const last = placed
+          if (
+            last !== null &&
+            Math.abs(rect.left - last.left) < REPLACE_TOLERANCE &&
+            Math.abs(rect.right - last.right) < REPLACE_TOLERANCE &&
+            Math.abs(rect.top - last.top) < REPLACE_TOLERANCE &&
+            Math.abs(rect.bottom - last.bottom) < REPLACE_TOLERANCE
+          ) {
+            return
+          }
+          if (rect.bottom <= 0 || rect.top >= window.innerHeight) {
+            setOpen(false)
+            return
+          }
+          placed = rect
+          setAnchor({ node, box: panelBox(rect, node) })
+        })
       }
-      const onResize = (): void => setOpen(false)
+      // Every scroll counts, the panel's own included: inside it the control
+      // has not moved and the measurement says so, and telling the two apart
+      // by event target was the guess that closed a reading panel the moment
+      // the chat began to stream.
+      const onMove = (): void => remeasure()
       document.addEventListener('keydown', onKey)
       document.addEventListener('pointerdown', onDown)
-      window.addEventListener('scroll', onScroll, true)
-      window.addEventListener('resize', onResize)
+      window.addEventListener('scroll', onMove, true)
+      window.addEventListener('resize', onMove)
       return () => {
         cancel()
+        if (frame !== undefined) cancelAnimationFrame(frame)
         document.removeEventListener('keydown', onKey)
         document.removeEventListener('pointerdown', onDown)
-        window.removeEventListener('scroll', onScroll, true)
-        window.removeEventListener('resize', onResize)
+        window.removeEventListener('scroll', onMove, true)
+        window.removeEventListener('resize', onMove)
       }
     }, [open, asking])
 
