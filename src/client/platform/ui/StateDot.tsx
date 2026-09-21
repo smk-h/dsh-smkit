@@ -1,6 +1,6 @@
 /**
  * The status dot the plugin shares: DSH's own state mark, drawn the way the
- * shell draws it beside a plugin's 「已启用」 tag.
+ * shell draws it beside the tag that says a plugin is enabled.
  *
  * It lives in the platform layer because the states are not one section's
  * vocabulary — a store that exists, a connection that failed, a task waiting
