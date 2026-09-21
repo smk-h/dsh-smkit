@@ -77,6 +77,7 @@
 
 import { createAtomIcon } from './icons/AtomIcon'
 import { createDatabaseMinusIcon } from './icons/DatabaseMinusIcon'
+import { createDatabasePlusIcon } from './icons/DatabasePlusIcon'
 import { createChevronDownIcon } from '../../platform/icons/ChevronDownIcon'
 import { createLoaderIcon } from '../../platform/icons/LoaderIcon'
 import { createRefreshIcon } from '../../platform/icons/RefreshIcon'
@@ -383,6 +384,7 @@ export function createOpenSpecButton(
   const ConfirmDialog = createConfirmDialog(deps)
   const AtomIcon = createAtomIcon(deps)
   const DatabaseMinusIcon = createDatabaseMinusIcon(deps)
+  const DatabasePlusIcon = createDatabasePlusIcon(deps)
   const ChevronDownIcon = createChevronDownIcon(deps)
   const RefreshIcon = createRefreshIcon(deps)
   const LoaderIcon = createLoaderIcon(deps)
@@ -1298,16 +1300,19 @@ export function createOpenSpecButton(
             <button
               className="mm_btn os_ignore"
               type="button"
+              aria-label={t('openSpecGitignore')}
               // What the click asks git, in the order it asks it — the whole
               // point being that a tracked file is not ignored by a rule, so
-              // the untracking is part of the deal and must be said.
+              // the untracking is part of the deal and must be said. The
+              // hover holds the sentence; the glyph is the twin of the
+              // database-minus beside it.
               title={t('openSpecGitignoreCommand')}
               disabled={ignoring}
               data-pending={ignoring ? 'true' : undefined}
               aria-busy={ignoring}
               onClick={ignore}
             >
-              {t('openSpecGitignore')}
+              <DatabasePlusIcon size={14} />
             </button>
           ) : null}
           {canIgnore ? (

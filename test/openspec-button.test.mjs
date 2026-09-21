@@ -1094,6 +1094,8 @@ it('offers the ignore action on a footprint, and not on an empty workspace', asy
   const ignore = token(shown, 'os_ignore')
   assert.ok(ignore, 'a workspace with a footprint can be handed to git')
   assert.equal(ignore.props.title, 'openSpecGitignoreCommand', 'the tooltip says what it asks and where it writes')
+  assert.equal(ignore.props['aria-label'], 'openSpecGitignore', 'a button with no words still has a name')
+  assert.equal(texts([ignore]).length, 0, 'the hover holds the sentence; the button wears only the glyph')
   assert.equal(ignore.props.disabled, false)
   // The delete is the loud answer and this the quiet one; the footer holds both.
   assert.ok(orderOf(shown, 'os_ignore') < orderOf(shown, 'os_remove'), 'the reversible action sits before the destructive one')
