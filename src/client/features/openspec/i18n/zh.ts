@@ -45,7 +45,7 @@ export const OPENSPEC_LOCALE_ZH: LocaleDict = {
   "openSpecInitTimeout": "openspec init 执行超时",
   "openSpecInitFailed": "初始化 OpenSpec 失败 (HTTP {status})",
   "openSpecGitignore": "加入 .gitignore",
-  "openSpecGitignoreCommand": "对 openspec/ 与每个生成的条目依次询问 git：\ngit check-ignore（已被忽略则只提醒）\ngit ls-files + git rm -r --cached（已跟踪则先取消跟踪，文件留在磁盘上）\n缺的那一行写进它所在目录自己的 .gitignore：openspec/ 里放一条 * ，生成的技能与指令写进 .agents/skills 这类共享目录的 .gitignore；已有的不重复添加，项目顶层的 .gitignore 不动",
+  "openSpecGitignoreCommand": "对 openspec/ 与每个生成的条目依次询问 git：\ngit check-ignore（已被忽略则只提醒）\ngit ls-files + git rm -r --cached（已跟踪则先取消跟踪，文件留在磁盘上）\n缺的那几行写进它所在目录自己的 .gitignore：openspec/ 里写 `*` 加一条 `!.gitignore`（忽略规则本身仍可看见、可提交），生成的技能与指令写进 .agents/skills 这类共享目录的 .gitignore；已有的不重复添加，项目顶层的 .gitignore 不动",
   "openSpecGitignoreRunning": "正在更新忽略文件…",
   "openSpecGitignoreNoRepo": "当前工作目录不在 git 仓库内，未做任何改动",
   "openSpecGitignoreNoGit": "未找到 git 命令，无法写入忽略文件",

@@ -1071,9 +1071,9 @@ it('does not count openings while the upgrade is still running', async () => {
 const ignoreBody = (over = {}) => ({
   repo: true,
   results: [
-    { rel: 'openspec', ignoreFile: 'openspec/.gitignore', pattern: '*', ignored: false, untracked: true, listed: true, alreadyListed: false },
-    { rel: '.agents/skills/openspec-propose', ignoreFile: '.agents/skills/.gitignore', pattern: 'openspec-propose/', ignored: true, untracked: false, listed: false, alreadyListed: false },
-    { rel: '.agents/skills/demo', ignoreFile: '.agents/skills/.gitignore', pattern: 'demo/', ignored: false, untracked: false, listed: false, alreadyListed: true },
+    { rel: 'openspec', ignoreFile: 'openspec/.gitignore', patterns: ['*', '!.gitignore'], ignored: false, untracked: true, listed: true, alreadyListed: false },
+    { rel: '.agents/skills/openspec-propose', ignoreFile: '.agents/skills/.gitignore', patterns: ['openspec-propose/'], ignored: true, untracked: false, listed: false, alreadyListed: false },
+    { rel: '.agents/skills/demo', ignoreFile: '.agents/skills/.gitignore', patterns: ['demo/'], ignored: false, untracked: false, listed: false, alreadyListed: true },
   ],
   ...over,
 })
@@ -1134,7 +1134,7 @@ it('says so when there was nothing to hide and nothing was written', async () =>
   const { app, shown } = await withIgnore({
     repo: true,
     results: [
-      { rel: 'openspec', ignoreFile: 'openspec/.gitignore', pattern: '*', ignored: true, untracked: false, listed: false, alreadyListed: false },
+      { rel: 'openspec', ignoreFile: 'openspec/.gitignore', patterns: ['*', '!.gitignore'], ignored: true, untracked: false, listed: false, alreadyListed: false },
     ],
   })
   token(shown, 'os_ignore').props.onClick()

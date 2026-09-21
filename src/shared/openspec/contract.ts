@@ -204,22 +204,26 @@ export interface OpenSpecRemoveResponse {
  * - `untracked` — files under it sat in the index and were removed from it
  *   (`git rm -r --cached`, working tree untouched); ignoring is meaningless
  *   until this happens.
- * - `listed` — its line was written into `ignoreFile` now.
+ * - `listed` — its lines were written into `ignoreFile` now.
  * - `alreadyListed` — that file already said the same thing, so none was
  *   written again; a tracked entry can carry both this and `untracked`.
  *
- * The line lives in the ignore file *next to what it hides* rather than in the
- * repository's own — which is why `ignoreFile` and `pattern` travel per entry.
- * The store hides itself with a `*` of its own, and a shared skill or command
- * directory carries one line per generated entry it holds.
+ * The lines live in the ignore file *next to what they hide* rather than in the
+ * repository's own — which is why `ignoreFile` and `patterns` travel per entry.
+ * The store hides its contents with a `*` and keeps the hiding file visible with
+ * the `!.gitignore` beside it, so the rule can be committed; a shared skill or
+ * command directory carries one line per generated entry it holds.
  */
 export interface OpenSpecIgnoreResult {
   /** Project-relative path of the entry, the spelling the panel lists. */
   rel: string
   /** Repo-relative path of the `.gitignore` that carries (or would carry) it. */
   ignoreFile: string
-  /** The line inside that file: `*` for the store, otherwise the entry's name. */
-  pattern: string
+  /**
+   * The lines inside that file: the entry's own name (a directory with its
+   * trailing slash), or `*` and `!.gitignore` for the store.
+   */
+  patterns: string[]
   ignored: boolean
   untracked: boolean
   listed: boolean

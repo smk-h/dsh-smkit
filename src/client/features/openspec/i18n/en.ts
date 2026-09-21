@@ -42,7 +42,7 @@ export const OPENSPEC_LOCALE_EN: LocaleDict = {
   "openSpecInitTimeout": "openspec init timed out",
   "openSpecInitFailed": "Initialising OpenSpec failed (HTTP {status})",
   "openSpecGitignore": "Add to .gitignore",
-  "openSpecGitignoreCommand": "For openspec/ and each generated entry, git is asked in turn:\ngit check-ignore (already ignored is only reported)\ngit ls-files + git rm -r --cached (tracked entries are untracked first; the files stay on disk)\nwhatever line is missing goes into the .gitignore of the directory it hides: a single * inside openspec/, one name per generated skill or command in a shared directory such as .agents/skills; existing lines are never repeated and the project's own top-level .gitignore is left alone",
+  "openSpecGitignoreCommand": "For openspec/ and each generated entry, git is asked in turn:\ngit check-ignore (already ignored is only reported)\ngit ls-files + git rm -r --cached (tracked entries are untracked first; the files stay on disk)\nwhatever lines are missing go into the .gitignore of the directory they hide: \`*\` plus \`!.gitignore\` inside openspec/ (so the rule itself stays visible and committable), one name per generated skill or command in a shared directory such as .agents/skills; existing lines are never repeated and the project's own top-level .gitignore is left alone",
   "openSpecGitignoreRunning": "Updating the ignore files…",
   "openSpecGitignoreNoRepo": "This workspace is not inside a git repository, so nothing was changed",
   "openSpecGitignoreNoGit": "The git command was not found, so no ignore file can be written",

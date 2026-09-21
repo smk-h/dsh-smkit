@@ -684,21 +684,21 @@ it('writes each line into the ignore file next to what it hides', async () => {
     ['openspec', '.agents/skills/.openspec-target', '.agents/skills/openspec-propose'],
     'the store first, then every generated entry of every shared directory',
   )
-  // The store hides itself with one wide line, in its own file: everything below
-  // it is OpenSpec's by definition, and the file is covered by its own `*`, so
-  // the directory leaves `git status` with nothing of its own to commit.
+  // The store hides its contents with one wide line, in its own file — and
+  // excepts the file doing the hiding, so the rule stays visible to git and can
+  // be committed rather than living on one machine only.
+  assert.deepEqual(resultFor(body, 'openspec').patterns, ['*', '!.gitignore'])
   assert.equal(resultFor(body, 'openspec').ignoreFile, 'openspec/.gitignore')
-  assert.equal(resultFor(body, 'openspec').pattern, '*')
   // A shared directory's file names one entry per line it carries — and a
   // directory needs its trailing slash, which a plain file must not have.
   assert.equal(resultFor(body, '.agents/skills/openspec-propose').ignoreFile, '.agents/skills/.gitignore')
-  assert.equal(resultFor(body, '.agents/skills/openspec-propose').pattern, 'openspec-propose/')
-  assert.equal(resultFor(body, '.agents/skills/.openspec-target').pattern, '.openspec-target')
+  assert.deepEqual(resultFor(body, '.agents/skills/openspec-propose').patterns, ['openspec-propose/'])
+  assert.deepEqual(resultFor(body, '.agents/skills/.openspec-target').patterns, ['.openspec-target'])
   assert.ok(body.results.every((result) => result.listed && !result.alreadyListed && !result.untracked))
 
   assert.deepEqual(body.files, ['openspec/.gitignore', '.agents/skills/.gitignore'])
   const storeFile = readFileSync(join(root, 'openspec', '.gitignore'), 'utf8')
-  assert.match(storeFile, /\n\*\n$/)
+  assert.equal(storeFile, '# Added by dsh-smkit: OpenSpec\n*\n!.gitignore\n')
   const shared = readFileSync(join(root, '.agents', 'skills', '.gitignore'), 'utf8')
   assert.ok(shared.includes('openspec-propose/'), 'the skill directory')
   assert.ok(shared.includes('.openspec-target'), 'and the ownership marker, in the file they share')

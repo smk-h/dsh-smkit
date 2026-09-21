@@ -26,10 +26,10 @@
  * file into this plugin's scratch pad. git reads an ignore file in every
  * directory it walks, so:
  *
- * - the store gets an `openspec/.gitignore` holding `*` — everything below the
- *   store is OpenSpec's by definition, and since the `*` covers that file
- *   itself, the directory leaves `git status` without any line of its own to
- *   commit;
+ * - the store gets an `openspec/.gitignore` holding `*` and `!.gitignore` —
+ *   everything below the store is OpenSpec's by definition, and the negation is
+ *   what keeps the hiding file itself outside the hiding, so a rule the team can
+ *   see and commit is a rule that survives;
  * - every generated entry gets a line naming just itself in the ignore file of
  *   the directory that holds it (`.agents/skills/.gitignore` carrying
  *   `openspec-propose/`, `opsx/`, the ownership marker, …) — a shared directory
@@ -67,8 +67,14 @@ interface Target {
   rel: string
   /** Absolute path of the ignore file this entry belongs to. */
   file: string
-  /** The line inside that file: a basename, or `*` for the store's own file. */
-  pattern: string
+  /**
+   * The lines this entry needs in that file, in the order they are written.
+   *
+   * One for a skill or a command — its own name — and two for the store: the
+   * `*` that hides its contents and the `!.gitignore` that keeps the hiding
+   * file itself out of what is hidden.
+   */
+  patterns: string[]
 }
 
 /**
@@ -79,17 +85,19 @@ interface Target {
  * here is a disagreement between two roots, and the safe reading is "not ours".
  */
 function targetsOf(root: string, view: Awaited<ReturnType<typeof inspectOpenSpec>>): Target[] {
-  const of = (abs: string, dir: boolean, file: string, pattern: string): Target => ({
+  const of = (abs: string, file: string, patterns: string[]): Target => ({
     abs,
     rel: relative(root, abs).split('\\').join('/'),
     file,
-    pattern,
+    patterns,
   })
   const targets: Target[] = []
   if (view.store !== undefined) {
-    // The store's own file, hiding everything below it including itself: a
-    // private spec directory has nothing to commit and nothing to name outside.
-    targets.push(of(view.store.path, true, join(view.store.path, '.gitignore'), '*'))
+    // The store's own file, hiding everything below it — and naming itself on
+    // the way out, because an ignore file that hides itself cannot be committed,
+    // and a private rule of this tool would then have to be re-derived on every
+    // other machine instead of travelling with the repository.
+    targets.push(of(view.store.path, join(view.store.path, '.gitignore'), ['*', '!.gitignore']))
   }
   for (const group of view.artifacts) {
     for (const entry of group.entries) {
@@ -97,7 +105,7 @@ function targetsOf(root: string, view: Awaited<ReturnType<typeof inspectOpenSpec
       // it — the directory is shared with material that is not OpenSpec's, so
       // the line may not be wider than the entry it speaks for.
       targets.push(
-        of(entry.path, entry.kind === 'dir', join(group.path, '.gitignore'), entry.kind === 'dir' ? `${entry.name}/` : entry.name),
+        of(entry.path, join(group.path, '.gitignore'), [entry.kind === 'dir' ? `${entry.name}/` : entry.name]),
       )
     }
   }
@@ -145,7 +153,7 @@ export async function ignoreOpenSpec(cwd: string, deps: OpenSpecIgnoreDeps): Pro
       results.push({
         rel,
         ignoreFile,
-        pattern: target.pattern,
+        patterns: target.patterns,
         ignored: false,
         untracked: false,
         listed: false,
@@ -172,16 +180,16 @@ export async function ignoreOpenSpec(cwd: string, deps: OpenSpecIgnoreDeps): Pro
         }
         untracked = true
       }
-      // 3. the line itself, written only where it is not already said.
+      // 3. the lines themselves, written only where they are not already said.
       const existing = await readFile(target.file, 'utf8').catch(() => '')
       const lines = existing.split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== '' && !line.startsWith('#'))
-      if (alreadyListed(lines, target.pattern) || (pending.get(target.file) ?? []).includes(target.pattern)) {
+      const queued = pending.get(target.file) ?? []
+      const missing = target.patterns.filter((pattern) => !alreadyListed(lines, pattern) && !queued.includes(pattern))
+      if (missing.length === 0) {
         record({ untracked, alreadyListed: true })
         continue
       }
-      const queued = pending.get(target.file)
-      if (queued === undefined) pending.set(target.file, [target.pattern])
-      else queued.push(target.pattern)
+      pending.set(target.file, [...queued, ...missing])
       record({ untracked, listed: true })
     } catch (error) {
       record({ error: toErrorMessage(error) })
