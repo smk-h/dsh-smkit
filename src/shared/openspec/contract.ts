@@ -147,12 +147,30 @@ export interface OpenSpecView {
   cwd: string
   /** The project root derived from it: its nearest ancestor carrying `.git`. */
   root: string
+  /**
+   * Whether git itself recognises a work tree here — `git rev-parse
+   * --is-inside-work-tree`, asked by the read route, not a `.git`-shaped
+   * directory guessed at. Both ignore offers ride on this: outside a
+   * repository, hiding a footprint from git and taking the hiding back are
+   * both meaningless, so the panel shows neither button. The ignore action
+   * keeps its own `git rev-parse` gate regardless — this flag decides what is
+   * offered, not what is allowed.
+   */
+  repo: boolean
   /** Whether `<root>/openspec` exists at all, i.e. whether `openspec init` ran here. */
   initialized: boolean
   /** The store, when it exists. */
   store?: OpenSpecStore
   /** Every tool integration found, whether or not the store exists. */
   artifacts: OpenSpecArtifacts[]
+  /**
+   * Whether the footprint is currently hidden by ignore rules this feature
+   * wrote: the store's own `.gitignore` exists, or a shared directory's
+   * `.gitignore` carries a line naming an OpenSpec entry. The un-ignore offer
+   * rides on this — with nothing of ours on disk there is nothing to take
+   * back, and a button that could only answer "nothing was there" is noise.
+   */
+  hasIgnoreRules: boolean
   /**
    * True when the scan had to stop counting — a store or a directory with more
    * entries than the inspection measures — so `bytes` is a floor rather than a

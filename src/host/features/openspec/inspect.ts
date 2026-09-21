@@ -29,11 +29,12 @@
 
 import { existsSync } from 'node:fs'
 import type { Dirent, Stats } from 'node:fs'
-import { readdir, stat } from 'node:fs/promises'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import {
   type OpenSpecStorePart,
   COMMAND_PREFIX,
+  IGNORE_FILE_NAME,
   MARKER_FILE_NAME,
   MAX_ARTIFACT_ENTRIES,
   MAX_MEASURE_DEPTH,
@@ -396,6 +397,46 @@ async function readGroup(root: string, seed: GroupSeed, state: ScanState): Promi
 }
 
 /**
+ * Whether one ignore line speaks for an OpenSpec-generated entry.
+ *
+ * Lives here — the module that reads the disk — so the delete, the un-ignore
+ * run and the inspection's own `hasIgnoreRules` all recognise the shape of our
+ * own lines with the same eyes: a leftover line that matches no current entry
+ * is still ours, and a line that does not match the prefixes never was.
+ */
+export function isOpenspecRule(rule: string): boolean {
+  const name = rule.replace(/\/$/, '')
+  return name.startsWith(SKILL_PREFIX) || name.startsWith(COMMAND_PREFIX) || name === MARKER_FILE_NAME
+}
+
+/**
+ * Whether the footprint is currently hidden by ignore rules this feature
+ * wrote — the question the un-ignore button's visibility rides on: with no
+ * line of ours on disk there is nothing to take back and no button to press.
+ *
+ * Two places to look, matching the two kinds of file the ignore action
+ * writes: the store's own `.gitignore`, which that button creates and the way
+ * back deletes whole, so its mere presence is the answer; and each shared
+ * directory's `.gitignore`, where only a line of OpenSpec shape counts —
+ * someone else's ignore file in a directory that happens to hold our entries
+ * is not ours to speak for.
+ */
+async function hasIgnoreRules(
+  store: OpenSpecStore | undefined,
+  artifacts: readonly OpenSpecArtifacts[],
+): Promise<boolean> {
+  if (store !== undefined) {
+    const own = await stat(join(store.path, IGNORE_FILE_NAME)).catch(() => null)
+    if (own?.isFile() === true) return true
+  }
+  for (const group of artifacts) {
+    const text = await readFile(join(group.path, IGNORE_FILE_NAME), 'utf8').catch(() => '')
+    if (text.split(/\r?\n/).some((line) => isOpenspecRule(line.trim()))) return true
+  }
+  return false
+}
+
+/**
  * Inspect one workspace.
  *
  * Nothing here fails loudly: a store that is absent, a directory that cannot be
@@ -405,8 +446,11 @@ async function readGroup(root: string, seed: GroupSeed, state: ScanState): Promi
  * error handler rather than being reported as "not initialised".
  *
  * @param cwd - the workspace directory the panel was opened in.
+ * @returns the footprint, minus the `repo` flag — whether git itself recognises
+ *   a work tree here is a question for the binary, and only the read route
+ *   asks it (see `api.ts`), so this walk stays a pure filesystem read.
  */
-export async function inspectOpenSpec(cwd: string): Promise<OpenSpecView> {
+export async function inspectOpenSpec(cwd: string): Promise<Omit<OpenSpecView, 'repo'>> {
   const root = projectRootOf(cwd)
   const state: ScanState = { nodes: 0, truncated: false }
   const storePath = join(root, STORE_DIR)
@@ -431,6 +475,7 @@ export async function inspectOpenSpec(cwd: string): Promise<OpenSpecView> {
     initialized: store !== undefined,
     ...(store === undefined ? {} : { store }),
     artifacts,
+    hasIgnoreRules: await hasIgnoreRules(store, artifacts),
     truncated: state.truncated,
     totalBytes: (store?.bytes ?? 0) + artifactBytes,
     totalEntries: (store === undefined ? 0 : 1) + artifactEntries,

@@ -30,13 +30,30 @@ import { initOpenSpec, runOpenSpec } from './init.js'
 import { inspectOpenSpec } from './inspect.js'
 import { removeOpenSpec } from './remove.js'
 import { streamOpenSpecUpdate, updateOpenSpec } from './update.js'
-import type { OpenSpecHandler } from './types.js'
+import type { GitRunner, OpenSpecHandler } from './types.js'
 import type { ResponseLike } from '../../platform/types.js'
 import type { OpenSpecUpdateEvent } from '../../../shared/openspec/contract.js'
 
 /** Read the one field every route carries, trimmed, or `''` when unusable. */
 function cwdOf(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+/**
+ * Whether git itself recognises a work tree at `cwd` — `rev-parse` answers,
+ * not a `.git`-shaped directory: an empty folder of that name is not a
+ * repository, and a worktree's `.git` *file* is one. A missing `git` binary
+ * rejects, which reads as "no repository here" for the offer's purposes — the
+ * ignore action could not run anyway, and its own gate still says which of the
+ * two it was when somehow asked.
+ */
+async function inWorkTree(cwd: string, git: GitRunner): Promise<boolean> {
+  try {
+    const probe = await git(['rev-parse', '--is-inside-work-tree'], { cwd })
+    return probe.code === 0 && probe.stdout.trim() === 'true'
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -70,7 +87,11 @@ export const handleOpenSpec: OpenSpecHandler = async (req, res, facts, deps) => 
       sendJson(res, 400, { error: OPENSPEC_CWD_ERROR })
       return true
     }
-    sendJson(res, 200, await inspectOpenSpec(cwd))
+    // The inspection is a pure filesystem walk; the one field it cannot
+    // answer — is this a repository at all — is asked of git here, once per
+    // read, and rides along with the view.
+    const view = await inspectOpenSpec(cwd)
+    sendJson(res, 200, { ...view, repo: await inWorkTree(cwd, deps.runGit ?? runGit) })
     return true
   }
 

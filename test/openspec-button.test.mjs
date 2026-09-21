@@ -140,6 +140,7 @@ class SandboxElement {
 const VIEW = {
   cwd: '/work/app',
   root: '/work/app',
+  repo: true,
   initialized: true,
   store: {
     path: '/work/app/openspec',
@@ -202,17 +203,20 @@ const VIEW = {
   truncated: false,
   totalBytes: 3412,
   totalEntries: 3,
+  hasIgnoreRules: true,
 }
 
 /** `GET /openspec` for a workspace that never ran the CLI. */
 const EMPTY = {
   cwd: '/work/app',
   root: '/work/app',
+  repo: false,
   initialized: false,
   artifacts: [],
   truncated: false,
   totalBytes: 0,
   totalEntries: 0,
+  hasIgnoreRules: false,
 }
 
 const sessionState = (row = { cwd: '/work/app' }) => ({ ids: ['s1'], byId: { s1: row }, current: 's1' })
@@ -1103,6 +1107,15 @@ it('offers the ignore action on a footprint, and not on an empty workspace', asy
   const emptyApp = mount({ fetch: routing(EMPTY) })
   const empty = await emptyApp.hover()
   assert.equal(token(empty, 'os_ignore'), undefined, 'a workspace with nothing in it has nothing to hide')
+
+  const outsideApp = mount({ fetch: routing({ ...VIEW, repo: false }) })
+  const outside = await outsideApp.hover()
+  assert.equal(
+    token(outside, 'os_ignore'),
+    undefined,
+    'outside a repository, hiding a footprint from git is meaningless, so the offer stays out',
+  )
+  assert.ok(token(outside, 'os_remove'), 'the delete needs no git: it is a filesystem answer')
 })
 
 it('asks git once for the workspace and reports what each entry became', async () => {
@@ -1335,6 +1348,23 @@ it('offers the un-ignore action beside the one it reverses, and not on an empty 
   const emptyApp = mount({ fetch: routing(EMPTY) })
   const empty = await emptyApp.hover()
   assert.equal(token(empty, 'os_untrack'), undefined, 'a workspace with nothing in it has nothing to take back')
+
+  const quietApp = mount({ fetch: routing({ ...VIEW, hasIgnoreRules: false }) })
+  const quiet = await quietApp.hover()
+  assert.ok(token(quiet, 'os_ignore'), 'hiding stays on offer while the store stands')
+  assert.equal(
+    token(quiet, 'os_untrack'),
+    undefined,
+    'with no line of ours on disk the un-ignore could only answer "nothing was there", so it stays out',
+  )
+
+  const outsideApp = mount({ fetch: routing({ ...VIEW, repo: false }) })
+  const outside = await outsideApp.hover()
+  assert.equal(
+    token(outside, 'os_untrack'),
+    undefined,
+    'outside a repository there is no tracking to take back, so the twin stays out too',
+  )
 })
 
 it('asks the host once for the workspace and reports what each entry became', async () => {

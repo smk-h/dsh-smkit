@@ -687,16 +687,15 @@ export function createOpenSpecButton(
     }
 
     /**
-     * Take the footprint back from git's ignore list and re-track it.
+     * Take the footprint's lines back out of the ignore files — a file edit,
+     * not an index operation.
      *
      * The host pulls the lines this pair of buttons wrote (the store's own
      * ignore file goes whole; a shared directory's file is pruned the way the
-     * delete prunes it), then hands every entry the index no longer holds to
-     * `git add` — staged, not committed, which is as far as a tool may reach
-     * into someone's repository. What a stranger's ignore rule still hides is
-     * reported rather than forced past. As with the ignore press, the store is
-     * re-read only when an ignore file changed: an index move writes no file
-     * the tree draws.
+     * delete prunes it) and asks git nothing at all. As with the ignore press,
+     * the store is re-read only when an ignore file changed — which is also
+     * what makes this button leave the footer once there is nothing left of
+     * ours to take back.
      */
     const untrack = (): void => {
       void runUntrack(async () => {
@@ -1197,11 +1196,16 @@ export function createOpenSpecButton(
     // of that half-removed state.
     const canInit = view !== undefined && !view.initialized
     const canRemove = view !== undefined && view.totalEntries > 0
-    // The ignore offer keys on the store being there, not on git: whether this
-    // is a repository at all is the host's question to answer (and to say), so
-    // a non-repo workspace still gets the button and gets told why nothing
-    // changed.
-    const canIgnore = view !== undefined && view.initialized
+    // Both ignore offers ride on the workspace being a repository at all:
+    // outside one, hiding a footprint from git and taking the hiding back are
+    // both meaningless, so the footer shows neither. The host still runs its
+    // own `git rev-parse` gate on the click — this decides what is offered,
+    // not what is allowed.
+    const canIgnore = view !== undefined && view.repo && view.initialized
+    // The un-ignore offer rides on there being lines of ours to take back:
+    // with nothing hidden, the button could only answer "nothing was there",
+    // so it stays out of the footer until the ignore action has been used.
+    const canUntrack = view !== undefined && view.repo && view.hasIgnoreRules
     const panel = (
       <div
         className={PANEL_CLASS}
@@ -1292,7 +1296,7 @@ export function createOpenSpecButton(
               <EyeOffIcon size={14} />
             </button>
           ) : null}
-          {canIgnore ? (
+          {canUntrack ? (
             <button
               className="mm_btn os_untrack"
               type="button"

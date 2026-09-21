@@ -62,8 +62,7 @@ import { join, relative, resolve } from 'node:path'
 import { LOG_PREFIX } from '../../platform/constants.js'
 import { toErrorMessage } from '../../platform/util/text.js'
 import { IGNORE_FILE_NAME, OPENSPEC_IGNORE_HEADER } from './constants.js'
-import { inspectOpenSpec, isInsideRoot } from './inspect.js'
-import { isOpenspecRule } from './remove.js'
+import { inspectOpenSpec, isInsideRoot, isOpenspecRule } from './inspect.js'
 import type {
   OpenSpecIgnoreCleanup,
   OpenSpecIgnoreResponse,

@@ -59,7 +59,7 @@ import {
   SKILL_PREFIX,
   STORE_DIR,
 } from './constants.js'
-import { inspectOpenSpec, isInsideRoot } from './inspect.js'
+import { inspectOpenSpec, isInsideRoot, isOpenspecRule } from './inspect.js'
 import type {
   OpenSpecIgnoreCleanup,
   OpenSpecRemoveFailure,
@@ -172,18 +172,6 @@ async function removeEntry(path: string): Promise<'link' | 'file' | 'directory'>
   }
   await rm(path, { recursive: true, force: false })
   return 'directory'
-}
-
-/**
- * Whether one ignore line speaks for an OpenSpec-generated entry.
- *
- * Exported so the un-ignore run can recognise the shape of our own block with
- * the same eyes the delete does: a leftover line that matches no current entry
- * is still ours, and a line that does not match the prefixes never was.
- */
-export function isOpenspecRule(rule: string): boolean {
-  const name = rule.replace(/\/$/, '')
-  return name.startsWith(SKILL_PREFIX) || name.startsWith(COMMAND_PREFIX) || name === MARKER_FILE_NAME
 }
 
 /**

@@ -11,10 +11,13 @@
  * not carry the generated prefix, and one whose name merely contains
  * `openspec` further in.
  *
- * git itself is never run here: the ignore action is driven by a scripted runner
- * that answers the three questions per target from sets of paths, so a test can
- * assert what git was asked *and* what it was not, and the files the action
- * writes are the assertion's subject rather than a side effect of a real repo.
+ * git itself is never run by the actions here: the ignore action is driven by a
+ * scripted runner that answers the three questions per target from sets of
+ * paths, so a test can assert what git was asked *and* what it was not, and the
+ * files the action writes are the assertion's subject rather than a side effect
+ * of a real repo. The read route's one question to git — is this a work tree —
+ * is scripted the same way (the fixture's `.git` is a plain directory, which is
+ * exactly the impostor the flag must not be fooled by).
  *
  * The checks are ordered: the reads come first, the write last, so the
  * fixtures are still on disk for the assertions about them.
@@ -79,6 +82,7 @@ it('reads the store, its layout parts and the tree below them', async () => {
   assert.equal(view.root, project, 'the project root is the nearest ancestor carrying .git')
   assert.equal(view.store.rel, 'openspec')
   assert.equal(view.truncated, false, 'an ordinary store is measured whole')
+  assert.equal(view.hasIgnoreRules, false, 'no ignore file of ours on disk yet, so nothing to take back')
 
   const parts = Object.fromEntries(view.store.parts.map((part) => [part.name, part]))
   assert.equal(parts.specs.exists, true)
@@ -172,6 +176,41 @@ it('answers a workspace that never initialised OpenSpec with an empty footprint'
   assert.equal(view.totalBytes, 0)
 })
 
+it('reports hasIgnoreRules only when a rule of ours is on disk', async () => {
+  const root = join(scratch, 'rules', 'app')
+  mkdirSync(join(root, '.git'), { recursive: true })
+  write(join(root, 'openspec', 'config.yaml'), 'profile: core\n')
+  write(join(root, '.agents', 'skills', 'openspec-propose', 'SKILL.md'), '---\nname: openspec-propose\n---\n')
+
+  assert.equal(
+    (await mod.inspectOpenSpec(root)).hasIgnoreRules,
+    false,
+    'a footprint nobody hid has nothing to take back',
+  )
+
+  write(join(root, 'openspec', '.gitignore'), '*\n!.gitignore\n')
+  assert.equal(
+    (await mod.inspectOpenSpec(root)).hasIgnoreRules,
+    true,
+    'the store hides itself with its own file, so the way back has something to do',
+  )
+  rmSync(join(root, 'openspec', '.gitignore'))
+
+  write(join(root, '.agents', 'skills', '.gitignore'), '# Added by dsh-smkit: OpenSpec\nopenspec-propose/\n')
+  assert.equal(
+    (await mod.inspectOpenSpec(root)).hasIgnoreRules,
+    true,
+    'a shared file naming one of our entries counts too',
+  )
+
+  write(join(root, '.agents', 'skills', '.gitignore'), '# mine\nreview/\n')
+  assert.equal(
+    (await mod.inspectOpenSpec(root)).hasIgnoreRules,
+    false,
+    'a file with nothing of ours in it hides nothing of ours, whoever wrote it',
+  )
+})
+
 /** Mount the plugin on a stub context, the way `verify.mjs` does. */
 function mount() {
   const routes = []
@@ -240,6 +279,26 @@ it('serves one workspace over the read route, and refuses a cwd that is not a pa
 
   const missing = await call('GET', '/openspec')
   assert.equal(missing.status, 400)
+})
+
+it('answers the repo flag from git itself, not from a .git-shaped directory', async () => {
+  const get = (runGit) =>
+    handle('GET', `/openspec?cwd=${encodeURIComponent(project)}`, undefined, { logger, runGit })
+
+  const inside = await get(async (args) => {
+    assert.deepEqual([...args], ['rev-parse', '--is-inside-work-tree'], 'the one question the read route asks git')
+    return { code: 0, stdout: 'true\n', stderr: '' }
+  })
+  assert.equal(inside.status, 200)
+  assert.equal(inside.body.repo, true, 'git recognises a work tree, so both ignore offers stand')
+
+  const outside = await get(async () => ({ code: 128, stdout: '', stderr: 'fatal: not a git repository\n' }))
+  assert.equal(outside.body.repo, false, 'git does not, so the panel offers neither button')
+
+  const noGit = await get(async () => {
+    throw Object.assign(new Error('spawn git ENOENT'), { code: 'ENOENT' })
+  })
+  assert.equal(noGit.body.repo, false, 'a missing git binary reads as no repository for the offer')
 })
 
 it('removes the store and every generated entry through the route, and nothing else', async () => {
