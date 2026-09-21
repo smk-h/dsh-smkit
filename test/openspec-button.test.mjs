@@ -1116,7 +1116,34 @@ it('asks git once for the workspace and reports what each entry became', async (
   assert.ok(text.includes('openSpecGitignoreIgnored({"count":1})'), 'one git already ignored on its own')
   assert.ok(text.includes('openSpecGitignoreListedBefore({"count":1})'), 'one was already named, and was not repeated')
   assert.equal(text.includes('openSpecGitignoreNothing'), false, 'a run that wrote something is not a run that wrote nothing')
-  assert.equal(app.calls.length, 2, 'the answer is the outcome: the footprint is not read back from disk')
+  assert.equal(app.calls.length, 2, 'with nothing written there is nothing new to read back')
+})
+
+it('re-reads the store after writing an ignore file into it', async () => {
+  const grown = {
+    ...VIEW,
+    store: {
+      ...VIEW.store,
+      files: VIEW.store.files + 1,
+      tree: [...VIEW.store.tree, { name: '.gitignore', rel: 'openspec/.gitignore', kind: 'file', bytes: 26 }],
+    },
+  }
+  let reads = 0
+  const app = mount({
+    fetch: (url) => {
+      if (url.includes('/openspec/gitignore')) return response(ignoreBody({ files: ['openspec/.gitignore'] }))
+      reads += 1
+      return response(reads === 1 ? VIEW : grown)
+    },
+  })
+  const shown = await app.hover()
+  assert.equal(texts(shown).includes('.gitignore'), false, 'the store has no ignore file on disk yet')
+
+  token(shown, 'os_ignore').props.onClick()
+  await flush()
+
+  assert.equal(reads, 2, 'a file landed inside the store, so the tree that draws it reads again')
+  assert.ok(texts(app.render()).includes('.gitignore'), 'and the panel shows it without another hover')
 })
 
 it('names the ignore files it wrote, beside the entries they carry', async () => {

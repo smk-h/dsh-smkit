@@ -71,8 +71,8 @@
  * record is shown for three more panel openings and then dropped, so last
  * week's npm output does not haunt the panel forever.
  *
- * Nothing here reloads anything: the panel is a view over the filesystem, and
- * after a delete it simply reads again.
+ * After an action the panel reads again: the store it draws is on disk, and the
+ * delete, the initialise and the ignore can each have just changed it.
  */
 
 import { createAtomIcon } from './icons/AtomIcon'
@@ -422,11 +422,12 @@ export function createOpenSpecButton(
     /**
      * The last answer of the `.gitignore` action, kept until the next open.
      *
-     * It is a receipt rather than a state: the footprint on disk did not
-     * change (which is why the read is not re-run after it), only git's
-     * opinion of it, and the panel shows what the action found — already
-     * ignored, untracked on the way, newly listed, or refused — so the user can
-     * see why a second press said less than the first.
+     * It is a receipt rather than a state: git's opinion of the footprint
+     * changed, and the panel shows what the action found — already ignored,
+     * untracked on the way, newly listed, or refused — so the user can see why
+     * a second press said less than the first. The store tree is re-read
+     * alongside it when the action wrote a file, since an ignore file inside
+     * `openspec/` is one the tree draws.
      */
     const [gitignore, setGitignore] = react.useState<OpenSpecIgnoreResponse | null>(null)
     const { busy, error: removeError, run } = useAsyncAction(react)
@@ -617,13 +618,14 @@ export function createOpenSpecButton(
     }
 
     /**
-     * Hand the footprint to git's ignore list.
+     * Hand the footprint to git's ignore list, then read the store back.
      *
      * The host asks git the three questions per target (ignored? tracked?
-     * already named?) and writes only the lines that are missing, so this is
-     * one call and one receipt — the answer *is* the outcome, and nothing here
-     * needs re-reading from disk: the workspace on disk is exactly what the
-     * panel already showed.
+     * already named?) and writes only the lines that are missing. What it wrote
+     * is reported with the receipt, and an ignore file inside the store is a
+     * file the tree below draws — so the read re-runs whenever a file landed,
+     * and the panel shows the store as it is now rather than as it was before
+     * the press.
      */
     const ignore = (): void => {
       void runIgnore(async () => {
@@ -633,7 +635,10 @@ export function createOpenSpecButton(
           body: JSON.stringify({ cwd: target }),
         })
         if (!result.ok) return messageFor(result, 'openSpecGitignoreFailed')
-        setGitignore(result.body as OpenSpecIgnoreResponse)
+        const body = result.body as OpenSpecIgnoreResponse
+        setGitignore(body)
+        // Nothing written means nothing on disk moved, so nothing to re-read.
+        if (body.files !== undefined && body.files.length > 0) await load()
         return undefined
       })
     }
