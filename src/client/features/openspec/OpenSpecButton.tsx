@@ -267,18 +267,27 @@ function insideOwnSurface(target: EventTarget | null): boolean {
 }
 
 /**
- * Whether a pointer position is still inside a box of its own.
+ * Whether the pointer, at the position a leave reports, is still on the
+ * surface it left.
  *
  * A reported `mouseleave` is not always a leave. A right-press opens the
  * browser's own menu under the pointer, and the browser then reports the
- * element under it losing the pointer even though the pointer never moved; the
- * event's coordinates are the tell, because a leave the user actually made is
- * reported from outside the box. Skipping the spurious ones is what keeps a
- * right-click inside the panel — which is how a path gets copied out of it —
- * from dismissing the thing being read.
+ * element under it losing the pointer even though the pointer never moved;
+ * skipping the spurious ones is what keeps a right-click inside the panel —
+ * which is how a path gets copied out of it — from dismissing the thing being
+ * read.
+ *
+ * The test has to be the browser's own hit-test, not box arithmetic, because
+ * both surfaces are rounded: the panel has 10px corners, and a pointer that
+ * walks out through one of them — slowly, so a sample lands inside the
+ * bounding box but outside the arc — reports a real leave from coordinates
+ * the bounding box still claims. Trusting the box there swallows the leave
+ * with no timer pending behind it, and the panel never closes.
  */
-function insideBox(rect: DOMRect, x: number, y: number): boolean {
-  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
+function stillOnSurface(node: Element, x: number, y: number): boolean {
+  if (typeof document === 'undefined') return false
+  const hit = document.elementFromPoint(x, y)
+  return hit !== null && (hit === node || node.contains(hit))
 }
 
 /**
@@ -945,7 +954,7 @@ export function createOpenSpecButton(
         // except for a leave the pointer did not actually make (a right-press
         // and its menu).
         onMouseLeave={(event) => {
-          if (insideBox(event.currentTarget.getBoundingClientRect(), event.clientX, event.clientY)) return
+          if (stillOnSurface(event.currentTarget, event.clientX, event.clientY)) return
           scheduleClose(dismiss)
         }}
       >
@@ -1084,8 +1093,8 @@ export function createOpenSpecButton(
         onMouseLeave={(event) => {
           if (anchor === null) return
           // A right-press on the control itself: the menu is the browser's, the
-          // pointer never moved, and the coordinates are still inside the box.
-          if (insideBox(event.currentTarget.getBoundingClientRect(), event.clientX, event.clientY)) return
+          // pointer never moved, and the point still lands on the button.
+          if (stillOnSurface(event.currentTarget, event.clientX, event.clientY)) return
           // The gap between the control and the panel is not part of the host,
           // so crossing it fires this leave as well. Whether this is a crossing
           // or a departure is not decided here — no geometry can tell the two

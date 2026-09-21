@@ -112,8 +112,8 @@ function anchorNode() {
 
 /**
  * The box the placement below produces for the panel: right edges aligned with
- * the control, hanging under it. Only the leave checks read it, and they read it
- * to tell a real leave from a right-press's report.
+ * the control, hanging under it. The harness's own hit-test reads it, so the
+ * leave guards can tell a real leave from a right-press's report.
  */
 const panelRect = { left: 668, top: 54, right: 1028, bottom: 400 }
 
@@ -284,6 +284,21 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
   const timers = new Map()
   let nextTimer = 1
   const body = new SandboxElement('BODY', () => null)
+  // The leave guards ask the browser's own question — what is under this
+  // point — so the stub document answers it. Both surfaces are rounded for
+  // real (a 28px circle for the control, 10px corners for the panel), and
+  // that rounding is exactly what a slow walk-out reports from: a point
+  // inside the bounding rectangle but outside the drawn surface, which the
+  // old box test read as "still on it" and swallowed a genuine leave.
+  const panelTarget = { getBoundingClientRect: () => panelRect }
+  const onAnchor = (x, y) => (x - 1014) ** 2 + (y - 34) ** 2 <= 14 ** 2
+  const onPanel = (x, y) => {
+    if (x < panelRect.left || x > panelRect.right || y < panelRect.top || y > panelRect.bottom) return false
+    const rx = x < panelRect.left + 10 ? panelRect.left + 10 : x > panelRect.right - 10 ? panelRect.right - 10 : null
+    const ry = y < panelRect.top + 10 ? panelRect.top + 10 : y > panelRect.bottom - 10 ? panelRect.bottom - 10 : null
+    if (rx === null || ry === null) return true
+    return (x - rx) ** 2 + (y - ry) ** 2 <= 10 ** 2
+  }
   // `installStylesheet` runs at bundle load and needs a document that can take
   // a <style>; nothing else here is a real DOM, only what the bundle asks for.
   const fakeDocument = {
@@ -291,6 +306,7 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
     body,
     querySelector: () => null,
     createElement: () => ({ dataset: {} }),
+    elementFromPoint: (x, y) => (onAnchor(x, y) ? node : onPanel(x, y) ? panelTarget : null),
     addEventListener: onDocument.add,
     removeEventListener: onDocument.remove,
   }
@@ -419,10 +435,12 @@ function mount({ fetch, session = sessionState(), workspace = workspaceState(), 
     /** Move the pointer off the panel; `at` as in `leave`. */
     leavePanel(at = { x: 0, y: 0 }) {
       const panel = withClass(this.render(), 'os_panel')
+      // The one shared object, so the guard's identity check against the
+      // hit-test's answer sees the same surface the event was delivered to.
       panel.props.onMouseLeave({
         clientX: at.x,
         clientY: at.y,
-        currentTarget: { getBoundingClientRect: () => panelRect },
+        currentTarget: panelTarget,
       })
       return this.render()
     },
@@ -793,18 +811,36 @@ it('keeps the panel through a right-press, which reports a leave it never made',
   await app.hover()
 
   // The control: the browser's own menu opens under the pointer and the element
-  // under it is reported as losing the pointer. The coordinates are the tell —
-  // they are still inside the control's box.
+  // under it is reported as losing the pointer. The tell is that the point
+  // still lands on the control's own surface.
   app.leave({ x: 1010, y: 30 })
-  assert.ok(withClass(app.render(), 'os_panel'), 'a leave reported from inside the control is not a leave')
+  assert.ok(withClass(app.render(), 'os_panel'), 'a leave reported from the control itself is not a leave')
 
-  // The panel itself: the same report, from a point inside its own box.
+  // The panel itself: the same report, from a point still on its surface.
   app.leavePanel({ x: 700, y: 100 })
   assert.ok(withClass(app.render(), 'os_panel'), 'and neither is one from inside the panel')
 
   // A leave the pointer did make is still a leave.
   app.leavePanel({ x: 4, y: 4 })
   assert.equal(withClass(app.runTimers(), 'os_panel'), undefined)
+})
+
+it('closes on a slow leave through a rounded corner, which the box test swallowed', async () => {
+  const app = mount({ fetch: routing() })
+  await app.hover()
+  // The panel has been entered, so no host-side timer is pending: the panel's
+  // own leave is the only thing that can dismiss the panel from here — exactly
+  // the state a real slow walk-out leaves behind.
+  withClass(app.render(), 'os_panel').props.onMouseEnter()
+
+  // A point a couple of pixels into the top-right corner square is inside the
+  // panel's bounding rectangle but outside its drawn, rounded surface: the
+  // coordinates a `mouseleave` really reports when the pointer slides off
+  // along the arc. The old guard read them as "still on the panel" and the
+  // panel stayed open forever.
+  app.leavePanel({ x: panelRect.right - 2, y: panelRect.top + 2 })
+  assert.ok(withClass(app.render(), 'os_panel'), 'the leave is a leave, but dismissal is still on the grace timer')
+  assert.equal(withClass(app.runTimers(), 'os_panel'), undefined, 'and the timer finds nothing to cancel: the panel closes')
 })
 
 it('gives the pointer time to cross to the panel', async () => {
