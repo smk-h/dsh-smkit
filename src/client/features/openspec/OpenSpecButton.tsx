@@ -372,9 +372,10 @@ function formatBytes(bytes: number): string {
  *
  * The panel keeps the last answer of every action taken while it was open, and
  * within one visit they stack — an ignore and then its undo are two answers to
- * two questions, and showing both in full is eight lines of grey above the
- * facts. So the keys are recorded in the order they arrived, and the panel
- * shows the newest one with everything older folded behind a count.
+ * two questions. The keys are recorded in the order they arrived so the newest
+ * answer is the first one in the box, with the ones that went wrong pulled
+ * above it. All of them show: the box has a height of its own and scrolls, which
+ * is what keeps a landing receipt from moving the panel under the pointer.
  */
 type LogKey = 'ignore' | 'untrack' | 'cleaned' | 'remove' | 'init' | 'update'
 
@@ -499,15 +500,11 @@ export function createOpenSpecButton(
     /**
      * Which receipts the panel is holding, newest first.
      *
-     * The receipts themselves are the states above; this is only their order,
-     * and what it buys is the right to show one and fold the rest. An action
-     * stamps its own key at the front, so the thing the user just did is the
-     * thing on screen, and the thing they did before that is one click away
-     * rather than eight lines tall.
+     * The receipts themselves are the states above; this is only their order. An
+     * action stamps its own key at the front, so the thing the user just did is
+     * the first line of the log rather than the one they have to scroll to.
      */
     const [logOrder, setLogOrder] = react.useState<LogKey[]>([])
-    /** Whether the folded receipts are showing; every arrival folds them again. */
-    const [logOpen, setLogOpen] = react.useState(false)
     const { busy, error: removeError, run } = useAsyncAction(react)
     const { busy: initing, error: initError, run: runInit } = useAsyncAction(react)
     const { busy: ignoring, error: ignoreError, run: runIgnore } = useAsyncAction(react)
@@ -669,10 +666,9 @@ export function createOpenSpecButton(
       setInitOutput('')
       setGitignore(null)
       setUntrack(null)
-      // The log is one visit's memory: what the panel folds away is what the
-      // user did in *this* opening, and an arrival starts that story again.
+      // The log is one visit's memory: what the panel reports is what the user
+      // did in *this* opening, and an arrival starts that story again.
       setLogOrder([])
-      setLogOpen(false)
       // A finished upgrade's record gets one printing past the hover it ran on,
       // then drops. Only arrivals count: the refresh button re-reads in place,
       // and a panel staying open is not a viewing. A run still in flight is
@@ -1278,16 +1274,19 @@ export function createOpenSpecButton(
       ? logOrder
       : [...logOrder, 'update']
     const keys = queue.filter(key => receipts[key] !== null)
-    const quiet = keys.filter(key => !loud[key])
-    // The failure-first order: what went wrong on top, then the newest answer
-    // that did not, then whatever the user has already seen folded away.
-    const openKeys = [...keys.filter(key => loud[key]), ...quiet.slice(0, 1)]
-    const folded = quiet.slice(1)
+    // Failure first, then the rest newest-first: what went wrong is still asking
+    // to be read, and the answer the user just earned is what they came back to
+    // look at. Everything in the log is shown — the box scrolls rather than
+    // folding, because folding is what moved the panel's bottom edge.
+    const order: LogKey[] = [
+      ...keys.filter(key => loud[key]),
+      ...keys.filter(key => !loud[key]),
+    ]
     const nodesFor = (list: LogKey[]): JSX.Element[] =>
       list.map(key => receipts[key]).filter((node): node is JSX.Element => node !== null)
     // What an action is doing right now, and what it said went wrong, are not
     // receipts to be filed: they are the panel answering "did that work", so
-    // they stay above the log, unfolded.
+    // they hold the top of the box, above the answers.
     const alerts: JSX.Element[] = []
     if (error !== '') alerts.push(<div className="os_error" key="error">{error}</div>)
     if (initError !== '') alerts.push(<div className="os_error" key="init-error">{initError}</div>)
@@ -1302,24 +1301,7 @@ export function createOpenSpecButton(
     const messages = (
       <div className="os_messages">
         {alerts}
-        {nodesFor(openKeys)}
-        {folded.length === 0 ? null : (
-          <div className="os_older">
-            <button
-              className="os_toggle"
-              type="button"
-              aria-expanded={logOpen}
-              title={logOpen ? t('openSpecCollapse') : t('openSpecExpand')}
-              onClick={() => setLogOpen(!logOpen)}
-            >
-              <span className="os_caret" data-open={logOpen ? 'true' : undefined}>
-                <ChevronDownIcon size={12} />
-              </span>
-              {t('openSpecLogEarlier', { count: folded.length })}
-            </button>
-            {logOpen ? nodesFor(folded) : null}
-          </div>
-        )}
+        {nodesFor(order)}
       </div>
     )
 

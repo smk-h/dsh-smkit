@@ -172,19 +172,33 @@
   border-top: 1px solid var(--dsw-alias-border-l2);
 }
 
-/* Everything the last action or read had to say, kept as one block so the
- * messages do not each get a divider of their own. */
+/* Everything the last action or read had to say, in one window of its own.
+ *
+ * The window is bounded and the answers scroll inside it, and inside a visit the
+ * log only ever grows — it never gives height back. That is the whole of the fix
+ * for the panel closing under the pointer: filing an answer away lifted the
+ * bottom edge past where the pointer sat, and the hover was over a panel that
+ * was no longer there. Growth moves that edge down, away from the pointer, and
+ * stops once the window is full. */
 .os_messages {
+  max-height: 132px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* A thin bar, because this scroll is a detail of one block, not of the panel. */
+  scrollbar-width: thin;
 }
 
-/* An empty log takes no room. It is mounted on every render rather than
- * appearing and disappearing, because a block that appears is a block that
- * moves the divider under it — that jump was the flicker. */
+/* An empty log takes no room: the panel must not open with a band of nothing
+ * above the facts just because the box can hold four answers. */
 .os_messages:empty {
   display: none;
+}
+
+/* Nothing here is squeezed to fit the window — the window scrolls instead. */
+.os_messages > * {
+  flex: none;
 }
 
 /* One answer, in its own shallow box with a two-pixel tone bar up the left.
@@ -213,13 +227,6 @@
 
 .os_logItem[data-tone='running'] {
   border-left-color: var(--dsw-alias-label-tertiary);
-}
-
-/* The answers this visit has already folded away, under one line of its own. */
-.os_older {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .os_note {
@@ -455,11 +462,13 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* What the CLI said, after an initialise: a scrollable log box, because a
- * command that wrote the whole store has more to report than fits in a note
- * line and less than deserves a dialog. */
+/* What the CLI said, after an initialise or an upgrade: a scrollable log box,
+ * because a command that wrote the whole store has more to report than fits in
+ * a note line and less than deserves a dialog. It stays short enough that the
+ * card holding it still fits the log's own window — two scrollbars in one box is
+ * the thing to avoid here. */
 .os_output {
-  max-height: 120px;
+  max-height: 92px;
   overflow: auto;
   padding: 6px 8px;
   border: 1px solid var(--dsw-alias-border-l2);

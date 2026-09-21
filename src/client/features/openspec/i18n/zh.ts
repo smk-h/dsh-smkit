@@ -33,7 +33,6 @@ export const OPENSPEC_LOCALE_ZH: LocaleDict = {
   "openSpecKeptShort": "保留 {count} 项",
   "openSpecMarker": "OpenSpec 的归属标记（不是技能或命令）：告诉 openspec update 这个目录归它管，删掉它那些技能才不会被装回来 · {path}",
   "openSpecEntries": "{count} 项",
-  "openSpecLogEarlier": "更早 {count} 条",
   "openSpecFiles": "{count} 个文件",
   "openSpecDirs": "{count} 个目录",
   "openSpecTruncated": "内容较多，此处只统计了前一部分",

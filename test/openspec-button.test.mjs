@@ -1626,36 +1626,28 @@ it('mounts the log before there is anything in it', async () => {
   assert.equal(openItems(shown).length, 0)
 })
 
-it('shows the newest receipt and folds the older one behind a count', async () => {
+it('keeps every answer in the one window, newest first', async () => {
   const { app, shown } = await withTwoAnswers(ignoreBody(), untrackBody())
   token(shown, 'os_ignore').props.onClick()
   await flush()
   let tree = app.render()
-  assert.equal(openItems(tree).length, 1, 'the answer just earned is the one showing')
-  assert.equal(withClass(tree, 'os_older'), undefined, 'and there is nothing older to fold yet')
+  assert.equal(openItems(tree).length, 1, 'the answer just earned is in the log')
 
   token(tree, 'os_untrack').props.onClick()
   await flush()
   tree = app.render()
-  const text = texts(tree).join(' | ')
-  assert.ok(text.includes('openSpecUntrackUnlisted({"count":1})'), 'the newest answer stays on screen')
+  const items = openItems(tree)
   assert.equal(
-    text.includes('openSpecGitignoreUntracked'),
-    false,
-    'the older one leaves the screen rather than being forgotten',
+    items.length,
+    2,
+    'the older answer stays in the window rather than being filed away: folding it gave the panel height back, and the pointer was left outside',
   )
-  assert.ok(text.includes('openSpecLogEarlier({"count":1})'), 'one line says how many are folded away')
-
-  const fold = withClass(tree, 'os_older')
-  const toggle = nodes(fold).find(node => node.type === 'button')
-  assert.equal(toggle.props['aria-expanded'], false, 'the fold is shut, and says so')
-  toggle.props.onClick()
-  const opened = texts(app.render()).join(' | ')
-  assert.ok(opened.includes('openSpecGitignoreUntracked'), 'the click prints what was folded')
-  assert.ok(opened.includes('openSpecUntrackUnlisted'), 'without taking the newest answer away')
+  assert.equal(withClass(tree, 'os_older'), undefined, 'and there is no expander to read the log through')
+  assert.ok(texts(items[0]).join(' ').includes('openSpecUntrack'), 'newest first, where no scrolling is needed')
+  assert.ok(texts(items[1]).join(' ').includes('openSpecGitignore'), 'and the answer before it right underneath')
 })
 
-it('keeps a receipt that failed open, above the one that came after it', async () => {
+it('keeps a receipt that failed above the one that came after it', async () => {
   const refused = ignoreBody()
   refused.results[2].error = 'EPERM: operation not permitted'
   const { app, shown } = await withTwoAnswers(refused, untrackBody())
@@ -1664,9 +1656,7 @@ it('keeps a receipt that failed open, above the one that came after it', async (
   token(app.render(), 'os_untrack').props.onClick()
   await flush()
 
-  const tree = app.render()
-  assert.equal(withClass(tree, 'os_older'), undefined, 'two answers, nothing folded')
-  const items = openItems(tree)
+  const items = openItems(app.render())
   assert.equal(items.length, 2)
   assert.ok(
     texts(items[0]).join(' ').includes('openSpecGitignorePartial'),

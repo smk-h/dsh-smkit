@@ -30,7 +30,6 @@ export const OPENSPEC_LOCALE_EN: LocaleDict = {
   "openSpecKeptShort": "keeps {count}",
   "openSpecMarker": "OpenSpec\u2019s ownership marker (not a skill or a command): it is how openspec update knows this directory is its business, and removing it is what stops the skills being restored \u00b7 {path}",
   "openSpecEntries": "{count} entries",
-  "openSpecLogEarlier": "{count} earlier",
   "openSpecFiles": "{count} files",
   "openSpecDirs": "{count} directories",
   "openSpecTruncated": "There is more here than fits; only the first part was measured",
