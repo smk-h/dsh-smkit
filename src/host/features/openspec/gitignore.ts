@@ -45,18 +45,32 @@
  * The targets are the inspection's own list re-derived on the host — the store
  * plus every generated entry — never paths the browser could name, the same
  * rule the delete runs by.
+ *
+ * `untrackOpenSpec` at the bottom of this file is the same walk run backwards:
+ * the footprint is re-derived from the same inspection, the lines this action
+ * wrote are taken back out (the store's own file goes whole — it exists because
+ * of that button, so nothing in it can belong to anyone else; a shared
+ * directory's file is pruned exactly the way the delete prunes it, and only
+ * leaves if nothing else was in it), and each entry the index no longer holds
+ * is handed back to git with `git add`. A rule this action does not manage —
+ * the project's own `.gitignore`, `info/exclude`, the global file — is reported
+ * as still hiding the entry rather than edited or forced past.
  */
 
 import { execFile } from 'node:child_process'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { join, relative, resolve } from 'node:path'
 import { LOG_PREFIX } from '../../platform/constants.js'
 import { toErrorMessage } from '../../platform/util/text.js'
 import { IGNORE_FILE_NAME, OPENSPEC_IGNORE_HEADER } from './constants.js'
 import { inspectOpenSpec, isInsideRoot } from './inspect.js'
+import { isOpenspecRule } from './remove.js'
 import type {
+  OpenSpecIgnoreCleanup,
   OpenSpecIgnoreResponse,
   OpenSpecIgnoreResult,
+  OpenSpecUntrackResponse,
+  OpenSpecUntrackResult,
 } from '../../../shared/openspec/contract.js'
 import type { GitRunner, OpenSpecIgnoreDeps } from './types.js'
 
@@ -76,6 +90,8 @@ interface Target {
    * file itself out of what is hidden.
    */
   patterns: string[]
+  /** Whether this is the store, whose own file goes whole on the way back. */
+  store: boolean
 }
 
 /**
@@ -86,11 +102,12 @@ interface Target {
  * here is a disagreement between two roots, and the safe reading is "not ours".
  */
 function targetsOf(root: string, view: Awaited<ReturnType<typeof inspectOpenSpec>>): Target[] {
-  const of = (abs: string, file: string, patterns: string[]): Target => ({
+  const of = (abs: string, file: string, patterns: string[], store = false): Target => ({
     abs,
     rel: relative(root, abs).split('\\').join('/'),
     file,
     patterns,
+    store,
   })
   const targets: Target[] = []
   if (view.store !== undefined) {
@@ -98,7 +115,7 @@ function targetsOf(root: string, view: Awaited<ReturnType<typeof inspectOpenSpec
     // the way out, because an ignore file that hides itself cannot be committed,
     // and a private rule of this tool would then have to be re-derived on every
     // other machine instead of travelling with the repository.
-    targets.push(of(view.store.path, join(view.store.path, IGNORE_FILE_NAME), ['*', '!.gitignore']))
+    targets.push(of(view.store.path, join(view.store.path, IGNORE_FILE_NAME), ['*', '!.gitignore'], true))
   }
   for (const group of view.artifacts) {
     for (const entry of group.entries) {
@@ -120,6 +137,30 @@ function alreadyListed(lines: readonly string[], pattern: string): boolean {
 }
 
 /**
+ * Ask git where the working tree starts, or collect the two reasons it cannot.
+ *
+ * The gate both directions run behind: outside a git working tree every
+ * question either action asks is meaningless, so the answer is "not a repo" and
+ * nothing is touched — and a missing `git` binary is its own reason, because
+ * "install git" and "this folder is not a repo" need different sentences.
+ */
+async function repoGate(
+  probeCwd: string,
+  deps: OpenSpecIgnoreDeps,
+): Promise<{ root: string } | { refused: { repo: false; reason: 'no-git' | 'not-a-repo'; results: never[] } }> {
+  try {
+    const probe = await deps.runGit(['rev-parse', '--show-toplevel'], { cwd: probeCwd })
+    if (probe.code !== 0) return { refused: { repo: false, reason: 'not-a-repo', results: [] } }
+    return { root: probe.stdout.trim() }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { refused: { repo: false, reason: 'no-git', results: [] } }
+    }
+    throw error
+  }
+}
+
+/**
  * Ignore the footprint of one workspace, or say why it cannot.
  *
  * @param cwd - the workspace directory the panel is showing.
@@ -131,18 +172,9 @@ export async function ignoreOpenSpec(cwd: string, deps: OpenSpecIgnoreDeps): Pro
   // The gate, and the ground truth for where anything belongs: git itself names
   // the working-tree root, so a store derived from a hand-walked `.git` that
   // disagrees with it yields to git's answer.
-  const probeCwd = resolve(cwd)
-  let root = ''
-  try {
-    const probe = await deps.runGit(['rev-parse', '--show-toplevel'], { cwd: probeCwd })
-    if (probe.code !== 0) return { repo: false, reason: 'not-a-repo', results: [] }
-    root = probe.stdout.trim()
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return { repo: false, reason: 'no-git', results: [] }
-    }
-    throw error
-  }
+  const gate = await repoGate(resolve(cwd), deps)
+  if ('refused' in gate) return gate.refused
+  const root = gate.root
 
   const results: OpenSpecIgnoreResult[] = []
   /** The lines each ignore file is to receive, keyed by that file. */
@@ -212,6 +244,165 @@ export async function ignoreOpenSpec(cwd: string, deps: OpenSpecIgnoreDeps): Pro
   }
 
   return { repo: true, ...(files.length > 0 ? { files } : {}), results }
+}
+
+/**
+ * Take the footprint back out of the ignore files and hand it back to git.
+ *
+ * The mirror of `ignoreOpenSpec`, walked in the mirror's order: first the lines
+ * come out — file by file, since each was written as one block — and only then
+ * is each entry asked whether the index holds it (then it is left exactly as it
+ * is: staging someone's tracked files is not this button's business), whether
+ * some rule still hides it (a rule this action does not manage is reported, not
+ * edited or forced past), and only then `git add`. The writes precede the git
+ * questions on purpose: `check-ignore` reads the files off the disk, so asking
+ * before the lines were gone would report the file as it no longer is.
+ *
+ * Two kinds of file, two kinds of take-back — the same distinction the delete
+ * draws. The store's own `.gitignore` goes whole: the ignore button created it,
+ * so nothing inside it can belong to anyone else. A shared directory's file is
+ * pruned, not deleted: the lines naming this footprint's entries come out, the
+ * heading follows once no OpenSpec-shaped line stands under it, and only a file
+ * left with nothing but blank lines is unmade altogether — anything a human
+ * wrote there survives word for word, in the file's own end-of-line style.
+ *
+ * @param cwd - the workspace directory the panel is showing.
+ * @param deps - the logger, and the git runner seam.
+ */
+export async function untrackOpenSpec(cwd: string, deps: OpenSpecIgnoreDeps): Promise<OpenSpecUntrackResponse> {
+  const view = await inspectOpenSpec(cwd)
+  const gate = await repoGate(resolve(cwd), deps)
+  if ('refused' in gate) return gate.refused
+  const root = gate.root
+
+  const targets = targetsOf(root, view)
+  const records: OpenSpecUntrackResult[] = targets.map((target) => ({
+    rel: target.rel,
+    ignoreFile: relative(root, target.file).split('\\').join('/'),
+    patterns: target.patterns,
+    unlisted: false,
+    alreadyUnlisted: false,
+    tracked: false,
+    retracked: false,
+    stillIgnored: false,
+  }))
+
+  // — the lines first, one file at a time —
+  const files: OpenSpecIgnoreCleanup[] = []
+  const byFile = new Map<string, number[]>()
+  targets.forEach((target, index) => {
+    const members = byFile.get(target.file) ?? []
+    members.push(index)
+    byFile.set(target.file, members)
+  })
+  for (const [file, members] of byFile) {
+    const relFile = relative(root, file).split('\\').join('/')
+    const storeIndex = members.find((index) => targets[index].store)
+    if (storeIndex !== undefined) {
+      // The store's file is this pair of buttons' own making: contents and all,
+      // it says nothing about anyone but the store, so it is removed whole
+      // rather than pruned line by line.
+      try {
+        const text = await readFile(file, 'utf8')
+        const lines = text
+          .split(/\r?\n/)
+          .filter((line) => line.trim() !== '' && line.trim() !== OPENSPEC_IGNORE_HEADER).length
+        await unlink(file)
+        records[storeIndex].unlisted = true
+        files.push({ rel: relFile, lines, deleted: true })
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') records[storeIndex].alreadyUnlisted = true
+        else records[storeIndex].error = toErrorMessage(error)
+      }
+      continue
+    }
+    let text: string
+    try {
+      text = await readFile(file, 'utf8')
+    } catch {
+      text = ''
+    }
+    const lines = text.split(/\r?\n/)
+    const gone = new Set<number>()
+    for (const index of members) {
+      const wanted = targets[index].patterns.map((pattern) => pattern.replace(/\/$/, ''))
+      let hit = false
+      lines.forEach((line, at) => {
+        if (!gone.has(at) && wanted.includes(line.trim().replace(/\/$/, ''))) {
+          gone.add(at)
+          hit = true
+        }
+      })
+      if (hit) records[index].unlisted = true
+      else records[index].alreadyUnlisted = true
+    }
+    if (gone.size === 0) continue
+    try {
+      const kept = lines.filter((_, at) => !gone.has(at))
+      // The heading signs our block; with no OpenSpec-shaped line left under it,
+      // it signs nothing and is ours to take back.
+      const left = kept.some((line) => isOpenspecRule(line.trim()))
+        ? kept
+        : kept.filter((line) => line.trim() !== OPENSPEC_IGNORE_HEADER)
+      if (left.every((line) => line.trim() === '')) {
+        await unlink(file)
+        files.push({ rel: relFile, lines: gone.size, deleted: true })
+        continue
+      }
+      while (left.length > 0 && left[left.length - 1].trim() === '') left.pop()
+      const eol = text.includes('\r\n') ? '\r\n' : '\n'
+      await writeFile(file, `${left.join(eol)}${eol}`, 'utf8')
+      files.push({ rel: relFile, lines: gone.size, deleted: false })
+    } catch (error) {
+      // The file could not be rewritten, so the lines that matched still stand
+      // in it — the entries above must say they were not taken back after all.
+      const why = toErrorMessage(error)
+      for (const index of members) {
+        if (records[index].unlisted) records[index].error = why
+      }
+    }
+  }
+
+  // — then git, per entry, with the files already as they now are —
+  for (let index = 0; index < targets.length; index++) {
+    const record = records[index]
+    if (typeof record.error === 'string') continue
+    try {
+      const inIndex = await deps.runGit(['ls-files', '--', targets[index].rel], { cwd: root })
+      if (inIndex.stdout.trim() !== '') {
+        record.tracked = true
+        continue
+      }
+      const ignoredHit = await deps.runGit(['check-ignore', '--', targets[index].rel], { cwd: root })
+      if (ignoredHit.code === 0) {
+        record.stillIgnored = true
+        continue
+      }
+      const added = await deps.runGit(['add', '--', targets[index].rel], { cwd: root })
+      if (added.code === 0) {
+        record.retracked = true
+        continue
+      }
+      const why = added.stderr.trim() || added.stdout.trim() || 'git add failed'
+      // git naming an ignore rule as its refusal means a wider rule caught this
+      // after all — the pre-check answers for a path, not for a directory's
+      // contents — and the honest report is "still ignored", not a forced add.
+      if (/ignored by one of your/i.test(why)) record.stillIgnored = true
+      else record.error = why
+    } catch (error) {
+      record.error = toErrorMessage(error)
+    }
+  }
+
+  const retracked = records.filter((record) => record.retracked).length
+  if (files.length > 0 || retracked > 0) {
+    deps.logger.info(
+      `${LOG_PREFIX}: took OpenSpec back from git's ignore list in ${root}`
+        + ` (${files.length} file(s) tidied, ${retracked} entry(s) re-tracked)`,
+    )
+  }
+
+  return { repo: true, ...(files.length > 0 ? { files } : {}), results: records }
 }
 
 /**

@@ -441,6 +441,15 @@
   border-top: 1px solid var(--dsw-alias-border-l2);
 }
 
+/* The un-ignore button carries only lucide's database-minus, so it has to
+ * centre the glyph the way mm_btn centres text — and keep the standard
+ * button's height, because it sits between two buttons that have words. */
+.os_untrack {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* The confirmation's fact block: the same two-column grid the session-delete
  * dialog uses, declared here because the panel is what filled it. */
 .os_confirm {

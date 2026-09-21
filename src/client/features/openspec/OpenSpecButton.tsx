@@ -72,10 +72,11 @@
  * week's npm output does not haunt the panel forever.
  *
  * After an action the panel reads again: the store it draws is on disk, and the
- * delete, the initialise and the ignore can each have just changed it.
+ * delete, the initialise, the ignore and its undo can each have just changed it.
  */
 
 import { createAtomIcon } from './icons/AtomIcon'
+import { createDatabaseMinusIcon } from './icons/DatabaseMinusIcon'
 import { createChevronDownIcon } from '../../platform/icons/ChevronDownIcon'
 import { createLoaderIcon } from '../../platform/icons/LoaderIcon'
 import { createRefreshIcon } from '../../platform/icons/RefreshIcon'
@@ -97,6 +98,7 @@ import type {
   OpenSpecRemoveFailure,
   OpenSpecStore,
   OpenSpecTreeNode,
+  OpenSpecUntrackResponse,
   OpenSpecUpdateStatus,
   OpenSpecView,
 } from '../../../shared/openspec/contract'
@@ -186,6 +188,41 @@ function tallyIgnore(results: OpenSpecIgnoreResult[]): {
     if (result.untracked) tally.untracked += 1
     if (result.listed) tally.listed += 1
     if (result.alreadyListed) tally.alreadyListed += 1
+  }
+  return tally
+}
+
+/**
+ * Count one un-ignore answer the same way: per outcome, refusals kept whole.
+ * The outcomes are the mirror's — lines taken out or not there, re-tracked,
+ * already tracked, or still hidden by a rule this tool does not own.
+ */
+function tallyUntrack(results: OpenSpecUntrackResponse['results']): {
+  unlisted: number
+  alreadyUnlisted: number
+  retracked: number
+  tracked: number
+  stillIgnored: number
+  failed: OpenSpecUntrackResponse['results']
+} {
+  const tally = {
+    unlisted: 0,
+    alreadyUnlisted: 0,
+    retracked: 0,
+    tracked: 0,
+    stillIgnored: 0,
+    failed: [] as OpenSpecUntrackResponse['results'],
+  }
+  for (const result of results) {
+    if (typeof result.error === 'string' && result.error !== '') {
+      tally.failed.push(result)
+      continue
+    }
+    if (result.unlisted) tally.unlisted += 1
+    if (result.alreadyUnlisted) tally.alreadyUnlisted += 1
+    if (result.retracked) tally.retracked += 1
+    if (result.tracked) tally.tracked += 1
+    if (result.stillIgnored) tally.stillIgnored += 1
   }
   return tally
 }
@@ -345,6 +382,7 @@ export function createOpenSpecButton(
   const { h, react, api, stream, createPortal } = deps
   const ConfirmDialog = createConfirmDialog(deps)
   const AtomIcon = createAtomIcon(deps)
+  const DatabaseMinusIcon = createDatabaseMinusIcon(deps)
   const ChevronDownIcon = createChevronDownIcon(deps)
   const RefreshIcon = createRefreshIcon(deps)
   const LoaderIcon = createLoaderIcon(deps)
@@ -430,9 +468,20 @@ export function createOpenSpecButton(
      * `openspec/` is one the tree draws.
      */
     const [gitignore, setGitignore] = react.useState<OpenSpecIgnoreResponse | null>(null)
+    /**
+     * The last answer of the un-ignore action, kept until the next open.
+     *
+     * Its own receipt rather than a merge into the ignore one: the two runs
+     * answer different questions (what came out of the files, what went back
+     * into the index, what a stranger's rule still hides), and a press of
+     * either button after the other should show its own answer, not a
+     * rewriting of the other's.
+     */
+    const [untrackAnswer, setUntrack] = react.useState<OpenSpecUntrackResponse | null>(null)
     const { busy, error: removeError, run } = useAsyncAction(react)
     const { busy: initing, error: initError, run: runInit } = useAsyncAction(react)
     const { busy: ignoring, error: ignoreError, run: runIgnore } = useAsyncAction(react)
+    const { busy: untracking, error: untrackError, run: runUntrack } = useAsyncAction(react)
     // Both hooks run on every render: they are ordinary store subscriptions
     // whose order must stay stable across renders.
     const cwd = useSessions(state => state.byId[sessionId]?.cwd)
@@ -543,6 +592,7 @@ export function createOpenSpecButton(
       setPruned([])
       setInitOutput('')
       setGitignore(null)
+      setUntrack(null)
       // A finished upgrade's record is shown for `UPDATE_RECORD_VIEWS` openings
       // past the one it ran on, then dropped. Only arrivals count: the refresh
       // button re-reads in place, and the panel staying open is not a viewing.
@@ -638,6 +688,33 @@ export function createOpenSpecButton(
         const body = result.body as OpenSpecIgnoreResponse
         setGitignore(body)
         // Nothing written means nothing on disk moved, so nothing to re-read.
+        if (body.files !== undefined && body.files.length > 0) await load()
+        return undefined
+      })
+    }
+
+    /**
+     * Take the footprint back from git's ignore list and re-track it.
+     *
+     * The host pulls the lines this pair of buttons wrote (the store's own
+     * ignore file goes whole; a shared directory's file is pruned the way the
+     * delete prunes it), then hands every entry the index no longer holds to
+     * `git add` — staged, not committed, which is as far as a tool may reach
+     * into someone's repository. What a stranger's ignore rule still hides is
+     * reported rather than forced past. As with the ignore press, the store is
+     * re-read only when an ignore file changed: an index move writes no file
+     * the tree draws.
+     */
+    const untrack = (): void => {
+      void runUntrack(async () => {
+        if (target === undefined) return t('openSpecNoWorkspace')
+        const result = await api('/openspec/untrack', {
+          method: 'POST',
+          body: JSON.stringify({ cwd: target }),
+        })
+        if (!result.ok) return messageFor(result, 'openSpecUntrackFailed')
+        const body = result.body as OpenSpecUntrackResponse
+        setUntrack(body)
         if (body.files !== undefined && body.files.length > 0) await load()
         return undefined
       })
@@ -993,13 +1070,67 @@ export function createOpenSpecButton(
         ]}
       </div>
     )
+    // The un-ignore answer, once there is one: outside a repo the whole reply
+    // is the reason; inside one, the counts say what came out of the files,
+    // what went back into the index, and what someone else's rule still hides.
+    const untrackTally = untrackAnswer === null ? null : tallyUntrack(untrackAnswer.results)
+    const untrackBlock = untrackAnswer === null || untrackTally === null ? null : (
+      <div className="os_section">
+        <div className={untrackTally.failed.length === 0 ? 'os_sectionTitle' : 'os_error'}>
+          {t('openSpecUntrack')}
+        </div>
+        {!untrackAnswer.repo ? (
+          <div className="os_note">
+            {untrackAnswer.reason === 'no-git' ? t('openSpecGitignoreNoGit') : t('openSpecGitignoreNoRepo')}
+          </div>
+        ) : [
+          ...(untrackTally.unlisted === 0
+            ? []
+            : [<div className="os_note" key="unlisted">{t('openSpecUntrackUnlisted', { count: untrackTally.unlisted })}</div>]),
+          ...(untrackTally.retracked === 0
+            ? []
+            : [<div className="os_note" key="retracked">{t('openSpecUntrackRetracked', { count: untrackTally.retracked })}</div>]),
+          ...(untrackTally.tracked === 0
+            ? []
+            : [<div className="os_note" key="tracked">{t('openSpecUntrackTracked', { count: untrackTally.tracked })}</div>]),
+          ...(untrackTally.alreadyUnlisted === 0
+            ? []
+            : [<div className="os_note" key="clean-before">{t('openSpecUntrackAlreadyUnlisted', { count: untrackTally.alreadyUnlisted })}</div>]),
+          ...(untrackTally.stillIgnored === 0
+            ? []
+            : [<div className="os_note" key="still">{t('openSpecUntrackStillIgnored', { count: untrackTally.stillIgnored })}</div>]),
+          // Files are named with the same two sentences the delete's tidy-up
+          // uses, because it is the same event seen from the other side: a file
+          // pruned of our lines, or unmade because it held nothing else.
+          ...(untrackAnswer.files === undefined
+            ? []
+            : untrackAnswer.files.map(cleaned => (
+              <div className="os_note" key={cleaned.rel}>
+                {cleaned.deleted
+                  ? t('openSpecIgnoreFileDeleted', { path: cleaned.rel })
+                  : t('openSpecIgnoreFilePruned', { path: cleaned.rel, count: cleaned.lines })}
+              </div>
+            ))),
+          ...(untrackTally.failed.length === 0
+            ? []
+            : [
+              <div className="os_error" key="partial">{t('openSpecUntrackPartial')}</div>,
+              ...untrackTally.failed.map(result => (
+                <div className="os_note" key={result.rel} title={result.error}>{result.rel}</div>
+              )),
+            ]),
+        ]}
+      </div>
+    )
     const messages = (
       <div className="os_messages">
         {error === '' ? null : <div className="os_error">{error}</div>}
         {initError === '' ? null : <div className="os_error">{initError}</div>}
         {ignoreError === '' ? null : <div className="os_error">{ignoreError}</div>}
+        {untrackError === '' ? null : <div className="os_error">{untrackError}</div>}
         {initing ? <div className="os_note">{t('openSpecInitRunning')}</div> : null}
         {ignoring ? <div className="os_note">{t('openSpecGitignoreRunning')}</div> : null}
+        {untracking ? <div className="os_note">{t('openSpecUntrackRunning')}</div> : null}
         {hasUpdate ? (
           <div className="os_section">
             <div className={updateFailed ? 'os_error' : 'os_sectionTitle'}>{updateLabel()}</div>
@@ -1012,6 +1143,7 @@ export function createOpenSpecButton(
           </div>
         ) : null}
         {gitignoreBlock}
+        {untrackBlock}
         {pruned.length === 0 ? null : (
           <div className="os_section">
             <div className="os_sectionTitle">{t('openSpecIgnoreCleaned')}</div>
@@ -1045,9 +1177,12 @@ export function createOpenSpecButton(
       error !== '' ||
       initError !== '' ||
       ignoreError !== '' ||
+      untrackError !== '' ||
       initing ||
       ignoring ||
+      untracking ||
       gitignore !== null ||
+      untrackAnswer !== null ||
       hasUpdate ||
       failures.length > 0 ||
       pruned.length > 0 ||
@@ -1173,6 +1308,25 @@ export function createOpenSpecButton(
               onClick={ignore}
             >
               {t('openSpecGitignore')}
+            </button>
+          ) : null}
+          {canIgnore ? (
+            <button
+              className="mm_btn os_untrack"
+              type="button"
+              aria-label={t('openSpecUntrack')}
+              // The undo of the button beside it, said the same way: which
+              // lines come out, which files that empties, and that re-tracking
+              // means `git add` — staged, never committed here. The hover
+              // holds the whole sentence; the button itself just wears the
+              // glyph, so the footer stays one row of quiet controls.
+              title={t('openSpecUntrackCommand')}
+              disabled={untracking}
+              data-pending={untracking ? 'true' : undefined}
+              aria-busy={untracking}
+              onClick={untrack}
+            >
+              <DatabaseMinusIcon size={14} />
             </button>
           ) : null}
           {canRemove ? (

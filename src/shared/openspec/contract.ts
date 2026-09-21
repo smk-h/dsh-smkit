@@ -181,7 +181,7 @@ export interface OpenSpecRemoveRequest {
   cwd: string
 }
 
-/** One `.gitignore` the delete tidied while it was removing the footprint. */
+/** One `.gitignore` a delete or an un-ignore tidied while it worked. */
 export interface OpenSpecIgnoreCleanup {
   /** Project-relative path of the ignore file, the spelling the panel lists. */
   rel: string
@@ -284,6 +284,67 @@ export interface OpenSpecIgnoreResponse {
   files?: string[]
   /** Every footprint entry the action was offered for, in footprint order. */
   results: OpenSpecIgnoreResult[]
+}
+
+/* --------------------------------------------------- the un-ignore action */
+
+/**
+ * What one footprint entry looked like to the un-ignore run, and what it did
+ * about it — the mirror of {@link OpenSpecIgnoreResult}, asked in the mirror's
+ * order:
+ *
+ * - `unlisted` — its lines were taken out of `ignoreFile` now. The store's own
+ *   file is deleted whole rather than pruned: this feature created it, so
+ *   nothing in it can belong to anyone else.
+ * - `alreadyUnlisted` — no line in that file named it (or the file was gone),
+ *   so nothing was taken out; hiding it never came from these files.
+ * - `tracked` — files under it already sit in the index; nothing was staged for
+ *   it, because staging is the user's business, not this action's.
+ * - `retracked` — it was out of the index and `git add` put it back; the lines
+ *   above had to come out first, or git would have refused.
+ * - `stillIgnored` — after our lines were gone a rule we do not manage (the
+ *   project's own `.gitignore`, `info/exclude`, the global file) still hides
+ *   it, so nothing was added; touching that rule is not this button's call.
+ *
+ * Only an entry that is out of the index is ever offered to `git add`, so a
+ * workspace whose OpenSpec was tracked all along is reported, not staged.
+ */
+export interface OpenSpecUntrackResult {
+  /** Project-relative path of the entry, the spelling the panel lists. */
+  rel: string
+  /** Repo-relative path of the `.gitignore` that carried (or would carry) it. */
+  ignoreFile: string
+  /** The lines taken out (or looked for): see `OpenSpecIgnoreResult.patterns`. */
+  patterns: string[]
+  unlisted: boolean
+  alreadyUnlisted: boolean
+  tracked: boolean
+  retracked: boolean
+  stillIgnored: boolean
+  /** The git command's own words, when answering for this entry failed. */
+  error?: string
+}
+
+/** `POST /openspec/untrack` body. */
+export interface OpenSpecUntrackRequest {
+  /** The workspace the panel is showing; the host derives the repo and targets. */
+  cwd: string
+}
+
+/** `POST /openspec/untrack` answering with what each entry became. */
+export interface OpenSpecUntrackResponse {
+  /** Whether `cwd` sits inside a git working tree; false means nothing ran. */
+  repo: boolean
+  /** Why there was no repo, when `repo` is false; see `OpenSpecIgnoreResponse`. */
+  reason?: 'no-git' | 'not-a-repo'
+  /**
+   * The ignore files this run pruned or deleted, per file with how many lines
+   * came out and whether the file went with them. Absent when no file carried
+   * a line of ours.
+   */
+  files?: OpenSpecIgnoreCleanup[]
+  /** Every footprint entry the action was offered for, in footprint order. */
+  results: OpenSpecUntrackResult[]
 }
 
 /* ------------------------------------------------------- the tool upgrade */

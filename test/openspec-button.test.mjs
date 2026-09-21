@@ -1295,3 +1295,135 @@ it('says what the delete took back out of the ignore files', async () => {
   )
 })
 
+
+// --- the un-ignore action ----------------------------------------------------
+
+/** One answer of `POST /openspec/untrack`, as the host would send it. */
+const untrackBody = (over = {}) => ({
+  repo: true,
+  results: [
+    { rel: 'openspec', ignoreFile: 'openspec/.gitignore', patterns: ['*', '!.gitignore'], unlisted: true, alreadyUnlisted: false, tracked: false, retracked: true, stillIgnored: false },
+    { rel: '.agents/skills/openspec-propose', ignoreFile: '.agents/skills/.gitignore', patterns: ['openspec-propose/'], unlisted: false, alreadyUnlisted: false, tracked: true, retracked: false, stillIgnored: false },
+    { rel: '.agents/skills/demo', ignoreFile: '.agents/skills/.gitignore', patterns: ['demo/'], unlisted: false, alreadyUnlisted: true, tracked: false, retracked: false, stillIgnored: true },
+  ],
+  ...over,
+})
+
+/** A panel open on a footprint, with `POST /openspec/untrack` answered by `body`. */
+async function withUntrack(body) {
+  const route = routing()
+  const app = mount({
+    fetch: (url) => (url.includes('/openspec/untrack') ? response(body) : route(url)),
+  })
+  const shown = await app.hover()
+  return { app, shown }
+}
+
+it('offers the un-ignore action beside the one it reverses, and not on an empty workspace', async () => {
+  const app = mount({ fetch: routing() })
+  const shown = await app.hover()
+
+  const untrack = token(shown, 'os_untrack')
+  assert.ok(untrack, 'what the ignore button handed to git, this one takes back')
+  assert.equal(untrack.props.title, 'openSpecUntrackCommand', 'the tooltip says what comes out, what goes in, and what stays untouched')
+  assert.equal(untrack.props['aria-label'], 'openSpecUntrack', 'a button with no words still has a name')
+  assert.equal(texts([untrack]).length, 0, 'the hover holds the sentence; the button wears only the glyph')
+  assert.ok(orderOf(shown, 'os_ignore') < orderOf(shown, 'os_untrack'), 'it sits right after its twin')
+  assert.ok(orderOf(shown, 'os_untrack') < orderOf(shown, 'os_remove'), 'and both reversible actions precede the destructive one')
+
+  const emptyApp = mount({ fetch: routing(EMPTY) })
+  const empty = await emptyApp.hover()
+  assert.equal(token(empty, 'os_untrack'), undefined, 'a workspace with nothing in it has nothing to take back')
+})
+
+it('asks the host once for the workspace and reports what each entry became', async () => {
+  const { app, shown } = await withUntrack(untrackBody({ files: [{ rel: 'openspec/.gitignore', lines: 2, deleted: true }] }))
+  token(shown, 'os_untrack').props.onClick()
+  await flush()
+
+  assert.deepEqual(app.calls[1], { url: '/mcp-manager/api/openspec/untrack', body: { cwd: '/work/app' } },
+    'the host re-derives the targets, so the panel names only the workspace')
+  const text = texts(app.render()).join(' | ')
+  assert.ok(text.includes('openSpecUntrackUnlisted({"count":1})'), 'one entry had its line taken out')
+  assert.ok(text.includes('openSpecUntrackRetracked({"count":1})'), 'one went back into the index')
+  assert.ok(text.includes('openSpecUntrackTracked({"count":1})'), 'one was tracked all along and was left alone')
+  assert.ok(text.includes('openSpecUntrackAlreadyUnlisted({"count":1})'), 'one never had a line of its own')
+  assert.ok(text.includes('openSpecUntrackStillIgnored({"count":1})'), 'one is still hidden by a rule this tool does not own')
+  assert.ok(
+    text.includes('openSpecIgnoreFileDeleted({"path":"openspec/.gitignore"})'),
+    'the emptied store file is named with the same sentence the delete\u2019s tidy-up uses',
+  )
+  assert.equal(app.calls.length, 3, 'a file inside the store went, so the tree that draws it reads again')
+
+  const quiet = await withUntrack(untrackBody())
+  token(quiet.shown, 'os_untrack').props.onClick()
+  await flush()
+  assert.equal(quiet.app.calls.length, 2, 'nothing on disk moved, so nothing is re-read')
+})
+
+it('marks itself busy while the host works, and localises a refused call', async () => {
+  let settle
+  const held = { promise: new Promise((resolve) => { settle = resolve }) }
+  const app = mount({
+    fetch: (url) => (url.includes('/openspec/untrack') ? held.promise : response(VIEW)),
+  })
+  token(await app.hover(), 'os_untrack').props.onClick()
+  await flush()
+
+  const busy = app.render()
+  assert.equal(token(busy, 'os_untrack').props.disabled, true, 'a second press while the first runs would fight the index')
+  assert.equal(token(busy, 'os_untrack').props['aria-busy'], true)
+  assert.ok(texts(busy).join(' | ').includes('openSpecUntrackRunning'))
+
+  settle(response(untrackBody()))
+  await flush()
+  assert.equal(token(app.render(), 'os_untrack').props.disabled, false, 'the button is itself again once the answer is in')
+
+  const failed = mount({
+    fetch: (url) => (url.includes('/openspec/untrack')
+      ? response({ error: '' }, false, 500)
+      : response(VIEW)),
+  })
+  token(await failed.hover(), 'os_untrack').props.onClick()
+  await flush()
+  assert.ok(
+    texts(failed.render()).join(' | ').includes('openSpecUntrackFailed({"status":500})'),
+    'a call that never got an answer says so with its status',
+  )
+})
+
+it('phrases a missing repository like the ignore button, and names an entry git refused', async () => {
+  const outside = await withUntrack({ repo: false, reason: 'not-a-repo', results: [] })
+  token(outside.shown, 'os_untrack').props.onClick()
+  await flush()
+  const text = texts(outside.app.render()).join(' | ')
+  assert.ok(text.includes('openSpecGitignoreNoRepo'), 'the same gate, the same sentence')
+  assert.equal(text.includes('openSpecUntrackUnlisted'), false, 'nothing was counted, because nothing was asked')
+
+  const refused = untrackBody()
+  refused.results[2].error = 'fatal: could not write index'
+  const { app, shown } = await withUntrack(refused)
+  token(shown, 'os_untrack').props.onClick()
+  await flush()
+  const tree = app.render()
+  assert.ok(texts(tree).join(' | ').includes('openSpecUntrackPartial'), 'the section says the run was not whole')
+  const row = nodes(tree).find((node) => node.props?.title === 'fatal: could not write index')
+  assert.ok(row, 'and the entry carries git\u2019s own words rather than a paraphrase')
+  assert.equal(row.children[0], '.agents/skills/demo')
+})
+
+it('clears its answer when the panel opens again', async () => {
+  const { app, shown } = await withUntrack(untrackBody())
+  token(shown, 'os_untrack').props.onClick()
+  await flush()
+  assert.ok(texts(app.render()).join(' | ').includes('openSpecUntrackUnlisted'), 'the receipt is showing')
+
+  app.leave()
+  app.runTimers()
+  const again = await app.hover()
+  assert.equal(
+    texts(again).join(' | ').includes('openSpecUntrackUnlisted'),
+    false,
+    'last time\u2019s answer is not this opening\u2019s news',
+  )
+})
