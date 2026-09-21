@@ -46,15 +46,14 @@
  * plus every generated entry — never paths the browser could name, the same
  * rule the delete runs by.
  *
- * `untrackOpenSpec` at the bottom of this file is the same walk run backwards:
- * the footprint is re-derived from the same inspection, the lines this action
- * wrote are taken back out (the store's own file goes whole — it exists because
- * of that button, so nothing in it can belong to anyone else; a shared
+ * `untrackOpenSpec` at the bottom of this file is the way back, and it is
+ * deliberately less than the mirror: it only edits the ignore files. The lines
+ * this action wrote are taken out (the store's own file goes whole — it exists
+ * because of that button, so nothing in it can belong to anyone else; a shared
  * directory's file is pruned exactly the way the delete prunes it, and only
- * leaves if nothing else was in it), and each entry the index no longer holds
- * is handed back to git with `git add`. A rule this action does not manage —
- * the project's own `.gitignore`, `info/exclude`, the global file — is reported
- * as still hiding the entry rather than edited or forced past.
+ * leaves if nothing else was in it), and git is asked nothing at all. What the
+ * index does with an entry that stopped being hidden is git's and the user's
+ * business — this button never stages, never commits, never shells out.
  */
 
 import { execFile } from 'node:child_process'
@@ -139,10 +138,11 @@ function alreadyListed(lines: readonly string[], pattern: string): boolean {
 /**
  * Ask git where the working tree starts, or collect the two reasons it cannot.
  *
- * The gate both directions run behind: outside a git working tree every
- * question either action asks is meaningless, so the answer is "not a repo" and
- * nothing is touched — and a missing `git` binary is its own reason, because
- * "install git" and "this folder is not a repo" need different sentences.
+ * The gate the ignore run asks its questions behind: outside a git working
+ * tree every question that action asks is meaningless, so the answer is
+ * "not a repo" and nothing is touched — and a missing `git` binary is its own
+ * reason, because "install git" and "this folder is not a repo" need different
+ * sentences.
  */
 async function repoGate(
   probeCwd: string,
@@ -247,16 +247,14 @@ export async function ignoreOpenSpec(cwd: string, deps: OpenSpecIgnoreDeps): Pro
 }
 
 /**
- * Take the footprint back out of the ignore files and hand it back to git.
+ * Take the footprint's lines back out of the ignore files — and nothing else.
  *
- * The mirror of `ignoreOpenSpec`, walked in the mirror's order: first the lines
- * come out — file by file, since each was written as one block — and only then
- * is each entry asked whether the index holds it (then it is left exactly as it
- * is: staging someone's tracked files is not this button's business), whether
- * some rule still hides it (a rule this action does not manage is reported, not
- * edited or forced past), and only then `git add`. The writes precede the git
- * questions on purpose: `check-ignore` reads the files off the disk, so asking
- * before the lines were gone would report the file as it no longer is.
+ * This action never asks git anything: it is a file edit, not an index
+ * operation. Removing a line from an ignore file is the whole promise; whether
+ * the entry then shows up in `git status`, and what the user does about it,
+ * belong to git and to the user. That also means the walk needs no repo gate —
+ * the inspection already found the footprint under a project root, and lines
+ * this tool wrote can be taken back wherever that root lives.
  *
  * Two kinds of file, two kinds of take-back — the same distinction the delete
  * draws. The store's own `.gitignore` goes whole: the ignore button created it,
@@ -267,13 +265,11 @@ export async function ignoreOpenSpec(cwd: string, deps: OpenSpecIgnoreDeps): Pro
  * wrote there survives word for word, in the file's own end-of-line style.
  *
  * @param cwd - the workspace directory the panel is showing.
- * @param deps - the logger, and the git runner seam.
+ * @param deps - the logger.
  */
 export async function untrackOpenSpec(cwd: string, deps: OpenSpecIgnoreDeps): Promise<OpenSpecUntrackResponse> {
   const view = await inspectOpenSpec(cwd)
-  const gate = await repoGate(resolve(cwd), deps)
-  if ('refused' in gate) return gate.refused
-  const root = gate.root
+  const root = view.root
 
   const targets = targetsOf(root, view)
   const records: OpenSpecUntrackResult[] = targets.map((target) => ({
@@ -282,9 +278,6 @@ export async function untrackOpenSpec(cwd: string, deps: OpenSpecIgnoreDeps): Pr
     patterns: target.patterns,
     unlisted: false,
     alreadyUnlisted: false,
-    tracked: false,
-    retracked: false,
-    stillIgnored: false,
   }))
 
   // — the lines first, one file at a time —
@@ -363,46 +356,14 @@ export async function untrackOpenSpec(cwd: string, deps: OpenSpecIgnoreDeps): Pr
     }
   }
 
-  // — then git, per entry, with the files already as they now are —
-  for (let index = 0; index < targets.length; index++) {
-    const record = records[index]
-    if (typeof record.error === 'string') continue
-    try {
-      const inIndex = await deps.runGit(['ls-files', '--', targets[index].rel], { cwd: root })
-      if (inIndex.stdout.trim() !== '') {
-        record.tracked = true
-        continue
-      }
-      const ignoredHit = await deps.runGit(['check-ignore', '--', targets[index].rel], { cwd: root })
-      if (ignoredHit.code === 0) {
-        record.stillIgnored = true
-        continue
-      }
-      const added = await deps.runGit(['add', '--', targets[index].rel], { cwd: root })
-      if (added.code === 0) {
-        record.retracked = true
-        continue
-      }
-      const why = added.stderr.trim() || added.stdout.trim() || 'git add failed'
-      // git naming an ignore rule as its refusal means a wider rule caught this
-      // after all — the pre-check answers for a path, not for a directory's
-      // contents — and the honest report is "still ignored", not a forced add.
-      if (/ignored by one of your/i.test(why)) record.stillIgnored = true
-      else record.error = why
-    } catch (error) {
-      record.error = toErrorMessage(error)
-    }
-  }
-
-  const retracked = records.filter((record) => record.retracked).length
-  if (files.length > 0 || retracked > 0) {
+  if (files.length > 0) {
     deps.logger.info(
-      `${LOG_PREFIX}: took OpenSpec back from git's ignore list in ${root}`
-        + ` (${files.length} file(s) tidied, ${retracked} entry(s) re-tracked)`,
+      `${LOG_PREFIX}: took OpenSpec back out of the ignore files in ${root}`
+        + ` (${files.length} file(s) tidied)`,
     )
   }
 
-  return { repo: true, ...(files.length > 0 ? { files } : {}), results: records }
+  return { ...(files.length > 0 ? { files } : {}), results: records }
 }
 
 /**

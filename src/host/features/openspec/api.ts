@@ -5,9 +5,9 @@
  *
  * Six routes, all inside the plugin's API prefix. The read answers with the
  * whole footprint (`OpenSpecView`); the writes are the panel's actions — remove
- * everything, create it, hand it to git's ignore list, take it back from that
- * list and re-track it, or upgrade the tool — and each answers with what it
- * did. The upgrade is the one that streams: it answers with an event stream of
+ * everything, create it, hand it to git's ignore list, take its lines back out
+ * of that list, or upgrade the tool — and each answers with what it did.
+ * The upgrade is the one that streams: it answers with an event stream of
  * the install's own output rather than a single result, because it is the one
  * action long enough that a silent wait would read as a hang.
  *
@@ -110,10 +110,9 @@ export const handleOpenSpec: OpenSpecHandler = async (req, res, facts, deps) => 
       sendJson(res, 400, { error: OPENSPEC_CWD_ERROR })
       return true
     }
-    // The ignore action run backwards, answering the same way: a 200 that
-    // describes itself, because "not a repo", "still ignored by someone
-    // else's rule" and "one entry refused" are answers the panel phrases,
-    // not request failures.
+    // A 200 that describes itself, like the route above — but this one asks
+    // git nothing at all: "a line was not there" and "the file could not be
+    // rewritten" are answers the panel phrases, not request failures.
     sendJson(res, 200, await untrackOpenSpec(cwd, { logger: deps.logger, runGit: deps.runGit ?? runGit }))
     return true
   }

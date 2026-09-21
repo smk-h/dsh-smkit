@@ -1302,11 +1302,10 @@ it('says what the delete took back out of the ignore files', async () => {
 
 /** One answer of `POST /openspec/untrack`, as the host would send it. */
 const untrackBody = (over = {}) => ({
-  repo: true,
   results: [
-    { rel: 'openspec', ignoreFile: 'openspec/.gitignore', patterns: ['*', '!.gitignore'], unlisted: true, alreadyUnlisted: false, tracked: false, retracked: true, stillIgnored: false },
-    { rel: '.agents/skills/openspec-propose', ignoreFile: '.agents/skills/.gitignore', patterns: ['openspec-propose/'], unlisted: false, alreadyUnlisted: false, tracked: true, retracked: false, stillIgnored: false },
-    { rel: '.agents/skills/demo', ignoreFile: '.agents/skills/.gitignore', patterns: ['demo/'], unlisted: false, alreadyUnlisted: true, tracked: false, retracked: false, stillIgnored: true },
+    { rel: 'openspec', ignoreFile: 'openspec/.gitignore', patterns: ['*', '!.gitignore'], unlisted: true, alreadyUnlisted: false },
+    { rel: '.agents/skills/openspec-propose', ignoreFile: '.agents/skills/.gitignore', patterns: ['openspec-propose/'], unlisted: false, alreadyUnlisted: true },
+    { rel: '.agents/skills/demo', ignoreFile: '.agents/skills/.gitignore', patterns: ['demo/'], unlisted: false, alreadyUnlisted: true },
   ],
   ...over,
 })
@@ -1327,7 +1326,7 @@ it('offers the un-ignore action beside the one it reverses, and not on an empty 
 
   const untrack = token(shown, 'os_untrack')
   assert.ok(untrack, 'what the ignore button handed to git, this one takes back')
-  assert.equal(untrack.props.title, 'openSpecUntrackCommand', 'the tooltip says what comes out, what goes in, and what stays untouched')
+  assert.equal(untrack.props.title, 'openSpecUntrackCommand', 'the tooltip says what comes out, what goes with it, and what git is never asked')
   assert.equal(untrack.props['aria-label'], 'openSpecUntrack', 'a button with no words still has a name')
   assert.equal(texts([untrack]).length, 0, 'the hover holds the sentence; the button wears only the glyph')
   assert.ok(orderOf(shown, 'os_ignore') < orderOf(shown, 'os_untrack'), 'it sits right after its twin')
@@ -1347,14 +1346,12 @@ it('asks the host once for the workspace and reports what each entry became', as
     'the host re-derives the targets, so the panel names only the workspace')
   const text = texts(app.render()).join(' | ')
   assert.ok(text.includes('openSpecUntrackUnlisted({"count":1})'), 'one entry had its line taken out')
-  assert.ok(text.includes('openSpecUntrackRetracked({"count":1})'), 'one went back into the index')
-  assert.ok(text.includes('openSpecUntrackTracked({"count":1})'), 'one was tracked all along and was left alone')
-  assert.ok(text.includes('openSpecUntrackAlreadyUnlisted({"count":1})'), 'one never had a line of its own')
-  assert.ok(text.includes('openSpecUntrackStillIgnored({"count":1})'), 'one is still hidden by a rule this tool does not own')
+  assert.ok(text.includes('openSpecUntrackAlreadyUnlisted({"count":2})'), 'two never had a line of their own')
   assert.ok(
     text.includes('openSpecIgnoreFileDeleted({"path":"openspec/.gitignore"})'),
     'the emptied store file is named with the same sentence the delete\u2019s tidy-up uses',
   )
+  assert.equal(text.includes('openSpecUntrackRetracked'), false, 'nothing went back into the index, because the action never asks git')
   assert.equal(app.calls.length, 3, 'a file inside the store went, so the tree that draws it reads again')
 
   const quiet = await withUntrack(untrackBody())
@@ -1373,7 +1370,7 @@ it('marks itself busy while the host works, and localises a refused call', async
   await flush()
 
   const busy = app.render()
-  assert.equal(token(busy, 'os_untrack').props.disabled, true, 'a second press while the first runs would fight the index')
+  assert.equal(token(busy, 'os_untrack').props.disabled, true, 'a second press while the first runs would rewrite the same files twice')
   assert.equal(token(busy, 'os_untrack').props['aria-busy'], true)
   assert.ok(texts(busy).join(' | ').includes('openSpecUntrackRunning'))
 
@@ -1394,23 +1391,16 @@ it('marks itself busy while the host works, and localises a refused call', async
   )
 })
 
-it('phrases a missing repository like the ignore button, and names an entry git refused', async () => {
-  const outside = await withUntrack({ repo: false, reason: 'not-a-repo', results: [] })
-  token(outside.shown, 'os_untrack').props.onClick()
-  await flush()
-  const text = texts(outside.app.render()).join(' | ')
-  assert.ok(text.includes('openSpecGitignoreNoRepo'), 'the same gate, the same sentence')
-  assert.equal(text.includes('openSpecUntrackUnlisted'), false, 'nothing was counted, because nothing was asked')
-
+it('names an entry whose file could not be rewritten', async () => {
   const refused = untrackBody()
-  refused.results[2].error = 'fatal: could not write index'
+  refused.results[2].error = 'EPERM: operation not permitted'
   const { app, shown } = await withUntrack(refused)
   token(shown, 'os_untrack').props.onClick()
   await flush()
   const tree = app.render()
   assert.ok(texts(tree).join(' | ').includes('openSpecUntrackPartial'), 'the section says the run was not whole')
-  const row = nodes(tree).find((node) => node.props?.title === 'fatal: could not write index')
-  assert.ok(row, 'and the entry carries git\u2019s own words rather than a paraphrase')
+  const row = nodes(tree).find((node) => node.props?.title === 'EPERM: operation not permitted')
+  assert.ok(row, 'and the entry carries the file system\u2019s own words rather than a paraphrase')
   assert.equal(row.children[0], '.agents/skills/demo')
 })
 

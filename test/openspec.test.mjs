@@ -644,11 +644,10 @@ function ignoreRepo(name) {
  * `ignored` for `check-ignore` hits, `tracked` for `ls-files` output. Every call
  * is recorded, so a test can say what git was *not* asked.
  *
- * `rmFails` and `addFails` stand in for a git that refuses: the first is the
- * untracking of the ignore action, the second the re-tracking of the un-ignore
- * one, and the text given as `addFails` travels as git's own stderr.
+ * `rmFails` stands in for a git that refuses the ignore action's untracking,
+ * and the text given travels as git's own stderr.
  */
-function scriptedGit(root, { ignored = [], tracked = [], rmFails = false, addFails = null } = {}) {
+function scriptedGit(root, { ignored = [], tracked = [], rmFails = false } = {}) {
   const calls = []
   const hit = (set, rel) => set.includes(rel)
   const runGit = async (args, options) => {
@@ -662,13 +661,14 @@ function scriptedGit(root, { ignored = [], tracked = [], rmFails = false, addFai
       if (rmFails) return { code: 128, stdout: '', stderr: "fatal: something's in the way\n" }
       return { code: 0, stdout: `rm '${rel}/file.md'\n`, stderr: '' }
     }
-    if (command === 'add') {
-      if (addFails !== null) return { code: 1, stdout: '', stderr: addFails }
-      return { code: 0, stdout: '', stderr: '' }
-    }
     throw new Error(`unexpected git call: ${args.join(' ')}`)
   }
   return { runGit, calls }
+}
+
+/** A git runner for actions that must not ask git anything: every call is a fault. */
+const neverGit = async (args) => {
+  throw new Error(`this action must not run git, but it called: ${args.join(' ')}`)
 }
 
 /** The ignore answer for one workspace, through the route with a scripted git. */
@@ -855,21 +855,19 @@ it('takes the ignore lines back with the entries they named', async () => {
 
 
 
-// --- the un-ignore action: the same walk backwards, and git takes it back ---
+// --- the un-ignore action: it edits the ignore files and asks git nothing ---
 
-it('undoes an ignore press: the files go, the entries come back to the index', async () => {
+it('undoes an ignore press: the files go, and git is asked nothing', async () => {
   const root = ignoreRepo('back')
   await ignore(root, scriptedGit(root))
 
-  const script = scriptedGit(root)
-  const body = await untrack(root, script)
+  const body = await untrack(root, { runGit: neverGit })
 
-  assert.equal(body.repo, true)
   assert.deepEqual(
     body.results.map((result) => result.rel),
     ['openspec', '.agents/skills/.openspec-target', '.agents/skills/openspec-propose'],
   )
-  assert.ok(body.results.every((result) => result.unlisted && result.retracked && !result.tracked && !result.stillIgnored))
+  assert.ok(body.results.every((result) => result.unlisted && !result.alreadyUnlisted))
   assert.deepEqual(body.files, [
     { rel: 'openspec/.gitignore', lines: 2, deleted: true },
     { rel: '.agents/skills/.gitignore', lines: 2, deleted: true },
@@ -877,20 +875,13 @@ it('undoes an ignore press: the files go, the entries come back to the index', a
   assert.equal(existsSync(join(root, 'openspec', '.gitignore')), false)
   assert.equal(existsSync(join(root, '.agents', 'skills', '.gitignore')), false)
   assert.equal(existsSync(join(root, 'openspec', 'config.yaml')), true, 'the take-back touches nothing but the ignore files')
-  const adds = script.calls.filter((call) => call.args[0] === 'add')
-  assert.deepEqual(adds.map((call) => call.args.join(' ')), [
-    'add -- openspec',
-    'add -- .agents/skills/.openspec-target',
-    'add -- .agents/skills/openspec-propose',
-  ], 'footprint order, and only after the writes \u2014 check-ignore reads the files off the disk')
-  assert.ok(adds.every((call) => call.cwd === root), 'the same root git named, as in the other direction')
 })
 
 it('prunes a shared file it did not make, keeping human lines word for word', async () => {
   const root = ignoreRepo('beside')
   write(join(root, '.agents', 'skills', '.gitignore'), '# Added by dsh-smkit: OpenSpec\r\nopenspec-propose/\r\n# hand-written\r\nreview/\r\n')
 
-  const body = await untrack(root, scriptedGit(root))
+  const body = await untrack(root, { runGit: neverGit })
 
   assert.equal(resultFor(body, '.agents/skills/openspec-propose').unlisted, true)
   assert.equal(resultFor(body, '.agents/skills/.openspec-target').alreadyUnlisted, true, 'the marker never had its own line here')
@@ -901,60 +892,30 @@ it('prunes a shared file it did not make, keeping human lines word for word', as
     '# hand-written\r\nreview/\r\n',
     'the heading follows its emptied block out, and the rest survives in the file\u2019s own end-of-line style',
   )
-  assert.ok(resultFor(body, 'openspec').retracked, 'the re-tracking runs across the entries regardless')
 })
 
-it('reports an already-tracked entry and a still-hidden one without touching either', async () => {
-  const root = ignoreRepo('held')
+it('leaves the index alone: no git command, however the entry is tracked', async () => {
+  const root = ignoreRepo('index')
   write(join(root, 'openspec', '.gitignore'), '# Added by dsh-smkit: OpenSpec\n*\n!.gitignore\n')
-  const script = scriptedGit(root, { tracked: ['openspec'], ignored: ['.agents/skills/.openspec-target'] })
-  const body = await untrack(root, script)
 
-  const store = resultFor(body, 'openspec')
-  assert.equal(store.unlisted, true, 'the file still came back: hiding is not the index\u2019s state')
-  assert.equal(store.tracked, true, 'it sits in the index \u2014 git add would stage the user\u2019s work beside it')
-  assert.equal(store.retracked, false)
-
-  const marker = resultFor(body, '.agents/skills/.openspec-target')
-  assert.equal(marker.stillIgnored, true, 'a rule this action does not own is reported, not forced past')
-  assert.equal(marker.retracked, false)
-  assert.equal(script.calls.some((call) => call.args.join(' ') === 'add -- openspec'), false)
-  assert.equal(script.calls.some((call) => call.args.join(' ') === 'add -- .agents/skills/.openspec-target'), false)
-  assert.ok(resultFor(body, '.agents/skills/openspec-propose').retracked, 'the third entry still gets its git add')
+  // Whether the entry sits in the index or is hidden by a stranger's rule is
+  // git's answer, not this action's business: the lines come out either way
+  // and nothing is staged, so a run that reached git at all would throw.
+  const body = await untrack(root, { runGit: neverGit })
+  assert.equal(resultFor(body, 'openspec').unlisted, true)
+  assert.equal(existsSync(join(root, 'openspec', '.gitignore')), false)
 })
 
-it('says so when git add itself refuses, and does not dress an ignore refusal up as a fault', async () => {
-  const refused = ignoreRepo('add-fails')
-  const body = await untrack(refused, scriptedGit(refused, { addFails: 'fatal: could not write index\n' }))
-  assert.ok(body.results.every((result) => typeof result.error === 'string' && /could not write index/.test(result.error)))
-  assert.equal(body.results.some((result) => result.retracked), false, 'a refused add is not a tracked entry')
-
-  const hidden = ignoreRepo('add-ignored')
-  const hiddenBody = await untrack(hidden, scriptedGit(hidden, {
-    addFails: 'The following paths are ignored by one of your .gitignore files:\nopenspec\nhint: Use -f if you really want to add them.\n',
-  }))
-  assert.ok(hiddenBody.results.every((result) => result.stillIgnored && result.error === undefined),
-    'the wider rule caught this after all: the same honest report as the pre-check gives')
-})
-
-it('gates the un-ignore on the repository too, before a file is taken back', async () => {
+it('still refuses a cwd that is not a path, and needs no repository', async () => {
   const root = ignoreRepo('gate-back')
   write(join(root, 'openspec', '.gitignore'), '# Added by dsh-smkit: OpenSpec\n*\n!.gitignore\n')
 
-  assert.deepEqual(
-    await untrack(root, { runGit: async () => ({ code: 128, stdout: '', stderr: 'fatal: not a git repository\n' }) }),
-    { repo: false, reason: 'not-a-repo', results: [] },
-  )
-  assert.equal(existsSync(join(root, 'openspec', '.gitignore')), true, 'outside a repo nothing is deleted either')
-
-  assert.deepEqual(
-    await untrack(root, { runGit: async () => { throw Object.assign(new Error('spawn git ENOENT'), { code: 'ENOENT' }) } }),
-    { repo: false, reason: 'no-git', results: [] },
-  )
+  const body = await untrack(root, { runGit: neverGit })
+  assert.equal(resultFor(body, 'openspec').unlisted, true, 'an ignore file this tool wrote can be taken back wherever it lives')
 
   const refused = await handle('POST', '/openspec/untrack', { cwd: 'ignore/gate-back' }, {
     logger,
-    runGit: async () => { throw new Error('a cwd the host cannot resolve must not reach git') },
+    runGit: neverGit,
   })
   assert.equal(refused.status, 400)
 })
