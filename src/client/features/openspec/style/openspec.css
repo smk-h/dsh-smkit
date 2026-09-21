@@ -432,6 +432,10 @@
 .os_foot {
   display: flex;
   justify-content: flex-end;
+  /* The footer can carry two buttons at once — the ignore next to a delete, or
+   * the initialise next to a delete in a half-removed workspace — and they are
+   * two different kinds of yes, so they do not touch. */
+  gap: 8px;
   flex: none;
   padding: 8px 10px;
   border-top: 1px solid var(--dsw-alias-border-l2);

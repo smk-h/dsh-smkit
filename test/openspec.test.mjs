@@ -1,6 +1,6 @@
 /**
  * The OpenSpec feature's host half, offline: what one workspace's footprint is,
- * and what removing it takes.
+ * and what removing it or handing it to git takes.
  *
  * The fixtures are a real scratch tree shaped the way `openspec init` writes:
  * the store (`specs/`, `changes/`, `config.yaml`, and a change's own delta
@@ -11,14 +11,19 @@
  * not carry the generated prefix, and one whose name merely contains
  * `openspec` further in.
  *
+ * git itself is never run here: the ignore action is driven by a scripted runner
+ * that answers the three questions per target from sets of paths, so a test can
+ * assert what git was asked *and* what it was not, and the files the action
+ * writes are the assertion's subject rather than a side effect of a real repo.
+ *
  * The checks are ordered: the reads come first, the write last, so the
  * fixtures are still on disk for the assertions about them.
  */
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { it } from 'node:test'
 
@@ -614,3 +619,175 @@ it('refuses a relative cwd on the update route with a plain 400', async () => {
   assert.deepEqual(runs, [])
   assert.match(answered.raw, /absolute workspace path/)
 })
+
+// --- the .gitignore action: git answers, the nearest file records -----------
+
+// Each case gets its own repository: the action writes, and a second case
+// reading a directory the first one left behind would be testing the fixtures
+// rather than the code. (`project` is no longer usable either — the delete test
+// above took its footprint away.)
+function ignoreRepo(name) {
+  const root = join(scratch, 'ignore', name)
+  mkdirSync(join(root, '.git'), { recursive: true })
+  write(join(root, 'openspec', 'config.yaml'), 'profile: core\n')
+  write(join(root, 'openspec', 'specs', 'auth', 'spec.md'))
+  write(join(root, '.agents', 'skills', 'openspec-propose', 'SKILL.md'), '---\nname: openspec-propose\n---\n')
+  write(join(root, '.agents', 'skills', '.openspec-target'), 'agents\n')
+  write(join(root, '.agents', 'skills', 'demo', 'SKILL.md'), '---\nname: demo\n---\n')
+  return root
+}
+
+
+/**
+ * A scripted {@link GitRunner}: `rev-parse` always names {@link root}, and the
+ * three per-target questions are answered from sets of repo-relative paths —
+ * `ignored` for `check-ignore` hits, `tracked` for `ls-files` output. Every call
+ * is recorded, so a test can say what git was *not* asked.
+ */
+function scriptedGit(root, { ignored = [], tracked = [], rmFails = false } = {}) {
+  const calls = []
+  const hit = (set, rel) => set.includes(rel)
+  const runGit = async (args, options) => {
+    calls.push({ args: [...args], cwd: options.cwd })
+    const [command, ...rest] = args
+    const rel = rest.at(-1)
+    if (command === 'rev-parse') return { code: root === null ? 128 : 0, stdout: root === null ? '' : `${root}\n`, stderr: '' }
+    if (command === 'check-ignore') return { code: hit(ignored, rel) ? 0 : 1, stdout: hit(ignored, rel) ? `${rel}\n` : '', stderr: '' }
+    if (command === 'ls-files') return { code: 0, stdout: hit(tracked, rel) ? `${rel}/file.md\n` : '', stderr: '' }
+    if (command === 'rm') {
+      if (rmFails) return { code: 128, stdout: '', stderr: "fatal: something's in the way\n" }
+      return { code: 0, stdout: `rm '${rel}/file.md'\n`, stderr: '' }
+    }
+    throw new Error(`unexpected git call: ${args.join(' ')}`)
+  }
+  return { runGit, calls }
+}
+
+/** The ignore answer for one workspace, through the route with a scripted git. */
+async function ignore(cwd, script) {
+  const answered = await handle('POST', '/openspec/gitignore', { cwd }, { logger, ...script })
+  assert.equal(answered.status, 200, 'the action answers in a 200, including when it refuses')
+  return answered.body
+}
+
+/** One entry of the answer, by the path the panel lists it under. */
+const resultFor = (body, rel) => body.results.find((result) => result.rel === rel)
+
+it('writes each line into the ignore file next to what it hides', async () => {
+  const root = ignoreRepo('once')
+  const script = scriptedGit(root)
+  const body = await ignore(root, script)
+
+  assert.equal(body.repo, true)
+  assert.deepEqual(
+    body.results.map((result) => result.rel),
+    ['openspec', '.agents/skills/.openspec-target', '.agents/skills/openspec-propose'],
+    'the store first, then every generated entry of every shared directory',
+  )
+  // The store hides itself with one wide line, in its own file: everything below
+  // it is OpenSpec's by definition, and the file is covered by its own `*`, so
+  // the directory leaves `git status` with nothing of its own to commit.
+  assert.equal(resultFor(body, 'openspec').ignoreFile, 'openspec/.gitignore')
+  assert.equal(resultFor(body, 'openspec').pattern, '*')
+  // A shared directory's file names one entry per line it carries — and a
+  // directory needs its trailing slash, which a plain file must not have.
+  assert.equal(resultFor(body, '.agents/skills/openspec-propose').ignoreFile, '.agents/skills/.gitignore')
+  assert.equal(resultFor(body, '.agents/skills/openspec-propose').pattern, 'openspec-propose/')
+  assert.equal(resultFor(body, '.agents/skills/.openspec-target').pattern, '.openspec-target')
+  assert.ok(body.results.every((result) => result.listed && !result.alreadyListed && !result.untracked))
+
+  assert.deepEqual(body.files, ['openspec/.gitignore', '.agents/skills/.gitignore'])
+  const storeFile = readFileSync(join(root, 'openspec', '.gitignore'), 'utf8')
+  assert.match(storeFile, /\n\*\n$/)
+  const shared = readFileSync(join(root, '.agents', 'skills', '.gitignore'), 'utf8')
+  assert.ok(shared.includes('openspec-propose/'), 'the skill directory')
+  assert.ok(shared.includes('.openspec-target'), 'and the ownership marker, in the file they share')
+  assert.ok(!shared.includes('demo'), 'the line never widens past the entries it speaks for')
+  assert.equal(existsSync(join(root, '.gitignore')), false, 'the project\u2019s own file is not this plugin\u2019s scratch pad')
+
+  // git was asked each question, at the repository root it named.
+  assert.deepEqual(script.calls[0], { args: ['rev-parse', '--show-toplevel'], cwd: root })
+  assert.deepEqual(script.calls[1], { args: ['check-ignore', '--', 'openspec'], cwd: root })
+  assert.ok(script.calls.some((call) => call.args.join(' ') === 'ls-files -- .agents/skills/openspec-propose'))
+  assert.ok(!script.calls.some((call) => call.args[0] === 'rm'), 'nothing tracked was not untracked')
+})
+
+it('untracks what sits in the index before listing it', async () => {
+  const root = ignoreRepo('tracked')
+  const script = scriptedGit(root, { tracked: ['openspec'] })
+  const body = await ignore(join(root, 'openspec'), script)
+
+  const store = resultFor(body, 'openspec')
+  assert.equal(store.untracked, true, 'the index held it, so ignoring alone would have changed nothing')
+  assert.equal(store.listed, true, 'and only then does the line go in')
+  const rm = script.calls.find((call) => call.args[0] === 'rm')
+  assert.deepEqual(rm.args, ['rm', '-r', '--cached', '--', 'openspec'], 'the working tree is left alone')
+  assert.equal(existsSync(join(root, 'openspec', 'config.yaml')), true)
+  // A workspace directory below the root addresses the same repository: the
+  // paths git is handed are repo-relative, which is what makes them safe.
+  assert.equal(script.calls.at(0).cwd, resolve(join(root, 'openspec')), 'the probe runs where the panel is standing')
+  assert.equal(rm.cwd, root, 'and the repair runs at the root git named')
+})
+
+it('reports an entry git already ignores without touching a file', async () => {
+  const root = ignoreRepo('partial')
+  const script = scriptedGit(root, { ignored: ['openspec', '.agents/skills/openspec-propose'] })
+  const body = await ignore(root, script)
+
+  assert.equal(resultFor(body, 'openspec').ignored, true)
+  assert.equal(resultFor(body, '.agents/skills/openspec-propose').ignored, true)
+  assert.equal(resultFor(body, '.agents/skills/.openspec-target').listed, true, 'the rest still gets its line')
+  assert.equal(body.files.length, 1)
+  // check-ignore exits on the first answer: no `ls-files`, no `rm`.
+  assert.ok(!script.calls.some((call) => call.args[0] === 'ls-files' && call.args[2] === 'openspec'))
+  assert.ok(!script.calls.some((call) => call.args[0] === 'rm'))
+})
+
+it('writes a missing line once, and never repeats one already there', async () => {
+  const root = ignoreRepo('twice')
+  const first = await ignore(root, scriptedGit(root))
+  const before = readFileSync(join(root, '.agents', 'skills', '.gitignore'), 'utf8')
+
+  // The second press asks the same questions and gets the same git answers (the
+  // scripted runner does not learn what was just written); the file itself is
+  // what stops the line from being added twice.
+  const again = await ignore(root, scriptedGit(root))
+  assert.equal(again.files, undefined, 'nothing was written, so there is nothing to name')
+  assert.ok(again.results.every((result) => result.alreadyListed && !result.listed))
+  assert.equal(readFileSync(join(root, '.agents', 'skills', '.gitignore'), 'utf8'), before, 'byte for byte')
+  assert.equal(first.files.length, 2)
+})
+
+it('keeps going when git refuses to untrack, and says so per entry', async () => {
+  const root = ignoreRepo('refusal')
+  const script = scriptedGit(root, { tracked: ['openspec'], rmFails: true })
+  const body = await ignore(root, script)
+
+  const store = resultFor(body, 'openspec')
+  assert.equal(store.listed, false, 'an entry still in the index would make the line a lie')
+  assert.match(store.error, /something's in the way/, 'git\u2019s own words travel')
+  assert.equal(resultFor(body, '.agents/skills/openspec-propose').listed, true, 'and the rest of the footprint is still handled')
+  assert.equal(existsSync(join(root, 'openspec', '.gitignore')), false)
+})
+
+it('gates the whole action on the repository being there at all', async () => {
+  const root = ignoreRepo('gate')
+  const notARepo = { runGit: async () => ({ code: 128, stdout: '', stderr: 'fatal: not a git repository\n' }) }
+  assert.deepEqual(await ignore(root, notARepo), { repo: false, reason: 'not-a-repo', results: [] })
+
+  // A missing `git` is its own answer: the one is an install step, the other is
+  // the situation.
+  const noGit = { runGit: async () => { throw Object.assign(new Error('spawn git ENOENT'), { code: 'ENOENT' }) } }
+  assert.deepEqual(await ignore(root, noGit), { repo: false, reason: 'no-git', results: [] })
+
+  assert.equal(existsSync(join(root, 'openspec', '.gitignore')), false, 'outside a repo nothing is written at all')
+  assert.equal(existsSync(join(root, '.agents', 'skills', '.gitignore')), false)
+
+  const refused = await handle('POST', '/openspec/gitignore', { cwd: 'ignore/gate' }, {
+    logger,
+    runGit: async () => { throw new Error('a cwd the host cannot resolve must not reach git') },
+  })
+  assert.equal(refused.status, 400)
+})
+
+

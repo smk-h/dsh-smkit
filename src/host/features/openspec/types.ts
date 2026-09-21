@@ -77,6 +77,27 @@ export type OpenSpecUpdateRunner = (
   onLine: OpenSpecLineEmitter,
 ) => Promise<OpenSpecRunResult>
 
+/**
+ * How one `git` command is run for the `.gitignore` action.
+ *
+ * The sibling of {@link OpenSpecRunner} shaped differently on purpose: for this
+ * feature a command's non-zero exit is an *answer*, not a failure — `git
+ * check-ignore` exits 1 to say "not ignored", which is the majority of what the
+ * action asks about — so the seam reports the exit code instead of throwing.
+ * Only a missing `git` binary itself rejects, which is how the panel learns to
+ * say "install git".
+ */
+export type GitRunner = (
+  args: readonly string[],
+  options: { cwd: string },
+) => Promise<{ code: number; stdout: string; stderr: string }>
+
+/** What the `.gitignore` action needs: the logger, and how to run git. */
+export interface OpenSpecIgnoreDeps {
+  logger: LoggerLike
+  runGit: GitRunner
+}
+
 /** What the OpenSpec route handler is built with. */
 export interface OpenSpecApiDeps {
   /** The host logger; a removal or a run is announced here. */
@@ -92,6 +113,11 @@ export interface OpenSpecApiDeps {
    * reason as `run`: production falls back to the real `spawn`-based streamer.
    */
   runUpdate?: OpenSpecUpdateRunner
+  /**
+   * The runner `POST /openspec/gitignore` queries through. Optional for the
+   * same reason: production falls back to the real `execFile`-based `runGit`.
+   */
+  runGit?: GitRunner
 }
 
 /** This feature's handler shape: the platform's, plus this feature's deps. */

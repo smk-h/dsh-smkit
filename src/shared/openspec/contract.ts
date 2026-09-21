@@ -191,6 +191,75 @@ export interface OpenSpecRemoveResponse {
   bytes: number
 }
 
+/* --------------------------------------------------- the .gitignore action */
+
+/**
+ * What one footprint entry looked like to git, and what this action did about
+ * it. The four flags are the user's questions in order, each answered once:
+ *
+ * - `ignored` — `git check-ignore` already weighs it ignored (by `.gitignore`,
+ *   `info/exclude` or the global file; a *tracked* path is not reported as
+ *   ignored, because ignore rules do not apply to tracked files, which is why
+ *   `untracked` exists); nothing was changed for it.
+ * - `untracked` — files under it sat in the index and were removed from it
+ *   (`git rm -r --cached`, working tree untouched); ignoring is meaningless
+ *   until this happens.
+ * - `listed` — its line was written into `ignoreFile` now.
+ * - `alreadyListed` — that file already said the same thing, so none was
+ *   written again; a tracked entry can carry both this and `untracked`.
+ *
+ * The line lives in the ignore file *next to what it hides* rather than in the
+ * repository's own — which is why `ignoreFile` and `pattern` travel per entry.
+ * The store hides itself with a `*` of its own, and a shared skill or command
+ * directory carries one line per generated entry it holds.
+ */
+export interface OpenSpecIgnoreResult {
+  /** Project-relative path of the entry, the spelling the panel lists. */
+  rel: string
+  /** Repo-relative path of the `.gitignore` that carries (or would carry) it. */
+  ignoreFile: string
+  /** The line inside that file: `*` for the store, otherwise the entry's name. */
+  pattern: string
+  ignored: boolean
+  untracked: boolean
+  listed: boolean
+  alreadyListed: boolean
+  /** The git command's own words, when answering for this entry failed. */
+  error?: string
+}
+
+/** `POST /openspec/gitignore` body. */
+export interface OpenSpecIgnoreRequest {
+  /** The workspace the panel is showing; the host derives the repo and targets. */
+  cwd: string
+}
+
+/** `POST /openspec/gitignore` answering with what each entry became. */
+export interface OpenSpecIgnoreResponse {
+  /**
+   * Whether `cwd` sits inside a git working tree at all. The whole action is
+   * gated on this: false means nothing was checked, untracked or written, and
+   * `results` is empty.
+   */
+  repo: boolean
+  /**
+   * Why there was no repo to work in, when `repo` is false: the `git` command
+   * is missing from PATH, or the directory sits outside any work tree. They
+   * need different sentences — one is an install step, the other is the answer.
+   */
+  reason?: 'no-git' | 'not-a-repo'
+  /**
+   * Repo-relative paths of the ignore files created or extended, in the order
+   * they were written. Absent when every line already sat where it belongs, so
+   * the panel can say "nothing was written" rather than list empty files; one
+   * directory's file covers every entry it holds, which is why this is a list of
+   * files and not one per entry (`results` carries that mapping as `ignoreFile`).
+   */
+  files?: string[]
+  /** Every footprint entry the action was offered for, in footprint order. */
+  results: OpenSpecIgnoreResult[]
+}
+
 /* ------------------------------------------------------- the tool upgrade */
 
 /**

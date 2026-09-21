@@ -91,6 +91,8 @@ import type {
 } from '../../platform/types'
 import type {
   OpenSpecArtifacts,
+  OpenSpecIgnoreResult,
+  OpenSpecIgnoreResponse,
   OpenSpecRemoveFailure,
   OpenSpecStore,
   OpenSpecTreeNode,
@@ -161,6 +163,31 @@ const PANEL_CLASS = 'os_panel'
  * never counted against this: it is still news.
  */
 const UPDATE_RECORD_VIEWS = 3
+
+/**
+ * Count one `.gitignore` answer the way its rows are drawn: per outcome, with
+ * the refusals kept whole because each one names its own path.
+ */
+function tallyIgnore(results: OpenSpecIgnoreResult[]): {
+  ignored: number
+  untracked: number
+  listed: number
+  alreadyListed: number
+  failed: OpenSpecIgnoreResult[]
+} {
+  const tally = { ignored: 0, untracked: 0, listed: 0, alreadyListed: 0, failed: [] as OpenSpecIgnoreResult[] }
+  for (const result of results) {
+    if (typeof result.error === 'string' && result.error !== '') {
+      tally.failed.push(result)
+      continue
+    }
+    if (result.ignored) tally.ignored += 1
+    if (result.untracked) tally.untracked += 1
+    if (result.listed) tally.listed += 1
+    if (result.alreadyListed) tally.alreadyListed += 1
+  }
+  return tally
+}
 
 /**
  * The refusals `openspec init` can answer with, as the copy that turns them
@@ -382,8 +409,19 @@ export function createOpenSpecButton(
     const [updateStatus, setUpdateStatus] = react.useState<OpenSpecUpdateStatus | ''>('')
     /** How many panel openings the finished record has already been shown on. */
     const [updateViews, setUpdateViews] = react.useState(0)
+    /**
+     * The last answer of the `.gitignore` action, kept until the next open.
+     *
+     * It is a receipt rather than a state: the footprint on disk did not
+     * change (which is why the read is not re-run after it), only git's
+     * opinion of it, and the panel shows what the action found — already
+     * ignored, untracked on the way, newly listed, or refused — so the user can
+     * see why a second press said less than the first.
+     */
+    const [gitignore, setGitignore] = react.useState<OpenSpecIgnoreResponse | null>(null)
     const { busy, error: removeError, run } = useAsyncAction(react)
     const { busy: initing, error: initError, run: runInit } = useAsyncAction(react)
+    const { busy: ignoring, error: ignoreError, run: runIgnore } = useAsyncAction(react)
     // Both hooks run on every render: they are ordinary store subscriptions
     // whose order must stay stable across renders.
     const cwd = useSessions(state => state.byId[sessionId]?.cwd)
@@ -492,6 +530,7 @@ export function createOpenSpecButton(
       setOpen(true)
       setFailures([])
       setInitOutput('')
+      setGitignore(null)
       // A finished upgrade's record is shown for `UPDATE_RECORD_VIEWS` openings
       // past the one it ran on, then dropped. Only arrivals count: the refresh
       // button re-reads in place, and the panel staying open is not a viewing.
@@ -560,6 +599,28 @@ export function createOpenSpecButton(
         if (!result.ok) return messageFor(result, 'openSpecInitFailed')
         setInitOutput(typeof result.body.output === 'string' ? result.body.output : '')
         await load()
+        return undefined
+      })
+    }
+
+    /**
+     * Hand the footprint to git's ignore list.
+     *
+     * The host asks git the three questions per target (ignored? tracked?
+     * already named?) and writes only the lines that are missing, so this is
+     * one call and one receipt — the answer *is* the outcome, and nothing here
+     * needs re-reading from disk: the workspace on disk is exactly what the
+     * panel already showed.
+     */
+    const ignore = (): void => {
+      void runIgnore(async () => {
+        if (target === undefined) return t('openSpecNoWorkspace')
+        const result = await api('/openspec/gitignore', {
+          method: 'POST',
+          body: JSON.stringify({ cwd: target }),
+        })
+        if (!result.ok) return messageFor(result, 'openSpecGitignoreFailed')
+        setGitignore(result.body as OpenSpecIgnoreResponse)
         return undefined
       })
     }
@@ -869,11 +930,58 @@ export function createOpenSpecButton(
     /** A finished upgrade that ended badly is an error; a running or good one is not. */
     const updateFailed =
       !updating && (updateStatus === 'failed' || updateStatus === 'npm-missing' || updateStatus === 'timeout')
+    // The `.gitignore` answer, once there is one: outside a repo the whole
+    // reply is the reason; inside one, the counts say what changed and what
+    // git had already decided on its own.
+    const ignoreTally = gitignore === null ? null : tallyIgnore(gitignore.results)
+    const gitignoreBlock = gitignore === null || ignoreTally === null ? null : (
+      <div className="os_section">
+        <div className={ignoreTally.failed.length === 0 ? 'os_sectionTitle' : 'os_error'}>
+          {t('openSpecGitignore')}
+        </div>
+        {!gitignore.repo ? (
+          <div className="os_note">
+            {gitignore.reason === 'no-git' ? t('openSpecGitignoreNoGit') : t('openSpecGitignoreNoRepo')}
+          </div>
+        ) : [
+          ...(ignoreTally.untracked === 0
+            ? []
+            : [<div className="os_note" key="untracked">{t('openSpecGitignoreUntracked', { count: ignoreTally.untracked })}</div>]),
+          ...(ignoreTally.listed === 0
+            ? []
+            : [<div className="os_note" key="listed">{t('openSpecGitignoreListed', { count: ignoreTally.listed })}</div>]),
+          ...(ignoreTally.ignored === 0
+            ? []
+            : [<div className="os_note" key="ignored">{t('openSpecGitignoreIgnored', { count: ignoreTally.ignored })}</div>]),
+          ...(ignoreTally.alreadyListed === 0
+            ? []
+            : [<div className="os_note" key="listed-before">{t('openSpecGitignoreListedBefore', { count: ignoreTally.alreadyListed })}</div>]),
+          // The conclusion of the counts above it: nothing was written, because
+          // nothing needed writing.
+          ...(ignoreTally.listed === 0 && ignoreTally.failed.length === 0
+            ? [<div className="os_note" key="nothing">{t('openSpecGitignoreNothing')}</div>]
+            : []),
+          ...(gitignore.files === undefined
+            ? []
+            : [<div className="os_note" key="files">{t('openSpecGitignoreFiles', { paths: gitignore.files.join(', ') })}</div>]),
+          ...(ignoreTally.failed.length === 0
+            ? []
+            : [
+              <div className="os_error" key="partial">{t('openSpecGitignorePartial')}</div>,
+              ...ignoreTally.failed.map(result => (
+                <div className="os_note" key={result.rel} title={result.error}>{result.rel}</div>
+              )),
+            ]),
+        ]}
+      </div>
+    )
     const messages = (
       <div className="os_messages">
         {error === '' ? null : <div className="os_error">{error}</div>}
         {initError === '' ? null : <div className="os_error">{initError}</div>}
+        {ignoreError === '' ? null : <div className="os_error">{ignoreError}</div>}
         {initing ? <div className="os_note">{t('openSpecInitRunning')}</div> : null}
+        {ignoring ? <div className="os_note">{t('openSpecGitignoreRunning')}</div> : null}
         {hasUpdate ? (
           <div className="os_section">
             <div className={updateFailed ? 'os_error' : 'os_sectionTitle'}>{updateLabel()}</div>
@@ -885,6 +993,7 @@ export function createOpenSpecButton(
             ) : null}
           </div>
         ) : null}
+        {gitignoreBlock}
         {failures.length === 0 ? null : (
           <div className="os_section">
             <div className="os_error">{t('openSpecPartial')}</div>
@@ -905,7 +1014,10 @@ export function createOpenSpecButton(
     const hasMessages =
       error !== '' ||
       initError !== '' ||
+      ignoreError !== '' ||
       initing ||
+      ignoring ||
+      gitignore !== null ||
       hasUpdate ||
       failures.length > 0 ||
       initOutput !== '' ||
@@ -932,13 +1044,19 @@ export function createOpenSpecButton(
       </div>
     )
 
-    // The two actions are keyed to what is actually there, not to which state
+    // The three actions are keyed to what is actually there, not to which state
     // the panel happens to be in: an uninitialised workspace offers the
-    // initialise, an initialised one offers the delete, and a workspace whose
-    // store was deleted by hand but whose skills are still installed offers
-    // both — which is the honest description of that half-removed state.
+    // initialise, a footprint of any size offers the delete, a store offers the
+    // ignore, and a workspace whose store was deleted by hand but whose skills
+    // are still installed offers two of them — which is the honest description
+    // of that half-removed state.
     const canInit = view !== undefined && !view.initialized
     const canRemove = view !== undefined && view.totalEntries > 0
+    // The ignore offer keys on the store being there, not on git: whether this
+    // is a repository at all is the host's question to answer (and to say), so
+    // a non-repo workspace still gets the button and gets told why nothing
+    // changed.
+    const canIgnore = view !== undefined && view.initialized
     const panel = (
       <div
         className={PANEL_CLASS}
@@ -1008,6 +1126,22 @@ export function createOpenSpecButton(
               onClick={initialize}
             >
               {t('openSpecInit')}
+            </button>
+          ) : null}
+          {canIgnore ? (
+            <button
+              className="mm_btn os_ignore"
+              type="button"
+              // What the click asks git, in the order it asks it — the whole
+              // point being that a tracked file is not ignored by a rule, so
+              // the untracking is part of the deal and must be said.
+              title={t('openSpecGitignoreCommand')}
+              disabled={ignoring}
+              data-pending={ignoring ? 'true' : undefined}
+              aria-busy={ignoring}
+              onClick={ignore}
+            >
+              {t('openSpecGitignore')}
             </button>
           ) : null}
           {canRemove ? (

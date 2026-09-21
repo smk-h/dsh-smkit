@@ -1,15 +1,16 @@
 /**
  * The OpenSpec API: `GET /openspec`, `POST /openspec/delete`,
- * `POST /openspec/init` and `POST /openspec/update`.
+ * `POST /openspec/init`, `POST /openspec/gitignore` and `POST /openspec/update`.
  *
- * Four routes, all inside the plugin's API prefix. The read answers with the
+ * Five routes, all inside the plugin's API prefix. The read answers with the
  * whole footprint (`OpenSpecView`); the writes are the panel's actions — remove
- * everything, create it, or upgrade the tool — and each answers with what it
- * did. The upgrade is the one that streams: it answers with an event stream of
- * the install's own output rather than a single result, because it is the one
- * action long enough that a silent wait would read as a hang.
+ * everything, create it, hand it to git's ignore list, or upgrade the tool — and
+ * each answers with what it did. The upgrade is the one that streams: it answers
+ * with an event stream of the install's own output rather than a single result,
+ * because it is the one action long enough that a silent wait would read as a
+ * hang.
  *
- * All four take exactly one input — the workspace directory, as `cwd` in the
+ * All five take exactly one input — the workspace directory, as `cwd` in the
  * query or in the body — and derive everything else themselves. That is the
  * point of the split: the browser half renders paths it was handed and can
  * never name one, so a stale panel, a hand-typed URL or a replayed request all
@@ -23,6 +24,7 @@
 import { isAbsolute } from 'node:path'
 import { readBody, sendJson } from '../../platform/util/http.js'
 import { OPENSPEC_CWD_ERROR } from './constants.js'
+import { ignoreOpenSpec, runGit } from './gitignore.js'
 import { initOpenSpec, runOpenSpec } from './init.js'
 import { inspectOpenSpec } from './inspect.js'
 import { removeOpenSpec } from './remove.js'
@@ -31,7 +33,7 @@ import type { OpenSpecHandler } from './types.js'
 import type { ResponseLike } from '../../platform/types.js'
 import type { OpenSpecUpdateEvent } from '../../../shared/openspec/contract.js'
 
-/** Read the one field either route carries, trimmed, or `''` when unusable. */
+/** Read the one field every route carries, trimmed, or `''` when unusable. */
 function cwdOf(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -82,6 +84,21 @@ export const handleOpenSpec: OpenSpecHandler = async (req, res, facts, deps) => 
     // itself was understood and acted on, and the caller needs the list of what
     // survived rather than a status code that says only "not all of it".
     sendJson(res, 200, await removeOpenSpec(cwd, deps.logger))
+    return true
+  }
+
+  if (req.method === 'POST' && rest === '/openspec/gitignore') {
+    const body = await readBody(req)
+    const cwd = cwdOf(body.cwd)
+    if (!isAbsolute(cwd)) {
+      sendJson(res, 400, { error: OPENSPEC_CWD_ERROR })
+      return true
+    }
+    // Always a 200 that describes itself, like the delete: "not a repo" and
+    // "git is not installed" are answers the panel has to say in its own words,
+    // not request failures, and a target whose git command refused is reported
+    // inside `results` rather than as a status code that hides the rest.
+    sendJson(res, 200, await ignoreOpenSpec(cwd, { logger: deps.logger, runGit: deps.runGit ?? runGit }))
     return true
   }
 

@@ -1064,3 +1064,168 @@ it('does not count openings while the upgrade is still running', async () => {
     assert.ok(text.includes('working'), `and the running log survives it`)
   }
 })
+
+// --- the .gitignore action --------------------------------------------------
+
+/** One answer of `POST /openspec/gitignore`, as the host would send it. */
+const ignoreBody = (over = {}) => ({
+  repo: true,
+  results: [
+    { rel: 'openspec', ignoreFile: 'openspec/.gitignore', pattern: '*', ignored: false, untracked: true, listed: true, alreadyListed: false },
+    { rel: '.agents/skills/openspec-propose', ignoreFile: '.agents/skills/.gitignore', pattern: 'openspec-propose/', ignored: true, untracked: false, listed: false, alreadyListed: false },
+    { rel: '.agents/skills/demo', ignoreFile: '.agents/skills/.gitignore', pattern: 'demo/', ignored: false, untracked: false, listed: false, alreadyListed: true },
+  ],
+  ...over,
+})
+
+/** A panel open on a footprint, with `POST /openspec/gitignore` answered by `body`. */
+async function withIgnore(body, fetch = routing()) {
+  const app = mount({
+    fetch: (url) => (url.includes('/openspec/gitignore') ? response(body) : fetch(url)),
+  })
+  const shown = await app.hover()
+  return { app, shown }
+}
+
+it('offers the ignore action on a footprint, and not on an empty workspace', async () => {
+  const app = mount({ fetch: routing() })
+  const shown = await app.hover()
+
+  const ignore = token(shown, 'os_ignore')
+  assert.ok(ignore, 'a workspace with a footprint can be handed to git')
+  assert.equal(ignore.props.title, 'openSpecGitignoreCommand', 'the tooltip says what it asks and where it writes')
+  assert.equal(ignore.props.disabled, false)
+  // The delete is the loud answer and this the quiet one; the footer holds both.
+  assert.ok(orderOf(shown, 'os_ignore') < orderOf(shown, 'os_remove'), 'the reversible action sits before the destructive one')
+
+  const emptyApp = mount({ fetch: routing(EMPTY) })
+  const empty = await emptyApp.hover()
+  assert.equal(token(empty, 'os_ignore'), undefined, 'a workspace with nothing in it has nothing to hide')
+})
+
+it('asks git once for the workspace and reports what each entry became', async () => {
+  const { app, shown } = await withIgnore(ignoreBody())
+  token(shown, 'os_ignore').props.onClick()
+  await flush()
+
+  assert.deepEqual(app.calls[1], { url: '/mcp-manager/api/openspec/gitignore', body: { cwd: '/work/app' } },
+    'the host re-derives the targets, so the panel names only the workspace')
+  const text = texts(app.render()).join(' | ')
+  assert.ok(text.includes('openSpecGitignoreUntracked({"count":1})'), 'one entry had to leave the index first')
+  assert.ok(text.includes('openSpecGitignoreListed({"count":1})'), 'one line was new')
+  assert.ok(text.includes('openSpecGitignoreIgnored({"count":1})'), 'one git already ignored on its own')
+  assert.ok(text.includes('openSpecGitignoreListedBefore({"count":1})'), 'one was already named, and was not repeated')
+  assert.equal(text.includes('openSpecGitignoreNothing'), false, 'a run that wrote something is not a run that wrote nothing')
+  assert.equal(app.calls.length, 2, 'the answer is the outcome: the footprint is not read back from disk')
+})
+
+it('names the ignore files it wrote, beside the entries they carry', async () => {
+  const { app, shown } = await withIgnore(ignoreBody({ files: ['openspec/.gitignore', '.agents/skills/.gitignore'] }))
+  token(shown, 'os_ignore').props.onClick()
+  await flush()
+
+  assert.ok(
+    texts(app.render()).join(' | ').includes('openSpecGitignoreFiles({"paths":"openspec/.gitignore, .agents/skills/.gitignore"})'),
+    'the receipt says which files changed, because they are not the project\u2019s own',
+  )
+})
+
+it('says so when there was nothing to hide and nothing was written', async () => {
+  const { app, shown } = await withIgnore({
+    repo: true,
+    results: [
+      { rel: 'openspec', ignoreFile: 'openspec/.gitignore', pattern: '*', ignored: true, untracked: false, listed: false, alreadyListed: false },
+    ],
+  })
+  token(shown, 'os_ignore').props.onClick()
+  await flush()
+
+  const text = texts(app.render()).join(' | ')
+  assert.ok(text.includes('openSpecGitignoreIgnored({"count":1})'))
+  assert.ok(text.includes('openSpecGitignoreNothing'), 'which is the answer, not a failure')
+})
+
+it('tells a workspace outside a repository from a machine without git', async () => {
+  const outside = await withIgnore({ repo: false, reason: 'not-a-repo', results: [] })
+  token(outside.shown, 'os_ignore').props.onClick()
+  await flush()
+  const outsideText = texts(outside.app.render()).join(' | ')
+  assert.ok(outsideText.includes('openSpecGitignoreNoRepo'))
+  assert.equal(outsideText.includes('openSpecGitignoreListed'), false, 'nothing was counted, because nothing was asked')
+
+  const noGit = await withIgnore({ repo: false, reason: 'no-git', results: [] })
+  token(noGit.shown, 'os_ignore').props.onClick()
+  await flush()
+  assert.ok(
+    texts(noGit.app.render()).join(' | ').includes('openSpecGitignoreNoGit'),
+    '"install git" and "this folder is not a repo" are different sentences',
+  )
+})
+
+it('names an entry git refused, with its own reason', async () => {
+  const refused = ignoreBody()
+  refused.results[0].error = "fatal: something's in the way"
+  const { app, shown } = await withIgnore(refused)
+  token(shown, 'os_ignore').props.onClick()
+  await flush()
+
+  const tree = app.render()
+  const text = texts(tree).join(' | ')
+  assert.ok(text.includes('openSpecGitignorePartial'), 'the section says the run was not whole')
+  const row = nodes(tree).find((node) => node.props?.title === "fatal: something's in the way")
+  assert.ok(row, 'and the entry carries the git command\u2019s own words rather than a paraphrase')
+  assert.equal(row.children[0], 'openspec')
+})
+
+it('marks itself busy while git is being asked, and localises a refused call', async () => {
+  let settle
+  const held = { promise: new Promise((resolve) => { settle = resolve }) }
+  const app = mount({
+    fetch: (url) => {
+      if (url.includes('/openspec/gitignore')) return held.promise
+      return response(VIEW)
+    },
+  })
+  token(await app.hover(), 'os_ignore').props.onClick()
+  await flush()
+
+  const busy = app.render()
+  assert.equal(token(busy, 'os_ignore').props.disabled, true, 'a second press while the first is running would ask git twice')
+  assert.equal(token(busy, 'os_ignore').props['aria-busy'], true)
+  assert.ok(texts(busy).join(' | ').includes('openSpecGitignoreRunning'))
+
+  settle(response(ignoreBody({ files: ['openspec/.gitignore'] })))
+  await flush()
+  const done = app.render()
+  assert.equal(token(done, 'os_ignore').props.disabled, false, 'the button is itself again once the answer is in')
+  assert.ok(texts(done).join(' | ').includes('openSpecGitignoreFiles'))
+
+  const failed = mount({
+    fetch: (url) => (url.includes('/openspec/gitignore')
+      ? response({ error: '' }, false, 500)
+      : response(VIEW)),
+  })
+  token(await failed.hover(), 'os_ignore').props.onClick()
+  await flush()
+  assert.ok(
+    texts(failed.render()).join(' | ').includes('openSpecGitignoreFailed({"status":500})'),
+    'a call that never got an answer says so with its status',
+  )
+})
+
+it('clears its answer when the panel opens again', async () => {
+  const { app, shown } = await withIgnore(ignoreBody())
+  token(shown, 'os_ignore').props.onClick()
+  await flush()
+  assert.ok(texts(app.render()).join(' | ').includes('openSpecGitignore'), 'the receipt is showing')
+
+  app.leave()
+  app.runTimers()
+  const again = await app.hover()
+  assert.equal(
+    texts(again).join(' | ').includes('openSpecGitignoreUntracked'),
+    false,
+    'last time\u2019s answer is not this opening\u2019s news',
+  )
+})
+
