@@ -1274,9 +1274,13 @@ export function createOpenSpecButton(
           <AtomIcon size={14} />
           <span className="os_title">{t('manageOpenSpec')}</span>
           {view === undefined ? null : (
-            <span className="os_chip" data-ready={view.initialized ? 'true' : 'false'}>
-              {view.initialized ? t('openSpecStatusReady') : t('openSpecStatusAbsent')}
-            </span>
+            <span
+              className="os_dot"
+              data-ready={view.initialized ? 'true' : 'false'}
+              role="img"
+              aria-label={view.initialized ? t('openSpecStatusReady') : t('openSpecStatusAbsent')}
+              title={view.initialized ? t('openSpecStatusReady') : t('openSpecStatusAbsent')}
+            />
           )}
           {view === undefined ? null : (
             <button

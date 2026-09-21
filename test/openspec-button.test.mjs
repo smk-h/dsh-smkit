@@ -539,7 +539,22 @@ it('opens on hover, right-aligned under the control, and shows the footprint', a
   assert.equal(style.top, '54px')
 
   const text = texts(shown).join(' | ')
-  assert.ok(text.includes('openSpecStatusReady'), 'the init status is the panel\u2019s answer')
+  assert.equal(
+    token(shown, 'os_dot').props.title,
+    'openSpecStatusReady',
+    'the init status is the panel\u2019s answer, worn as a dot',
+  )
+  const dot = token(shown, 'os_dot')
+  assert.equal(
+    dot.props['aria-label'],
+    'openSpecStatusReady',
+    'a dot with no words still names itself to a screen reader',
+  )
+  assert.equal(
+    text.includes('openSpecStatusReady'),
+    false,
+    'and it is not spelled out in words beside the title',
+  )
   assert.ok(text.includes('/work/app'), 'the project root is named')
   assert.ok(
     text.includes('openSpecFiles') && text.includes('openSpecDirs'),
@@ -584,7 +599,7 @@ it('opens on hover, right-aligned under the control, and shows the footprint', a
   rowFor(deep, 'os_dirRow', 'changes').props.onClick()
   assert.deepEqual(branchesOf(app.render()), ['├── ', '└── '])
 
-  const chip = nodes(shown).find((node) => node.props?.className === 'os_chip')
+  const chip = nodes(shown).find((node) => node.props?.className === 'os_dot')
   assert.equal(chip.props['data-ready'], 'true')
 })
 
@@ -725,10 +740,11 @@ it('offers the initialise where there is nothing to delete', async () => {
   const shown = await app.hover()
 
   const text = texts(shown).join(' | ')
-  assert.ok(text.includes('openSpecStatusAbsent'))
-  assert.ok(text.includes('openSpecEmpty'), 'the panel says how to create one')
-  const chip = nodes(shown).find((node) => node.props?.className === 'os_chip')
+  assert.ok(text.includes('openSpecStatusAbsent'), 'the body says what is missing in words')
+  const chip = nodes(shown).find((node) => node.props?.className === 'os_dot')
   assert.equal(chip.props['data-ready'], 'false')
+  assert.equal(chip.props.title, 'openSpecStatusAbsent', 'and the dot carries the same answer as its hover')
+  assert.ok(text.includes('openSpecEmpty'), 'the panel says how to create one')
   assert.equal(token(shown, 'os_remove'), undefined, 'there is nothing to delete, so nothing offers it')
 
   const init = token(shown, 'os_init')
@@ -759,7 +775,11 @@ it('runs openspec init for the workspace, then reads the store back', async () =
   const text = texts(after).join(' | ')
   assert.ok(text.includes('openSpecInitDone'), 'the CLI\u2019s own output is shown')
   assert.ok(text.includes('Created openspec/'))
-  assert.ok(text.includes('openSpecStatusReady'), 'and the workspace is initialised now')
+  assert.equal(
+    token(after, 'os_dot').props['data-ready'],
+    'true',
+    'and the workspace is initialised now',
+  )
   assert.ok(token(after, 'os_remove'), 'so the delete takes the initialise\u2019s place')
   assert.equal(token(after, 'os_init'), undefined)
 })
@@ -804,7 +824,7 @@ it('reports a failed read inside the panel rather than as an empty workspace', a
   const shown = await app.hover()
 
   assert.ok(texts(shown).join(' | ').includes('openSpecLoadFailed'))
-  assert.equal(withClass(shown, 'os_chip'), undefined, 'and claims no status it could not read')
+  assert.equal(withClass(shown, 'os_dot'), undefined, 'and claims no status it could not read')
 })
 
 it('survives the page scrolling under it, and follows the control instead', async () => {
@@ -997,15 +1017,15 @@ it('does not open for a control that reflowed under a still pointer', () => {
 
 // --- the head's update button ------------------------------------------------
 
-it('sits between the status chip and the refresh button, showing the command it runs', async () => {
+it('sits between the status dot and the refresh button, showing the command it runs', async () => {
   const app = mount({ fetch: routing() })
   const shown = await app.hover()
 
-  const chip = token(shown, 'os_chip')
+  const chip = token(shown, 'os_dot')
   const update = token(shown, 'os_update')
   const refresh = token(shown, 'os_refresh')
   assert.ok(chip && update && refresh, 'the head carries all three')
-  assert.ok(orderOf(shown, 'os_chip') < orderOf(shown, 'os_update'), 'the update sits after the chip')
+  assert.ok(orderOf(shown, 'os_dot') < orderOf(shown, 'os_update'), 'the update sits after the dot')
   assert.ok(orderOf(shown, 'os_update') < orderOf(shown, 'os_refresh'), 'and before the refresh button')
   // Offered as a green primary button, the same shape as the initialise.
   assert.ok(String(update.props.className).includes('primary'))
