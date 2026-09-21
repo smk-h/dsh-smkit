@@ -790,4 +790,52 @@ it('gates the whole action on the repository being there at all', async () => {
   assert.equal(refused.status, 400)
 })
 
+// --- the two halves meet: a delete takes back what the ignore action wrote ---
+
+it('takes the ignore lines back with the entries they named', async () => {
+  const root = ignoreRepo('removed')
+  // Three shapes of ignore file, all written by the action above: one holding
+  // nothing but OpenSpec's lines, one holding those lines beside someone else's
+  // rules, and one in the file's own CRLF style.
+  write(join(root, '.agents', 'skills', '.gitignore'), '# Added by dsh-smkit: OpenSpec\nopenspec-propose/\n.openspec-target\n')
+  write(join(root, '.claude', 'commands', 'opsx', 'propose.md'), 'propose\n')
+  write(join(root, '.claude', 'commands', '.gitignore'), '# Added by dsh-smkit: OpenSpec\nopsx/\n# hand-written\nreview/\n')
+  write(join(root, '.cursor', 'commands', 'opsx-apply.md'), 'apply\n')
+  write(join(root, '.cursor', 'commands', '.gitignore'), '# Added by dsh-smkit: OpenSpec\r\nopsx-apply.md\r\nkeep me\r\n')
+  write(join(root, 'openspec', '.gitignore'), '# Added by dsh-smkit: OpenSpec\n*\n!.gitignore\n')
+
+  const answered = await call('POST', '/openspec/delete', { cwd: root })
+  assert.equal(answered.status, 200)
+  assert.deepEqual(answered.body.failed, [], 'every target here is reachable')
+  assert.deepEqual(answered.body.ignoreFiles, [
+    { rel: '.claude/commands/.gitignore', lines: 1, deleted: false },
+    { rel: '.cursor/commands/.gitignore', lines: 1, deleted: false },
+    { rel: '.agents/skills/.gitignore', lines: 2, deleted: true },
+  ], 'one report per directory the delete touched, in the order it removed them')
+
+  assert.equal(existsSync(join(root, '.agents', 'skills', '.gitignore')), false,
+    'a file that named nothing but OpenSpec goes with what it named')
+  assert.equal(existsSync(join(root, 'openspec')), false, 'the store\u2019s own file goes with the directory it hides')
+  assert.equal(
+    readFileSync(join(root, '.claude', 'commands', '.gitignore'), 'utf8'),
+    '# hand-written\nreview/\n',
+    'the rest of the file survives word for word, and the heading with nothing under it does not',
+  )
+  assert.equal(
+    readFileSync(join(root, '.cursor', 'commands', '.gitignore'), 'utf8'),
+    'keep me\r\n',
+    'and so does the end-of-line style the file was written in',
+  )
+
+  // What is not OpenSpec's is exactly where it was.
+  assert.equal(existsSync(join(root, '.agents', 'skills', 'demo', 'SKILL.md')), true)
+  assert.equal(existsSync(join(root, '.claude', 'commands')), true)
+  assert.equal(existsSync(join(root, '.agents', 'skills')), true, 'a shared directory is never a target, tidy or not')
+
+  // A delete over an empty footprint has no lines left to take back.
+  const again = await call('POST', '/openspec/delete', { cwd: root })
+  assert.equal(again.body.ignoreFiles, undefined, 'nothing of ours was there to report')
+})
+
+
 

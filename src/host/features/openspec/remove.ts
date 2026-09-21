@@ -34,15 +34,25 @@
  * attempted, failures are collected with a reason, and the panel shows what
  * survived. A half-removed OpenSpec is a state a user can act on; a delete that
  * stopped at the first surprise is not.
+ *
+ * **What hid an entry is tidied after it.** The ignore action writes one line
+ * per generated entry into the directory holding it, so a delete that removed
+ * the entries and left the lines would be reporting names that no longer mean
+ * anything — and hiding whatever lands in that directory next. Each affected
+ * directory's `.gitignore` is therefore re-read and pruned, and a file holding
+ * nothing but what this feature wrote into it is removed whole rather than left
+ * as an empty shell (see `pruneIgnoreFile`).
  */
 
-import { lstat, readlink, rmdir, rm, unlink } from 'node:fs/promises'
-import { basename, dirname, relative, sep } from 'node:path'
+import { lstat, readFile, readlink, rmdir, rm, unlink, writeFile } from 'node:fs/promises'
+import { basename, dirname, join, relative, sep } from 'node:path'
 import { LOG_PREFIX } from '../../platform/constants.js'
 import { isRecord, toErrorMessage } from '../../platform/util/text.js'
 import {
   COMMAND_PREFIX,
+  IGNORE_FILE_NAME,
   MARKER_FILE_NAME,
+  OPENSPEC_IGNORE_HEADER,
   OPENSPEC_MISSING_ERROR,
   OPENSPEC_NOT_OPENSPEC_ERROR,
   OPENSPEC_OUTSIDE_ERROR,
@@ -51,6 +61,7 @@ import {
 } from './constants.js'
 import { inspectOpenSpec, isInsideRoot } from './inspect.js'
 import type {
+  OpenSpecIgnoreCleanup,
   OpenSpecRemoveFailure,
   OpenSpecRemoveResponse,
 } from '../../../shared/openspec/contract.js'
@@ -163,6 +174,73 @@ async function removeEntry(path: string): Promise<'link' | 'file' | 'directory'>
   return 'directory'
 }
 
+/** Whether one ignore line speaks for an OpenSpec-generated entry. */
+function isOpenspecRule(rule: string): boolean {
+  const name = rule.replace(/\/$/, '')
+  return name.startsWith(SKILL_PREFIX) || name.startsWith(COMMAND_PREFIX) || name === MARKER_FILE_NAME
+}
+
+/**
+ * Take the lines of removed entries out of the ignore file of the directory that
+ * held them — and take the file with them when nothing else was in it.
+ *
+ * A `.gitignore` written beside the footprint says who owns what: the panel's
+ * ignore action puts one line per generated entry into the shared directory's
+ * own file, and a delete that left those lines behind would describe entries
+ * that no longer exist and, worse, hide whatever name comes next. So each
+ * directory whose entries were removed is re-read here, and the lines that named
+ * them come out — in either spelling, since git reads `openspec-propose` and
+ * `openspec-propose/` as the same entry.
+ *
+ * Two things then follow from what is left:
+ *
+ * - no OpenSpec-shaped line remains, so the `# Added by dsh-smkit: OpenSpec`
+ *   heading has no block left to head and is taken back too;
+ * - no line with content remains at all, which means the file held nothing but
+ *   what this pair of actions wrote into it, so the file itself goes rather than
+ *   surviving as a comment and some blank lines.
+ *
+ * Anything else anyone wrote — their rules, their comments — keeps the file, and
+ * keeps its words intact: the lines that stay are written back as they were
+ * read, in the file's own end-of-line style.
+ *
+ * @param root - the project root, for the path the answer reports.
+ * @param dir - the absolute path of the directory whose file is being tidied.
+ * @param names - the base names of the entries actually removed from it.
+ * @returns what came out, or `null` when there was nothing of ours here.
+ */
+async function pruneIgnoreFile(root: string, dir: string, names: readonly string[]): Promise<OpenSpecIgnoreCleanup | null> {
+  const file = join(dir, IGNORE_FILE_NAME)
+  let text: string
+  try {
+    text = await readFile(file, 'utf8')
+  } catch {
+    // No file at all: the entries were git's to ask about, never this
+    // directory's to describe, so there is nothing to take back.
+    return null
+  }
+  const gone = new Set(names)
+  const lines = text.split(/\r?\n/)
+  const kept = lines.filter((line) => !gone.has(line.trim().replace(/\/$/, '')))
+  const dropped = lines.length - kept.length
+  const heading = (line: string): boolean => line.trim() === OPENSPEC_IGNORE_HEADER
+  // The heading heads our block; once the block is gone it is a signature over
+  // nothing, which is ours to remove and nothing else's to lose.
+  const left = kept.some((line) => isOpenspecRule(line.trim())) ? kept : kept.filter((line) => !heading(line))
+  if (dropped === 0 && left.length === kept.length) return null
+  const rel = relative(root, file).split(sep).join('/')
+  if (left.every((line) => line.trim() === '')) {
+    await unlink(file)
+    return { rel, lines: dropped, deleted: true }
+  }
+  while (left.length > 0 && left[left.length - 1].trim() === '') left.pop()
+  const eol = text.includes('\r\n') ? '\r\n' : '\n'
+  const out = `${left.join(eol)}${eol}`
+  if (out === text) return null
+  await writeFile(file, out, 'utf8')
+  return { rel, lines: dropped, deleted: false }
+}
+
 /**
  * Remove everything OpenSpec owns in one workspace — and only that.
  *
@@ -209,6 +287,8 @@ export async function removeOpenSpec(
 
   const removed: string[] = []
   const failed: OpenSpecRemoveFailure[] = []
+  /** The base names actually removed, per directory that held them: what its ignore file must stop naming. */
+  const goneByDir = new Map<string, string[]>()
   let bytes = 0
   for (const target of targets) {
     const refusal = removalRefusal(root, target)
@@ -220,6 +300,12 @@ export async function removeOpenSpec(
       const what = await removeEntry(target.path)
       removed.push(target.rel)
       bytes += target.bytes
+      if (target.parent !== null) {
+        const gone = goneByDir.get(target.parent)
+        const name = basename(target.path)
+        if (gone === undefined) goneByDir.set(target.parent, [name])
+        else gone.push(name)
+      }
       logger.info(`${LOG_PREFIX}: removed OpenSpec ${what} at ${target.path}`)
     } catch (error) {
       // Gone between the inspection and the delete (another window, a hand-run
@@ -230,5 +316,25 @@ export async function removeOpenSpec(
       })
     }
   }
-  return { removed, failed, bytes }
+
+  // The tidy-up, after the removals rather than among them: an entry that
+  // survived is still named by the line that hides it, and an entry that is gone
+  // must stop being named.
+  const ignoreFiles: OpenSpecIgnoreCleanup[] = []
+  for (const [dir, names] of goneByDir) {
+    try {
+      const cleaned = await pruneIgnoreFile(root, dir, names)
+      if (cleaned === null) continue
+      ignoreFiles.push(cleaned)
+      logger.info(
+        `${LOG_PREFIX}: ${cleaned.deleted ? 'removed' : `pruned ${cleaned.lines} OpenSpec line(s) from`} ${cleaned.rel}`,
+      )
+    } catch (error) {
+      // The entries are gone; the file that used to name them is still there
+      // with its stale lines, which is exactly the kind of survivor the panel
+      // lists rather than hides in a log.
+      failed.push({ rel: relative(root, join(dir, IGNORE_FILE_NAME)).split(sep).join('/'), error: toErrorMessage(error) })
+    }
+  }
+  return { removed, failed, bytes, ...(ignoreFiles.length > 0 ? { ignoreFiles } : {}) }
 }

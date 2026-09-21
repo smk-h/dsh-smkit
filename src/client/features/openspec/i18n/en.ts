@@ -64,6 +64,9 @@ export const OPENSPEC_LOCALE_EN: LocaleDict = {
   "openSpecUpdateExpiry": "hidden after {left} of {total} more openings",
   "openSpecUpdateExpiryLast": "shown for the last time",
   "openSpecRemove": "Delete OpenSpec and its skills",
-  "openSpecConfirm": "This deletes the openspec/ directory and the OpenSpec-generated entries listed above (skills named openspec-*, commands named opsx*). Everything else in those directories belongs to someone else and is left alone. It cannot be undone.",
+  "openSpecConfirm": "This deletes the openspec/ directory and the OpenSpec-generated entries listed above (skills named openspec-*, commands named opsx*), and takes the lines naming them out of each directory\u2019s own .gitignore \u2014 a file that held nothing but those lines is deleted with them. Everything else in those directories belongs to someone else and is left alone. It cannot be undone.",
+  "openSpecIgnoreCleaned": "Ignore files tidied",
+  "openSpecIgnoreFilePruned": "{path}: {count} line(s) taken out",
+  "openSpecIgnoreFileDeleted": "{path}: it named nothing but OpenSpec, so it was deleted",
   "openSpecPartial": "Some of it could not be deleted; see below",
 }

@@ -1229,3 +1229,42 @@ it('clears its answer when the panel opens again', async () => {
   )
 })
 
+it('says what the delete took back out of the ignore files', async () => {
+  const app = mount({
+    fetch: routing(VIEW, {
+      removed: ['openspec', '.agents/skills/openspec-propose'],
+      failed: [],
+      bytes: 300,
+      ignoreFiles: [
+        { rel: '.agents/skills/.gitignore', lines: 2, deleted: true },
+        { rel: '.claude/commands/.gitignore', lines: 1, deleted: false },
+      ],
+    }),
+  })
+  await app.hover()
+  nodes(app.render()).find((node) => node.props?.className === 'mm_btn danger os_remove').props.onClick()
+  nodes(app.render()).find((node) => node.props?.className === 'mm_btn danger').props.onClick()
+  await flush()
+
+  const text = texts(app.render()).join(' | ')
+  assert.ok(text.includes('openSpecIgnoreCleaned'), 'the delete reports what it tidied, not only what it removed')
+  assert.ok(
+    text.includes('openSpecIgnoreFileDeleted({"path":".agents/skills/.gitignore"})'),
+    'one file went with the lines it held',
+  )
+  assert.ok(
+    text.includes('openSpecIgnoreFilePruned({"path":".claude/commands/.gitignore","count":1})'),
+    'the other only lost the lines that named what is gone',
+  )
+  assert.equal(text.includes('openSpecPartial'), false, 'a delete that finished says nothing survived')
+
+  app.leave()
+  app.runTimers()
+  const again = await app.hover()
+  assert.equal(
+    texts(again).join(' | ').includes('openSpecIgnoreCleaned'),
+    false,
+    'the tidy-up is this opening\u2019s news, not every opening\u2019s',
+  )
+})
+

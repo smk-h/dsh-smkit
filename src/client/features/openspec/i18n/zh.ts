@@ -67,6 +67,9 @@ export const OPENSPEC_LOCALE_ZH: LocaleDict = {
   "openSpecUpdateExpiry": "将在 {left}/{total} 次打开后不再显示",
   "openSpecUpdateExpiryLast": "本次之后不再显示",
   "openSpecRemove": "删除 OpenSpec 与技能",
-  "openSpecConfirm": "将删除 openspec/ 目录，以及下列 OpenSpec 生成的条目（技能目录以 openspec- 开头，命令以 opsx 开头）。同一目录下其他内容不属于 OpenSpec，不会被改动。此操作不可恢复。",
+  "openSpecConfirm": "将删除 openspec/ 目录，以及下列 OpenSpec 生成的条目（技能目录以 openspec- 开头，命令以 opsx 开头），并顺手从各目录自己的 .gitignore 里去掉指向这些条目的行——若那个文件只写了这些内容，连文件一起删除。同一目录下其他内容不属于 OpenSpec，不会被改动。此操作不可恢复。",
+  "openSpecIgnoreCleaned": "已清理忽略文件",
+  "openSpecIgnoreFilePruned": "{path}：去掉 {count} 行",
+  "openSpecIgnoreFileDeleted": "{path}：只写着 OpenSpec 的内容，已删除整个文件",
   "openSpecPartial": "有些内容没能删除，详见下方",
 }

@@ -414,8 +414,8 @@ export async function inspectOpenSpec(cwd: string): Promise<OpenSpecView> {
   const groups = await Promise.all(groupSeeds().map((seed) => readGroup(root, seed, state)))
   const artifacts = groups.filter((group): group is OpenSpecArtifacts => group !== null)
   // One stable order for the panel's list, whatever order the tool table
-  // happened to declare its directories in: skills, then commands, then extras,
-  // each by path.
+  // happened to declare its directories in: by kind alphabetically (commands,
+  // then extras, then skills), each kind by path, each path by its first tool.
   artifacts.sort(
     (a, b) => a.kind.localeCompare(b.kind) || a.rel.localeCompare(b.rel) || a.tools[0].localeCompare(b.tools[0]),
   )

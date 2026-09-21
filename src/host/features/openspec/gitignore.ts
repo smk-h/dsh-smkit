@@ -52,6 +52,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join, relative, resolve } from 'node:path'
 import { LOG_PREFIX } from '../../platform/constants.js'
 import { toErrorMessage } from '../../platform/util/text.js'
+import { IGNORE_FILE_NAME, OPENSPEC_IGNORE_HEADER } from './constants.js'
 import { inspectOpenSpec, isInsideRoot } from './inspect.js'
 import type {
   OpenSpecIgnoreResponse,
@@ -97,7 +98,7 @@ function targetsOf(root: string, view: Awaited<ReturnType<typeof inspectOpenSpec
     // the way out, because an ignore file that hides itself cannot be committed,
     // and a private rule of this tool would then have to be re-derived on every
     // other machine instead of travelling with the repository.
-    targets.push(of(view.store.path, join(view.store.path, '.gitignore'), ['*', '!.gitignore']))
+    targets.push(of(view.store.path, join(view.store.path, IGNORE_FILE_NAME), ['*', '!.gitignore']))
   }
   for (const group of view.artifacts) {
     for (const entry of group.entries) {
@@ -105,7 +106,7 @@ function targetsOf(root: string, view: Awaited<ReturnType<typeof inspectOpenSpec
       // it — the directory is shared with material that is not OpenSpec's, so
       // the line may not be wider than the entry it speaks for.
       targets.push(
-        of(entry.path, join(group.path, '.gitignore'), [entry.kind === 'dir' ? `${entry.name}/` : entry.name]),
+        of(entry.path, join(group.path, IGNORE_FILE_NAME), [entry.kind === 'dir' ? `${entry.name}/` : entry.name]),
       )
     }
   }
@@ -201,7 +202,7 @@ export async function ignoreOpenSpec(cwd: string, deps: OpenSpecIgnoreDeps): Pro
     const existing = await readFile(file, 'utf8').catch(() => '')
     // The lines join whatever the file already said under one marker comment, so
     // the next dedup pass — and a human skimming the file — both find them.
-    const block = ['# Added by dsh-smkit: OpenSpec', ...patterns].join('\n')
+    const block = [OPENSPEC_IGNORE_HEADER, ...patterns].join('\n')
     const tail = existing === '' || existing.endsWith('\n') ? '' : '\n'
     await writeFile(file, `${existing}${tail}${block}\n`, 'utf8')
     files.push(relative(root, file).split('\\').join('/'))

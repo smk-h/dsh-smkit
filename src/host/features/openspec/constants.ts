@@ -114,6 +114,19 @@ export const COMMAND_PREFIX = 'opsx'
  */
 export const MARKER_FILE_NAME = '.openspec-target'
 
+/** The name of the ignore file one directory keeps for the entries it holds. */
+export const IGNORE_FILE_NAME = '.gitignore'
+
+/**
+ * The comment heading the lines this feature writes into a directory's own
+ * `.gitignore`.
+ *
+ * It is a signature as much as a comment: it is how the file says which block
+ * came from `dsh-smkit`, and how a later removal knows the block is its business
+ * — and when every line under it is gone, the heading goes with them.
+ */
+export const OPENSPEC_IGNORE_HEADER = '# Added by dsh-smkit: OpenSpec'
+
 /** One entry of the store's known layout. */
 export interface OpenSpecStorePart {
   /** The name inside `openspec/`. */

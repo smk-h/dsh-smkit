@@ -91,6 +91,7 @@ import type {
 } from '../../platform/types'
 import type {
   OpenSpecArtifacts,
+  OpenSpecIgnoreCleanup,
   OpenSpecIgnoreResult,
   OpenSpecIgnoreResponse,
   OpenSpecRemoveFailure,
@@ -380,6 +381,15 @@ export function createOpenSpecButton(
     const [reading, setReading] = react.useState(false)
     const [error, setError] = react.useState('')
     const [failures, setFailures] = react.useState<OpenSpecRemoveFailure[]>([])
+    /**
+     * The ignore files the last delete tidied, kept until the next open.
+     *
+     * A delete that removes an entry and leaves the line that hid it behind is
+     * worth saying out loud, and so is the file that went with its lines: neither
+     * is on the footprint the panel re-reads afterwards, so the receipt is the
+     * only place a user would ever see it.
+     */
+    const [pruned, setPruned] = react.useState<OpenSpecIgnoreCleanup[]>([])
     /** Whether the generated-entry list is showing; closed until it is asked for. */
     const [artifactsOpen, setArtifactsOpen] = react.useState(false)
     /**
@@ -529,6 +539,7 @@ export function createOpenSpecButton(
       setAnchor({ node, box })
       setOpen(true)
       setFailures([])
+      setPruned([])
       setInitOutput('')
       setGitignore(null)
       // A finished upgrade's record is shown for `UPDATE_RECORD_VIEWS` openings
@@ -572,8 +583,10 @@ export function createOpenSpecButton(
         })
         if (!result.ok) return messageFor(result, 'openSpecRemoveFailed')
         const failed: unknown = result.body.failed
+        const cleaned: unknown = result.body.ignoreFiles
         setAsking(false)
         setFailures(Array.isArray(failed) ? (failed as OpenSpecRemoveFailure[]) : [])
+        setPruned(Array.isArray(cleaned) ? (cleaned as OpenSpecIgnoreCleanup[]) : [])
         await load()
         return undefined
       })
@@ -994,6 +1007,18 @@ export function createOpenSpecButton(
           </div>
         ) : null}
         {gitignoreBlock}
+        {pruned.length === 0 ? null : (
+          <div className="os_section">
+            <div className="os_sectionTitle">{t('openSpecIgnoreCleaned')}</div>
+            {pruned.map(cleaned => (
+              <div className="os_note" key={cleaned.rel}>
+                {cleaned.deleted
+                  ? t('openSpecIgnoreFileDeleted', { path: cleaned.rel })
+                  : t('openSpecIgnoreFilePruned', { path: cleaned.rel, count: cleaned.lines })}
+              </div>
+            ))}
+          </div>
+        )}
         {failures.length === 0 ? null : (
           <div className="os_section">
             <div className="os_error">{t('openSpecPartial')}</div>
@@ -1020,6 +1045,7 @@ export function createOpenSpecButton(
       gitignore !== null ||
       hasUpdate ||
       failures.length > 0 ||
+      pruned.length > 0 ||
       initOutput !== '' ||
       (reading && view === undefined)
 

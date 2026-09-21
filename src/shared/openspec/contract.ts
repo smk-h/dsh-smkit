@@ -181,6 +181,21 @@ export interface OpenSpecRemoveRequest {
   cwd: string
 }
 
+/** One `.gitignore` the delete tidied while it was removing the footprint. */
+export interface OpenSpecIgnoreCleanup {
+  /** Project-relative path of the ignore file, the spelling the panel lists. */
+  rel: string
+  /** How many lines naming a removed entry came out of it. */
+  lines: number
+  /**
+   * Whether the file went with its lines, because nothing else was ever in it —
+   * which is how a `.gitignore` this pair of actions created is un-made. The
+   * store's own file is not one of these: it is below the store, so the
+   * directory's removal takes it along without a word.
+   */
+  deleted: boolean
+}
+
 /** `POST /openspec/delete` answering with what it removed. */
 export interface OpenSpecRemoveResponse {
   /** Project-relative paths removed, in the order they were removed. */
@@ -189,6 +204,13 @@ export interface OpenSpecRemoveResponse {
   failed: OpenSpecRemoveFailure[]
   /** Measured bytes the removed targets held. */
   bytes: number
+  /**
+   * The shared directories whose `.gitignore` named entries this delete removed,
+   * with what came out of each. Absent when there was nothing of ours to take
+   * back, which is the usual case in a repository that never used the ignore
+   * action.
+   */
+  ignoreFiles?: OpenSpecIgnoreCleanup[]
 }
 
 /* --------------------------------------------------- the .gitignore action */
