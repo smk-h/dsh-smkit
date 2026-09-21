@@ -85,6 +85,7 @@ import { createLoaderIcon } from '../../platform/icons/LoaderIcon'
 import { createRefreshIcon } from '../../platform/icons/RefreshIcon'
 import { createConfirmDialog } from '../../platform/ui/ConfirmDialog'
 import { createStateDot } from '../../platform/ui/StateDot'
+import { useBusyFace } from '../../platform/ui/useBusyFace'
 import { useAsyncAction } from '../../platform/ui/useAsyncAction'
 import { clipBounds } from '../../platform/ui/tip'
 import type {
@@ -421,6 +422,13 @@ export function createOpenSpecButton(
     const [anchor, setAnchor] = react.useState<Anchor | null>(null)
     const [view, setView] = react.useState<OpenSpecView | undefined>(undefined)
     const [reading, setReading] = react.useState(false)
+    /**
+     * The refresh button's busy face: `reading` for as long as the host is
+     * answering, and at least the platform's floor for a click — the read is a
+     * walk of a local directory, and one that comes back in a couple of
+     * milliseconds would show as a flicker rather than as an answer.
+     */
+    const refreshFace = useBusyFace(react, reading)
     const [error, setError] = react.useState('')
     const [failures, setFailures] = react.useState<OpenSpecRemoveFailure[]>([])
     /**
@@ -1302,10 +1310,15 @@ export function createOpenSpecButton(
             type="button"
             aria-label={t('openSpecRefresh')}
             title={t('openSpecRefresh')}
-            disabled={reading}
-            onClick={() => void load()}
+            disabled={refreshFace.showing}
+            // The face opens on the click, and the read it started only closes
+            // it once the platform's floor has run out — see `useBusyFace`.
+            onClick={() => {
+              refreshFace.start()
+              void load()
+            }}
           >
-            {reading ? <LoaderIcon className="mm_statusSpin" size={13} /> : <RefreshIcon size={13} />}
+            {refreshFace.showing ? <LoaderIcon className="mm_statusSpin" size={13} /> : <RefreshIcon size={13} />}
           </button>
         </div>
         {body}

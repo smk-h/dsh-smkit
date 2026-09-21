@@ -16,18 +16,8 @@
  * `busy` is the caller's state, not this component's: the page is what knows its
  * request is in flight (one request, or several). What this component owns is
  * **how long the busy face lasts**, and that is deliberately not the same thing
- * as the read. A scan can answer in a couple of milliseconds, and a busy face
- * that comes and goes inside one frame is not an acknowledgement — it is a
- * flicker. So a click opens its own showing of the face and the read closes it:
- *
- * - the face opens in the click handler itself, so it is painted by the same
- *   commit as the click — an effect runs one frame later, and a click
- *   acknowledged a frame late is the flicker this component exists to avoid,
- * - `busy` keeps it up for as long as the read lasts, and the floor keeps it up
- *   for at least `BUSY_FLOOR_MS`, so every click looks like it landed,
- * - and it closes by *changing back* — the spinner arc gives way to the arrow —
- *   rather than by stopping mid-turn, which is what lets the floor be a plain
- *   deadline instead of a whole number of rotations.
+ * as the read — `platform/ui/useBusyFace` holds the rule, and the reason for it,
+ * because a control of this shape is not only ever drawn here.
  *
  * While the face is up the button is locked and greyed: the shell's own busy
  * vocabulary (the MCP toolbar's `openConfig`, the session-delete control) is a
@@ -35,7 +25,9 @@
  * looks ready. The arc is `platform/icons/LoaderIcon`, turning on the shared
  * `mm_statusSpin` keyframes (`style/spin.css`), so a refresh in flight and a
  * connection in flight turn at the same rate and honour `prefers-reduced-motion`
- * together.
+ * together. And the face comes down by *changing back* — the arc giving way to
+ * the arrow — rather than by stopping mid-turn, which is what lets the floor be
+ * a plain deadline instead of a whole number of rotations.
  *
  * The bubble is the shell's own `.mm_tip` mark, so a page's toolbar bubbles all
  * clamp through the one document-level watch it already installs
@@ -45,9 +37,7 @@
 import { createLoaderIcon } from '../icons/LoaderIcon'
 import { createRefreshIcon } from '../icons/RefreshIcon'
 import type { ClientDeps } from '../types'
-
-/** How long one click shows its busy face for, at minimum, in ms. */
-const BUSY_FLOOR_MS = 1000
+import { useBusyFace } from './useBusyFace'
 
 export interface RefreshButtonProps {
   /** Re-read the page's data; the button owns only the click. */
@@ -64,32 +54,16 @@ export function createRefreshButton(deps: ClientDeps): (props: RefreshButtonProp
   const SpinnerIcon = createLoaderIcon(deps)
 
   return function RefreshButton({ onClick, busy, disabled }: RefreshButtonProps): JSX.Element {
-    // When the click that opened the face happened, in ms — `0` when none has. A
-    // timestamp rather than a flag because the floor is measured from the click,
-    // not from the answer, and the answer is the thing that arrives too early.
-    const [since, setSince] = react.useState(0)
+    const face = useBusyFace(react, busy === true)
 
-    // The face opens here rather than in an effect: effects run after the paint,
-    // and a click that is acknowledged on the next frame is the flicker this
-    // component exists to avoid. `busy` and the floor below take it from here.
+    // The face opens here rather than in an effect, so the click and the face
+    // land in the same commit; `busy` and the floor take it from there.
     const click = (): void => {
-      setSince(Date.now())
+      face.start()
       onClick()
     }
 
-    // Falling edge: the read is over, so the face comes down — but never before
-    // the floor, which is the only reason this effect exists. A caller that
-    // reports `busy` without a click (a page mounted mid-read) opens the face
-    // through `busy` alone and skips the floor, which is what `since === 0`
-    // says.
-    react.useEffect(() => {
-      if (busy === true || since === 0) return
-      const remaining = Math.max(0, BUSY_FLOOR_MS - (Date.now() - since))
-      const timer = setTimeout(() => setSince(0), remaining)
-      return () => clearTimeout(timer)
-    }, [busy, since])
-
-    const turning = busy === true || since !== 0
+    const turning = face.showing
     const label = platformT('refresh')
     return (
       <button

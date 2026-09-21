@@ -1018,6 +1018,35 @@ it('does not open for a control that reflowed under a still pointer', () => {
   assert.equal(app.calls.length, 1, 'and the arrival reads the workspace once, as it always did')
 })
 
+// --- the head's refresh button -----------------------------------------------
+
+it('holds the refresh face for the floor, not just for the read', async () => {
+  const app = mount({ fetch: routing() })
+  const shown = await app.hover()
+  const refresh = token(shown, 'os_refresh')
+  assert.equal(refresh.props.disabled, false, 'an arrival leaves nothing pending')
+
+  refresh.props.onClick()
+  await flush()
+
+  // The point of the floor: the host has answered, and the click is still
+  // visibly the thing that answered it. Without it this whole exchange fits
+  // inside a frame, and a button that lights up and gone again reads as one
+  // that did nothing.
+  const busy = app.render()
+  assert.equal(
+    app.calls.filter((call) => call.url.startsWith('/mcp-manager/api/openspec?')).length,
+    2,
+    'the re-read has already come back',
+  )
+  assert.equal(token(busy, 'os_refresh').props.disabled, true, 'the face is still up')
+  assert.ok(token(busy, 'mm_statusSpin'), 'as the turning arc, not as a blink')
+
+  const settled = app.runTimers()
+  assert.equal(token(settled, 'os_refresh').props.disabled, false, 'and it comes down with the floor')
+  assert.equal(token(settled, 'mm_statusSpin'), undefined)
+})
+
 // --- the head's update button ------------------------------------------------
 
 it('sits between the status dot and the refresh button, showing the command it runs', async () => {

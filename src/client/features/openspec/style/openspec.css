@@ -131,6 +131,9 @@
   background: 0 0;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
+  /* Both ends of the busy face are a dimming — in when the click lands, out
+   * when the floor runs out — so both fade rather than snap. */
+  transition: color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
 }
 
 .os_refresh:hover:not(:disabled) {
@@ -141,6 +144,11 @@
 .os_refresh:disabled {
   cursor: default;
   opacity: 0.5;
+  /* The button is dimmed while the read runs, and the arc inside it has to keep
+   * its ink through the dimming — the platform's refresh button does the same
+   * (`style/refresh-button.css`). `mm_statusSpin` would otherwise paint the arc
+   * tertiary, and tertiary at half strength is near invisible on the panel. */
+  --mm-status-color: var(--dsw-alias-label-primary);
 }
 
 /* The scrolling half: a tall store must not push the delete button off screen,
