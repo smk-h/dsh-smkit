@@ -540,15 +540,19 @@ it('opens on hover, right-aligned under the control, and shows the footprint', a
 
   const text = texts(shown).join(' | ')
   assert.equal(
-    token(shown, 'os_dot').props.title,
+    token(shown, 'mm_stateDot').props.title,
     'openSpecStatusReady',
     'the init status is the panel\u2019s answer, worn as a dot',
   )
-  const dot = token(shown, 'os_dot')
+  const dot = token(shown, 'mm_stateDot')
   assert.equal(
     dot.props['aria-label'],
     'openSpecStatusReady',
     'a dot with no words still names itself to a screen reader',
+  )
+  assert.ok(
+    String(dot.props.className).includes('os_state'),
+    'the platform dot is seated by this panel\u2019s own class',
   )
   assert.equal(
     text.includes('openSpecStatusReady'),
@@ -599,8 +603,7 @@ it('opens on hover, right-aligned under the control, and shows the footprint', a
   rowFor(deep, 'os_dirRow', 'changes').props.onClick()
   assert.deepEqual(branchesOf(app.render()), ['├── ', '└── '])
 
-  const chip = nodes(shown).find((node) => node.props?.className === 'os_dot')
-  assert.equal(chip.props['data-ready'], 'true')
+  assert.equal(dot.props['data-state'], 'done', 'the dot still says the store is there')
 })
 
 it('leaves a file click alone on a host without the sidebar column', async () => {
@@ -741,9 +744,9 @@ it('offers the initialise where there is nothing to delete', async () => {
 
   const text = texts(shown).join(' | ')
   assert.ok(text.includes('openSpecStatusAbsent'), 'the body says what is missing in words')
-  const chip = nodes(shown).find((node) => node.props?.className === 'os_dot')
-  assert.equal(chip.props['data-ready'], 'false')
-  assert.equal(chip.props.title, 'openSpecStatusAbsent', 'and the dot carries the same answer as its hover')
+  const dot = token(shown, 'mm_stateDot')
+  assert.equal(dot.props['data-state'], 'idle')
+  assert.equal(dot.props.title, 'openSpecStatusAbsent', 'and the dot carries the same answer as its hover')
   assert.ok(text.includes('openSpecEmpty'), 'the panel says how to create one')
   assert.equal(token(shown, 'os_remove'), undefined, 'there is nothing to delete, so nothing offers it')
 
@@ -776,8 +779,8 @@ it('runs openspec init for the workspace, then reads the store back', async () =
   assert.ok(text.includes('openSpecInitDone'), 'the CLI\u2019s own output is shown')
   assert.ok(text.includes('Created openspec/'))
   assert.equal(
-    token(after, 'os_dot').props['data-ready'],
-    'true',
+    token(after, 'mm_stateDot').props['data-state'],
+    'done',
     'and the workspace is initialised now',
   )
   assert.ok(token(after, 'os_remove'), 'so the delete takes the initialise\u2019s place')
@@ -824,7 +827,7 @@ it('reports a failed read inside the panel rather than as an empty workspace', a
   const shown = await app.hover()
 
   assert.ok(texts(shown).join(' | ').includes('openSpecLoadFailed'))
-  assert.equal(withClass(shown, 'os_dot'), undefined, 'and claims no status it could not read')
+  assert.equal(token(shown, 'mm_stateDot'), undefined, 'and claims no status it could not read')
 })
 
 it('survives the page scrolling under it, and follows the control instead', async () => {
@@ -1021,11 +1024,11 @@ it('sits between the status dot and the refresh button, showing the command it r
   const app = mount({ fetch: routing() })
   const shown = await app.hover()
 
-  const chip = token(shown, 'os_dot')
+  const dot = token(shown, 'mm_stateDot')
   const update = token(shown, 'os_update')
   const refresh = token(shown, 'os_refresh')
-  assert.ok(chip && update && refresh, 'the head carries all three')
-  assert.ok(orderOf(shown, 'os_dot') < orderOf(shown, 'os_update'), 'the update sits after the dot')
+  assert.ok(dot && update && refresh, 'the head carries all three')
+  assert.ok(orderOf(shown, 'mm_stateDot') < orderOf(shown, 'os_update'), 'the update sits after the dot')
   assert.ok(orderOf(shown, 'os_update') < orderOf(shown, 'os_refresh'), 'and before the refresh button')
   // Offered as a green primary button, the same shape as the initialise.
   assert.ok(String(update.props.className).includes('primary'))

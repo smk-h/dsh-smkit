@@ -84,6 +84,7 @@ import { createChevronDownIcon } from '../../platform/icons/ChevronDownIcon'
 import { createLoaderIcon } from '../../platform/icons/LoaderIcon'
 import { createRefreshIcon } from '../../platform/icons/RefreshIcon'
 import { createConfirmDialog } from '../../platform/ui/ConfirmDialog'
+import { createStateDot } from '../../platform/ui/StateDot'
 import { useAsyncAction } from '../../platform/ui/useAsyncAction'
 import { clipBounds } from '../../platform/ui/tip'
 import type {
@@ -382,6 +383,7 @@ export function createOpenSpecButton(
 ): (props: OpenSpecProps) => JSX.Element {
   const { h, react, api, stream, createPortal } = deps
   const ConfirmDialog = createConfirmDialog(deps)
+  const StateDot = createStateDot(deps)
   const AtomIcon = createAtomIcon(deps)
   const EyeIcon = createEyeIcon(deps)
   const EyeOffIcon = createEyeOffIcon(deps)
@@ -1274,12 +1276,10 @@ export function createOpenSpecButton(
           <AtomIcon size={14} />
           <span className="os_title">{t('manageOpenSpec')}</span>
           {view === undefined ? null : (
-            <span
-              className="os_dot"
-              data-ready={view.initialized ? 'true' : 'false'}
-              role="img"
-              aria-label={view.initialized ? t('openSpecStatusReady') : t('openSpecStatusAbsent')}
-              title={view.initialized ? t('openSpecStatusReady') : t('openSpecStatusAbsent')}
+            <StateDot
+              className="os_state"
+              state={view.initialized ? 'done' : 'idle'}
+              label={view.initialized ? t('openSpecStatusReady') : t('openSpecStatusAbsent')}
             />
           )}
           {view === undefined ? null : (

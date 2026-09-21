@@ -96,23 +96,15 @@
   font-weight: 600;
 }
 
-/* The init status: one filled dot, the same language the MCP rows use for a
- * connection — green when the store is there, gray when it is not — instead of
- * a word pill, because the head has the answer and the body below already spells
- * it out in a row of its own. Pushed to the far end of the head so it reads as
- * the panel's state rather than as part of its title, and the words ride its
- * tooltip for whoever wants them. */
-.os_dot {
+/* The init status is the platform's own dot (`platform/ui/StateDot`), green
+ * when the store is there and idle grey when it is not — the same mark the
+ * shell wears beside a plugin's enablement, rather than a word pill, because
+ * the head has the answer and the body below already spells it out in a row of
+ * its own. Only its seat is this panel's business: pushed to the far end of
+ * the head, so it reads as the panel's state rather than as part of the title.
+ * The words ride its tooltip for whoever wants them. */
+.os_state {
   margin-left: auto;
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--dsw-alias-label-tertiary);
-}
-
-.os_dot[data-ready='true'] {
-  background: var(--dsw-alias-state-success-primary);
 }
 
 /* The head's upgrade button wears the platform's solid primary (`mm_btn
