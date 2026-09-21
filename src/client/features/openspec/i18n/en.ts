@@ -48,6 +48,8 @@ export const OPENSPEC_LOCALE_EN: LocaleDict = {
   "openSpecUpdateFailed": "Updating the OpenSpec tool failed",
   "openSpecUpdateNpmMissing": "The npm command was not found, so @fission-ai/openspec cannot be upgraded. Install Node.js first.",
   "openSpecUpdateTimeout": "The openspec tool update timed out",
+  "openSpecUpdateExpiry": "hidden after {left} of {total} more openings",
+  "openSpecUpdateExpiryLast": "shown for the last time",
   "openSpecRemove": "Delete OpenSpec and its skills",
   "openSpecConfirm": "This deletes the openspec/ directory and the OpenSpec-generated entries listed above (skills named openspec-*, commands named opsx*). Everything else in those directories belongs to someone else and is left alone. It cannot be undone.",
   "openSpecPartial": "Some of it could not be deleted; see below",

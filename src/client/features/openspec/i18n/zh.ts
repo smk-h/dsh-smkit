@@ -51,6 +51,8 @@ export const OPENSPEC_LOCALE_ZH: LocaleDict = {
   "openSpecUpdateFailed": "更新 OpenSpec 工具失败",
   "openSpecUpdateNpmMissing": "未找到 npm 命令，无法升级 @fission-ai/openspec，请先安装 Node.js",
   "openSpecUpdateTimeout": "openspec 工具更新超时",
+  "openSpecUpdateExpiry": "将在 {left}/{total} 次打开后不再显示",
+  "openSpecUpdateExpiryLast": "本次之后不再显示",
   "openSpecRemove": "删除 OpenSpec 与技能",
   "openSpecConfirm": "将删除 openspec/ 目录，以及下列 OpenSpec 生成的条目（技能目录以 openspec- 开头，命令以 opsx 开头）。同一目录下其他内容不属于 OpenSpec，不会被改动。此操作不可恢复。",
   "openSpecPartial": "有些内容没能删除，详见下方",

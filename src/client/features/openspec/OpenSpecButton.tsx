@@ -67,7 +67,9 @@
  * The progress lives on the control rather than the panel because a global
  * install outlasts a hover: the pointer may leave while npm still works, and
  * the next hover should find the output already there rather than a box that
- * forgot the run.
+ * forgot the run. It is kept only as long as it is news, though — a finished
+ * record is shown for three more panel openings and then dropped, so last
+ * week's npm output does not haunt the panel forever.
  *
  * Nothing here reloads anything: the panel is a view over the filesystem, and
  * after a delete it simply reads again.
@@ -149,6 +151,16 @@ const PANEL_MIN_ROOM = 180
 const HOVER_GRACE_MS = 240
 /** The panel's own class, so document-level listeners can tell it from the page. */
 const PANEL_CLASS = 'os_panel'
+/**
+ * How many further panel openings a finished upgrade is shown for.
+ *
+ * The record outlives the hover it ran on — that is the point of keeping it on
+ * the control — but it is a receipt, not a notice board. After this many
+ * openings that found it finished, it is dropped, so a daily-opened workspace
+ * is not carrying last week's `npm` output forever. A run still in flight is
+ * never counted against this: it is still news.
+ */
+const UPDATE_RECORD_VIEWS = 3
 
 /**
  * The refusals `openspec init` can answer with, as the copy that turns them
@@ -359,6 +371,8 @@ export function createOpenSpecButton(
     const [updating, setUpdating] = react.useState(false)
     const [updateLog, setUpdateLog] = react.useState('')
     const [updateStatus, setUpdateStatus] = react.useState<OpenSpecUpdateStatus | ''>('')
+    /** How many panel openings the finished record has already been shown on. */
+    const [updateViews, setUpdateViews] = react.useState(0)
     const { busy, error: removeError, run } = useAsyncAction(react)
     const { busy: initing, error: initError, run: runInit } = useAsyncAction(react)
     // Both hooks run on every render: they are ordinary store subscriptions
@@ -469,6 +483,18 @@ export function createOpenSpecButton(
       setOpen(true)
       setFailures([])
       setInitOutput('')
+      // A finished upgrade's record is shown for `UPDATE_RECORD_VIEWS` openings
+      // past the one it ran on, then dropped. Only arrivals count: the refresh
+      // button re-reads in place, and the panel staying open is not a viewing.
+      if (!updating && (updateLog !== '' || updateStatus !== '')) {
+        if (updateViews >= UPDATE_RECORD_VIEWS) {
+          setUpdateLog('')
+          setUpdateStatus('')
+          setUpdateViews(0)
+        } else {
+          setUpdateViews(updateViews + 1)
+        }
+      }
       // Every open re-reads: the panel's whole subject is what is on disk right
       // now, and the user may have just run `openspec init` in a terminal.
       void load()
@@ -543,6 +569,7 @@ export function createOpenSpecButton(
       setUpdating(true)
       setUpdateLog('')
       setUpdateStatus('')
+      setUpdateViews(0)
       // Accumulated in the closure rather than through the state setter: the
       // harness's `useState` stores a value outright and does not run updater
       // functions, so the running total is kept here and pushed whole.
@@ -842,6 +869,11 @@ export function createOpenSpecButton(
           <div className="os_section">
             <div className={updateFailed ? 'os_error' : 'os_sectionTitle'}>{updateLabel()}</div>
             {updateLog === '' ? null : <div className="os_output">{updateLog}</div>}
+            {!updating && (updateLog !== '' || updateStatus !== '') ? (
+              UPDATE_RECORD_VIEWS - updateViews > 0
+                ? <div className="os_note">{t('openSpecUpdateExpiry', { left: UPDATE_RECORD_VIEWS - updateViews, total: UPDATE_RECORD_VIEWS })}</div>
+                : <div className="os_note">{t('openSpecUpdateExpiryLast')}</div>
+            ) : null}
           </div>
         ) : null}
         {failures.length === 0 ? null : (

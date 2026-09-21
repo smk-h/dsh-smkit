@@ -948,3 +948,83 @@ it('phrases a missing npm as an instruction, not a stack', async () => {
 
   assert.ok(texts(app.render()).join(' | ').includes('openSpecUpdateNpmMissing'))
 })
+
+it('keeps a finished upgrade for three more openings, then drops it', async () => {
+  const app = mount({
+    fetch: updateRouting([
+      { type: 'line', stream: 'out', text: 'changed 1 package in 4s' },
+      { type: 'done', status: 'ok', exitCode: 0 },
+    ]),
+  })
+  const shown = await app.hover()
+  token(shown, 'os_update').props.onClick()
+  await flush(20)
+  const done = texts(app.render()).join(' | ')
+  assert.ok(done.includes('openSpecUpdateDone'), 'the opening the run finished on shows the record')
+  assert.ok(done.includes('openSpecUpdateExpiry({"left":3,"total":3})'), 'and says three more openings remain')
+
+  /** Walk the pointer out, let the grace period close the panel, hover back in. */
+  const reopen = async () => {
+    app.leave()
+    app.runTimers()
+    return await app.hover()
+  }
+  for (const view of [1, 2, 3]) {
+    const again = await reopen()
+    const text = texts(again).join(' | ')
+    assert.ok(text.includes('openSpecUpdateDone'), `still shown on reopening (view ${view} of 3)`)
+    if (view < 3) {
+      assert.ok(
+        text.includes(`openSpecUpdateExpiry({"left":${3 - view},"total":3})`),
+        `the hint counts down on view ${view}`,
+      )
+    } else {
+      assert.ok(text.includes('openSpecUpdateExpiryLast'), 'the last viewing says so plainly')
+    }
+  }
+  const gone = await reopen()
+  const text = texts(gone).join(' | ')
+  assert.ok(!text.includes('openSpecUpdateDone'), 'the fourth opening drops the receipt')
+  assert.ok(!text.includes('openSpecUpdateExpiry'), 'and the hint goes with it')
+  assert.equal(withClass(gone, 'os_output'), undefined, 'and its output goes with it')
+})
+
+it('does not count openings while the upgrade is still running', async () => {
+  // A stream that delivers one line and then never answers the next read: the
+  // run stays in flight, which is news, not a receipt.
+  const live = (url) => {
+    if (!url.includes('/openspec/update')) return response(VIEW)
+    return {
+      ok: true,
+      status: 200,
+      body: {
+        getReader() {
+          let index = 0
+          return {
+            read: () => {
+              index += 1
+              if (index === 1) {
+                const frame = `data: ${JSON.stringify({ type: 'line', stream: 'out', text: 'working' })}\n\n`
+                return Promise.resolve({ done: false, value: new TextEncoder().encode(frame) })
+              }
+              return new Promise(() => {})
+            },
+          }
+        },
+      },
+    }
+  }
+  const app = mount({ fetch: live })
+  const shown = await app.hover()
+  token(shown, 'os_update').props.onClick()
+  await flush(20)
+
+  for (const view of [1, 2, 3, 4]) {
+    app.leave()
+    app.runTimers()
+    const again = await app.hover()
+    const text = texts(again).join(' | ')
+    assert.ok(text.includes('openSpecUpdateRunning'), `reopen ${view} still says the run is going`)
+    assert.ok(text.includes('working'), `and the running log survives it`)
+  }
+})
