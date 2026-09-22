@@ -27,7 +27,6 @@
  */
 
 import { createCheckChip } from '../../../platform/ui/CheckChip'
-import { createChevronDownIcon } from '../../../platform/icons/ChevronDownIcon'
 import { createChevronRightIcon } from '../../../platform/icons/ChevronRightIcon'
 import { createStateDot } from '../../../platform/ui/StateDot'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
@@ -84,7 +83,6 @@ function modalitiesOf(image: boolean): InputModality[] {
 
 export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanelProps) => JSX.Element {
   const { h, react, api } = deps
-  const ChevronDownIcon = createChevronDownIcon(deps)
   const ChevronRightIcon = createChevronRightIcon(deps)
   const CheckChip = createCheckChip(deps)
   const StateDot = createStateDot(deps)
@@ -176,16 +174,24 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
             const visual = provider.models.filter(model => model.effective.includes('image')).length
             return (
               <div className="mm_row" key={provider.provider} data-open={expanded ? 'true' : undefined}>
-                <button className="mm_cardContent" type="button" aria-expanded={expanded} onClick={() => toggleCard(provider.provider)}>
-                  <span className="mm_name">{provider.displayName}</span>
-                  <span className="mi_route">{provider.provider}</span>
-                  <span className="mm_cardTrailing">
+                <div className="mi_cardHead">
+                  <button className="mm_cardContent" type="button" aria-expanded={expanded} onClick={() => toggleCard(provider.provider)}>
+                    <span className="mm_name">{provider.displayName}</span>
+                    <span className="mi_route">{provider.provider}</span>
                     {declared > 0 ? <span className="mi_badge">{t('badgeDeclared')}</span> : null}
-                    <span className="mm_chevron" data-open={expanded ? 'true' : undefined}>
-                      <ChevronDownIcon size={12} />
-                    </span>
-                  </span>
-                </button>
+                  </button>
+                  <button
+                    className="mi_caretBtn"
+                    type="button"
+                    aria-expanded={expanded}
+                    data-open={expanded ? 'true' : undefined}
+                    aria-label={`${provider.displayName} · ${t('modelAdvanced')}`}
+                    title={t('modelAdvanced')}
+                    onClick={() => toggleCard(provider.provider)}
+                  >
+                    <ChevronRightIcon className="mi_caret" />
+                  </button>
+                </div>
                 <div className="mi_summary">
                   {t('countModels', { count: provider.models.length })}
                   {' · '}

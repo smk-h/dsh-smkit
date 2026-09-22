@@ -170,9 +170,24 @@
   display: inline-flex;
 }
 
+/* The route card's head row: the whole-label disclosure button plus, at its
+ * right edge, the host's caret as a button of its own. The disclosure keeps
+ * the row, the caret keeps its 28px square, so the two sit side by side and
+ * the labels give before the caret ever does. */
+.mi_cardHead {
+  align-items: center;
+  gap: 6px;
+  display: flex;
+}
+.mi_cardHead>.mm_cardContent {
+  min-width: 0;
+  flex: 1;
+}
+
 /* The host's disclosure control verbatim: a 28px square, corner 6, transparent
  * until hovered, holding the 14px caret its own `IconChevron` draws — the caret
- * turning a quarter-clockwise while the card is open, on the host's 120ms. */
+ * turning a quarter-clockwise while the card is open, on the host's 120ms.
+ * Both cards use it: the route card's head and each model mini-card. */
 .mi_caretBtn {
   box-sizing: border-box;
   width: 28px;
