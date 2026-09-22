@@ -1,0 +1,132 @@
+/**
+ * The check chip: a tick box and its word inside one pill (`ui/CheckChip`).
+ *
+ * One part of the platform stylesheet set. `platform/styles.ts` imports the
+ * parts and joins them in cascade order; the build inlines the result as one
+ * string, because the browser half is a single script that cannot fetch a
+ * stylesheet.
+ *
+ * The measure is this plugin's small control measure, next to the neutral
+ * `mm_btn`: its 12px type, its hairline, its transparent fill, with 26px of
+ * height and a 7px corner so the box and its word have room. A button standing
+ * in the same row as a set of chips is cut to that measure too — same height,
+ * same corner, same inside edge — so one line of a form reads as one line. What
+ * the chips borrow from the switched-on look they copied is the colour work, not
+ * the size.
+ *
+ * Colour does the state work: the unchecked pill is only an outline, hovering
+ * washes it 6%, and a ticked one keeps a 15% wash of the theme's ink behind its
+ * box, deepening to 20% under the pointer. The hairline stays in both states —
+ * the outline says a pill is there, and having it vanish on the tick would make
+ * the row jump. That is also why the wash rides `label-primary` through
+ * `color-mix` rather than a literal grey: it has to stay readable on both of the
+ * shell's themes, which invert.
+ *
+ * Hover never darkens the border. The border marks that something is here; the
+ * fill is what answers the pointer, and moving both at once reads as the control
+ * changing shape.
+ */
+
+/* The chips answering one question, wrapping as a block rather than as a row of
+ * separate targets: the gap is the same in both directions, so a wrapped second
+ * line is still one set of answers. */
+.mm_chipRow {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  display: flex;
+}
+
+.mm_chip {
+  position: relative;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background-color: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  border-radius: 7px;
+  min-height: 26px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  display: inline-flex;
+  cursor: pointer;
+  transition: background-color .15s cubic-bezier(.4, 0, .25, 1);
+}
+
+/* The ticked pill washes behind its box, and paints that wash under the border
+ * rather than inside it, so the fill reaches the hairline instead of leaving a
+ * step of bare background. Its word darkens with it: at this size the wash alone
+ * is the quietest fact on the row. */
+.mm_chip[data-on=true] {
+  background-color: color-mix(in oklab, var(--dsw-alias-label-primary) 15%, transparent);
+  background-clip: border-box;
+  color: var(--dsw-alias-label-primary);
+}
+
+.mm_chip:not([data-on=true]):hover:not([data-locked=true]):not([data-inert=true]) {
+  background-color: var(--dsw-alias-interactive-bg-hover);
+}
+.mm_chip[data-on=true]:hover:not([data-locked=true]):not([data-inert=true]) {
+  background-color: color-mix(in oklab, var(--dsw-alias-label-primary) 20%, transparent);
+}
+
+/* Fixed on, never offered off — so nothing about it answers the pointer, and it
+ * keeps full strength: a dimmed box would read as an answer that is missing. */
+.mm_chip[data-locked=true] {
+  cursor: default;
+}
+/* A question this subject cannot answer at all, which is the one case that is
+ * honestly dimmed. */
+.mm_chip[data-inert=true] {
+  cursor: default;
+  opacity: .6;
+}
+
+/* The control the browser owns: full size, invisible, and under the pill rather
+ * than beside it, so clicking the word toggles it and the keyboard still finds a
+ * checkbox. */
+.mm_chipInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+/* The box itself. Its border does not invert with the tick inside it — a dark
+ * glyph on a light border would leave the box outlined in the wrong colour, so
+ * the fill and the outline stay one pair. */
+.mm_chipBox {
+  border: 1px solid var(--dsw-alias-border-l2);
+  background-color: var(--dsw-alias-bg-layer-2);
+  color: inherit;
+  border-radius: 4px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+}
+.mm_chip[data-on=true] .mm_chipBox {
+  border-color: var(--dsw-alias-label-primary);
+  background-color: var(--dsw-alias-label-primary);
+  /* The glyph's own colour is the counterpart of the fill it sits on, which the
+   * theme inverts along with it. */
+  color: var(--dsw-alias-label-primary-foreground);
+}
+/* The pill has no focus picture of its own — the fill only answers the
+ * pointer — so the ring goes on the box, which is what the focus is about. */
+.mm_chipInput:focus-visible + .mm_chipBox {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+
+.mm_chipLock {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}

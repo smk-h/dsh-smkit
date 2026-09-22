@@ -11,7 +11,9 @@
  *
  * `state` picks the colour and nothing else. `done` is the outcome that needs
  * no explanation, `warning` the one that needs the user, `error` the one that
- * went wrong, and `idle` the absence of all three. (DSH adds an animated
+ * went wrong, and `idle` the absence of all three. `active` is the palette's own
+ * blue — the ink a switched-on control wears — for a subject that carries a
+ * setting of its own instead of the default. (DSH adds an animated `ongoing`
  * `ongoing` for a live process; here a process in flight already has the
  * platform spinner, and a dot that turns is two answers to one question.)
  *
@@ -27,7 +29,7 @@
 import type { ClientDeps } from '../types'
 
 /** Which of the shell's state colours to wear. */
-export type StateDotState = 'done' | 'warning' | 'error' | 'idle'
+export type StateDotState = 'done' | 'warning' | 'error' | 'active' | 'idle'
 
 /** DSH's own measure for the dot, in px. */
 const DEFAULT_SIZE = 10

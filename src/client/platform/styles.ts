@@ -7,13 +7,15 @@
  * browser cannot fetch a stylesheet for.
  *
  * These rules go in first. They carry what every feature shares — the round
- * icon-button skeleton, the dialog card, the error line, the spinner arc, the
- * status dot, the disclosure card, the refresh button, the settings-nav glyph
- * paint — so a feature stylesheet injected afterwards wins wherever the two
- * overlap, which is the same direction the single concatenated stylesheet had.
+ * icon-button skeleton, the button and the check chip, the dialog card, the
+ * error line, the spinner arc, the status dot, the disclosure card, the refresh
+ * button, the settings-nav glyph paint — so a feature stylesheet injected
+ * afterwards wins wherever the two overlap, which is the same direction the
+ * single concatenated stylesheet had.
  */
 
 import buttonCss from './style/button.css'
+import checkChipCss from './style/check-chip.css'
 import dialogCss from './style/dialog.css'
 import disclosureCardCss from './style/disclosure-card.css'
 import fieldErrorCss from './style/field-error.css'
@@ -31,6 +33,7 @@ import versionBadgeCss from './style/version-badge.css'
 export const PLATFORM_CSS = [
   iconButtonCss,
   buttonCss,
+  checkChipCss,
   refreshButtonCss,
   dialogCss,
   fieldErrorCss,

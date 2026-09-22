@@ -97,8 +97,22 @@ export { createRetryAdmin } from './host/features/custom-settings/service.js'
 export { createRetryHandlers, RETRY_POLICY_PATH, RETRY_ROUTES_PATH } from './host/features/custom-settings/api.js'
 export { normalizePolicy, parsePolicyFields, readAtPath, storedRetryableCodes } from './host/features/custom-settings/policy.js'
 export type { RetryAdmin, RetrySaveInput, RetrySaveOutcome, RetrySaveFailure } from './host/features/custom-settings/service.js'
+export { createModelInputAdmin } from './host/features/custom-settings/model-input.js'
+export {
+  createModelInputHandlers,
+  MODEL_INPUT_PROVIDERS_PATH,
+  MODEL_INPUT_SAVE_PATH,
+} from './host/features/custom-settings/model-input-api.js'
 export type {
+  ModelInputAdmin,
+  ModelInputSaveFailure,
+  ModelInputSaveInput,
+  ModelInputSaveOutcome,
+} from './host/features/custom-settings/model-input.js'
+export type {
+  AdminDeps,
   ConfigurableProviderLike,
+  LlmModelInfoLike,
   LlmProviderInfoLike,
   LlmServiceLike,
   ResolvedRetryPolicyLike,
@@ -115,6 +129,17 @@ export type {
   RetrySaveRequest,
   RetrySaveResponse,
 } from './shared/custom-settings/retry.js'
+export type {
+  InputModality,
+  ModelInputRefusal,
+  ModelInputSaveRequest,
+  ModelInputSaveResponse,
+  ModelInputView,
+  ModelInputsResponse,
+  ModalityChoice,
+  ProviderInputRefusal,
+  ProviderInputView,
+} from './shared/custom-settings/model-input.js'
 export { encodeSegment, projectKey, sessionDir } from './host/features/session-delete/path.js'
 export {
   deleteEntry,

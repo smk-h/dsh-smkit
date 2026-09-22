@@ -31,7 +31,7 @@ import type {
   LlmProviderInfoLike,
   LlmServiceLike,
   ResolvedRetryPolicyLike,
-  RetryAdminDeps,
+  AdminDeps,
   SettingsDescriptorLike,
   SettingsPathOp,
   SettingsServiceLike,
@@ -87,7 +87,7 @@ function isSettingsService(value: unknown): value is SettingsServiceLike {
  * @param deps - the optional-service accessor and the plugin logger.
  * @returns the two operations the API routes expose.
  */
-export function createRetryAdmin(deps: RetryAdminDeps): RetryAdmin {
+export function createRetryAdmin(deps: AdminDeps): RetryAdmin {
   const { logger, services } = deps
 
   const llm = (): LlmServiceLike | undefined => {

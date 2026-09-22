@@ -15,6 +15,7 @@
 
 import { createTabs } from '../../../platform/ui/Tabs'
 import { createVersionBadge } from '../../../platform/ui/VersionBadge'
+import { createModelInputPanel } from './ModelInputPanel'
 import { createOtherSettingsPanel } from './OtherSettingsPanel'
 import { createRetryPanel } from './RetryPanel'
 import type { ClientDeps, Translator } from '../../../platform/types'
@@ -40,12 +41,14 @@ export function createCustomSettingsContent(
   const { h, react } = deps
   const Tabs = createTabs(deps)
   const RetryPanel = createRetryPanel(deps)
+  const ModelInputPanel = createModelInputPanel(deps)
   const OtherSettingsPanel = createOtherSettingsPanel(deps)
   const VersionBadge = createVersionBadge(deps)
 
   /** The page's areas, in strip order. */
   const TABS: SettingsTab[] = [
     { id: 'retry', label: 'tabRetry', Panel: RetryPanel },
+    { id: 'model-input', label: 'tabModelInput', Panel: ModelInputPanel },
     { id: 'other', label: 'tabOther', Panel: OtherSettingsPanel },
   ]
 

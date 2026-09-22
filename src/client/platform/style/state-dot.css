@@ -60,3 +60,12 @@
 .mm_stateDot[data-state='idle'] {
   color: var(--dsw-alias-label-tertiary);
 }
+
+/* The palette's own blue, on a dot that says nothing went wrong and something is
+ * switched on: a subject wearing a setting of its own instead of the default.
+ * DSH spends its blue on the animated `ongoing` ring, which this layer does not
+ * carry, so the static mark takes the alias the filled controls wear —
+ * `state-business-primary`, the step under the 450 that ring pins. */
+.mm_stateDot[data-state='active'] {
+  color: var(--dsw-alias-state-business-primary);
+}

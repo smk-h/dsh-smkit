@@ -49,6 +49,19 @@ export interface ResolvedRetryPolicyLike {
   jitterRatio: number
 }
 
+/**
+ * One model the llm registry lists for a route (`LlmModelInfo`), narrowed to
+ * what the model-input tab reads. `inputModalities` is optional on purpose: an
+ * adapter that does not size a model leaves the page showing no answer rather
+ * than guessing one.
+ */
+export interface LlmModelInfoLike {
+  provider: string
+  id: string
+  name: string
+  inputModalities?: readonly string[]
+}
+
 /** The slice of `ctx.llm` this feature uses. */
 export interface LlmServiceLike {
   listProviders(): LlmProviderInfoLike[]
@@ -60,6 +73,12 @@ export interface LlmServiceLike {
    * of claiming no llm service is mounted.
    */
   listConfigurableProviders?(): ConfigurableProviderLike[]
+  /**
+   * The models one route serves, with the modalities that apply. Optional: the
+   * retry tab predates it, and a registry without it still has readable
+   * policies — only the model-input tab has nothing to list.
+   */
+  listModels?(provider: string): Promise<readonly LlmModelInfoLike[]>
 }
 
 /** One path-addressed settings edit (`SettingsPathOp`). */
@@ -84,8 +103,8 @@ export interface SettingsServiceLike {
   mutate(ns: string, ops: readonly SettingsPathOp[], expectedRevision?: number): Promise<void>
 }
 
-/** What the retry administration needs from its mount. */
-export interface RetryAdminDeps {
+/** What either administration of this feature needs from its mount. */
+export interface AdminDeps {
   /** Optional-service accessor: both seams are resolved per call, never injected. */
   services: ServiceAccessor
   logger: LoggerLike

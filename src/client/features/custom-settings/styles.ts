@@ -13,6 +13,7 @@
  * property and the rule below defines that property for this section's row.
  */
 
+import modelInputCss from './style/model-input.css'
 import otherCss from './style/other.css'
 import pageCss from './style/page.css'
 import retryCss from './style/retry.css'
@@ -21,7 +22,7 @@ import { SETTINGS_NAV_ATTRIBUTE } from '../../platform/ui/settings-nav'
 import { iconMaskDataUri } from '../../platform/icons/Icon'
 
 /** The feature's own rules, in cascade order. */
-export const CUSTOM_SETTINGS_CSS = [pageCss, retryCss, otherCss].join('\n')
+export const CUSTOM_SETTINGS_CSS = [pageCss, retryCss, modelInputCss, otherCss].join('\n')
 
 /** The settings-nav glyph as a CSS mask image: alpha only, so the row's own
  * `currentColor` (default, hover, active) sets the colour while the mask keeps
