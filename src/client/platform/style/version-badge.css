@@ -1,8 +1,9 @@
 /**
  * The identity badge the settings pages share (`platform/ui/VersionBadge`):
- * the plugin pill — clickable package name plus a `v`-tagged version — at the
- * top of every section. `align-self` seats it left inside the section column,
- * which is a flex stack on every page that mounts the badge.
+ * the plugin pill — package name plus a `v`-tagged version, the whole pill
+ * linking to the repository when there is one — at the top of every section.
+ * `align-self` seats it left inside the section column, which is a flex stack
+ * on every page that mounts the badge.
  *
  * Consumed through `mm_` names like the rest of this layer's paint (`mm_btn`,
  * `mm_tabs`), so the three pages cannot drift in look or behavior.
@@ -17,18 +18,28 @@
   border-radius: 999px;
   border: 1px solid var(--dsw-alias-border-l2);
   background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
   font-size: 12px;
   line-height: 18px;
-}
-
-.mm_versionBadgeName {
-  color: var(--dsw-alias-label-primary);
-  font-weight: 600;
   text-decoration: none;
 }
-.mm_versionBadgeName:hover {
-  color: var(--dsw-alias-label-primary);
+
+/* The name is plain text now that the pill itself carries the link; only the
+ * words are underlined on hover, not the version chip or the mark, because a
+ * flex item is not a text run. */
+.mm_versionBadgeName {
+  font-weight: 600;
+}
+a.mm_versionBadge:hover .mm_versionBadgeName {
   text-decoration: underline;
+}
+
+/* The mark at its own 16px, which is the size Octicons pairs it with UI text of
+ * this size at. It takes the pill's colour, so it follows the theme the same way
+ * the words beside it do; it is decoration, so it never shrinks to fit. */
+.mm_versionBadgeMark {
+  flex: none;
+  display: inline-flex;
 }
 
 .mm_versionBadgeTag {
