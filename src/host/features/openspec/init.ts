@@ -25,7 +25,10 @@
  *   "the CLI ran and refused" need different words in the panel — one is an
  *   instruction, the other is the CLI's own diagnostic — so the outcome carries
  *   a stable code beside the message (the same shape the session delete uses
- *   for its refusals).
+ *   for its refusals). Neither half is obvious: on Windows the first one does
+ *   not look like a missing program at all, because the shell that stands in
+ *   for the `.cmd` shim starts happily and reports the absence itself, in the
+ *   console's legacy codepage (see {@link shellReportedMissing}).
  */
 
 import { execFile } from 'node:child_process'
@@ -123,12 +126,42 @@ function combine(stdout: string, stderr: string): string {
   return `${text.slice(0, OPENSPEC_INIT_OUTPUT_LIMIT)}…`
 }
 
+/**
+ * Whether one failed spawn is the shell saying it never found the command.
+ *
+ * Two shapes mean the same thing here:
+ *
+ * - `ENOENT` — Node could not start the program. This is what a POSIX spawn
+ *   raises, and what a Windows spawn raises when the shell is off.
+ * - a numeric exit code with a first line of `'<command>'` — the spawn *did*
+ *   start, and the shell it started told the caller the command is not there.
+ *   This is the Windows case: `shell` is on because the CLI is a `.cmd` shim,
+ *   so `cmd.exe` itself always launches, fails to resolve the token, and writes
+ *   its "is not recognized" line in the console's legacy codepage. Decoded as
+ *   UTF-8 that line is mojibake, which is why the panel would otherwise show a
+ *   wall of garbage where it means to say "install the CLI".
+ *
+ * The quoted token is the one part of that message every locale of `cmd.exe`
+ * keeps in ASCII, so matching it — rather than any of the translated sentence —
+ * is what makes the check hold on a Chinese, German or Japanese machine. The
+ * CLI's own diagnostics open with their own words, so requiring the quote at
+ * the very start of the first line keeps a real refusal a refusal.
+ */
+function shellReportedMissing(record: Record<string, unknown>, command: string): boolean {
+  if (record.code === 'ENOENT') return true
+  if (typeof record.code !== 'number') return false
+  const stderr = String(record.stderr ?? '')
+  if (stderr === '') return false
+  const firstLine = stderr.slice(stderr.search(/\S/)).split(/\r?\n/, 1)[0] ?? ''
+  return firstLine.startsWith(`'${command}'`)
+}
+
 /** One failed run as the answer to send: a status, a code, and the CLI's words. */
 function failure(error: unknown): OpenSpecInitOutcome {
   const record: Record<string, unknown> =
     typeof error === 'object' && error !== null ? (error as Record<string, unknown>) : {}
   const output = combine(String(record.stdout ?? ''), String(record.stderr ?? ''))
-  if (record.code === 'ENOENT') {
+  if (shellReportedMissing(record, OPENSPEC_INIT_COMMAND)) {
     return { status: 503, body: { error: OPENSPEC_INIT_MISSING_ERROR, code: OPENSPEC_INIT_MISSING_CODE, output } }
   }
   if (record.killed === true || record.signal === 'SIGTERM') {

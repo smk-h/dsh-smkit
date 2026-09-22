@@ -419,6 +419,22 @@ const failingRun = (patch) => async () => {
   throw Object.assign(new Error(String(patch.code ?? patch.signal ?? 'failed')), patch)
 }
 
+/**
+ * What `cmd.exe` writes when the command is not there, on the two consoles this
+ * plugin has to answer for.
+ *
+ * The Chinese one is the real byte stream a zh-CN console produces (captured
+ * from `execFile` with `encoding: 'buffer'`), re-decoded the way Node decodes a
+ * child's output — which is the point: the shell's own words arrive as
+ * undecodable garbage, so the panel must not be the one to show them.
+ */
+const CMD_MISSING_ZH = Buffer.from(
+  '276f70656e737065632720b2bbcac7c4dab2bfbbf2cde2b2bfc3fcc1eea3acd2b2b2bbcac7bfc9d4cbd0d0b5c4b3ccd0f20d0abbf2c5fab4a6c0edcec4bcfea1a30d0a',
+  'hex',
+).toString('utf8')
+const CMD_MISSING_EN =
+  "'openspec' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+
 it('runs the CLI at the project root, with an environment that cannot prompt', async () => {
   const seen = []
   const outcome = await mod.initOpenSpec(nested, {
@@ -450,6 +466,24 @@ it('tells a missing CLI, a timeout and a refusal apart', async () => {
   assert.equal(missing.status, 503, 'the CLI is not installed: nothing the request itself got wrong')
   assert.equal(missing.body.code, 'openspec/not-installed')
 
+  // The same absence on Windows, where the spawn goes through `cmd.exe` because
+  // the CLI is a `.cmd` shim: the shell starts, exits 1 — the code a refusal
+  // exits with — and its explanation is undecodable there.
+  for (const [console_, stderr] of [['zh-CN', CMD_MISSING_ZH], ['en-US', CMD_MISSING_EN]]) {
+    const notFound = await mod.initOpenSpec(project, {
+      logger,
+      run: failingRun({ code: 1, stdout: '', stderr }),
+    })
+    assert.equal(notFound.body.code, 'openspec/not-installed', `a ${console_} console's way of saying "not found"`)
+    assert.equal(notFound.status, 503)
+    assert.equal(
+      notFound.body.error,
+      'the openspec command was not found on PATH; install it with `npm install -g @fission-ai/openspec`',
+      `the install instruction replaces the shell's undecodable line, on a ${console_} console`,
+    )
+    assert.equal(notFound.body.output, stderr.trim(), 'what the shell said is still carried for the log')
+  }
+
   const timedOut = await mod.initOpenSpec(project, { logger, run: failingRun({ killed: true, signal: 'SIGTERM' }) })
   assert.equal(timedOut.status, 504)
   assert.equal(timedOut.body.code, 'openspec/timeout')
@@ -461,6 +495,14 @@ it('tells a missing CLI, a timeout and a refusal apart', async () => {
   assert.equal(refused.status, 502)
   assert.equal(refused.body.code, 'openspec/failed')
   assert.equal(refused.body.error, 'a newer OpenSpec CLI is required', 'the CLI\u2019s own words are the actionable text')
+
+  // The shell's signature is the quoted name opening the line; a CLI that ran
+  // and quoted the name further into its own sentence is still a refusal.
+  const quoted = await mod.initOpenSpec(project, {
+    logger,
+    run: failingRun({ code: 1, stdout: '', stderr: "init refused: 'openspec' is not a supported tool\n" }),
+  })
+  assert.equal(quoted.body.code, 'openspec/failed')
 })
 
 /** One call against the exported handler, with deps a test controls. */
