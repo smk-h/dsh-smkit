@@ -1125,3 +1125,52 @@ it('a failed capability check says why, in the page\'s words, and writes nothing
     'a check that brought no answer leaves the row untouched',
   )
 })
+
+it('dims only the button that was pressed, never its neighbour, while it waits', async () => {
+  // Both requests are held open so the in-flight render can be read: the
+  // whole point of the case is what the row looks like while an answer has
+  // not come back yet.
+  let answerDiscover
+  let answerSave
+  const app = mountClient({
+    fetch: (url) => {
+      if (url.endsWith('/llm-retry/routes')) return response({ routes: [] })
+      if (url.endsWith('/model-input/providers')) return response({ providers: [openRouterProvider] })
+      if (url.endsWith('/model-input/discover')) {
+        return new Promise((resolve) => { answerDiscover = () => resolve(response({ modalities: ['text', 'image'] })) })
+      }
+      if (url.endsWith('/model-input/modalities')) {
+        return new Promise((resolve) => { answerSave = () => resolve(response({ provider: openRouterProvider })) })
+      }
+      return response({}, false, 404)
+    },
+  })
+  await app.open()
+
+  app.render().labelled('plain-model · autoFetch').props.onClick()
+  await settle()
+  const checking = app.render()
+  assert.equal(checking.labelled('plain-model · autoFetch').props.disabled, true, 'the pressed button waits for its own answer')
+  assert.ok(checking.labelled('plain-model · autoFetch').children.includes('detecting'), 'and only it shows the checking label')
+  assert.equal(checking.labelled('plain-model · choiceInherit').props.disabled, false, 'the button beside it stays pressable')
+  assert.equal(chip(checking, 'plain-model', 'modalityImage').props.disabled, true, 'the box waits for the row, so a tick cannot overwrite an answer in flight')
+  assert.equal(chip(checking, 'union-alpha', 'modalityImage').props.disabled, false, 'another row is untouched by this check')
+
+  // The check's answer then saves itself, so the write waits on the same key.
+  answerDiscover()
+  await settle()
+  answerSave()
+  await settle()
+  const done = app.render()
+  assert.equal(done.labelled('plain-model · autoFetch').props.disabled, false, 'the pressed button frees up when its answer lands')
+  assert.equal(done.labelled('plain-model · choiceInherit').props.disabled, false)
+
+  app.render().labelled('plain-model · choiceInherit').props.onClick()
+  await settle()
+  const resetting = app.render()
+  assert.equal(resetting.labelled('plain-model · choiceInherit').props.disabled, true, 'the same holds the other way round')
+  assert.equal(resetting.labelled('plain-model · autoFetch').props.disabled, false, 'and a reset never dims the check beside it')
+  assert.ok(resetting.labelled('plain-model · autoFetch').children.includes('autoFetch'), 'the check keeps its own label')
+  answerSave()
+  await settle()
+})

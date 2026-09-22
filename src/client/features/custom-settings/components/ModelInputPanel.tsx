@@ -117,9 +117,6 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
     // Which model mini-cards show their boxes, keyed the same way and by the
     // same rule as the route cards above.
     const [openModels, setOpenModels] = react.useState<string[]>([])
-    // The one model whose capability check is in flight, so only its button
-    // shows the checking label while the others keep theirs readable.
-    const [detecting, setDetecting] = react.useState('')
     // What the last check of a row answered, shown on that row: a reply of
     // text-only is a result too, and a row that silently stays unticked reads
     // as a check that never finished.
@@ -179,40 +176,37 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
     const detect = (provider: ProviderInputView, model: ModelInputView) =>
       run(async () => {
         const key = `${provider.provider}/${model.id}`
-        setDetecting(key)
-        try {
-          const found = await api('/model-input/discover', {
-            method: 'POST',
-            body: JSON.stringify({ provider: provider.provider, model: model.id }),
-          })
-          // Every answer the check gives — a refusal included — is reported on
-          // the row it belongs to, not in the panel-wide banner: the user is
-          // looking at this card, and a ticked or unticked box alone cannot
-          // tell "the endpoint says text only" from "nothing happened".
-          if (!found.ok) {
-            setDetectNote({ key, text: discoverRefusalText(t, found.body.code), failed: true })
-            return
-          }
-          if (!Array.isArray(found.body.modalities)) {
-            setDetectNote({ key, text: t('discoverFailed'), failed: true })
-            return
-          }
-          const modalities = found.body.modalities as InputModality[]
-          const result = await save(provider, model, modalities)
-          if (!result.ok) {
-            setDetectNote({ key, text: saveRefusalText(t, result.body.code, result.body.error, result.status), failed: true })
-            return
-          }
-          setDetectNote({
-            key,
-            text: modalities.includes('image') ? t('detectImage') : t('detectTextOnly'),
-            failed: false,
-          })
-          refresh()
-        } finally {
-          setDetecting('')
+        const found = await api('/model-input/discover', {
+          method: 'POST',
+          body: JSON.stringify({ provider: provider.provider, model: model.id }),
+        })
+        // Every answer the check gives — a refusal included — is reported on
+        // the row it belongs to, not in the panel-wide banner: the user is
+        // looking at this card, and a ticked or unticked box alone cannot
+        // tell "the endpoint says text only" from "nothing happened".
+        if (!found.ok) {
+          setDetectNote({ key, text: discoverRefusalText(t, found.body.code), failed: true })
+          return
         }
-      }, `${provider.provider}/${model.id}`)
+        if (!Array.isArray(found.body.modalities)) {
+          setDetectNote({ key, text: t('discoverFailed'), failed: true })
+          return
+        }
+        const modalities = found.body.modalities as InputModality[]
+        const result = await save(provider, model, modalities)
+        if (!result.ok) {
+          setDetectNote({ key, text: saveRefusalText(t, result.body.code, result.body.error, result.status), failed: true })
+          return
+        }
+        setDetectNote({
+          key,
+          text: modalities.includes('image') ? t('detectImage') : t('detectTextOnly'),
+          failed: false,
+        })
+        refresh()
+        // The row note already carries a failure's message; a banner on top of
+        // it would state the same refusal twice.
+      }, `${provider.provider}/${model.id}#detect`)
 
     const toggleCard = (provider: string) => {
       setOpen(open.includes(provider) ? open.filter(kept => kept !== provider) : [...open, provider])
@@ -279,7 +273,14 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                     {provider.error ? <div className="mm_err">{provider.error}</div> : null}
                     {provider.models.map((model) => {
                       const key = `${provider.provider}/${model.id}`
-                      const busy = pending === key
+                      // One action, one busy flag: pressing a button dims that
+                      // button alone, never its neighbour — two controls that
+                      // can physically never be pressed together should not
+                      // light up together either. The boxes still wait for
+                      // whatever the row is doing, so a slow check cannot have
+                      // its answer overwritten mid-flight by a tick.
+                      const detectKey = `${key}#detect`
+                      const rowBusy = pending === key || pending === detectKey
                       const modelExpanded = openModels.includes(key)
                       return (
                         <div className="mi_modelCard" key={model.id}>
@@ -312,7 +313,7 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                   of={model.id}
                                   label={t('modalityImage')}
                                   checked={model.effective.includes('image')}
-                                  disabled={busy}
+                                  disabled={rowBusy}
                                   inert={!provider.editable}
                                   onChange={(next) => { void write(provider, model, modalitiesOf(next)) }}
                                 />
@@ -326,15 +327,15 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                     className="mm_btn mi_bodyBtn"
                                     aria-label={`${model.id} · ${t('autoFetch')}`}
                                     onClick={() => { void detect(provider, model) }}
-                                    disabled={busy}
+                                    disabled={pending === detectKey}
                                   >
-                                    {detecting === key ? t('detecting') : t('autoFetch')}
+                                    {pending === detectKey ? t('detecting') : t('autoFetch')}
                                   </button>
                                   <button
                                     className="mm_btn mi_bodyBtn"
                                     aria-label={`${model.id} · ${t('choiceInherit')}`}
                                     onClick={() => { void write(provider, model, null) }}
-                                    disabled={busy}
+                                    disabled={pending === key}
                                   >
                                     {t('choiceInherit')}
                                   </button>
