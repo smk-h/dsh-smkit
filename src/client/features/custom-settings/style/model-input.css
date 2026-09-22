@@ -236,3 +236,19 @@
   white-space: nowrap;
   display: inline-flex;
 }
+
+/* The last check's answer rides on its own line under the boxes and the two
+ * buttons — a 100% basis in the wrapping body, so it never squeezes them off
+ * their row. Quiet label type while it only reports; the platform's error
+ * colour when the check itself failed. */
+.mi_detectNote {
+  flex-basis: 100%;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+  min-width: 0;
+}
+
+.mi_detectNote[data-failed=true] {
+  color: var(--dsw-alias-state-error-primary);
+}

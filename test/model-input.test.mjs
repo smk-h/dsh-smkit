@@ -1088,6 +1088,23 @@ it('auto-detect writes what the route\'s endpoint reported, for that model alone
     modalities: ['text', 'image'],
     revision: 4,
   }], 'the answer lands as the same model-scoped write a ticked box makes, revision and all')
+  assert.ok(app.render().text.includes('detectImage'), 'and the row says what the check answered')
+})
+
+it('a check that answers text only states that answer, so a quiet box is a seen result', async () => {
+  const app = mountClient({
+    fetch: routing({
+      list: { providers: [openRouterProvider] },
+      discover: { body: { modalities: ['text'] } },
+    }),
+  })
+  await app.open()
+  app.render().labelled('plain-model · autoFetch').props.onClick()
+  await settle()
+
+  const posted = app.calls.filter((request) => request.url.endsWith('/model-input/modalities'))
+  assert.equal(plain(posted[0].body.modalities).join('+'), 'text', 'text only is still a written answer')
+  assert.ok(app.render().text.includes('detectTextOnly'), 'the row says the check succeeded and found no image')
 })
 
 it('a failed capability check says why, in the page\'s words, and writes nothing', async () => {

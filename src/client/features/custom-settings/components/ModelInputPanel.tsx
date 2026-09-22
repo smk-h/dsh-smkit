@@ -12,7 +12,9 @@
  * and so carries its lock, and image, the only one worth asking about — and at
  * the right edge the two answers to that question: auto-detect, which asks the
  * route's own endpoint what it takes for this model and writes the reply, and
- * reset to default, which deletes the stored declaration.
+ * reset to default, which deletes the stored declaration. Under them the last
+ * check states its answer, so a reply of text-only is seen as the result it
+ * is rather than mistook for a check that never finished.
  *
  * There is no draft and no Save button, because ticking a box is the write, and
  * the card paints what the host reports, which the 3-second poll keeps true
@@ -115,6 +117,13 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
     // Which model mini-cards show their boxes, keyed the same way and by the
     // same rule as the route cards above.
     const [openModels, setOpenModels] = react.useState<string[]>([])
+    // The one model whose capability check is in flight, so only its button
+    // shows the checking label while the others keep theirs readable.
+    const [detecting, setDetecting] = react.useState('')
+    // What the last check of a row answered, shown on that row: a reply of
+    // text-only is a result too, and a row that silently stays unticked reads
+    // as a check that never finished.
+    const [detectNote, setDetectNote] = react.useState<{ key: string; text: string; failed: boolean } | null>(null)
     const { pending, error, run } = useAsyncAction(react)
 
     const refresh = react.useCallback(() => {
@@ -153,8 +162,11 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
         }),
       })
 
-    const write = (provider: ProviderInputView, model: ModelInputView, modalities: InputModality[] | null) =>
-      run(async () => {
+    const write = (provider: ProviderInputView, model: ModelInputView, modalities: InputModality[] | null) => {
+      // A box ticked by hand replaces the last check's answer for that row:
+      // from here on the row states the user's own choice.
+      if (detectNote !== null && detectNote.key === `${provider.provider}/${model.id}`) setDetectNote(null)
+      return run(async () => {
         const result = await save(provider, model, modalities)
         if (result.ok) {
           refresh()
@@ -162,24 +174,44 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
         }
         return saveRefusalText(t, result.body.code, result.body.error, result.status)
       }, `${provider.provider}/${model.id}`)
+    }
 
     const detect = (provider: ProviderInputView, model: ModelInputView) =>
       run(async () => {
-        const found = await api('/model-input/discover', {
-          method: 'POST',
-          body: JSON.stringify({ provider: provider.provider, model: model.id }),
-        })
-        // The probe reads the route's own endpoint; what it reports becomes
-        // this row's declaration through a normal save, and anything the
-        // listing cannot answer leaves the row exactly as the user had it.
-        if (!found.ok) return discoverRefusalText(t, found.body.code)
-        if (!Array.isArray(found.body.modalities)) return t('discoverFailed')
-        const result = await save(provider, model, found.body.modalities)
-        if (result.ok) {
+        const key = `${provider.provider}/${model.id}`
+        setDetecting(key)
+        try {
+          const found = await api('/model-input/discover', {
+            method: 'POST',
+            body: JSON.stringify({ provider: provider.provider, model: model.id }),
+          })
+          // Every answer the check gives — a refusal included — is reported on
+          // the row it belongs to, not in the panel-wide banner: the user is
+          // looking at this card, and a ticked or unticked box alone cannot
+          // tell "the endpoint says text only" from "nothing happened".
+          if (!found.ok) {
+            setDetectNote({ key, text: discoverRefusalText(t, found.body.code), failed: true })
+            return
+          }
+          if (!Array.isArray(found.body.modalities)) {
+            setDetectNote({ key, text: t('discoverFailed'), failed: true })
+            return
+          }
+          const modalities = found.body.modalities as InputModality[]
+          const result = await save(provider, model, modalities)
+          if (!result.ok) {
+            setDetectNote({ key, text: saveRefusalText(t, result.body.code, result.body.error, result.status), failed: true })
+            return
+          }
+          setDetectNote({
+            key,
+            text: modalities.includes('image') ? t('detectImage') : t('detectTextOnly'),
+            failed: false,
+          })
           refresh()
-          return
+        } finally {
+          setDetecting('')
         }
-        return saveRefusalText(t, result.body.code, result.body.error, result.status)
       }, `${provider.provider}/${model.id}`)
 
     const toggleCard = (provider: string) => {
@@ -296,7 +328,7 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                     onClick={() => { void detect(provider, model) }}
                                     disabled={busy}
                                   >
-                                    {t('autoFetch')}
+                                    {detecting === key ? t('detecting') : t('autoFetch')}
                                   </button>
                                   <button
                                     className="mm_btn mi_bodyBtn"
@@ -307,6 +339,11 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                     {t('choiceInherit')}
                                   </button>
                                 </span>
+                              ) : null}
+                              {detectNote !== null && detectNote.key === key ? (
+                                <div className="mi_detectNote" data-failed={detectNote.failed ? 'true' : undefined}>
+                                  {detectNote.text}
+                                </div>
                               ) : null}
                             </div>
                           ) : null}
