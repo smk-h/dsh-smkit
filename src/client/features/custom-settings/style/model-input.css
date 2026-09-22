@@ -104,15 +104,40 @@
 /* One model: its name, its boxes, and at the right edge the dot that says
  * whether this page wrote its list, beside the action that takes it back — on
  * every row this page can write, so the control does not have to say where it
- * is. The chips column is as wide as its content, so the tail stays aligned. */
+ * is.
+ *
+ * The row wraps instead of squeezing. The boxes and the way back are each one
+ * line of words that never breaks, so the only column that could give way was
+ * the name's, and a name squeezed to nothing leaves a row with no subject —
+ * which is what a narrow dialog used to show. Below the name's floor the pieces
+ * fall onto a second line, where they keep the same ends they had on the first. */
 .mi_row {
-  grid-template-columns: minmax(0,1fr) auto auto;
   align-items: center;
-  gap: 10px;
-  display: grid;
+  row-gap: 6px;
+  column-gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
 }
 
+/* The row's controls travel as one piece: the boxes and the way back break onto
+ * a line together, so a stacked row reads as its model's controls in another
+ * line rather than as two unrelated rows. Inside the piece the same rule holds
+ * one level down — the way back goes to a line of its own before it squeezes a
+ * box — and each of those lines keeps the right edge the row has. */
+.mi_controls {
+  flex-wrap: wrap;
+  align-items: center;
+  margin-left: auto;
+  row-gap: 6px;
+  column-gap: 10px;
+  display: flex;
+}
+
+/* The floor is the narrowest span worth showing a model's words behind: under
+ * it the name takes a line to itself and gets the full width, rather than
+ * sharing a line it cannot pay for. */
 .mi_model {
+  flex: 1 1 120px;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -141,8 +166,12 @@
 
 /* The row's right-hand end: the way back, and the dot that says whether there
  * is anything to go back from. They travel together so the dot keeps the same
- * edge of every row, and a route this page cannot write is left with just it. */
+ * edge of every row, and a route this page cannot write is left with just it.
+ * The edge is held with a margin rather than with the name column growing,
+ * because once the row wraps there is no growing column left on this line to
+ * push them there. */
 .mi_tail {
+  margin-left: auto;
   align-items: center;
   gap: 8px;
   display: inline-flex;

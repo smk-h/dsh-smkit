@@ -193,36 +193,38 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                             <span className="mi_modelName">{model.name}</span>
                             <span className="mi_modelId">{model.id}</span>
                           </div>
-                          <div className="mm_chipRow">
-                            <CheckChip of={model.id} label={t('modalityText')} checked locked disabled />
-                            <CheckChip
-                              of={model.id}
-                              label={t('modalityImage')}
-                              checked={model.effective.includes('image')}
-                              disabled={busy}
-                              inert={!provider.editable}
-                              onChange={(next) => { void write(provider, model, modalitiesOf(next)) }}
-                            />
-                            {(model.other ?? []).map(name => (
-                              <CheckChip key={name} of={model.id} label={name} checked locked disabled />
-                            ))}
-                          </div>
-                          <span className="mi_tail">
-                            {provider.editable ? (
-                              <button
-                                className="mm_btn mi_reset"
-                                aria-label={`${model.id} · ${t('choiceInherit')}`}
-                                onClick={() => { void write(provider, model, null) }}
+                          <div className="mi_controls">
+                            <div className="mm_chipRow">
+                              <CheckChip of={model.id} label={t('modalityText')} checked locked disabled />
+                              <CheckChip
+                                of={model.id}
+                                label={t('modalityImage')}
+                                checked={model.effective.includes('image')}
                                 disabled={busy}
-                              >
-                                {t('choiceInherit')}
-                              </button>
-                            ) : null}
-                            <StateDot
-                              state={model.overridden ? 'active' : 'idle'}
-                              label={`${model.id} · ${t(model.overridden ? 'modelStatusCustom' : 'modelStatusDefault')}`}
-                            />
-                          </span>
+                                inert={!provider.editable}
+                                onChange={(next) => { void write(provider, model, modalitiesOf(next)) }}
+                              />
+                              {(model.other ?? []).map(name => (
+                                <CheckChip key={name} of={model.id} label={name} checked locked disabled />
+                              ))}
+                            </div>
+                            <span className="mi_tail">
+                              {provider.editable ? (
+                                <button
+                                  className="mm_btn mi_reset"
+                                  aria-label={`${model.id} · ${t('choiceInherit')}`}
+                                  onClick={() => { void write(provider, model, null) }}
+                                  disabled={busy}
+                                >
+                                  {t('choiceInherit')}
+                                </button>
+                              ) : null}
+                              <StateDot
+                                state={model.overridden ? 'active' : 'idle'}
+                                label={`${model.id} · ${t(model.overridden ? 'modelStatusCustom' : 'modelStatusDefault')}`}
+                              />
+                            </span>
+                          </div>
                         </div>
                       )
                     })}
