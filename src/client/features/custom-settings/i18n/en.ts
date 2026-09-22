@@ -43,7 +43,6 @@ export const CUSTOM_SETTINGS_LOCALE_EN: LocaleDict = {
   "modelStatusDefault": "default",
   "modelStatusCustom": "custom",
   "summaryVisual": "{count} take images",
-  "badgeDeclared": "custom input",
   "refusalOtherAdapter": "This route is configured by the \"{ns}\" adapter, whose model fields are not the ones this page writes, so it is read-only here.",
   "refusalNoAddress": "This provider declares no editable settings address, so its capabilities are read-only here.",
   "refusalNoNamespace": "The \"{ns}\" namespace this route belongs to is not registered in this deployment, so nothing can be written.",

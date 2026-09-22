@@ -178,7 +178,10 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                   <button className="mm_cardContent" type="button" aria-expanded={expanded} onClick={() => toggleCard(provider.provider)}>
                     <span className="mm_name">{provider.displayName}</span>
                     <span className="mi_route">{provider.provider}</span>
-                    {declared > 0 ? <span className="mi_badge">{t('badgeDeclared')}</span> : null}
+                    <StateDot
+                      state={declared > 0 ? 'active' : 'idle'}
+                      label={`${provider.displayName} · ${t(declared > 0 ? 'modelStatusCustom' : 'modelStatusDefault')}`}
+                    />
                   </button>
                   <button
                     className="mi_caretBtn"

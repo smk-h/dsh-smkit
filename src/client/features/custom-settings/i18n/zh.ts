@@ -46,7 +46,6 @@ export const CUSTOM_SETTINGS_LOCALE_ZH: LocaleDict = {
   "modelStatusDefault": "默认",
   "modelStatusCustom": "已自定义",
   "summaryVisual": "{count} 个支持图片",
-  "badgeDeclared": "有自定义",
   "refusalOtherAdapter": "该路由由 {ns} 适配器配置，它存放模型能力的字段与本页写的不是同一套，这里只能查看。",
   "refusalNoAddress": "该提供方未声明可编辑的配置地址，只能查看当前能力。",
   "refusalNoNamespace": "该路由所属的 {ns} 命名空间未在本次部署中注册，无法写入。",

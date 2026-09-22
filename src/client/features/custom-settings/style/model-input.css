@@ -76,21 +76,6 @@
   line-height: 18px;
 }
 
-/* The card badge appears only when at least one model on this route carries a
- * declaration this page wrote — the reason to open a collapsed card. A route
- * with none says nothing, because there is nothing to say. */
-.mi_badge {
-  background: var(--dsw-alias-bg-layer-1);
-  min-height: 20px;
-  color: var(--dsw-alias-label-secondary);
-  border-radius: 5px;
-  align-items: center;
-  padding: 1px 8px;
-  font-size: 11px;
-  line-height: 16px;
-  display: inline-flex;
-}
-
 /* What a collapsed card still says about its models: how many there are, and
  * how many of them take pictures. The card is closed, so these numbers are the
  * reason to open it. */
