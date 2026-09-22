@@ -2,28 +2,33 @@
  * The model-input tab of the Custom settings page.
  *
  * One expandable card per provider route — the same disclosure the Settings →
- * MCP rows draw — and inside it one row per model, where the inputs a model
- * takes are asked with the platform's check chips: text, which every declaration
- * this page writes contains and so carries its lock, and image, the only one
- * worth asking about.
+ * MCP rows draw — and inside it one mini-card per model, shaped like the host's
+ * own `ModelListEditor` rows: a bordered frame whose head puts the model's id
+ * and name in two framed fields, with the caret that opens it and, at the right
+ * edge, the shared state dot.
+ *
+ * The head opens onto the inputs a model takes, asked with the platform's check
+ * chips at the left — text, which every declaration this page writes contains
+ * and so carries its lock, and image, the only one worth asking about — and the
+ * way back at the right edge, reset to default, which deletes the stored
+ * declaration.
  *
  * There is no draft and no Save button, because ticking a box is the write, and
- * the row paints what the host reports, which the 3-second poll keeps true after
- * an edit made by hand in `settings.yaml` or in another window.
+ * the card paints what the host reports, which the 3-second poll keeps true
+ * after an edit made by hand in `settings.yaml` or in another window.
  *
  * The boxes show what a request is accepted for today: a model this page has not
  * touched takes whatever answer dsh resolves for it, and the tick still reports
- * that. Which of the two a row is shows as the shared state dot — blue once this
- * page has written its list, grey while it has not — and every editable row
- * carries the same way back beside it, reset to default, which deletes the
- * stored declaration. A row that never had one answers that reset by staying
- * exactly as it is, so the control needs no state to be predictable. Un-ticking
- * image is not the reset: it states "text only", while deleting the declaration
- * asks dsh again, and dsh may well answer image.
+ * that. The dot says which of the two a card is — blue once this page has
+ * written its list, grey while it has not. A card that never had a declaration
+ * answers the reset by staying exactly as it is, so the control needs no state
+ * to be predictable. Un-ticking image is not the reset: it states "text only",
+ * while deleting the declaration asks dsh again, and dsh may well answer image.
  */
 
 import { createCheckChip } from '../../../platform/ui/CheckChip'
 import { createChevronDownIcon } from '../../../platform/icons/ChevronDownIcon'
+import { createChevronRightIcon } from '../../../platform/icons/ChevronRightIcon'
 import { createStateDot } from '../../../platform/ui/StateDot'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
 import type { ClientDeps, Translator } from '../../../platform/types'
@@ -80,6 +85,7 @@ function modalitiesOf(image: boolean): InputModality[] {
 export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanelProps) => JSX.Element {
   const { h, react, api } = deps
   const ChevronDownIcon = createChevronDownIcon(deps)
+  const ChevronRightIcon = createChevronRightIcon(deps)
   const CheckChip = createCheckChip(deps)
   const StateDot = createStateDot(deps)
 
@@ -94,6 +100,9 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
     // disappears from the configuration takes its open card with it instead of
     // holding a slot over a route the list no longer has.
     const [open, setOpen] = react.useState<string[]>([])
+    // Which model mini-cards show their boxes, keyed the same way and by the
+    // same rule as the route cards above.
+    const [openModels, setOpenModels] = react.useState<string[]>([])
     const { pending, error, run } = useAsyncAction(react)
 
     const refresh = react.useCallback(() => {
@@ -141,6 +150,10 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
       setOpen(open.includes(provider) ? open.filter(kept => kept !== provider) : [...open, provider])
     }
 
+    const toggleModelCard = (key: string) => {
+      setOpenModels(openModels.includes(key) ? openModels.filter(kept => kept !== key) : [...openModels, key])
+    }
+
     const seamNotice = unavailableText(t, unavailable)
     const modelCount = providers.reduce((total, provider) => total + provider.models.length, 0)
     return (
@@ -186,29 +199,48 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                     ) : null}
                     {provider.error ? <div className="mm_err">{provider.error}</div> : null}
                     {provider.models.map((model) => {
-                      const busy = pending === `${provider.provider}/${model.id}`
+                      const key = `${provider.provider}/${model.id}`
+                      const busy = pending === key
+                      const modelExpanded = openModels.includes(key)
                       return (
-                        <div className="mi_row" key={model.id}>
-                          <div className="mi_model">
-                            <span className="mi_modelName">{model.name}</span>
+                        <div className="mi_modelCard" key={model.id}>
+                          <div className="mi_modelHead">
                             <span className="mi_modelId">{model.id}</span>
-                          </div>
-                          <div className="mi_controls">
-                            <div className="mm_chipRow">
-                              <CheckChip of={model.id} label={t('modalityText')} checked locked disabled />
-                              <CheckChip
-                                of={model.id}
-                                label={t('modalityImage')}
-                                checked={model.effective.includes('image')}
-                                disabled={busy}
-                                inert={!provider.editable}
-                                onChange={(next) => { void write(provider, model, modalitiesOf(next)) }}
+                            <span className="mi_modelName">{model.name}</span>
+                            <span className="mi_headTail">
+                              <button
+                                className="mi_caretBtn"
+                                type="button"
+                                aria-expanded={modelExpanded}
+                                data-open={modelExpanded ? 'true' : undefined}
+                                aria-label={`${model.name} · ${t('modelAdvanced')}`}
+                                title={t('modelAdvanced')}
+                                onClick={() => toggleModelCard(key)}
+                              >
+                                <ChevronRightIcon className="mi_caret" />
+                              </button>
+                              <StateDot
+                                state={model.overridden ? 'active' : 'idle'}
+                                label={`${model.id} · ${t(model.overridden ? 'modelStatusCustom' : 'modelStatusDefault')}`}
                               />
-                              {(model.other ?? []).map(name => (
-                                <CheckChip key={name} of={model.id} label={name} checked locked disabled />
-                              ))}
-                            </div>
-                            <span className="mi_tail">
+                            </span>
+                          </div>
+                          {modelExpanded ? (
+                            <div className="mi_modelBody">
+                              <div className="mm_chipRow">
+                                <CheckChip of={model.id} label={t('modalityText')} checked locked disabled />
+                                <CheckChip
+                                  of={model.id}
+                                  label={t('modalityImage')}
+                                  checked={model.effective.includes('image')}
+                                  disabled={busy}
+                                  inert={!provider.editable}
+                                  onChange={(next) => { void write(provider, model, modalitiesOf(next)) }}
+                                />
+                                {(model.other ?? []).map(name => (
+                                  <CheckChip key={name} of={model.id} label={name} checked locked disabled />
+                                ))}
+                              </div>
                               {provider.editable ? (
                                 <button
                                   className="mm_btn mi_reset"
@@ -219,12 +251,8 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                   {t('choiceInherit')}
                                 </button>
                               ) : null}
-                              <StateDot
-                                state={model.overridden ? 'active' : 'idle'}
-                                label={`${model.id} · ${t(model.overridden ? 'modelStatusCustom' : 'modelStatusDefault')}`}
-                              />
-                            </span>
-                          </div>
+                            </div>
+                          ) : null}
                         </div>
                       )
                     })}

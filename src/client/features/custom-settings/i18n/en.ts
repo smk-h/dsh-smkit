@@ -37,6 +37,7 @@ export const CUSTOM_SETTINGS_LOCALE_EN: LocaleDict = {
   "modelUnavailableSettings": "This deployment mounts no settings service: capabilities are readable but cannot be saved.",
   "noModels": "This route reports no models.",
   "choiceInherit": "Reset to default",
+  "modelAdvanced": "Input options",
   "modalityText": "text",
   "modalityImage": "image",
   "modelStatusDefault": "default",

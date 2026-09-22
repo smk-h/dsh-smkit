@@ -40,6 +40,7 @@ export const CUSTOM_SETTINGS_LOCALE_ZH: LocaleDict = {
   "modelUnavailableSettings": "当前部署没有挂载 settings 服务：输入能力只能查看，不能保存。",
   "noModels": "该路由没有报告任何模型。",
   "choiceInherit": "恢复默认",
+  "modelAdvanced": "输入配置",
   "modalityText": "文本",
   "modalityImage": "图片",
   "modelStatusDefault": "默认",

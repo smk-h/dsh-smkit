@@ -101,56 +101,47 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* One model: its name, its boxes, and at the right edge the dot that says
- * whether this page wrote its list, beside the action that takes it back — on
- * every row this page can write, so the control does not have to say where it
- * is.
+/* One model: the host's own `ModelListEditor` measure — a hairline card whose
+ * head is a plain row (name, its caret button, its state dot at the right
+ * edge), opening onto the boxes at the left and the way back at the right.
  *
- * The row wraps instead of squeezing. The boxes and the way back are each one
- * line of words that never breaks, so the only column that could give way was
- * the name's, and a name squeezed to nothing leaves a row with no subject —
- * which is what a narrow dialog used to show. Below the name's floor the pieces
- * fall onto a second line, where they keep the same ends they had on the first. */
-.mi_row {
-  align-items: center;
-  row-gap: 6px;
-  column-gap: 10px;
-  display: flex;
-  flex-wrap: wrap;
-}
-
-/* The row's controls travel as one piece: the boxes and the way back break onto
- * a line together, so a stacked row reads as its model's controls in another
- * line rather than as two unrelated rows. Inside the piece the same rule holds
- * one level down — the way back goes to a line of its own before it squeezes a
- * box — and each of those lines keeps the right edge the row has. */
-.mi_controls {
-  flex-wrap: wrap;
-  align-items: center;
-  margin-left: auto;
-  row-gap: 6px;
-  column-gap: 10px;
-  display: flex;
-}
-
-/* The floor is the narrowest span worth showing a model's words behind: under
- * it the name takes a line to itself and gets the full width, rather than
- * sharing a line it cannot pay for. */
-.mi_model {
-  flex: 1 1 120px;
-  display: flex;
+ * The head does not squeeze. The name's column is the only piece that gives,
+ * and it ellipsises before it vanishes; the body's pieces travel as whole lines
+ * that wrap below their own right edge instead. */
+.mi_modelCard {
+  border: 0.5px solid var(--dsw-alias-border-l4);
   flex-direction: column;
-  min-width: 0;
+  gap: 2px;
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
 }
 
-.mi_modelName {
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--dsw-alias-label-primary);
+.mi_modelHead {
+  align-items: center;
+  row-gap: 6px;
+  column-gap: 6px;
+  flex-wrap: wrap;
+  display: flex;
+}
+
+/* The head's two subjects: the host's framed fields — its `.input` box's
+ * hairline, corner and fill — cut to this dialog's measure, 28px to match the
+ * caret button beside them. The two boxes split the row evenly. Each keeps a
+ * floor worth reading; under the floors the tail falls to a line of its own
+ * rather than squeezing a box to nothing. */
+.mi_modelId,.mi_modelName {
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
   min-width: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
+  display: flex;
 }
 
 .mi_modelId {
@@ -158,33 +149,78 @@
   font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   font-size: 12px;
   line-height: 18px;
-  min-width: 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
+  flex: 1 1 100px;
 }
 
-/* The row's right-hand end: the way back, and the dot that says whether there
- * is anything to go back from. They travel together so the dot keeps the same
- * edge of every row, and a route this page cannot write is left with just it.
- * The edge is held with a margin rather than with the name column growing,
- * because once the row wraps there is no growing column left on this line to
- * push them there. */
-.mi_tail {
+.mi_modelName {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+  flex: 1 1 100px;
+}
+
+/* The head's right-hand end: the caret and the dot travel as one piece and
+ * hold the row's edge with a margin, so a wrapped head still ends the same
+ * way. */
+.mi_headTail {
   margin-left: auto;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex: none;
   display: inline-flex;
 }
 
-/* The way back is one of the row's controls, so it is cut to the measure of the
- * boxes it sits beside — the platform check chip's: the same height, the same
- * corner, the same inside edge, one line of words. `mm_btn` already carries the
- * hairline, the transparent fill and the 12px type, so only these travel. The
- * measures are stated as literals rather than borrowed because a stylesheet
- * cannot read another rule's numbers; if the chip's measure moves, this moves
- * with it. */
+/* The host's disclosure control verbatim: a 28px square, corner 6, transparent
+ * until hovered, holding the 14px caret its own `IconChevron` draws — the caret
+ * turning a quarter-clockwise while the card is open, on the host's 120ms. */
+.mi_caretBtn {
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  align-items: center;
+  justify-content: center;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+}
+.mi_caretBtn:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+.mi_caret {
+  transition: transform 120ms ease;
+}
+.mi_caretBtn[data-open=true] .mi_caret {
+  transform: rotate(90deg);
+}
+
+/* The opened body: the boxes hold the left edge, the way back keeps the right
+ * one, and at a width that cannot pay for both the button falls to a line of
+ * its own with the edge it had. */
+.mi_modelBody {
+  align-items: center;
+  row-gap: 6px;
+  column-gap: 10px;
+  flex-wrap: wrap;
+  padding: 2px 4px;
+  display: flex;
+}
+
+/* The way back keeps the body's right edge — held with a margin rather than a
+ * growing column, so it stays there on its own line once the body wraps — and
+ * is cut to the measure of the boxes it sits beside: the platform check chip's,
+ * the same height, the same corner, the same inside edge, one line of words.
+ * `mm_btn` already carries the hairline, the transparent fill and the 12px
+ * type, so only these travel. The measures are stated as literals rather than
+ * borrowed because a stylesheet cannot read another rule's numbers; if the
+ * chip's measure moves, this moves with it. */
 .mi_reset {
+  margin-left: auto;
   border-radius: 7px;
   min-height: 26px;
   align-items: center;
