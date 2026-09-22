@@ -117,6 +117,22 @@ export interface ModelInputSaveResponse {
   provider: ProviderInputView
 }
 
+/** Body of `POST /model-input/discover`: which route and model to interrogate. */
+export interface ModelDiscoveryRequest {
+  provider: string
+  model: string
+}
+
+/**
+ * Answer of `POST /model-input/discover`: the modalities the route's own
+ * endpoint reports for that model. The probe runs host-side against the
+ * route's configured endpoint with the route's own key; the browser half only
+ * ever sees this list, and applies it through a normal save.
+ */
+export interface ModelDiscoveryResponse {
+  modalities: InputModality[]
+}
+
 /**
  * Stable refusal codes of the model-input API. The browser half shows the
  * host's own message and uses the code only to decide what the user can do
@@ -130,3 +146,20 @@ export type ModelInputRefusal =
   | 'input/invalid-modalities'
   | 'input/conflict'
   | 'input/unavailable'
+
+/**
+ * Stable refusal codes of `POST /model-input/discover`. The codes carried over
+ * from {@link ModelInputRefusal} mean the same thing here; the two new ones
+ * separate what the endpoint itself answered (`discover-failed`, or
+ * `discover-no-model` when it listed the model without capacities) from what
+ * the route's configuration makes impossible without asking it (`discover-
+ * unsupported` — no endpoint to ask, or a protocol with no readable listing).
+ */
+export type ModelDiscoverRefusal =
+  | 'input/unavailable'
+  | 'input/unknown-provider'
+  | 'input/unknown-model'
+  | 'input/not-editable'
+  | 'input/discover-unsupported'
+  | 'input/discover-failed'
+  | 'input/discover-no-model'

@@ -211,16 +211,24 @@
   display: flex;
 }
 
-/* The way back keeps the body's right edge — held with a margin rather than a
- * growing column, so it stays there on its own line once the body wraps — and
- * is cut to the measure of the boxes it sits beside: the platform check chip's,
- * the same height, the same corner, the same inside edge, one line of words.
- * `mm_btn` already carries the hairline, the transparent fill and the 12px
- * type, so only these travel. The measures are stated as literals rather than
- * borrowed because a stylesheet cannot read another rule's numbers; if the
- * chip's measure moves, this moves with it. */
-.mi_reset {
+/* The two answers keep the body's right edge together — held with a margin
+ * rather than a growing column, so they stay there on their own line once the
+ * body wraps — and are cut to the measure of the boxes they sit beside: the
+ * platform check chip's, the same height, the same corner, the same inside
+ * edge, one line of words. `mm_btn` already carries the hairline, the
+ * transparent fill and the 12px type, so only these travel. The measures are
+ * stated as literals rather than borrowed because a stylesheet cannot read
+ * another rule's numbers; if the chip's measure moves, these move with it. */
+.mi_bodyTail {
   margin-left: auto;
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 6px;
+  flex-wrap: wrap;
+  display: inline-flex;
+}
+
+.mi_bodyBtn {
   border-radius: 7px;
   min-height: 26px;
   align-items: center;

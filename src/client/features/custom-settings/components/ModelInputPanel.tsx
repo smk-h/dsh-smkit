@@ -9,9 +9,10 @@
  *
  * The head opens onto the inputs a model takes, asked with the platform's check
  * chips at the left — text, which every declaration this page writes contains
- * and so carries its lock, and image, the only one worth asking about — and the
- * way back at the right edge, reset to default, which deletes the stored
- * declaration.
+ * and so carries its lock, and image, the only one worth asking about — and at
+ * the right edge the two answers to that question: auto-detect, which asks the
+ * route's own endpoint what it takes for this model and writes the reply, and
+ * reset to default, which deletes the stored declaration.
  *
  * There is no draft and no Save button, because ticking a box is the write, and
  * the card paints what the host reports, which the 3-second poll keeps true
@@ -76,6 +77,19 @@ function saveRefusalText(t: Translator, code: unknown, message: string | undefin
   }
 }
 
+/** What a refused capability check tells the user: the ask failed, so the boxes stay theirs. */
+function discoverRefusalText(t: Translator, code: unknown): string {
+  switch (code) {
+    case 'input/discover-unsupported': return t('discoverUnsupported')
+    case 'input/discover-no-model': return t('discoverNoModel')
+    case 'input/unknown-provider': return t('codeUnknownProvider')
+    case 'input/unknown-model': return t('codeUnknownModel')
+    case 'input/not-editable': return t('codeNotEditable')
+    case 'input/unavailable': return t('codeUnavailable')
+    default: return t('discoverFailed')
+  }
+}
+
 /** The modalities one row's boxes stand for. */
 function modalitiesOf(image: boolean): InputModality[] {
   return image ? ['text', 'image'] : ['text']
@@ -124,19 +138,43 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
       return () => clearInterval(timer)
     }, [refresh])
 
+    // The one save every write on this row goes through, so a detected answer
+    // lands by the same CAS path as a ticked box.
+    const save = (provider: ProviderInputView, model: ModelInputView, modalities: InputModality[] | null) =>
+      api('/model-input/modalities', {
+        method: 'POST',
+        body: JSON.stringify({
+          provider: provider.provider,
+          model: model.id,
+          modalities,
+          // The revision this row was rendered from: a section that moved
+          // since then refuses the write instead of clobbering that edit.
+          ...(provider.revision === undefined ? {} : { revision: provider.revision }),
+        }),
+      })
+
     const write = (provider: ProviderInputView, model: ModelInputView, modalities: InputModality[] | null) =>
       run(async () => {
-        const result = await api('/model-input/modalities', {
+        const result = await save(provider, model, modalities)
+        if (result.ok) {
+          refresh()
+          return
+        }
+        return saveRefusalText(t, result.body.code, result.body.error, result.status)
+      }, `${provider.provider}/${model.id}`)
+
+    const detect = (provider: ProviderInputView, model: ModelInputView) =>
+      run(async () => {
+        const found = await api('/model-input/discover', {
           method: 'POST',
-          body: JSON.stringify({
-            provider: provider.provider,
-            model: model.id,
-            modalities,
-            // The revision this row was rendered from: a section that moved
-            // since then refuses the write instead of clobbering that edit.
-            ...(provider.revision === undefined ? {} : { revision: provider.revision }),
-          }),
+          body: JSON.stringify({ provider: provider.provider, model: model.id }),
         })
+        // The probe reads the route's own endpoint; what it reports becomes
+        // this row's declaration through a normal save, and anything the
+        // listing cannot answer leaves the row exactly as the user had it.
+        if (!found.ok) return discoverRefusalText(t, found.body.code)
+        if (!Array.isArray(found.body.modalities)) return t('discoverFailed')
+        const result = await save(provider, model, found.body.modalities)
         if (result.ok) {
           refresh()
           return
@@ -251,14 +289,24 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                 ))}
                               </div>
                               {provider.editable ? (
-                                <button
-                                  className="mm_btn mi_reset"
-                                  aria-label={`${model.id} · ${t('choiceInherit')}`}
-                                  onClick={() => { void write(provider, model, null) }}
-                                  disabled={busy}
-                                >
-                                  {t('choiceInherit')}
-                                </button>
+                                <span className="mi_bodyTail">
+                                  <button
+                                    className="mm_btn mi_bodyBtn"
+                                    aria-label={`${model.id} · ${t('autoFetch')}`}
+                                    onClick={() => { void detect(provider, model) }}
+                                    disabled={busy}
+                                  >
+                                    {t('autoFetch')}
+                                  </button>
+                                  <button
+                                    className="mm_btn mi_bodyBtn"
+                                    aria-label={`${model.id} · ${t('choiceInherit')}`}
+                                    onClick={() => { void write(provider, model, null) }}
+                                    disabled={busy}
+                                  >
+                                    {t('choiceInherit')}
+                                  </button>
+                                </span>
                               ) : null}
                             </div>
                           ) : null}

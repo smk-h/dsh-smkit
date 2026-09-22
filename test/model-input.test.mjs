@@ -6,12 +6,14 @@
  * harness's own services stand:
  *
  * - the host half is mounted through the real `apply()` against a stub context
- *   carrying `llm` and `settings`, and probed over its two API routes. What
+ *   carrying `llm` and `settings`, and probed over its three API routes. What
  *   matters there is where a declaration is written: a route that lists its own
  *   models has to be edited inside that array — whole, with every other model's
  *   fields intact — while a catalog route is edited under `modelOverrides`, and
  *   "inherit" has to remove the declaration rather than store an empty list,
- *   which the adapter reads as no answer at all.
+ *   which the adapter reads as no answer at all. The probe route answers it the
+ *   host's own model-list interrogation would: same URL, same credential order,
+ *   same reply shapes — and it keeps the modalities the host's reader drops.
  * - the browser half is the real bundle in a hook harness: a row has to show the
  *   modalities actually in force and whether they are stored, offer exactly the
  *   three states, and post the revision it was rendered from.
@@ -51,13 +53,19 @@ const tools = {
 }
 
 /** Mount the plugin against a context whose `llm`/`settings` are the given stubs. */
-function mountHost({ llm, settings }) {
+function mountHost({ llm, settings, credentials, launchEnvironment }) {
   const routes = []
   const ctx = {
     logger: { info() {}, warn() {}, error() {} },
     tools,
     webServer: { register: (route) => { routes.push(route); return () => {} } },
-    get: (name) => (name === 'llm' ? llm : name === 'settings' ? settings : undefined),
+    get: (name) => (
+      name === 'llm' ? llm
+        : name === 'settings' ? settings
+          : name === 'credentials' ? credentials
+            : name === 'launchEnvironment' ? launchEnvironment
+              : undefined
+    ),
     on: () => () => {},
     inject: (names, callback) => {
       if (typeof callback === 'function' && names.includes('webServer')) {
@@ -139,6 +147,10 @@ const MODELS = {
   'no-address-route': [
     { provider: 'no-address-route', id: 'orphan', name: 'Orphan', inputModalities: ['text'] },
   ],
+  // A gateway route whose configuration carries the endpoint a probe asks.
+  'amd-gateway': [
+    { provider: 'amd-gateway', id: 'vision-x', name: 'Vision X', inputModalities: ['text'] },
+  ],
 }
 
 const PROVIDERS = Object.keys(MODELS).map(id => ({ id, name: id }))
@@ -150,6 +162,7 @@ const DIRECTORY = [
   { provider: 'declared-empty', displayName: 'Declared Empty', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'declared-empty'], declared: true },
   { provider: 'broken-list', displayName: 'Broken List', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'broken-list'], declared: true },
   { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], declared: false },
+  { provider: 'amd-gateway', displayName: 'AMD', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'amd-gateway'], declared: true },
 ]
 
 /** An llm registry serving the routes above; each member is replaceable. */
@@ -174,6 +187,12 @@ function settingsStub(overrides = {}) {
           'anthropic-gateway': { modelOverrides: STORED_OVERRIDES },
           'declared-empty': {},
           'broken-list': { models: ['not-an-object'] },
+          'amd-gateway': {
+            api: 'openai-completions',
+            baseURL: 'https://listing.test/v1',
+            apiKeyEnv: 'AMD_TEST_KEY',
+            models: [{ id: 'vision-x', name: 'Vision X', input: ['text'] }],
+          },
         },
       },
       revision: 4,
@@ -274,7 +293,7 @@ it('keeps the list readable and reports which seam is missing', async () => {
   const route = mountHost({ llm: llmStub(), settings: undefined })
   const listed = await call(route, { method: 'GET', path: '/model-input/providers' })
   assert.equal(listed.payload.unavailable, 'settings')
-  assert.equal(listed.payload.providers.length, 6, 'the routes themselves come from the llm registry')
+  assert.equal(listed.payload.providers.length, 7, 'the routes themselves come from the llm registry')
   assert.equal(listed.payload.providers[0].editable, false, 'nothing is writable without the settings seam')
 
   const refused = await call(route, {
@@ -523,6 +542,197 @@ it('leaves an unclaimed path to the prefix route', async () => {
   assert.equal(answered.code, 404, 'a GET on the write path is not claimed')
 })
 
+/* ------------------------------------------------------------- the endpoint probe */
+
+/**
+ * Install a fake `fetch` for one probe case, recording every call.
+ * @param handler - answers the request; anything thrown travels as a network failure.
+ * @returns the recorded calls and a `restore` that puts the real `fetch` back.
+ */
+function stubFetch(handler) {
+  const calls = []
+  const original = globalThis.fetch
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options })
+    return handler(url, options)
+  }
+  return { calls, restore: () => { globalThis.fetch = original } }
+}
+
+/** A listing reply, in the shape a supported endpoint answers with. */
+const listing = (body, ok = true, status = 200) => ({ ok, status, text: async () => JSON.stringify(body) })
+
+const probe = (route, body) => call(route, { method: 'POST', path: '/model-input/discover', body })
+
+it('asks the route its own endpoint about a model, with the route its own key', async () => {
+  const probeFetch = stubFetch(() => listing({
+    data: [
+      { id: 'other-model', architecture: { input_modalities: ['text', 'image'] } },
+      { id: 'vision-x', architecture: { input_modalities: ['text', 'image', 'video'] } },
+    ],
+  }))
+  try {
+    const route = mountHost({
+      llm: llmStub(),
+      settings: settingsStub(),
+      credentials: { resolve: async (ref) => (ref === 'AMD_TEST_KEY' ? { value: 'stored-key' } : undefined) },
+    })
+    const answered = await probe(route, { provider: 'amd-gateway', model: 'vision-x' })
+
+    assert.equal(answered.code, 200)
+    assert.deepEqual(answered.payload, { modalities: ['text', 'image'] }, 'the reply is narrowed to what this page can declare')
+    assert.equal(probeFetch.calls.length, 1)
+    assert.equal(probeFetch.calls[0].url, 'https://listing.test/v1/models', 'the listing URL follows the host rule: base plus /models')
+    assert.equal(probeFetch.calls[0].options.method, 'GET')
+    assert.equal(probeFetch.calls[0].options.headers.get('authorization'), 'Bearer stored-key', 'the credential store is the first stop, as it is for the adapter')
+    assert.equal(JSON.stringify(answered.payload).includes('stored-key'), false, 'the key never rides the answer')
+  } finally {
+    probeFetch.restore()
+  }
+})
+
+it('falls back to the launch environment, and asks unauthenticated when neither has a key', async () => {
+  const withEnv = stubFetch(() => listing({ data: [{ id: 'vision-x', architecture: { input_modalities: ['text', 'image'] } }] }))
+  process.env.AMD_TEST_KEY = 'env-key'
+  try {
+    const route = mountHost({ llm: llmStub(), settings: settingsStub() })
+    const answered = await probe(route, { provider: 'amd-gateway', model: 'vision-x' })
+    assert.equal(answered.code, 200)
+    assert.equal(withEnv.calls[0].options.headers.get('authorization'), 'Bearer env-key', 'with no credential store mounted, the environment answers')
+
+    delete process.env.AMD_TEST_KEY
+    const bare = stubFetch(() => listing({ models: { 'vision-x': { name: 'Vision X', architecture: { input_modalities: ['image', 'text'] } } } }))
+    try {
+      // The enriched `models` map is keyed by the endpoint-facing id; order in
+      // the reply is not the order the page writes.
+      const unauthenticated = await probe(route, { provider: 'amd-gateway', model: 'vision-x' })
+      assert.equal(unauthenticated.code, 200)
+      assert.deepEqual(unauthenticated.payload, { modalities: ['text', 'image'] })
+      assert.equal(bare.calls[0].options.headers.get('authorization'), null, 'a route no key was found for is still asked — deployment headers may carry its auth')
+    } finally {
+      bare.restore()
+    }
+  } finally {
+    withEnv.restore()
+  }
+})
+
+it('refuses to ask where the host would not ask, and says which half stopped it', async () => {
+  const probeFetch = stubFetch(() => listing({ data: [] }))
+  try {
+    const route = mountHost({ llm: llmStub(), settings: settingsStub() })
+
+    const cases = [
+      // A catalog route with no endpoint stated: pi-ai would resolve it from
+      // its own baseURL detection, and this page cannot ask a URL it cannot name.
+      [{ provider: 'openrouter-cm', model: 'union-alpha' }, 400, 'input/discover-unsupported', /no baseURL/],
+      [{ provider: 'deepseek-official', model: 'deepseek-chat' }, 400, 'input/not-editable', /no pi-ai configuration/],
+      [{ provider: 'no-address-route', model: 'orphan' }, 400, 'input/not-editable', /no pi-ai configuration/],
+      [{ provider: 'nobody', model: 'vision-x' }, 404, 'input/unknown-provider', /nobody/],
+      [{ provider: 'amd-gateway', model: '' }, 400, 'input/unknown-model', /model must name/],
+    ]
+    for (const [body, status, code, message] of cases) {
+      const answer = await probe(route, body)
+      assert.equal(answer.code, status, `${code}: ${JSON.stringify(body)}`)
+      assert.equal(answer.payload.code, code, JSON.stringify(body))
+      assert.match(answer.payload.error, message, JSON.stringify(body))
+    }
+
+    // A protocol whose listing the host's own reader cannot parse is refused
+    // without a call, exactly as the Models page refuses it.
+    const oddSection = {
+      ns: 'llm-pi-ai',
+      value: {},
+      revision: 4,
+      user: { providers: { 'amd-gateway': { api: 'google-generative', baseURL: 'https://gemini.test', models: [] } } },
+    }
+    const odd = mountHost({
+      llm: llmStub(),
+      settings: settingsStub({ describe: () => [oddSection, { ns: 'llm-deepseek', value: {}, user: {}, revision: 2 }] }),
+    })
+    const protocol = await probe(odd, { provider: 'amd-gateway', model: 'vision-x' })
+    assert.equal(protocol.code, 400)
+    assert.equal(protocol.payload.code, 'input/discover-unsupported')
+    assert.match(protocol.payload.error, /google-generative/)
+
+    assert.equal(probeFetch.calls.length, 0, 'every refusal above happens before the network')
+  } finally {
+    probeFetch.restore()
+  }
+})
+
+it('passes the refusals the endpoint itself answers with, worded but not invented', async () => {
+  const probeFetch = stubFetch((url) => {
+    if (url.includes('listing.test')) return listing({ data: [{ id: 'text-only', architecture: { input_modalities: ['text'] } }] })
+    throw Object.assign(new Error('route dns'), {})
+  })
+  try {
+    // A directory that answers, but not about this model; then every way a
+    // request can fail short of that.
+    const route = mountHost({ llm: llmStub(), settings: settingsStub() })
+    const missing = await probe(route, { provider: 'amd-gateway', model: 'vision-x' })
+    assert.equal(missing.code, 404)
+    assert.equal(missing.payload.code, 'input/discover-no-model')
+    assert.match(missing.payload.error, /does not list model "vision-x"/)
+
+    const refused = [
+      [() => listing({ error: 'nope' }, false, 401), 502, 'input/discover-failed', /answered 401; check the API key/],
+      [() => ({ ok: true, status: 200, text: async () => 'not json at all' }), 502, 'input/discover-failed', /did not answer with JSON/],
+      [() => { throw new Error('socket hang up') }, 502, 'input/discover-failed', /could not reach/],
+      [() => listing({ data: [{ id: 'vision-x', architecture: { input_modalities: ['image'] } }] }), 404, 'input/discover-no-model', /no text input/],
+      [() => listing({ data: [{ id: 'vision-x', name: 'Vision X' }] }), 404, 'input/discover-no-model', /no input modalities/],
+    ]
+    for (const [answer, status, code, message] of refused) {
+      probeFetch.calls.length = 0
+      globalThis.fetch = answer
+      const bad = await probe(route, { provider: 'amd-gateway', model: 'vision-x' })
+      assert.equal(bad.code, status, `${code}: ${message}`)
+      assert.equal(bad.payload.code, code, message.source)
+      assert.match(bad.payload.error, message, message.source)
+    }
+  } finally {
+    probeFetch.restore()
+  }
+})
+
+it('asks an Anthropic route at its root and reads its reply by the same rule', async () => {
+  const probeFetch = stubFetch(() => listing({ data: [{ id: 'vision-x', architecture: { input_modalities: ['image', 'text'] } }] }))
+  try {
+    // The host treats the configured base as a prefix and normalizes only the
+    // one trailing `/v1` for this protocol's listing path.
+    const section = {
+      ns: 'llm-pi-ai',
+      value: {},
+      revision: 4,
+      user: {
+        providers: {
+          'amd-gateway': {
+            api: 'anthropic-messages',
+            baseURL: 'https://claude.test/v1',
+            apiKeyEnv: 'AMD_TEST_KEY',
+            models: [{ id: 'vision-x', name: 'Vision X', input: ['text'] }],
+          },
+        },
+      },
+    }
+    const route = mountHost({
+      llm: llmStub(),
+      settings: settingsStub({ describe: () => [section, { ns: 'llm-deepseek', value: {}, user: {}, revision: 2 }] }),
+      credentials: { resolve: async () => ({ value: 'stored-key' }) },
+    })
+    const answered = await probe(route, { provider: 'amd-gateway', model: 'vision-x' })
+
+    assert.equal(answered.code, 200)
+    assert.deepEqual(answered.payload, { modalities: ['text', 'image'] }, 'the canonical order is this page\'s, not the reply\'s')
+    assert.equal(probeFetch.calls[0].url, 'https://claude.test/v1/models?limit=1000')
+    assert.equal(probeFetch.calls[0].options.headers.get('x-api-key'), 'stored-key')
+    assert.equal(probeFetch.calls[0].options.headers.get('anthropic-version'), '2023-06-01')
+    assert.equal(probeFetch.calls[0].options.headers.get('authorization'), null, 'this protocol carries its key in its own header')
+  } finally {
+    probeFetch.restore()
+  }
+})
+
 /* -------------------------------------------------------------- the browser */
 
 /** The `t` this suite renders with: identity, so assertions name the key. */
@@ -580,15 +790,18 @@ const deepSeekProvider = {
 }
 
 /**
- * URL-routed answers for the two endpoints the page uses. `list` is the body the
- * read answers with; `save` is a whole answer (body plus status), because a case
- * has to be able to make exactly the write fail.
+ * URL-routed answers for the endpoints the page uses. `list` is the body the
+ * read answers with; `save` and `discover` are whole answers (body plus
+ * status), because a case has to be able to make exactly that call fail.
  */
-const routing = ({ list, save } = {}) => (url) => {
+const routing = ({ list, save, discover } = {}) => (url) => {
   // The shell opens on the retry tab, so that read has to answer too: the two
   // panels share the harness's hook cells across a tab switch.
   if (url.endsWith('/llm-retry/routes')) return response({ routes: [] })
   if (url.endsWith('/model-input/providers')) return response(list ?? { providers: [] })
+  if (url.endsWith('/model-input/discover')) {
+    return response(discover?.body ?? { modalities: ['text', 'image'] }, discover?.ok ?? true, discover?.status ?? 200)
+  }
   if (url.endsWith('/model-input/modalities')) {
     return response(save?.body ?? { provider: openRouterProvider }, save?.ok ?? true, save?.status ?? 200)
   }
@@ -698,6 +911,8 @@ function mountClient({ fetch }) {
 const chip = (view, model, key) => view.labelled(`${model} · ${key}`)
 /** Whether one model's row offers to reset itself to dsh's own answer. */
 const hasInherit = (view, model) => view.flat.some(node => node.props?.['aria-label'] === `${model} · choiceInherit`)
+/** Whether one model's row offers to ask the endpoint what the model takes. */
+const hasAutoDetect = (view, model) => view.flat.some(node => node.props?.['aria-label'] === `${model} · autoFetch`)
 /** The state dot one model's row wears, so a case can name the colour it paints. */
 const dot = (view, model) => {
   const found = view.flat.find((node) => {
@@ -839,6 +1054,7 @@ it('names the reason a foreign route is read-only, and keeps its boxes inert', a
   assert.equal(chip(view, 'deepseek-chat', 'modalityImage').props.disabled, true)
   assert.equal(view.labelled('deepseek-chat · modalityImage').props.checked, false, 'the fact is still shown')
   assert.equal(hasInherit(view, 'deepseek-chat'), false, 'a route that cannot be written offers no reset either')
+  assert.equal(hasAutoDetect(view, 'deepseek-chat'), false, 'and no capability check')
   assert.equal(dot(view, 'deepseek-chat').props['data-state'], 'idle', 'the dot still says where that row stands')
   assert.equal(app.calls.some((request) => request.url.endsWith('/model-input/modalities')), false, 'nothing is posted')
 })
@@ -849,4 +1065,46 @@ it('reports the seam a deployment does not mount', async () => {
 
   assert.ok(view.text.includes('modelUnavailableSettings'), 'the missing half is named')
   assert.equal(view.text.includes('modelEmpty'), false, 'an unavailable list is not reported as an empty one')
+})
+
+it('auto-detect writes what the route\'s endpoint reported, for that model alone', async () => {
+  const app = mountClient({
+    fetch: routing({
+      list: { providers: [openRouterProvider] },
+      discover: { body: { modalities: ['text', 'image'] } },
+    }),
+  })
+  await app.open()
+  app.render().labelled('plain-model · autoFetch').props.onClick()
+  await settle()
+
+  const asked = app.calls.filter((request) => request.url.endsWith('/model-input/discover'))
+  assert.deepEqual(plain(asked.map((request) => request.body)), [{ provider: 'openrouter-cm', model: 'plain-model' }],
+    'the check names one route and one model')
+  const posted = app.calls.filter((request) => request.url.endsWith('/model-input/modalities'))
+  assert.deepEqual(plain(posted.map((request) => request.body)), [{
+    provider: 'openrouter-cm',
+    model: 'plain-model',
+    modalities: ['text', 'image'],
+    revision: 4,
+  }], 'the answer lands as the same model-scoped write a ticked box makes, revision and all')
+})
+
+it('a failed capability check says why, in the page\'s words, and writes nothing', async () => {
+  const app = mountClient({
+    fetch: routing({
+      list: { providers: [openRouterProvider] },
+      discover: { body: { error: 'the endpoint does not list model "plain-model"', code: 'input/discover-no-model' }, ok: false, status: 404 },
+    }),
+  })
+  await app.open()
+  app.render().labelled('plain-model · autoFetch').props.onClick()
+  await settle()
+
+  assert.ok(app.render().text.includes('discoverNoModel'), 'the code is localized rather than echoed')
+  assert.equal(
+    app.calls.some((request) => request.url.endsWith('/model-input/modalities')),
+    false,
+    'a check that brought no answer leaves the row untouched',
+  )
 })

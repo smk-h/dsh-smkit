@@ -29,6 +29,7 @@ import { toErrorMessage } from '../../platform/util/text.js'
 import { readAtPath } from './policy.js'
 import type {
   InputModality,
+  ModelDiscoverRefusal,
   ModelInputRefusal,
   ModelInputsResponse,
   ProviderInputView,
@@ -36,6 +37,8 @@ import type {
 } from '../../../shared/custom-settings/model-input.js'
 import type {
   ConfigurableProviderLike,
+  CredentialsServiceLike,
+  LaunchEnvironmentLike,
   LlmModelInfoLike,
   LlmProviderInfoLike,
   LlmServiceLike,
@@ -61,6 +64,22 @@ const INPUT_KEY = 'input'
  */
 const ALLOWED_MODALITIES: readonly string[] = ['text', 'image']
 
+/**
+ * Protocols whose model listing the host's own discovery reads — the same list
+ * the endpoint probe accepts, so a route the Models page can interrogate is
+ * interrogated here the same way, and one it cannot is refused without a call.
+ */
+const LISTABLE_APIS: readonly string[] = ['anthropic-messages', 'openai-completions', 'openai-responses']
+
+/** Stable API version required by Anthropic's model-listing endpoint. */
+const ANTHROPIC_VERSION = '2023-06-01'
+
+/** Largest listing reply the probe accepts; a truncated listing is not parseable, so overflow rejects. */
+const MAX_LISTING_BYTES = 4 * 1024 * 1024
+
+/** How long one listing round trip may take before the probe reports it unreachable. */
+const DISCOVERY_TIMEOUT_MS = 15_000
+
 /** Untrusted input of one model write, as the API route hands it over. */
 export interface ModelInputSaveInput {
   provider: string
@@ -82,10 +101,28 @@ export interface ModelInputSaveFailure {
 /** One accepted write, answered with the route as it now stands. */
 export type ModelInputSaveOutcome = { ok: true; provider: ProviderInputView } | ModelInputSaveFailure
 
-/** What the two API routes call. */
+/** Untrusted input of one endpoint probe, as the API route hands it over. */
+export interface ModelDiscoveryInput {
+  provider: string
+  model: string
+}
+
+/** One refused probe: the HTTP status, the stable code, and what to tell the user. */
+export interface ModelDiscoveryFailure {
+  ok: false
+  status: number
+  code: ModelDiscoverRefusal
+  message: string
+}
+
+/** One accepted probe, answered with what the endpoint reports for the model. */
+export type ModelDiscoveryOutcome = { ok: true; modalities: InputModality[] } | ModelDiscoveryFailure
+
+/** What the three API routes call. */
 export interface ModelInputAdmin {
   listProviders(): Promise<ModelInputsResponse>
   save(input: ModelInputSaveInput): Promise<ModelInputSaveOutcome>
+  discover(input: ModelDiscoveryInput): Promise<ModelDiscoveryOutcome>
 }
 
 /**
@@ -116,6 +153,62 @@ function isSettingsService(value: unknown): value is SettingsServiceLike {
 /** Whether a value can be descended into by a path-addressed settings edit. */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** Whether a context carries the credential store, structurally. */
+function isCredentialsService(value: unknown): value is CredentialsServiceLike {
+  if (typeof value !== 'object' || value === null) return false
+  return typeof (value as Record<string, unknown>)['resolve'] === 'function'
+}
+
+/** Whether a context carries the launch environment, structurally. */
+function isLaunchEnvironment(value: unknown): value is LaunchEnvironmentLike {
+  if (typeof value !== 'object' || value === null) return false
+  return typeof (value as Record<string, unknown>)['get'] === 'function'
+}
+
+/**
+ * Join the route's base with its protocol's listing path — the host's own
+ * rule: the base is a prefix, not a URL to resolve against, so a deployment
+ * path keeps its segments; Anthropic publishes both `/v1` spellings of the
+ * same root, so only this listing URL normalizes the one trailing segment.
+ */
+function listingUrl(baseURL: string, api: string): string {
+  const base = baseURL.replace(/\/+$/, '')
+  if (api !== 'anthropic-messages') return `${base}/models`
+  const root = base.endsWith('/v1') ? base.slice(0, -3) : base
+  return `${root}/v1/models?limit=1000`
+}
+
+/**
+ * The reply's entry for one model id. The host's reader accepts both shapes a
+ * supported endpoint answers with: the standard `data` array, and the
+ * enriched `models` map some gateways expose, keyed by the endpoint-facing id.
+ */
+function listedEntry(body: unknown, model: string): Record<string, unknown> | undefined {
+  if (!isPlainObject(body)) return undefined
+  const data = body['data']
+  if (Array.isArray(data)) {
+    for (const candidate of data) {
+      if (isPlainObject(candidate) && candidate['id'] === model) return candidate
+    }
+    return undefined
+  }
+  const models = body['models']
+  if (isPlainObject(models)) {
+    const raw = models[model]
+    return isPlainObject(raw) ? raw : undefined
+  }
+  return undefined
+}
+
+/** The raw modality names an enriched listing entry reports, `undefined` when it reports none. */
+function reportedModalities(entry: Record<string, unknown>): string[] | undefined {
+  const architecture = entry['architecture']
+  if (!isPlainObject(architecture)) return undefined
+  const declared = architecture['input_modalities']
+  if (!Array.isArray(declared)) return undefined
+  return declared.every((name): name is string => typeof name === 'string') ? declared : undefined
 }
 
 /** One untrusted list narrowed to what this page can express, in canonical order. */
@@ -469,5 +562,161 @@ export function createModelInputAdmin(deps: AdminDeps): ModelInputAdmin {
     return { ok: true, provider: written }
   }
 
-  return { listProviders, save }
+  /** One refused probe, in the shape both the API and the page read. */
+  function probeFailure(status: number, code: ModelDiscoverRefusal, message: string): ModelDiscoveryFailure {
+    return { ok: false, status, code, message }
+  }
+
+  /**
+   * Resolve one route's API key the way its own adapter does: the credential
+   * store first, then the environment the process was launched with. The value
+   * exists only to authenticate the listing request — it never leaves this
+   * function, so neither the reply nor a log line can carry it.
+   */
+  async function keyFor(ref: string | undefined): Promise<string | undefined> {
+    if (ref === undefined) return undefined
+    const credentials = serviceOf(services, 'credentials')
+    if (isCredentialsService(credentials)) {
+      try {
+        const hit = await credentials.resolve(ref)
+        if (hit !== undefined && hit.value.length > 0) return hit.value
+      } catch (error) {
+        // A name that could never have been stored as a credential — the
+        // adapter's own guard answers "not set" for those and asks the
+        // environment instead, so a refusal here falls through the same way.
+        logger.warn(`${LOG_PREFIX}: the credential store refused the name "${ref}": ${toErrorMessage(error)}`)
+      }
+    }
+    const launch = serviceOf(services, 'launchEnvironment')
+    if (isLaunchEnvironment(launch)) {
+      const hit = launch.get(ref)
+      return hit === undefined || hit.value.length === 0 ? undefined : hit.value
+    }
+    // The adapter builds its snapshot off `process.env` when the deployment
+    // mounts none, so the probe sees the same absence it would.
+    const fromEnv = process.env[ref]
+    return fromEnv === undefined || fromEnv.length === 0 ? undefined : fromEnv
+  }
+
+  /**
+   * Ask one route's own endpoint which modalities it accepts for one model.
+   *
+   * This is the host's model-list interrogation re-aimed at the question the
+   * host's answer drops: same listing URL, same protocol whitelist, same
+   * credential order, same accepted reply shapes — the host's reader keeps
+   * only id, name and capacities from each entry, so nothing callable through
+   * the llm seam reports what a model takes as input. The stored key is read
+   * only to authenticate the request, and the reply carries modalities only.
+   */
+  async function discover(input: ModelDiscoveryInput): Promise<ModelDiscoveryOutcome> {
+    const registry = llm()
+    if (registry === undefined) return probeFailure(503, 'input/unavailable', 'this deployment mounts no llm service')
+    const section = settings()
+    if (section === undefined) return probeFailure(503, 'input/unavailable', 'this deployment mounts no settings service')
+
+    const provider = input.provider
+    if (provider.length === 0) return probeFailure(400, 'input/unknown-provider', 'provider must name a registered route key')
+    const info = registeredRoutes(registry).find(candidate => candidate.id === provider)
+    if (info === undefined) {
+      return probeFailure(404, 'input/unknown-provider', `no adapter is registered for provider "${provider}"`)
+    }
+    if (input.model.length === 0) return probeFailure(400, 'input/unknown-model', 'model must name a model id of that route')
+
+    const entry = directoryOf(registry).get(provider)
+    const descriptor = entry === undefined ? undefined : descriptorsOf(section).get(entry.settingsNs)
+    if (entry === undefined || descriptor === undefined || refusalOf(entry, descriptor) !== undefined) {
+      return probeFailure(400, 'input/not-editable', `provider "${provider}" has no pi-ai configuration to read an endpoint from`)
+    }
+
+    // A route's endpoint may be stated only in its own layer, or only in the
+    // resolved value a catalog default put there; the first non-empty answer
+    // from user-then-resolved is the one its requests would use.
+    const userProfile = readAtPath(descriptor.user, entry.settingsPath)
+    const resolvedProfile = readAtPath(descriptor.value, entry.settingsPath)
+    const fieldOf = (name: string): string | undefined => {
+      for (const profile of [userProfile, resolvedProfile]) {
+        if (!isPlainObject(profile)) continue
+        const value = profile[name]
+        if (typeof value === 'string' && value.length > 0) return value
+      }
+      return undefined
+    }
+    const baseURL = fieldOf('baseURL')
+    if (baseURL === undefined) {
+      return probeFailure(400, 'input/discover-unsupported', `provider "${provider}" declares no baseURL, so there is no endpoint to ask`)
+    }
+    const api = fieldOf('api') ?? 'openai-completions'
+    if (!LISTABLE_APIS.includes(api)) {
+      return probeFailure(400, 'input/discover-unsupported', `pi-ai protocol "${api}" has no model listing this build can read`)
+    }
+    const url = listingUrl(baseURL, api)
+
+    let apiKey: string | undefined
+    let response: Response
+    try {
+      const headers = new Headers()
+      for (const profile of [resolvedProfile, userProfile]) {
+        if (!isPlainObject(profile)) continue
+        const stored = profile['headers']
+        if (!isPlainObject(stored)) continue
+        for (const [name, value] of Object.entries(stored)) {
+          if (typeof value === 'string') headers.set(name, value)
+        }
+      }
+      headers.set('accept', 'application/json')
+      apiKey = await keyFor(fieldOf('apiKeyEnv'))
+      if (api === 'anthropic-messages') {
+        headers.set('anthropic-version', ANTHROPIC_VERSION)
+        if (apiKey !== undefined) headers.set('x-api-key', apiKey)
+      } else if (apiKey !== undefined) {
+        headers.set('authorization', `Bearer ${apiKey}`)
+      }
+      response = await fetch(url, { method: 'GET', headers, signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS) })
+    } catch (error) {
+      // The cause may name the URL but never the key; only the URL is passed on.
+      logger.warn(`${LOG_PREFIX}: could not reach ${url}: ${toErrorMessage(error)}`)
+      return probeFailure(502, 'input/discover-failed', `could not reach ${url}`)
+    }
+    if (!response.ok) {
+      return probeFailure(
+        502,
+        'input/discover-failed',
+        `${url} answered ${response.status}${response.status === 401 || response.status === 403 ? '; check the API key' : ''}`,
+      )
+    }
+    let text: string
+    try {
+      text = await response.text()
+    } catch (error) {
+      logger.warn(`${LOG_PREFIX}: could not read the reply from ${url}: ${toErrorMessage(error)}`)
+      return probeFailure(502, 'input/discover-failed', `could not read the reply from ${url}`)
+    }
+    if (text.length > MAX_LISTING_BYTES) {
+      return probeFailure(502, 'input/discover-failed', `${url} answered with more than ${MAX_LISTING_BYTES} bytes`)
+    }
+    let body: unknown
+    try {
+      body = JSON.parse(text)
+    } catch {
+      return probeFailure(502, 'input/discover-failed', `${url} did not answer with JSON`)
+    }
+    const listed = listedEntry(body, input.model)
+    if (listed === undefined) {
+      return probeFailure(404, 'input/discover-no-model', `${url} does not list model "${input.model}"`)
+    }
+    const declared = reportedModalities(listed)
+    if (declared === undefined) {
+      return probeFailure(404, 'input/discover-no-model', `${url} reports no input modalities for model "${input.model}"`)
+    }
+    const kept = declared.filter(name => ALLOWED_MODALITIES.includes(name))
+    if (!kept.includes('text')) {
+      // A reply that takes no text at all names a model this page's vocabulary
+      // cannot express a choice for; saying so beats writing a list the save
+      // would refuse.
+      return probeFailure(404, 'input/discover-no-model', `model "${input.model}" reports no text input, which this page cannot declare`)
+    }
+    return { ok: true, modalities: filterModalities(kept) }
+  }
+
+  return { listProviders, save, discover }
 }

@@ -110,3 +110,20 @@ export interface AdminDeps {
   logger: LoggerLike
 }
 
+/**
+ * The slice of `ctx.credentials` a model probe uses: the same first stop the
+ * owning adapter's auth context makes when it resolves a route's `apiKeyEnv`.
+ */
+export interface CredentialsServiceLike {
+  resolve(ref: string): Promise<{ value: string } | undefined>
+}
+
+/**
+ * The slice of `ctx.launchEnvironment` a model probe falls back to — the
+ * launcher's environment snapshot the adapter reads a named credential from
+ * when the credential store does not carry it.
+ */
+export interface LaunchEnvironmentLike {
+  get(name: string): { value: string } | undefined
+}
+
