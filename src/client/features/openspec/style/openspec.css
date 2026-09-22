@@ -82,6 +82,11 @@
   text-align: left;
 }
 
+/* One row: the mark, the name, its state dot, and then every action the panel
+ * offers. The actions are pushed to the right end and the row is the panel's
+ * fixed top, so a click's answer — a tree row that goes away, a receipt that
+ * changes — cannot lift the edge the pointer is resting on the way it used to
+ * from the footer below. */
 .os_head {
   display: flex;
   align-items: center;
@@ -94,51 +99,59 @@
 .os_title {
   font-size: 13px;
   font-weight: 600;
+  /* Measured at the panel's 360px: 「Manage OpenSpec」 fills the row to the
+   * last pixel, so a name that cannot fit has to give up its own letters. The
+   * alternative is a button leaving the row, and the buttons are what the head
+   * is for. */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* The init status is the platform's own dot (`platform/ui/StateDot`), green
  * when the store is there and idle grey when it is not — the same mark the
  * shell wears beside a plugin's enablement, rather than a word pill, because
  * the head has the answer and the body below already spells it out in a row of
- * its own. Only its seat is this panel's business: pushed to the far end of
- * the head, so it reads as the panel's state rather than as part of the title.
- * The words ride its tooltip for whoever wants them. */
-.os_state {
+ * its own. It sits right after the name it qualifies; the actions start on the
+ * far side of the head. The words ride its tooltip for whoever wants them. */
+
+/* The actions are a group, and the group holds the head's right end. The push
+ * is on the wrapper rather than on the first button in it because which button
+ * that is depends on what the read found, and a gap that arrives or leaves with
+ * the answer would slide every seat in the row sideways. */
+.os_actions {
   margin-left: auto;
-}
-
-/* The head's upgrade button wears the platform's solid primary (`mm_btn
- * primary`), so it is the palette's business green like the footer's initialise —
- * the two are the same kind of thing, an action that runs the CLI. It is sized
- * down only to sit inside the 12px head beside the status dot without making
- * that row taller than it needs to be. */
-.os_update {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex: none;
-  padding: 1px 8px;
-  font-size: 11px;
-  line-height: 16px;
 }
 
-.os_refresh {
+/* One box for every action the head carries: the same 26px square throughout,
+ * the glyph the only thing in it, the words each one dropped riding its
+ * tooltip. A row of controls at four sizes reads as four different kinds of
+ * thing; these are one kind — a thing you can press on this store. */
+.os_update,
+.os_refresh,
+.os_init,
+.os_ignore,
+.os_untrack,
+.os_remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  box-sizing: border-box;
+  flex: none;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: 0 0;
-  color: var(--dsw-alias-label-tertiary);
-  cursor: pointer;
-  /* Both ends of the busy face are a dimming — in when the click lands, out
-   * when the floor runs out — so both fade rather than snap. */
-  transition: color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
 }
 
-.os_refresh:hover:not(:disabled) {
-  color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-interactive-bg-hover);
+/* Both ends of the refresh's busy face are a dimming — in when the click lands,
+ * out when the platform's floor runs out — so both fade rather than snap. */
+.os_refresh {
+  transition: color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
 }
 
 .os_refresh:disabled {
@@ -151,8 +164,51 @@
   --mm-status-color: var(--dsw-alias-label-primary);
 }
 
-/* The scrolling half: a tall store must not push the delete button off screen,
- * so the head and foot are fixed and only this absorbs the overflow. */
+/* The create button wears the shape the platform's destructive button wears
+ * (`button.css`'s `.mm_btn.danger`): the colour in the border and the glyph,
+ * the panel's own ground behind them, and the same colour watered to a tenth
+ * under the pointer. The row's meaning is then in one channel for every button
+ * in it — a border and an ink that say what this one is — and amber versus
+ * green says whether there is a store to create: amber while there is nothing
+ * there yet, green once the store stands.
+ *
+ * The hover is spelled out beside the resting state because the neutral
+ * button's hover paints a grey wash that would cover the state's colour rather
+ * than lightening it. */
+.os_init[data-state='warn'] {
+  border-color: var(--dsw-alias-state-warn-primary);
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.os_init[data-state='warn']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 10%, transparent);
+}
+
+.os_init[data-state='done'] {
+  border-color: var(--dsw-alias-state-success-primary);
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.os_init[data-state='done']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
+}
+
+/* The green one reports a fact rather than offering a click, so it must not
+ * fade into the spent look the platform gives a disabled button — a half-strength
+ * green reads as "this one is broken", not as "this one is done". */
+.os_init[data-state='done']:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+/* While the read that decides between the two is still running it says neither,
+ * and the platform's own dimming says that. */
+.os_init[data-state='reading'] {
+  opacity: 0.5;
+}
+
+/* The scrolling half: a tall store must not push the head's toolbar off screen,
+ * so the two fixed rows sit above it and only this absorbs the overflow. */
 .os_body {
   flex: 1;
   min-height: 0;
@@ -479,28 +535,6 @@
   line-height: 16px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.os_foot {
-  display: flex;
-  justify-content: flex-end;
-  /* The footer can carry two buttons at once — the ignore next to a delete, or
-   * the initialise next to a delete in a half-removed workspace — and they are
-   * two different kinds of yes, so they do not touch. */
-  gap: 8px;
-  flex: none;
-  padding: 8px 10px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
-}
-
-/* The ignore/un-ignore pair carry only lucide's database-plus/minus, so they
- * have to centre the glyph the way mm_btn centres text — and keep the
- * standard button's height, because the delete beside them has words. */
-.os_ignore,
-.os_untrack {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* The confirmation's fact block: the same two-column grid the session-delete

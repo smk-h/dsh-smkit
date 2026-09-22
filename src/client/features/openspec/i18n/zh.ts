@@ -10,6 +10,8 @@
 import type { LocaleDict } from '../../../platform/types'
 
 export const OPENSPEC_LOCALE_ZH: LocaleDict = {
+  // The head's visible name, and the accessible name of the two surfaces that
+  // wear no words: the panel itself and the icon that opens it.
   "manageOpenSpec": "管理 OpenSpec",
   "openSpecStatusReady": "已初始化",
   "openSpecStatusAbsent": "未初始化",

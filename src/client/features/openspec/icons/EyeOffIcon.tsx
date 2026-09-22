@@ -5,7 +5,7 @@
  * https://lucide.nodejs.cn/icons/eye-off — the exact metaphor of writing a
  * path into .gitignore: git stops looking at it, so the eye is struck out.
  * Paired with `eye`, the two buttons read as hide and un-hide — one action
- * and its undo — which is precisely what the footer row is.
+ * and its undo — which is precisely what the toolbar's pair is.
  */
 
 import { createIcon, type IconFactory, type IconSpec } from '../../../platform/icons/Icon'

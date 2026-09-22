@@ -85,6 +85,21 @@ const token = (tree, name) =>
   nodes(tree).find(node => String(node.props?.className ?? '').split(' ').includes(name))
 
 /**
+ * The head's action buttons, left to right, as their class lists.
+ *
+ * The row's *seats* are the claim worth testing — which button sits where after
+ * an action changes what the workspace holds — and a seat is only knowable by
+ * position.
+ */
+const toolbarOf = (tree) => {
+  const row = withClass(tree, 'os_actions')
+  if (row === undefined) return []
+  return (row.children ?? [])
+    .filter(child => String(child?.props?.className ?? '').split(' ').includes('mm_btn'))
+    .map(child => String(child.props.className))
+}
+
+/**
  * The one tree row of a kind (`os_dirRow`, `os_fileRow`) whose own text names
  * `name`. A row's text is just its connector and its name — a directory's
  * children are siblings of its row, not descendants of it — so a name matches
@@ -783,8 +798,20 @@ it('runs openspec init for the workspace, then reads the store back', async () =
     'done',
     'and the workspace is initialised now',
   )
-  assert.ok(token(after, 'os_remove'), 'so the delete takes the initialise\u2019s place')
-  assert.equal(token(after, 'os_init'), undefined)
+  assert.ok(token(after, 'os_remove'), 'and what was created can be taken back out')
+  assert.equal(toolbarOf(shown)[0], 'mm_btn os_init', 'the create button leads the three that never leave')
+  assert.equal(token(shown, 'os_init').props['data-state'], 'warn', 'amber while there is nothing there yet')
+  assert.equal(token(after, 'os_init').props['data-state'], 'done', 'and green once the store stands')
+  assert.equal(
+    toolbarOf(after)[1],
+    'mm_btn os_ignore',
+    // The permanent three hold the right end, so what the answer brings lands
+    // at the left end of the group instead: the seats under the pointer, which
+    // is still on the create button, have not moved, and no delete has arrived
+    // beside them either.
+    'what an answer brings arrives away from where the pointer rests',
+  )
+  assert.equal(token(after, 'os_init').props.disabled, true, 'and the button that created the store has nothing left to do')
 })
 
 it('reports a refused init as an instruction, and offers it again', async () => {
@@ -818,7 +845,12 @@ it('says so when the session has no workspace at all', async () => {
 
   assert.deepEqual(app.calls, [], 'a session without a directory is not asked about')
   assert.ok(texts(shown).join(' | ').includes('openSpecNoWorkspace'))
-  assert.equal(token(shown, 'os_init'), undefined, 'with nothing to point at, nothing is offered')
+  assert.equal(
+    token(shown, 'os_init').props['data-state'],
+    'reading',
+    'with nothing to point at the create button reports no status — it keeps its seat and waits',
+  )
+  assert.equal(token(shown, 'os_init').props.disabled, true)
   assert.equal(token(shown, 'os_remove'), undefined)
 })
 
@@ -1049,7 +1081,7 @@ it('holds the refresh face for the floor, not just for the read', async () => {
 
 // --- the head's update button ------------------------------------------------
 
-it('sits between the status dot and the refresh button, showing the command it runs', async () => {
+it('holds the row\u2019s right end, wearing a glyph and naming the commands it runs', async () => {
   const app = mount({ fetch: routing() })
   const shown = await app.hover()
 
@@ -1058,9 +1090,13 @@ it('sits between the status dot and the refresh button, showing the command it r
   const refresh = token(shown, 'os_refresh')
   assert.ok(dot && update && refresh, 'the head carries all three')
   assert.ok(orderOf(shown, 'mm_stateDot') < orderOf(shown, 'os_update'), 'the update sits after the dot')
-  assert.ok(orderOf(shown, 'os_update') < orderOf(shown, 'os_refresh'), 'and before the refresh button')
-  // Offered as a green primary button, the same shape as the initialise.
-  assert.ok(String(update.props.className).includes('primary'))
+  assert.ok(orderOf(shown, 'os_refresh') < orderOf(shown, 'os_update'), 'and last of all, at the right end')
+  // The word it used to wear is now its hover's subject, so the seat is a
+  // square like the rest of them. The fill stays because this is the one action
+  // here that changes what is installed, and the pointer is meant to land on it.
+  assert.equal(texts([update]).length, 0, 'it wears only a glyph')
+  assert.ok(String(update.props.className).includes('primary'), 'over its own fill')
+  assert.equal(update.props['aria-label'], 'openSpecUpdate', 'and still has a name without the word')
   assert.equal(update.props.title, 'openSpecUpdateCommand', 'the hover names the commands it runs')
   assert.equal(update.props.disabled, false)
 })
@@ -1244,7 +1280,7 @@ it('offers the ignore action on a footprint, and not on an empty workspace', asy
   assert.equal(ignore.props['aria-label'], 'openSpecGitignore', 'a button with no words still has a name')
   assert.equal(texts([ignore]).length, 0, 'the hover holds the sentence; the button wears only the glyph')
   assert.equal(ignore.props.disabled, false)
-  // The delete is the loud answer and this the quiet one; the footer holds both.
+  // The delete is the loud answer and this the quiet one; the toolbar holds both.
   assert.ok(orderOf(shown, 'os_ignore') < orderOf(shown, 'os_remove'), 'the reversible action sits before the destructive one')
 
   const emptyApp = mount({ fetch: routing(EMPTY) })
@@ -1485,8 +1521,8 @@ it('offers the un-ignore action beside the one it reverses, and not on an empty 
   assert.equal(untrack.props.title, 'openSpecUntrackCommand', 'the tooltip says what comes out, what goes with it, and what git is never asked')
   assert.equal(untrack.props['aria-label'], 'openSpecUntrack', 'a button with no words still has a name')
   assert.equal(texts([untrack]).length, 0, 'the hover holds the sentence; the button wears only the glyph')
-  assert.ok(orderOf(shown, 'os_ignore') < orderOf(shown, 'os_untrack'), 'it sits right after its twin')
-  assert.ok(orderOf(shown, 'os_untrack') < orderOf(shown, 'os_remove'), 'and both reversible actions precede the destructive one')
+  assert.ok(orderOf(shown, 'os_untrack') < orderOf(shown, 'os_ignore'), 'it sits directly to its twin\u2019s left, the undo beside the act')
+  assert.ok(orderOf(shown, 'os_ignore') < orderOf(shown, 'os_remove'), 'and both reversible actions precede the destructive one')
 
   const emptyApp = mount({ fetch: routing(EMPTY) })
   const empty = await emptyApp.hover()
@@ -1495,10 +1531,12 @@ it('offers the un-ignore action beside the one it reverses, and not on an empty 
   const quietApp = mount({ fetch: routing({ ...VIEW, hasIgnoreRules: false }) })
   const quiet = await quietApp.hover()
   assert.ok(token(quiet, 'os_ignore'), 'hiding stays on offer while the store stands')
+  const quietUntrack = token(quiet, 'os_untrack')
+  assert.ok(quietUntrack, 'and its twin keeps its seat rather than vanishing out of the row')
   assert.equal(
-    token(quiet, 'os_untrack'),
-    undefined,
-    'with no line of ours on disk the un-ignore could only answer "nothing was there", so it stays out',
+    quietUntrack.props.disabled,
+    true,
+    'with no line of ours on disk it can only answer "nothing was there", so it is dimmed',
   )
 
   const outsideApp = mount({ fetch: routing({ ...VIEW, repo: false }) })
@@ -1663,4 +1701,43 @@ it('keeps a receipt that failed above the one that came after it', async () => {
     'what went wrong is on top, because it is still asking to be read',
   )
   assert.ok(texts(items[1]).join(' ').includes('openSpecUntrack'), 'and the clean answer sits under it')
+})
+
+it('puts every action in the head, so no click waits on the panel\u2019s bottom edge', async () => {
+  const app = mount({ fetch: routing() })
+  const shown = await app.hover()
+
+  assert.deepEqual(
+    toolbarOf(shown),
+    [
+      'mm_btn os_untrack',
+      'mm_btn os_ignore',
+      'mm_btn danger os_remove',
+      'mm_btn os_init',
+      'mm_btn os_refresh',
+      'mm_btn primary os_update',
+    ],
+    // The two actions the panel offers whatever the workspace holds hold the
+    // right end; the ones a read brings or takes away are the further-left
+    // half of the row.
+    'one row, permanent on the right and volatile on the left',
+  )
+  assert.ok(
+    orderOf(shown, 'os_head') < orderOf(shown, 'os_body'),
+    'the actions are above what they act on, so the pointer that clicks is a body away from the edge a shrinking body lifts',
+  )
+  assert.equal(withClass(shown, 'os_foot'), undefined, 'nothing asks the pointer to wait under the facts')
+  // The only words the head wears are the name the entry button answers to and
+  // the panel carries as its own — every action is a glyph, so the row has room
+  // for the full name again.
+  assert.deepEqual(texts(withClass(shown, 'os_head')), ['manageOpenSpec'], 'one name, no second label')
+
+  const remove = token(shown, 'os_remove')
+  assert.equal(texts([remove]).length, 0, 'the delete wears only the glyph the rest of the plugin wears for it')
+  assert.equal(remove.props.title, 'openSpecRemove', 'and the words it dropped ride its hover')
+  assert.equal(remove.props['aria-label'], 'openSpecRemove', 'so the button still has a name without them')
+
+  const init = token(shown, 'os_init')
+  assert.equal(texts([init]).length, 0, 'the create button wears lucide\u2019s letter initial, not the word')
+  assert.equal(init.props['aria-label'], 'openSpecInit', 'and keeps its name without the word')
 })

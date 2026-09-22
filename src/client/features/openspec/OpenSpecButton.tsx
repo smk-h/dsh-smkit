@@ -78,11 +78,14 @@
  */
 
 import { createAtomIcon } from './icons/AtomIcon'
+import { createDownloadIcon } from './icons/DownloadIcon'
 import { createEyeIcon } from './icons/EyeIcon'
 import { createEyeOffIcon } from './icons/EyeOffIcon'
+import { createTextInitialIcon } from './icons/TextInitialIcon'
 import { createChevronDownIcon } from '../../platform/icons/ChevronDownIcon'
 import { createLoaderIcon } from '../../platform/icons/LoaderIcon'
 import { createRefreshIcon } from '../../platform/icons/RefreshIcon'
+import { createTrashIcon } from '../../platform/icons/TrashIcon'
 import { createConfirmDialog } from '../../platform/ui/ConfirmDialog'
 import { createStateDot } from '../../platform/ui/StateDot'
 import { useBusyFace } from '../../platform/ui/useBusyFace'
@@ -387,10 +390,13 @@ export function createOpenSpecButton(
   const ConfirmDialog = createConfirmDialog(deps)
   const StateDot = createStateDot(deps)
   const AtomIcon = createAtomIcon(deps)
+  const DownloadIcon = createDownloadIcon(deps)
   const EyeIcon = createEyeIcon(deps)
   const EyeOffIcon = createEyeOffIcon(deps)
+  const TextInitialIcon = createTextInitialIcon(deps)
   const ChevronDownIcon = createChevronDownIcon(deps)
   const RefreshIcon = createRefreshIcon(deps)
+  const TrashIcon = createTrashIcon(deps)
   const LoaderIcon = createLoaderIcon(deps)
   /**
    * The pending "the pointer left" dismissal, if any.
@@ -781,8 +787,8 @@ export function createOpenSpecButton(
      * ignore file goes whole; a shared directory's file is pruned the way the
      * delete prunes it) and asks git nothing at all. As with the ignore press,
      * the store is re-read only when an ignore file changed — which is also
-     * what makes this button leave the footer once there is nothing left of
-     * ours to take back.
+     * what dims this button in the toolbar once there is nothing left of ours
+     * to take back.
      */
     const untrack = (): void => {
       void runUntrack(async () => {
@@ -1336,16 +1342,24 @@ export function createOpenSpecButton(
     // are still installed offers two of them — which is the honest description
     // of that half-removed state.
     const canInit = view !== undefined && !view.initialized
+    // The create button keeps its seat whatever the workspace holds, which is
+    // what lets it wear the answer: amber while there is nothing there yet,
+    // green once the store stands, and dimmed while the read that decides is
+    // still running. Only the amber one asks for a click.
+    const initTone = view === undefined ? 'reading' : view.initialized ? 'done' : 'warn'
     const canRemove = view !== undefined && view.totalEntries > 0
     // Both ignore offers ride on the workspace being a repository at all:
     // outside one, hiding a footprint from git and taking the hiding back are
-    // both meaningless, so the footer shows neither. The host still runs its
+    // both meaningless, so the toolbar shows neither. The host still runs its
     // own `git rev-parse` gate on the click — this decides what is offered,
     // not what is allowed.
+    const offersIgnorePair = view !== undefined && view.repo && (view.initialized || view.hasIgnoreRules)
     const canIgnore = view !== undefined && view.repo && view.initialized
-    // The un-ignore offer rides on there being lines of ours to take back:
-    // with nothing hidden, the button could only answer "nothing was there",
-    // so it stays out of the footer until the ignore action has been used.
+    // The un-ignore offer is live only while there are lines of ours to take
+    // back. It is not, however, *absent* then: the two buttons are a pair that
+    // undoes each other, and a pair that loses a member mid-visit slides the
+    // delete into the seat the pointer is resting on. So the pair holds its
+    // width and the member that cannot answer is dimmed instead.
     const canUntrack = view !== undefined && view.repo && view.hasIgnoreRules
     const panel = (
       <div
@@ -1366,6 +1380,20 @@ export function createOpenSpecButton(
           scheduleClose(dismiss)
         }}
       >
+        {/* One row: what the panel is, then what it can do. The actions used to
+         * sit at the bottom, which put the pointer exactly on the edge a
+         * shrinking body lifts — a click answered, the panel got shorter under
+         * the hand that had just clicked, and the hover was over a panel that
+         * was no longer there. Here the pointer lands a body's height above that
+         * edge.
+         *
+         * The group is ordered by how permanent a button is rather than by how
+         * it reads: the two actions this panel offers whatever the workspace
+         * holds keep the right end, and what a read brings or takes away is the
+         * further-left half. Since the group is pinned to that right end, an
+         * arrival lands in the slack beside the identity rather than on a seat
+         * someone is already aiming at, and the two buttons worth finding
+         * without looking are always in the same two places. */}
         <div className="os_head">
           <AtomIcon size={14} />
           <span className="os_title">{t('manageOpenSpec')}</span>
@@ -1376,104 +1404,110 @@ export function createOpenSpecButton(
               label={view.initialized ? t('openSpecStatusReady') : t('openSpecStatusAbsent')}
             />
           )}
-          {view === undefined ? null : (
+          <span className="os_actions">
+            {offersIgnorePair ? (
+              <button
+                className="mm_btn os_untrack"
+                type="button"
+                aria-label={t('openSpecUntrack')}
+                // The undo of the button beside it, said the same way: which
+                // lines come out and which files that empties — and that git is
+                // asked nothing, so the index keeps whatever it holds. The hover
+                // holds the whole sentence; returning entries to git's view
+                // wears the open eye.
+                title={t('openSpecUntrackCommand')}
+                disabled={!canUntrack || untracking}
+                data-pending={untracking ? 'true' : undefined}
+                aria-busy={untracking}
+                onClick={untrack}
+              >
+                <EyeIcon size={14} />
+              </button>
+            ) : null}
+            {offersIgnorePair ? (
+              <button
+                className="mm_btn os_ignore"
+                type="button"
+                aria-label={t('openSpecGitignore')}
+                // What the click asks git, in the order it asks it — the whole
+                // point being that a tracked file is not ignored by a rule, so
+                // the untracking is part of the deal and must be said. The
+                // hover holds the sentence; the glyph is the struck-out eye —
+                // git will stop looking at these paths.
+                title={t('openSpecGitignoreCommand')}
+                disabled={!canIgnore || ignoring}
+                data-pending={ignoring ? 'true' : undefined}
+                aria-busy={ignoring}
+                onClick={ignore}
+              >
+                <EyeOffIcon size={14} />
+              </button>
+            ) : null}
+            {canRemove ? (
+              <button
+                className="mm_btn danger os_remove"
+                type="button"
+                // The words the button used to wear are its hover instead: the
+                // glyph says delete, the sentence says what is deleted, and the
+                // question the dialog asks says it again with the totals.
+                aria-label={t('openSpecRemove')}
+                title={t('openSpecRemove')}
+                disabled={busy}
+                onClick={() => setAsking(true)}
+              >
+                <TrashIcon size={15} />
+              </button>
+            ) : null}
             <button
-              className="mm_btn primary os_update"
+              className="mm_btn os_init"
               type="button"
-              // The two commands the click runs, shown rather than described: a
-              // translation of a command line would only obscure what it fetches.
-              title={t('openSpecUpdateCommand')}
-              disabled={updating}
-              data-pending={updating ? 'true' : undefined}
-              aria-busy={updating}
-              onClick={upgrade}
-            >
-              {t('openSpecUpdate')}
-            </button>
-          )}
-          <button
-            className="os_refresh"
-            type="button"
-            aria-label={t('openSpecRefresh')}
-            title={t('openSpecRefresh')}
-            disabled={refreshFace.showing}
-            // The face opens on the click, and the read it started only closes
-            // it once the platform's floor has run out — see `useBusyFace`.
-            onClick={() => {
-              refreshFace.start()
-              void load()
-            }}
-          >
-            {refreshFace.showing ? <LoaderIcon className="mm_statusSpin" size={13} /> : <RefreshIcon size={13} />}
-          </button>
-        </div>
-        {body}
-        <div className="os_foot">
-          {canInit ? (
-            <button
-              className="mm_btn primary os_init"
-              type="button"
-              // The command the click runs, shown rather than described: the
-              // tool it configures (`--tools agents`) is the whole question, and
-              // a translation of it would be a translation of a command line.
-              title={t('openSpecInitCommand')}
-              disabled={initing}
+              data-state={initTone}
+              aria-label={t('openSpecInit')}
+              // The command the click runs while there is a store to create, and
+              // the plain answer once there is not: the glyph has stopped being a
+              // question by then and only reports.
+              title={canInit || view === undefined ? t('openSpecInitCommand') : t('openSpecStatusReady')}
+              disabled={!canInit || initing}
               data-pending={initing ? 'true' : undefined}
               aria-busy={initing}
               onClick={initialize}
             >
-              {t('openSpecInit')}
+              <TextInitialIcon size={14} />
             </button>
-          ) : null}
-          {canIgnore ? (
             <button
-              className="mm_btn os_ignore"
+              className="mm_btn os_refresh"
               type="button"
-              aria-label={t('openSpecGitignore')}
-              // What the click asks git, in the order it asks it — the whole
-              // point being that a tracked file is not ignored by a rule, so
-              // the untracking is part of the deal and must be said. The
-              // hover holds the sentence; the glyph is the struck-out eye —
-              // git will stop looking at these paths.
-              title={t('openSpecGitignoreCommand')}
-              disabled={ignoring}
-              data-pending={ignoring ? 'true' : undefined}
-              aria-busy={ignoring}
-              onClick={ignore}
+              aria-label={t('openSpecRefresh')}
+              title={t('openSpecRefresh')}
+              disabled={refreshFace.showing}
+              // The face opens on the click, and the read it started only closes
+              // it once the platform's floor has run out — see `useBusyFace`.
+              onClick={() => {
+                refreshFace.start()
+                void load()
+              }}
             >
-              <EyeOffIcon size={14} />
+              {refreshFace.showing ? <LoaderIcon className="mm_statusSpin" size={13} /> : <RefreshIcon size={13} />}
             </button>
-          ) : null}
-          {canUntrack ? (
             <button
-              className="mm_btn os_untrack"
+              className="mm_btn primary os_update"
               type="button"
-              aria-label={t('openSpecUntrack')}
-              // The undo of the button beside it, said the same way: which
-              // lines come out and which files that empties — and that git is
-              // asked nothing, so the index keeps whatever it holds. The hover
-              // holds the whole sentence; returning entries to git's view
-              // wears the open eye.
-              title={t('openSpecUntrackCommand')}
-              disabled={untracking}
-              data-pending={untracking ? 'true' : undefined}
-              aria-busy={untracking}
-              onClick={untrack}
+              aria-label={t('openSpecUpdate')}
+              // The two commands the click runs, shown rather than described: a
+              // translation of a command line would only obscure what it fetches.
+              title={t('openSpecUpdateCommand')}
+              // Dimmed until the read says what is there — the seat is kept
+              // either way, so the row does not jump when the answer lands.
+              disabled={updating || view === undefined}
+              data-pending={updating ? 'true' : undefined}
+              aria-busy={updating}
+              onClick={upgrade}
             >
-              <EyeIcon size={14} />
+              <DownloadIcon size={14} />
             </button>
-          ) : null}
-          {canRemove ? (
-            <button
-              className="mm_btn danger os_remove"
-              type="button"
-              disabled={busy}
-              onClick={() => setAsking(true)}
-            >
-              {t('openSpecRemove')}
-            </button>
-          ) : null}
+          </span>
         </div>
+        {body}
       </div>
     )
 
