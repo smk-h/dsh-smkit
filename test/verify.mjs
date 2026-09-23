@@ -146,12 +146,12 @@ clientExports.apply({
   },
   slots: {
     inject: (_name, callback) => callback(),
-    // Every entry per slot name, as a list: two features seat the settings
-    // section, and a map keyed by slot name would keep only the last seat.
+    // Every entry per slot name, as a list: the conversation header seats two
+    // controls, and a map keyed by slot name would keep only the last one.
     register: (spec) => { slotSpecs.set(spec.name, [...(slotSpecs.get(spec.name) ?? []), spec]) },
   },
 })
-for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings', 'skills', 'openspec']) {
+for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'openspec']) {
   assert.ok(dictionaries[namespace], `the ${namespace} dictionary must be registered`)
   assert.deepEqual(
     Object.keys(dictionaries[namespace].zh).sort(),
@@ -167,14 +167,16 @@ const entryOf = (slot, id) => {
   return found
 }
 
+// One seat for all three settings pages: the merged section carries its own
+// namespace (its label and its tab names), and the pages it composes keep theirs.
 const settingsSlot = entryOf('settings.section', 'mcp-manager')
-assert.equal(settingsSlot.locale, 'mcp', 'the MCP section entry must bind the mcp locale namespace')
-
-const customSlot = entryOf('settings.section', 'mcp-manager-custom-settings')
-assert.equal(customSlot.locale, 'custom-settings', 'the custom-settings entry must bind its own locale namespace')
-
-const skillsSlot = entryOf('settings.section', 'mcp-manager-skills')
-assert.equal(skillsSlot.locale, 'skills', 'the Skills section entry must bind the skills locale namespace')
+assert.equal(settingsSlot.locale, 'smkit', 'the merged section binds its own locale namespace')
+assert.equal(
+  (slotSpecs.get('settings.section') ?? []).length,
+  1,
+  'the three pages seat one nav row, not three',
+)
+assert.ok(dictionaries.smkit.zh.sectionLabel, 'and the row is named from that dictionary')
 
 const deleteSlot = entryOf('conversation.session.header.utilities', 'mcp-manager-session-delete')
 assert.equal(deleteSlot.locale, 'session-delete', 'the delete control binds its own locale namespace')
@@ -186,5 +188,5 @@ assert.equal(openSpecSlot.locale, 'openspec', 'the OpenSpec control binds its ow
 assert.ok(openSpecSlot.order < deleteSlot.order, 'it sits before the destructive control')
 
 console.log(
-  'verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → MCP → 自定义设置 → Skills → the header pair.',
+  'verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → smkit 配置 (MCP · Skills · 自定义设置) → the header pair.',
 )

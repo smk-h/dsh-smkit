@@ -12,7 +12,6 @@ import type { LocaleDict } from '../../../platform/types'
 
 export const SKILLS_LOCALE_ZH: LocaleDict = {
   "sectionLabel": "技能",
-  "sectionIntro": "查看、启停与移除 Agent Skills。目录选择器里「用户」一档、每个项目一档；用户侧的两个技能目录（~/.dsh/skills 与 ~/.agents/skills）与项目下的 .dsh、.agents 都以标签页分开显示。",
   "scope": "技能目录",
   "scopeUser": "用户",
   "scopeProject": "项目",

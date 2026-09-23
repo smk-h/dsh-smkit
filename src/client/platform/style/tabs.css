@@ -7,11 +7,14 @@
  * A page that needs a different look names another class family on the
  * component and keeps its rules in its own stylesheet, the way the MCP form's
  * field-shaped picker does; these rules are what a page gets without asking.
+ * The strip wraps instead of shrinking its labels when the dialog is too narrow
+ * to hold them: a clipped tab is unreadable, a second row is not.
  */
 
 .mm_tabs {
   border-bottom: .5px solid var(--dsw-alias-border-l2);
   align-items: flex-end;
+  flex-wrap: wrap;
   gap: 22px;
   display: flex;
 }
@@ -25,7 +28,17 @@
   padding: 7px 1px 9px;
   font-size: 13px;
   line-height: 20px;
+  align-items: center;
+  display: inline-flex;
   position: relative;
+}
+
+/* A tab's glyph, when the page hands one: inline with the label, in the
+ * button's own colour (every icon here strokes in `currentColor`), so hover and
+ * the active state darken the pair together. */
+.mm_tab svg {
+  flex: 0 0 auto;
+  margin-right: 6px;
 }
 .mm_tab:hover,.mm_tab[data-active=true] {
   color: var(--dsw-alias-label-primary);

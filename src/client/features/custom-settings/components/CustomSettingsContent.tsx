@@ -1,5 +1,6 @@
 /**
- * The Custom settings page of the settings dialog: the shell around its tabs.
+ * The Custom settings panel of the merged settings section: the shell around
+ * its tabs.
  *
  * A tab per configuration area this plugin exposes on this page; `TABS` below
  * is the list, and adding an area is appending a panel component and its label
@@ -14,7 +15,6 @@
  */
 
 import { createTabs } from '../../../platform/ui/Tabs'
-import { createVersionBadge } from '../../../platform/ui/VersionBadge'
 import { createModelInputPanel } from './ModelInputPanel'
 import { createOtherSettingsPanel } from './OtherSettingsPanel'
 import { createRetryPanel } from './RetryPanel'
@@ -43,7 +43,6 @@ export function createCustomSettingsContent(
   const RetryPanel = createRetryPanel(deps)
   const ModelInputPanel = createModelInputPanel(deps)
   const OtherSettingsPanel = createOtherSettingsPanel(deps)
-  const VersionBadge = createVersionBadge(deps)
 
   /** The page's areas, in strip order. */
   const TABS: SettingsTab[] = [
@@ -57,14 +56,10 @@ export function createCustomSettingsContent(
     const active = TABS.find((tab) => tab.id === selected) ?? TABS[0]
     return (
       <div className="cs_section">
-        {/* The page's areas, in strip order — the identity block reads the way
-            the MCP and skills pages' does: intro line, plugin pill, then the
-            section's own heading above the strip. The dialog's own header
-            carries the section label too, and the two agree because both read
-            it from the registration. */}
-        <p className="cs_intro">{t('sectionIntro')}</p>
-        <VersionBadge />
-        <h3 className="cs_heading">{t('sectionLabel')}</h3>
+        {/* The page's areas, in strip order. The identity block — the intro
+            line, the plugin pill and the page title — is the merged settings
+            section's, not this panel's: the tab that opened this strip already
+            names the page. */}
         <Tabs
           ariaLabel={t('sectionLabel')}
           active={active.id}

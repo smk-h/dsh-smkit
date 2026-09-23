@@ -12,13 +12,15 @@
  * descriptor, so this file needs to know nothing about MCP, about session
  * deletion, or about custom settings beyond which one sits where. Adding a
  * feature is a directory plus one entry in `FEATURES`.
+ *
+ * The settings dialog is the exception worth naming: the MCP, skills and
+ * custom-settings pages are three feature directories but one seat, taken by
+ * `settingsFeature` (see `settings.ts`) — the composition layer above them.
  */
 
-import { customSettingsFeature } from './features/custom-settings/client'
-import { mcpFeature } from './features/mcp/client'
 import { openSpecFeature } from './features/openspec/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
-import { skillsFeature } from './features/skills/client'
+import { settingsFeature } from './settings'
 import { createApi, createStream } from './platform/api'
 import { PLATFORM_LOCALE_EN } from './platform/i18n/en'
 import { PLATFORM_LOCALE_ZH } from './platform/i18n/zh'
@@ -38,10 +40,8 @@ export const inject = ['slots', 'locale', 'sessions']
 
 /** The features this plugin ships; the order here is the order they register. */
 const FEATURES: ClientFeature[] = [
-  mcpFeature,
   sessionDeleteFeature,
-  customSettingsFeature,
-  skillsFeature,
+  settingsFeature,
   openSpecFeature,
 ]
 
@@ -104,13 +104,21 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
         Tooltip,
       }
       for (const feature of FEATURES) {
-        ctx.effect(
-          () => ctx.locale.register(feature.locale.namespace, {
-            zh: feature.locale.zh,
-            en: feature.locale.en,
-          }),
-          `dsh-mcp-manager: ${feature.id}/dictionaries`,
-        )
+        for (const dictionary of [feature.locale, ...(feature.extraLocales ?? [])]) {
+          ctx.effect(
+            () => ctx.locale.register(dictionary.namespace, {
+              zh: dictionary.zh,
+              en: dictionary.en,
+            }),
+            `dsh-mcp-manager: ${dictionary.namespace}/dictionaries`,
+          )
+        }
+      }
+      // Dictionaries first, seats second: a section's own copy must resolve on
+      // the very first render the shell makes of it, and a feature that
+      // composes another's components (the merged settings section) reads
+      // namespaces a later entry would not yet have declared.
+      for (const feature of FEATURES) {
         feature.register(ctx, deps, ctx.locale.bind(feature.locale.namespace))
       }
     },

@@ -1,7 +1,8 @@
 /**
- * The Settings → MCP section.
+ * The MCP panel of the merged settings section.
  *
- * One component drives four views (`list`, `add`, `edit-global`, `edit-ws`) and
+ * One component drives five views (`list`, `add`, `edit-global`, `edit-ws`,
+ * `advanced`) and
  * three API-surfaced data sets, re-polled every 3 seconds so a server that
  * reconnects on the host side updates its badge without a page reload.
  *
@@ -11,8 +12,9 @@
  * root, and clicking it is the second way back besides the form's cancel
  * button.
  *
- * The list view opens with the section title and both counts on their own
- * line under the identity badge. Below it, a toolbar row pairs the scope
+ * The list view opens with both counts on their own line; the page's identity
+ * block (the intro line and the plugin pill) is the merged settings section's,
+ * not this panel's. Below the heading, a toolbar row pairs the scope
  * picker on the left with the search box and the add button against the right
  * edge; the box rides the same row while it fits, and once a long workspace
  * name has pushed it onto a line of its own the picker takes the row it
@@ -40,7 +42,6 @@ import { createScopeSelect } from '../ui/ScopeSelect'
 import { createServerRow } from './ServerRow'
 import { createToolTimeoutForm } from './ToolTimeoutForm'
 import { createSwitch } from '../ui/Switch'
-import { createVersionBadge } from '../../../platform/ui/VersionBadge'
 import { watchRowWrap } from '../ui/rowWrap'
 import { watchTipBoundaries } from '../../../platform/ui/tip'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
@@ -98,7 +99,6 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
   const Settings2Icon = createSettings2Icon(deps)
   const ToolTimeoutForm = createToolTimeoutForm(deps)
   const ReconnectForm = createReconnectForm(deps)
-  const VersionBadge = createVersionBadge(deps)
 
   return function McpContent({ t }: SectionProps): JSX.Element {
     const [servers, setServers] = react.useState<ServerView[]>([])
@@ -141,16 +141,6 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     const previewStatus = (id: string, status: string): void => {
       setStatusPreviews(new Map(statusPreviews).set(id, { status, at: Date.now() }))
     }
-
-    // The section's identity block, shown above every view: one intro line,
-    // then the plugin pill (`platform/ui/VersionBadge`, shared with the other
-    // settings pages), so the page stays attributable at a glance.
-    const identityHeader: JSX.Element[] = [
-      <p className="mm_intro" key="intro">
-        {t('sectionIntro')}
-      </p>,
-      <VersionBadge key="badge" />,
-    ]
 
     /** The root crumb every sub-view's breadcrumb starts from: the list view
      * itself, which clicking returns to (`view` lives in this component). */
@@ -371,7 +361,6 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     if (view === 'advanced') {
       return (
         <div className="mm_section">
-          {identityHeader}
           <div className="mm_catalogHeading">
             <h3>{t('advancedTitle')}</h3>
           </div>
@@ -394,7 +383,6 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     if (view === 'add') {
       return (
         <div className="mm_section">
-          {identityHeader}
           <div className="mm_catalogHeading">
             <h3>{t('addServer')}</h3>
           </div>
@@ -419,7 +407,6 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     if (view === 'edit-global' && globalEditing) {
       return (
         <div className="mm_section">
-          {identityHeader}
           <div className="mm_catalogHeading">
             <h3>{t('editGlobal')}</h3>
           </div>
@@ -445,7 +432,6 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     if (view === 'edit-ws' && selected && wsEditing) {
       return (
         <div className="mm_section">
-          {identityHeader}
           <div className="mm_catalogHeading">
             <h3>{t('editWorkspace')}</h3>
           </div>
@@ -566,7 +552,6 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
 
     return (
       <div className="mm_section">
-        {identityHeader}
         <div className="mm_catalogHeading">
           <h3>{t('servers')}</h3>
           <span>

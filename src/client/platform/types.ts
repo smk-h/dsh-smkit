@@ -154,6 +154,14 @@ export interface ClientFeature {
   /** Stable id; also the dictionary namespace and the stylesheet prefix. */
   id: string
   locale: { namespace: string; zh: LocaleDict; en: LocaleDict }
+  /**
+   * Extra dictionaries this feature registers, in the same order the entry
+   * walks them. A feature that composes other features' components needs their
+   * namespaces registered too — the merged settings section seats three pages
+   * whose copy stays in their own namespaces — and only the layer above the
+   * features may know about them, so it declares them here.
+   */
+  extraLocales?: Array<{ namespace: string; zh: LocaleDict; en: LocaleDict }>
   styles: FeatureStylesheet[]
   /**
    * Register this feature's slot contributions, and any one-off side effect of

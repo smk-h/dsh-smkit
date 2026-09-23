@@ -1,5 +1,5 @@
 /**
- * The Settings → Skills section.
+ * The Skills panel of the merged settings section.
  *
  * One page over one scope at a time. The picker above the list names that scope,
  * and there are two kinds of them, which now read the same way:
@@ -34,7 +34,6 @@ import { createClearIcon } from '../../../platform/icons/ClearIcon'
 import { createSearchIcon } from '../../../platform/icons/SearchIcon'
 import { createRefreshButton } from '../../../platform/ui/RefreshButton'
 import { createTabs } from '../../../platform/ui/Tabs'
-import { createVersionBadge } from '../../../platform/ui/VersionBadge'
 import { createScopeSelect } from '../ui/ScopeSelect'
 import { createSkillRow } from './SkillRow'
 import { watchTipBoundaries } from '../../../platform/ui/tip'
@@ -189,7 +188,6 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
   const Tabs = createTabs(deps)
   const SearchIcon = createSearchIcon(deps)
   const ClearIcon = createClearIcon(deps)
-  const VersionBadge = createVersionBadge(deps)
   // The platform layer's own refresh control: same glyph, bubble and pending
   // turn as any page that later reads something re-readable.
   const RefreshButton = createRefreshButton(deps)
@@ -359,10 +357,9 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
 
     return (
       <div className="sk_section">
-        {/* The identity block reads the way the MCP page's does: intro line,
-            plugin pill, then the section's own heading over the toolbar. */}
-        <p className="sk_intro">{t('sectionIntro')}</p>
-        <VersionBadge />
+        {/* The heading over the toolbar: the page's own title and the count of
+            rows below. The identity block (intro line, plugin pill) is the
+            merged settings section's, not this panel's. */}
         <div className="sk_catalogHeading">
           <h3>{t('sectionLabel')}</h3>
           <span>{t('count', { count: view.length })}</span>

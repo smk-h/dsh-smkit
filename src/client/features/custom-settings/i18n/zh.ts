@@ -1,8 +1,9 @@
 /**
  * Simplified Chinese dictionary for the `custom-settings` locale namespace.
  *
- * The page's own copy plus every tab's: the page label and intro, then the
- * model-retry tab (its route list, the policy form, the summary line each row
+ * The page's own copy plus every tab's: the page label (the strip's accessible
+ * name), then the model-retry tab (its route list, the policy form, the summary
+ * line each row
  * carries, and the refusals the host can answer with). The two button labels
  * every dialog shares (`cancel`, `delete`) live in the platform namespace, so
  * they are declared once for the whole plugin; `save` is this page's own
@@ -13,7 +14,6 @@ import type { LocaleDict } from '../../../platform/types'
 
 export const CUSTOM_SETTINGS_LOCALE_ZH: LocaleDict = {
   "sectionLabel": "自定义设置",
-  "sectionIntro": "把 DSH 里那些值得单独调、又不常改的配置收在这里，按标签页分区；改动写进 dsh 自己的 settings.yaml，保存后立即生效，不需要重启。",
   "tabRetry": "模型重试",
   "tabModelInput": "模型输入",
   "tabOther": "其他设置",

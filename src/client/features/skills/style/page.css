@@ -1,8 +1,9 @@
 /**
- * Page shell for the Skills section (SkillsContent): the container, its heading
+ * Page shell for the Skills panel (SkillsContent): the container, its heading
  * and count, the toolbar (directory picker, spacer, search box and the shared
  * refresh button), the shown directory's path line and the standalone note
- * lines. The refresh button itself is the platform layer's
+ * lines. The page's intro line is the merged section's own
+ * (`settings/style/page.css`, `st_intro`). The refresh button itself is the platform layer's
  * (`platform/ui/RefreshButton`, painted by `platform/style/refresh-button.css`);
  * only the cluster that positions it is this page's.
  *
@@ -45,14 +46,6 @@
 .sk_catalogHeading span {
   color: var(--dsw-alias-label-tertiary);
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.sk_intro {
-  margin: 0;
-  padding: 0 2px;
-  color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   line-height: 18px;
 }

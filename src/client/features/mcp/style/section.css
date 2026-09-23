@@ -1,7 +1,8 @@
 /**
  * Page shell for the section (McpContent): the container, its headings, the
  * lists that hold the rows/cards, the add button, the on-demand feature row,
- * the toolbar (scope picker, title, search) and the path hint.
+ * the toolbar (scope picker, search) and the path hint. The page's intro line is
+ * the merged section's own (`settings/style/page.css`, `st_intro`).
  *
  * One part of the MCP feature's stylesheet. `features/mcp/styles.ts` imports
  * the parts and joins them in the order listed there, and the build inlines the
@@ -216,13 +217,5 @@
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
-}
-
-.mm_intro {
-  margin: 0;
-  padding: 0 2px;
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--dsw-alias-label-secondary);
 }
 

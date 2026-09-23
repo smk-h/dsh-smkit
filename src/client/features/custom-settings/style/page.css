@@ -1,14 +1,13 @@
 /**
- * The Custom settings page shell: the title, the intro line, the tab strip and
- * the panel beneath it.
+ * The Custom settings panel shell: the tab strip and the panel beneath it.
  *
- * The shell mirrors DSH's own tabbed settings pages — the same heading, the
- * same intro line, the same strip — because this page is the same kind of
- * page: one tab per configuration area, so a new area costs a tab rather than
- * a redesign. The strip itself is the platform layer's `Tabs` (`mm_tabs*`,
- * styled by that layer's `style/tabs.css`), the same one the skills page
- * renders; only the two-point nudge that seats it in this page's rhythm is
- * declared here.
+ * The shell mirrors DSH's own tabbed settings pages, because this panel is the
+ * same kind of page: one tab per configuration area, so a new area costs a tab
+ * rather than a redesign. The strip itself is the platform layer's `Tabs`
+ * (`mm_tabs*`, styled by that layer's `style/tabs.css`), the same one the
+ * skills panel and the merged section's own strip render; only the two-point
+ * nudge that seats it in this panel's rhythm is declared here. The page's
+ * title and intro line moved up into the merged section (`st_*`).
  *
  * Classes are namespaced `cs_*`, deliberately not the MCP page's `mm_*` nor the
  * model-retry tab's `lr_*`: the three are separate owners and may only share
@@ -26,27 +25,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-/* The section's heading, sized to the other pages' catalogHeading (an 18px/600
- * title on a 26px line) so the three pages' identity blocks read as one. The
- * dialog's header carries the section label too, from the same registration. */
-.cs_heading {
-  margin: 0;
-  padding: 0 2px;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 26px;
-}
-
-/* The intro line, on the same 12px/18px secondary-color rule as the MCP and
- * skills pages' intros. */
-.cs_intro {
-  margin: 0;
-  padding: 0 2px;
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--dsw-alias-label-secondary);
 }
 
 .cs_section>.mm_tabs {

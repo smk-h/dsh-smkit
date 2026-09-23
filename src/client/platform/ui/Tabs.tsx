@@ -1,7 +1,8 @@
 /**
- * The tab strip the settings pages share: one row of plain-text buttons, the
- * active one darker with an underline — the shape DSH's own tabbed settings
- * pages use (see `style/tabs.css`).
+ * The tab strip the settings pages share: one row of buttons, the active one
+ * darker with an underline — the shape DSH's own tabbed settings pages use (see
+ * `style/tabs.css`). A tab may wear a glyph before its label; the label is the
+ * only text the strip renders, so a page names its own copy.
  *
  * Controlled on purpose: the caller owns which tab is active, because a page
  * may derive the selection rather than keep it as plain state — the skills
@@ -18,13 +19,17 @@
 
 import type { ClientDeps } from '../types'
 
-/** One selectable tab: a stable id and the label a user reads. */
+/** One selectable tab: a stable id, the label a user reads, and an optional glyph. */
 export interface TabOption {
   /** Stable id: the button's key and the selection value. */
   id: string
   /** The label as text — the caller resolves copy through `t` before handing
    * it over, since this component is deliberately locale-free. */
   label: string
+  /** A glyph drawn before the label, as an element the caller built (an icon
+   * from `platform/icons`): this strip stays content-agnostic and locale-free,
+   * so it neither knows which icons a page offers nor binds their copy. */
+  icon?: unknown
 }
 
 /** Root and button classes of one visual family. */
@@ -58,19 +63,25 @@ export function createTabs(deps: ClientDeps): (props: TabsProps) => JSX.Element 
   }: TabsProps): JSX.Element {
     return (
       <div className={classes.root} role="tablist" aria-label={ariaLabel}>
-        {tabs.map((tab) => (
-          <button
-            className={classes.tab}
-            type="button"
-            role="tab"
-            key={tab.id}
-            aria-selected={tab.id === active}
-            data-active={tab.id === active ? 'true' : undefined}
-            onClick={() => onChange(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {tabs.map((tab) =>
+          // The button is built rather than written out in JSX so a tab without a
+          // glyph draws exactly its label: JSX would leave the skipped icon as an
+          // empty slot ahead of it, and a reader of the tree — a test, or the
+          // accessibility pass over the strip — would have to skip a hole.
+          h(
+            'button',
+            {
+              className: classes.tab,
+              type: 'button',
+              role: 'tab',
+              key: tab.id,
+              'aria-selected': tab.id === active,
+              'data-active': tab.id === active ? 'true' : undefined,
+              onClick: () => onChange(tab.id),
+            },
+            ...(tab.icon === undefined ? [tab.label] : [tab.icon, tab.label]),
+          ),
+        )}
       </div>
     )
   }

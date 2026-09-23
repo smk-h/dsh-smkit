@@ -220,7 +220,9 @@ function mount() {
     useState: (initial) => {
       const index = cursor++
       if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial
-      return [states[index], (value) => { states[index] = value }]
+      return [states[index], (value) => {
+        states[index] = typeof value === 'function' ? value(states[index]) : value
+      }]
     },
     useEffect: (effect) => { if (capturing) effects.set(effectSlot++, effect) },
     useCallback: (callback) => callback,
@@ -244,18 +246,39 @@ function mount() {
       register: (options, component) => { registrations.set(options.id, component) },
     },
   })
-  const section = registrations.get('mcp-manager-skills')
-  assert.ok(section, 'the skills section must be registered')
+  const section = registrations.get('mcp-manager')
+  assert.ok(section, 'the merged settings section must be registered')
   return {
     calls,
     render() {
       cursor = 0
       effectSlot = 0
       capturing = true
-      const tree = section({ t })
+      const tree = section()
+      const shellSlots = cursor
+      // One expansion pass: the section delegates its body to the open panel, so
+      // that is where the page's own effects register. The cursor then returns to
+      // the shell's slots, which is where every later walk restarts from.
+      nodes(tree)
+      cursor = shellSlots
       rendered = cursor
       capturing = false
       return tree
+    },
+    /** Open one of the merged section's tabs — the section keeps a tab strip
+     * above the page, and this suite drives the skills page behind it. */
+    openTab(label) {
+      cursor = 0
+      const tree = section()
+      const shellSlots = cursor
+      const tab = nodes(tree).find(
+        (node) => node.props?.role === 'tab' && node.children.includes(label),
+      )
+      assert.ok(tab, `the merged section must offer the ${label} tab`)
+      tab.props.onClick()
+      // The panel that was mounted is gone: its slots are dropped, so the panel
+      // that replaces it starts its own state fresh, as React would.
+      states.length = shellSlots
     },
     /** Walk a rendered tree from the hook position its render ended on. */
     walk(read) {
@@ -273,6 +296,9 @@ function mount() {
 
 it('lists one scope, opens a row, switches it and removes it by address', async () => {
   const app = mount()
+  // The page lives on a tab of the merged section now; this suite drives it
+  // there first, the way a user opens it.
+  app.openTab('tabSkills')
   // React's order: the first render registers the effects, the effects issue
   // the poll, and the next render sees its answer.
   let tree = app.render()
@@ -310,7 +336,10 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
   assert.match(listed, /disabled/, 'and a disabled one shows that instead of hiding')
   assert.match(listed, /skipped/)
   assert.doesNotMatch(listed, /agents-only/, 'the other home waits behind its tab')
-  const userTabs = () => app.walk(() => findAll(tree, (node) => node.props?.role === 'tab'))
+  // The section's own tab strip sits above the page; the page's strips label
+  // their tabs with plain text, the section's pair each label with a glyph.
+  const isPageTab = (node) => node.props?.role === 'tab' && typeof node.children[0] === 'string'
+  const userTabs = () => app.walk(() => findAll(tree, isPageTab))
   assert.deepEqual(
     userTabs().map((node) => node.children[0]),
     ['~/.dsh', '~/.agents'],
@@ -444,7 +473,7 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
   await select(1)
   assert.equal(trigger().props['data-tip'], PROJECT)
   assert.equal(app.calls.some((call) => call.url.includes(`project=${encodeURIComponent(PROJECT)}`)), true)
-  const tabs = () => app.walk(() => findAll(tree, (node) => node.props?.role === 'tab'))
+  const tabs = () => app.walk(() => findAll(tree, isPageTab))
   assert.deepEqual(
     tabs().map((node) => node.children[0]),
     ['.dsh', '.agents'],

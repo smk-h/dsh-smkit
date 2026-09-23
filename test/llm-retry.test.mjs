@@ -398,14 +398,12 @@ const response = (body, ok = true, status = 200) => ({ ok, status, json: async (
  */
 function flatten(tree) {
   if (tree === null || tree === undefined || typeof tree !== 'object') return []
+  // A component is a node to draw wherever it stands — including as the tree this
+  // walk was handed. The merged section delegates its open page to a component
+  // of that page's own, so the node that arrives can be the component itself.
+  if (typeof tree.type === 'function') return [tree, ...flatten(tree.type(tree.props))]
   const collected = [tree]
-  for (const child of tree.children ?? []) {
-    if (child !== null && typeof child === 'object' && typeof child.type === 'function') {
-      collected.push(child, ...flatten(child.type(child.props)))
-    } else {
-      collected.push(...flatten(child))
-    }
-  }
+  for (const child of tree.children ?? []) collected.push(...flatten(child))
   return collected
 }
 
@@ -448,8 +446,8 @@ const routing = ({ list, save } = {}) => (url) => {
 }
 
 /**
- * Mount the real client bundle with a hook harness and take the settings page
- * that seats the retry tab (the section component the slot was handed).
+ * Mount the real client bundle with a hook harness and open the merged settings
+ * section on the page that carries the retry tab.
  * @param options - the URL-routed fetch stub.
  * @returns `calls` (every request the page made) and `render()`.
  */
@@ -459,6 +457,10 @@ function mountClient({ fetch }) {
   let exported
   const states = []
   let cursor = 0
+  // Reading the section for its tab strip mounts the default panel as well; with
+  // `muting` on, the requests it issues are dropped, because an answer that
+  // arrived after the switch would write into the slots the opened panel owns.
+  let muting = false
   const react = {
     createElement: (type, props, ...children) => {
       const kids = children.flat(Infinity)
@@ -478,6 +480,7 @@ function mountClient({ fetch }) {
   runInNewContext(clientSource, {
     window: { __ModuleLoader__: { load: ({ factory }) => { exported = factory((id) => modules[id]) } } },
     fetch: async (url, options) => {
+      if (muting) return new Promise(() => {})
       calls.push({ url, body: options?.body === undefined ? undefined : JSON.parse(options.body) })
       return fetch(url)
     },
@@ -492,14 +495,32 @@ function mountClient({ fetch }) {
       register: (options, component) => { registrations.set(options.id, component) },
     },
   })
-  const Section = registrations.get('mcp-manager-custom-settings')
-  assert.equal(typeof Section, 'function', 'the settings page must be seated under its own entry id')
+  const Section = registrations.get('mcp-manager')
+  assert.equal(typeof Section, 'function', 'the merged settings section must be seated')
+  /** Open one of the merged section's tabs. The section mounts only the tab it
+   * shows, so a case that reads this page has to be on it before the first
+   * render; the pass that finds the tab is muted, since it mounts the default
+   * panel on the way there. */
+  const openTab = (id) => {
+    cursor = 0
+    muting = true
+    const tree = Section()
+    const tab = flatten(tree).find((node) => node.props?.role === 'tab' && node.props?.key === id)
+    muting = false
+    assert.ok(tab, `the section must offer the ${id} tab`)
+    tab.props.onClick()
+    // The panel that was mounted is gone; its slots go with it, so the panel
+    // that replaces it starts its own state fresh.
+    states.length = 1
+  }
+  // Every case here drives the retry tab, which sits on this page of the section.
+  openTab('custom')
   return {
     calls,
     /** One render, flattened: safe to traverse as often as a case needs. */
     render() {
       cursor = 0
-      const flat = flatten(Section({ t }))
+      const flat = flatten(Section())
       return {
         flat,
         text: texts(flat).join(' | '),

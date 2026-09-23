@@ -1,5 +1,5 @@
 /**
- * The skills feature's stylesheets, as the text `entry.ts` injects.
+ * The skills feature's stylesheet, as the text the composition layer injects.
  *
  * The rules live in the `.css` files under `style/`, split by UI module and
  * imported here as strings (the build turns each of them into a string module:
@@ -12,38 +12,14 @@
  * platform layer's stylesheet is injected before this one, which is also what
  * lets `.sk_detail` widen the platform's `.mm_dialog` cap.
  *
- * The one thing a stylesheet cannot hold is this section's settings-nav mask, a
- * data URI built from the icon spec at runtime: the platform layer's
- * `style/settings-nav.css` consumes it as the `--dsh-smkit-nav-glyph` custom
- * property and the rule below defines that property for this section's row.
+ * The settings-nav mask this section used to paint lives in the merged section
+ * now (`src/client/settings.ts`): one nav row stands for all three pages.
+ * `icons/WandSparklesIcon` is still drawn there, as the Skills tab's glyph.
  */
 
-import { SETTINGS_NAV_ATTRIBUTE } from '../../platform/ui/settings-nav'
-import { iconMaskDataUri } from '../../platform/icons/Icon'
-import { WAND_SPARKLES_SPEC } from './icons/WandSparklesIcon'
 import detailCss from './style/detail.css'
 import pageCss from './style/page.css'
 import rowCss from './style/row.css'
 
 /** The feature's own rules, in cascade order. */
 export const SKILLS_CSS = [pageCss, rowCss, detailCss].join('\n')
-
-/**
- * The settings-nav glyph as a CSS mask image: alpha only, so the row's own
- * `currentColor` (default, hover, active) sets the colour while the mask keeps
- * the shell's 16px nav rhythm.
- *
- * The shape is lucide's `wand-sparkles`, taken from the same spec the icon set
- * renders (`icons/WandSparklesIcon`), so the drawn SVG and the mask cannot
- * drift: this section manages skills, and the wand reads as "a capability the
- * agent applies" better than the gear the shell falls back to.
- */
-const NAV_GLYPH = iconMaskDataUri(WAND_SPARKLES_SPEC)
-
-/**
- * The glyph as a custom property — how a stylesheet receives a value only code
- * can produce. The platform layer's `style/settings-nav.css` consumes it on
- * every marked row; this rule supplies it on this section's row alone, keyed by
- * the marker's value (`platform/ui/settings-nav`).
- */
-export const SKILLS_NAV_ICON_CSS = `[${SETTINGS_NAV_ATTRIBUTE}='skills']{--dsh-smkit-nav-glyph:url("${NAV_GLYPH}")}`

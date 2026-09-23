@@ -9,7 +9,6 @@ import type { LocaleDict } from '../../../platform/types'
 
 export const SKILLS_LOCALE_EN: LocaleDict = {
   "sectionLabel": "Skills",
-  "sectionIntro": "Inspect, enable or remove Agent Skills. The picker offers one entry for the user's side and one per project; the two user skill directories (~/.dsh/skills and ~/.agents/skills) and a project's .dsh and .agents all show as tabs.",
   "scope": "Skill directory",
   "scopeUser": "User",
   "scopeProject": "Projects",

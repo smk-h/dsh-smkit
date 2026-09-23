@@ -17,10 +17,10 @@ function walk(dir) {
 const I18N_MODULE = /[/\\]i18n[/\\]/
 
 // Run the real module factory with a tiny hook harness; no browser or dependencies.
-// The plugin seats several entries (Settings → MCP, Settings → 自定义设置, and the
-// conversation header's delete control), two of them in the same slot, so
-// registrations are keyed by the entry id DSH itself addresses them by — a map
-// keyed by slot name would keep whichever feature registered last.
+// The plugin seats a few entries (the merged settings section, the conversation
+// header's delete control and the OpenSpec button), so registrations are keyed
+// by the entry id DSH itself addresses them by — a map keyed by slot name would
+// keep whichever feature registered last.
 function mount(fetch, language = 'en') {
   let disposed = false
   const dictionaries = {}
@@ -33,17 +33,33 @@ function mount(fetch, language = 'en') {
     const raw = tables[language]?.[key] ?? tables.en?.[key] ?? key
     return String(raw).replace(/\{(\w+)\}/g, (match, name) => String(values[name] ?? match))
   }
-  const t = (key, values) => translate('mcp', key, values)
   let exported
-  let states = [], cursor = 0, effects = [], initialized = false
+  // Hooks live in slots keyed by WHERE the component that owns them sits, not by
+  // a running count: a merged page whose panel swaps between three components
+  // gives each of them fresh state at the same position, the way React remounts
+  // a position whose component type changed, while a re-paint of the same tree
+  // finds every value where it left it.
+  let states = new Map()
+  const instanceIds = new Map()
+  let path = 'page'
+  let hookIndex = 0
+  let effects = []
+  let capturing = false
   const react = {
     createElement: (type, props, ...children) => ({ type, props: props ?? {}, children: children.flat(Infinity) }),
     useState: (initial) => {
-      const index = cursor++
-      if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial
-      return [states[index], (value) => { states[index] = value }]
+      const key = `${path}#${hookIndex++}`
+      if (!states.has(key)) states.set(key, typeof initial === 'function' ? initial() : initial)
+      // A functional update computes from the value the slot holds, as React's
+      // does; storing the updater itself would leave the next render comparing a
+      // function against the state the code asked for.
+      return [states.get(key), (value) => {
+        states.set(key, typeof value === 'function' ? value(states.get(key)) : value)
+      }]
     },
-    useEffect: (effect) => { if (!initialized) effects.push(effect) },
+    // Only a render pass registers effects, and `paint` keeps the newest pass's
+    // list, so a panel's poll is captured once per mount.
+    useEffect: (effect) => { if (capturing) effects.push(effect) },
     useCallback: (callback) => callback,
   }
   runInNewContext(source, {
@@ -68,6 +84,57 @@ function mount(fetch, language = 'en') {
     },
   })
   const section = registrations.get('mcp-manager')
+  // One render pass, depth first, each component called exactly once. Reading
+  // the page and registering its hooks must be the same walk: the merged shell
+  // owns state of its own (which tab is open) above the panel's. `frames`
+  // records every component with the address its hooks were keyed under, which
+  // is how a sub-view's form is re-rendered on the slots it owns.
+  const render = (root, rootPath) => {
+    const seen = []
+    const strings = []
+    const frames = []
+    const idOf = (type) => {
+      let id = instanceIds.get(type)
+      if (id === undefined) {
+        id = instanceIds.size + 1
+        instanceIds.set(type, id)
+      }
+      return id
+    }
+    const walk = (node, owner, position) => {
+      if (node === null || node === undefined) return
+      if (typeof node === 'string') { strings.push(node); return }
+      seen.push(node)
+      if (typeof node.type === 'function') {
+        const address = `${owner}>${position}#${idOf(node.type)}`
+        frames.push({ node, address })
+        const outerPath = path
+        const outerHook = hookIndex
+        path = address
+        hookIndex = 0
+        walk(node.type(node.props), address, 'r')
+        path = outerPath
+        hookIndex = outerHook
+        return
+      }
+      let index = 0
+      for (const child of node.children ?? []) walk(child, owner, `${position}/${index++}`)
+    }
+    const outerPath = path
+    const outerHook = hookIndex
+    path = rootPath
+    hookIndex = 0
+    // The root is the component whose tree is being read: it renders on the
+    // address given to it, so re-rendering a form reaches the state the page
+    // paint allocated for it.
+    const tree = typeof root.type === 'function' ? root.type(root.props ?? {}) : root
+    walk(tree, rootPath, 'r')
+    path = outerPath
+    hookIndex = outerHook
+    return { nodes: seen, frames, text: strings.join(' ') }
+  }
+  let formAddress = 'page'
+  let formNode = null
   return {
     get dictionaries() { return dictionaries },
     get spec() { return section.options },
@@ -76,55 +143,89 @@ function mount(fetch, language = 'en') {
     effectLabels,
     dispose() { for (const dispose of disposers) dispose(); assert.equal(disposed, true) },
     setLocale(next) { language = next },
-    render(component = section.component, props = { t }) {
-      cursor = 0
-      return component(props)
+    /** One full render of the merged page, read as a user would: its text and
+     * every node the pass drew, including what the open panel drew behind it. */
+    paint() {
+      // The pass that expands the panel is the one that registers its poll, so
+      // each paint owns the effect list rather than accumulating across paints.
+      effects = []
+      capturing = true
+      const pass = render({ type: section.component, props: {} }, 'page')
+      capturing = false
+      return pass
     },
-    effects() { initialized = true; for (const effect of effects) effect(); effects = [] },
-    reset() { states = [] },
+    /** Click one of the merged page's tabs. Tabs are page-level, so this closes
+     * any sub-view form the case had opened. */
+    clickTab(label) {
+      formNode = null
+      this.click((node) => node.props?.role === 'tab' && node.children.some((child) => child === label))
+    },
+    /** Click (or otherwise drive) the first node a pass draws that matches. With
+     * a sub-view's form open the pass is that form's own: the Advanced sub-view
+     * hosts two forms and each has a Save button, so a page-wide search would
+     * drive the wrong one. */
+    click(match, act = (node) => node.props.onClick()) {
+      const pass = () => (formNode ? this.renderForm() : this.paint())
+      const found = pass().nodes.find(match)
+      assert.ok(found, 'the page must offer the control the case drives')
+      act(found)
+      // Redraw after the click: the action can mount a different subtree (the
+      // next tab's panel), and a case's follow-up `effects()` call must run what
+      // the user now sees rather than what they clicked away from.
+      pass()
+    },
+    /** Open the sub-view's form on its own hook slots: the page is painted once
+     * to locate the form, and the form then renders on the address that walk gave
+     * it. The section can render helper components alongside the form (e.g. the
+     * header breadcrumb, which resolves to `null` here — the fake loader hands
+     * back the react stub without `createPortal`), so `name` pins one specific
+     * form for the sub-views that host more than one (Advanced renders the
+     * reconnect form above the tool-call timeout). */
+    openForm(name = null) {
+      const frame = this.paint().frames.find(
+        (entry) =>
+          typeof entry.node.type === 'function' &&
+          entry.node.props?.t != null &&
+          (name === null || entry.node.type.name === name),
+      )
+      assert.ok(frame, `the page must render the ${name ?? ''} form`)
+      formNode = frame.node
+      formAddress = frame.address
+      return { node: formNode, props: formNode.props, ...this.renderForm() }
+    },
+    /** One render of the form opened above, on the slots it owns. */
+    renderForm() {
+      capturing = true
+      const pass = render({ type: formNode.type, props: formNode.props }, formAddress)
+      capturing = false
+      return pass
+    },
+    effects() { for (const effect of effects) effect(); effects = [] },
+    reset() { states = new Map(); path = 'page'; hookIndex = 0 },
   }
 }
 const response = (body, ok = true, status = 200) => ({ ok, status, json: async () => body })
 const settle = () => new Promise((resolve) => setImmediate(resolve))
-function nodes(tree) {
-  return tree && typeof tree === 'object' ? [tree, ...tree.children.flatMap(nodes)] : []
-}
-// Expands function components while walking: the section delegates parts of its
-// tree to child components (the key/value editors, the status pills), and their
-// text only appears once the component is called, the way React would.
-const text = (tree) =>
-  typeof tree === 'string'
-    ? tree
-    : typeof tree?.type === 'function'
-      ? text(tree.type(tree.props))
-      : tree?.children?.map(text).join(' ') ?? ''
-// The add view's form: the first function node that takes the translator. The
-// section can render helper components ahead of the form (e.g. the header
-// breadcrumb, which resolves to `null` in this harness — the fake `require`
-// hands back the react stub without `createPortal`), so "first function node"
-// alone is not a form locator. `name` pins one specific form for the views that
-// host more than one (the Advanced sub-view renders the reconnect form above the
-// tool-call timeout).
-const content = (tree, name = null) =>
-  nodes(tree).find(
-    (node) =>
-      typeof node.type === 'function' &&
-      node.props?.t != null &&
-      (name === null || node.type.name === name),
-  )
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'mcp', 'session-delete', 'custom-settings', 'skills', 'openspec']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'openspec']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
       namespace + ': zh and en must carry the same key set',
     )
   }
+  // One seat for all three settings pages: the merged section, whose own
+  // namespace carries its label and whose tabs reach into the pages'.
   assert.equal(app.spec.name, 'settings.section')
-  assert.equal(app.spec.locale, 'mcp')
-  assert.equal(app.spec.label(), 'MCP')
+  assert.equal(app.spec.locale, 'smkit')
+  assert.equal(app.spec.label(), 'smkit Settings')
+  assert.equal(
+    app.spec.id,
+    'mcp-manager',
+    'the merged page keeps the seat id the MCP page has always used',
+  )
   assert.ok(app.inject.includes('locale'))
   assert.ok(app.inject.includes('sessions'), 'the header delete control needs the client session store')
   // The second seat: the conversation header's delete control, which carries no
@@ -132,14 +233,7 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
   const header = app.registrations.get('mcp-manager-session-delete')
   assert.equal(header.options.name, 'conversation.session.header.utilities')
   assert.equal(header.options.locale, 'session-delete')
-  // The third: the custom-settings page, the second entry of the settings
-  // section slot. Its own entry id is what keeps the two pages from replacing
-  // each other in the shell's nav.
-  const custom = app.registrations.get('mcp-manager-custom-settings')
-  assert.equal(custom.options.name, 'settings.section')
-  assert.equal(custom.options.locale, 'custom-settings')
-  assert.equal(custom.options.label(), 'Custom settings')
-  // The fourth: the OpenSpec control, in the same conversation-header utilities
+  // The third: the OpenSpec control, in the same conversation-header utilities
   // list as the delete control and just before it.
   const openSpec = app.registrations.get('mcp-manager-openspec')
   assert.equal(openSpec.options.name, 'conversation.session.header.utilities')
@@ -150,14 +244,13 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-conversation'))
   assert.deepEqual(app.effectLabels, [
     'dsh-mcp-manager: platform/dictionaries',
-    'dsh-mcp-manager: mcp/dictionaries',
-    'dsh-mcp-manager: settings nav row',
     'dsh-mcp-manager: session-delete/dictionaries',
-    'dsh-mcp-manager: custom-settings/dictionaries',
-    'dsh-mcp-manager: custom-settings settings nav row',
+    'dsh-mcp-manager: smkit/dictionaries',
+    'dsh-mcp-manager: mcp/dictionaries',
     'dsh-mcp-manager: skills/dictionaries',
-    'dsh-mcp-manager: skills settings nav row',
+    'dsh-mcp-manager: custom-settings/dictionaries',
     'dsh-mcp-manager: openspec/dictionaries',
+    'dsh-mcp-manager: merged settings nav row',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared
@@ -181,41 +274,47 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
   app.dispose()
 })
 
-it('renders the injected t and follows locale changes without plugin language requests', async () => {
+it('binds the shell copy and each panel copy, and follows locale changes', async () => {
   const calls = []
   const app = mount(async (url) => { calls.push(url); return response({}) })
-  let tree = app.render()
-  assert.match(text(tree), /MCP servers/)
-  app.effects(); await settle()
+  // The merged shell reads its label and tab names from its own namespace, the
+  // open panel from the `mcp` one — the seat binds the shell, not the page.
+  assert.match(app.paint().text, /smkit Settings/)
+  assert.match(app.paint().text, /MCP servers/)
+  app.effects()
+  await settle()
   app.setLocale('zh')
-  tree = app.render()
-  assert.match(text(tree), /MCP 服务器/)
+  assert.match(app.paint().text, /MCP 服务器/)
+  assert.match(app.paint().text, /smkit 配置/)
   assert.equal(calls.filter((url) => url.endsWith('/settings')).length, 1)
   assert.ok(calls.every((url) => !url.includes('/settings/language')))
-  // An arbitrary standard-seat translator reaches the content and nested forms.
-  tree = app.render(undefined, { t: (key) => 'seat:' + key })
-  assert.match(text(tree), /seat:servers/)
-  nodes(tree).find((node) => node.props['aria-label'] === 'seat:addServer').props.onClick()
-  const form = content(app.render(undefined, { t: (key) => 'seat:' + key }))
-  assert.equal(form.props.t('save'), 'seat:save')
+  // The tabs are the three pages, and the panel swaps with the selected one.
+  // Each panel polls when it mounts, so a tab switch is followed by the pass
+  // that runs the newly mounted panel's effects.
+  app.setLocale('en')
+  app.clickTab('Skills')
+  app.effects()
+  await settle()
+  assert.match(app.paint().text, /Skills/)
+  app.clickTab('Custom settings')
+  app.effects()
+  await settle()
+  assert.match(app.paint().text, /Model retry/)
 })
 
-it('renders English list, add form, and stdio fields using the same translator', async () => {
+it('renders English list, add form, and stdio fields', async () => {
   const app = mount(async () => response({}))
-  let tree = app.render()
-  assert.match(text(tree), /MCP servers/)
-  nodes(tree).find((node) => node.props['aria-label'] === 'Add MCP server').props.onClick()
-  tree = app.render()
-  assert.match(text(tree), /Add MCP server/)
-  const form = content(tree)
-  app.reset()
-  tree = app.render(form.type, form.props)
-  assert.match(text(tree), /Authentication method/)
-  assert.match(text(tree), /Headers from environment variables/)
-  nodes(tree).find((node) => node.type === 'select' && node.props.value === 'http').props.onChange({ target: { value: 'stdio' } })
-  tree = app.render(form.type, form.props)
-  assert.match(text(tree), /Command \(executable\)/)
-  assert.match(text(tree), /Environment variables/)
+  assert.match(app.paint().text, /MCP servers/)
+  app.click((node) => node.props['aria-label'] === 'Add MCP server')
+  const form = app.openForm()
+  assert.match(form.text, /Authentication method/)
+  assert.match(form.text, /Headers from environment variables/)
+  app.click(
+    (node) => node.type === 'select' && node.props.value === 'http',
+    (node) => node.props.onChange({ target: { value: 'stdio' } }),
+  )
+  assert.match(app.renderForm().text, /Command \(executable\)/)
+  assert.match(app.renderForm().text, /Environment variables/)
 })
 
 it('opens the Advanced sub-view and posts the tool-call timeout', async () => {
@@ -229,22 +328,16 @@ it('opens the Advanced sub-view and posts the tool-call timeout', async () => {
   app.effects()
   await settle()
 
-  const entry = nodes(app.render()).find(
-    (node) => node.type === 'button' && node.children.includes('Advanced'),
-  )
-  assert.ok(entry, 'the toolbar must offer the Advanced sub-view')
-  entry.props.onClick()
-
+  app.click((node) => node.type === 'button' && node.children.includes('Advanced'))
   // The sub-view's form is seeded from the value the poll reported.
-  const form = content(app.render(), 'ToolTimeoutForm')
-  assert.equal(form.props.current, 60_000)
+  const form = app.openForm('ToolTimeoutForm')
+  assert.equal(form.node.props.current, 60_000)
 
-  app.reset()
-  let tree = app.render(form.type, form.props)
-  assert.match(text(tree), /Tool call timeout \(ms\)/)
-  nodes(tree).find((node) => node.props['aria-label'] === 'Tool call timeout (ms)').props.onChange({ target: { value: '120000' } })
-  tree = app.render(form.type, form.props)
-  nodes(tree).find((node) => node.type === 'button' && node.children.includes('Save')).props.onClick()
+  app.click(
+    (node) => node.props['aria-label'] === 'Tool call timeout (ms)',
+    (node) => node.props.onChange({ target: { value: '120000' } }),
+  )
+  app.click((node) => node.type === 'button' && node.children.includes('Save'))
   await settle()
 
   const written = calls.find((call) => call.url.endsWith('/settings/tool-timeout'))
@@ -270,24 +363,23 @@ it('posts the reconnect settings, and nulls every field to restore their default
   app.effects()
   await settle()
 
-  nodes(app.render())
-    .find((node) => node.type === 'button' && node.children.includes('Advanced'))
-    .props.onClick()
-
+  app.click((node) => node.type === 'button' && node.children.includes('Advanced'))
   // The Advanced sub-view's first form is the reconnect block, seeded from the
   // values the poll reported.
-  const form = content(app.render(), 'ReconnectForm')
-  assert.equal(form.props.current.autoReconnect, true)
-  assert.equal(form.props.current.reconnectMaxAttempts, 0)
-  assert.equal(form.props.current.healthCheckIntervalMs, 30_000)
+  const form = app.openForm('ReconnectForm')
+  assert.equal(form.node.props.current.autoReconnect, true)
+  assert.equal(form.node.props.current.reconnectMaxAttempts, 0)
+  assert.equal(form.node.props.current.healthCheckIntervalMs, 30_000)
 
-  app.reset()
-  let tree = app.render(form.type, form.props)
-  assert.match(text(tree), /Max reconnect attempts/)
-  nodes(tree).find((node) => node.props['aria-label'] === 'Max reconnect attempts').props.onChange({ target: { value: '5' } })
-  nodes(tree).find((node) => node.props['aria-label'] === 'Health check interval (ms)').props.onChange({ target: { value: '0' } })
-  tree = app.render(form.type, form.props)
-  nodes(tree).find((node) => node.type === 'button' && node.children.includes('Save')).props.onClick()
+  app.click(
+    (node) => node.props['aria-label'] === 'Max reconnect attempts',
+    (node) => node.props.onChange({ target: { value: '5' } }),
+  )
+  app.click(
+    (node) => node.props['aria-label'] === 'Health check interval (ms)',
+    (node) => node.props.onChange({ target: { value: '0' } }),
+  )
+  app.click((node) => node.type === 'button' && node.children.includes('Save'))
   await settle()
 
   const written = calls.filter((call) => call.url.endsWith('/settings/reconnect')).pop()
@@ -300,9 +392,7 @@ it('posts the reconnect settings, and nulls every field to restore their default
   })
 
   // "Restore default" clears every stored value: one null per field.
-  nodes(app.render(form.type, form.props))
-    .find((node) => node.type === 'button' && node.children.includes('Restore default'))
-    .props.onClick()
+  app.click((node) => node.type === 'button' && node.children.includes('Restore default'))
   await settle()
   const restored = calls.filter((call) => call.url.endsWith('/settings/reconnect')).pop()
   assert.deepEqual(JSON.parse(restored.body), {
@@ -315,27 +405,24 @@ it('posts the reconnect settings, and nulls every field to restore their default
 
 it('offers a no-auth HTTP mode and hides the token field when selected', async () => {
   const app = mount(async () => response({}))
-  let tree = app.render()
-  nodes(tree).find((node) => node.props['aria-label'] === 'Add MCP server').props.onClick()
-  tree = app.render()
-  const form = content(tree)
-  app.reset()
-  tree = app.render(form.type, form.props)
+  app.click((node) => node.props['aria-label'] === 'Add MCP server')
+  const form = app.openForm()
 
-  const authSelect = nodes(tree).find((node) => node.type === 'select' && node.props.value === 'oauth')
+  const selectWithValue = (value) =>
+    app.renderForm().nodes.find((node) => node.type === 'select' && node.props.value === value)
+  const authSelect = selectWithValue('oauth')
   assert.ok(authSelect, 'the authentication-method select renders')
   assert.deepEqual(authSelect.children.map((option) => option.props.value), ['oauth', 'static', 'none'])
-  assert.match(text(tree), /No auth \(server needs no credentials\)/)
-  assert.doesNotMatch(text(tree), /Bearer token environment variable/)
+  assert.match(app.renderForm().text, /No auth \(server needs no credentials\)/)
+  assert.doesNotMatch(app.renderForm().text, /Bearer token environment variable/)
 
   // Static still asks for the env var name...
   authSelect.props.onChange({ target: { value: 'static' } })
-  tree = app.render(form.type, form.props)
-  assert.match(text(tree), /Bearer token environment variable/)
+  assert.match(app.renderForm().text, /Bearer token environment variable/)
 
   // ...while no-auth hides the credential field entirely.
-  nodes(tree).find((node) => node.type === 'select' && node.props.value === 'static').props.onChange({ target: { value: 'none' } })
-  tree = app.render(form.type, form.props)
-  assert.match(text(tree), /No auth \(server needs no credentials\)/)
-  assert.doesNotMatch(text(tree), /Bearer token environment variable/)
+  selectWithValue('static').props.onChange({ target: { value: 'none' } })
+  const none = app.renderForm()
+  assert.match(none.text, /No auth \(server needs no credentials\)/)
+  assert.doesNotMatch(none.text, /Bearer token environment variable/)
 })

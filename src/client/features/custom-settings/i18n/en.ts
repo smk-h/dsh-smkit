@@ -10,7 +10,6 @@ import type { LocaleDict } from '../../../platform/types'
 
 export const CUSTOM_SETTINGS_LOCALE_EN: LocaleDict = {
   "sectionLabel": "Custom settings",
-  "sectionIntro": "DSH settings worth tuning on their own, without reaching for the configuration file: one tab per area, written into dsh's own settings.yaml and applied on save — no restart.",
   "tabRetry": "Model retry",
   "tabModelInput": "Model input",
   "tabOther": "Other settings",

@@ -14,11 +14,11 @@
  * owns no shell structure and is dropped again on disposal, which keeps the
  * adaptation HMR-safe.
  *
- * Two sections already do this, which is why the adaptation lives here rather
- * than in either of them: a feature may not import another feature, and a
- * second copy of this observer is exactly the copy the architecture guard
- * exists to catch. Nothing below knows a section — the caller passes the row's
- * label and the name that stands for it.
+ * Every section that wants its own glyph does this, which is why the
+ * adaptation lives here rather than in a caller: a feature may not import
+ * another feature, and a second copy of this observer is exactly the copy the
+ * architecture guard exists to catch. Nothing below knows a section — the
+ * caller passes the row's label and the name that stands for it.
  */
 
 /** Attribute a marked row carries; its value is the owning section's name. */
