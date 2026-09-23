@@ -1,5 +1,5 @@
 /**
- * The merged settings section: one seat in the settings dialog for the three
+ * The merged settings section: one seat in the settings dialog for the four
  * pages this plugin used to seat on its own.
  *
  * The feature directories stay what they were — each owns its panel, its
@@ -23,10 +23,13 @@ import { SKILLS_LOCALE_EN } from './features/skills/i18n/en'
 import { SKILLS_LOCALE_ZH } from './features/skills/i18n/zh'
 import { CUSTOM_SETTINGS_LOCALE_EN } from './features/custom-settings/i18n/en'
 import { CUSTOM_SETTINGS_LOCALE_ZH } from './features/custom-settings/i18n/zh'
+import { LOCAL_CACHE_LOCALE_EN } from './features/local-cache/i18n/en'
+import { LOCAL_CACHE_LOCALE_ZH } from './features/local-cache/i18n/zh'
 import { createSettingsSection } from './settings/components/SettingsSection'
 import { MCP_CSS } from './features/mcp/styles'
 import { SKILLS_CSS } from './features/skills/styles'
 import { CUSTOM_SETTINGS_CSS } from './features/custom-settings/styles'
+import { LOCAL_CACHE_CSS } from './features/local-cache/styles'
 import { SETTINGS_NAV_ATTRIBUTE, markSettingsNavRow } from './platform/ui/settings-nav'
 import { iconMaskDataUri } from './platform/icons/Icon'
 import { SETTINGS2_SPEC } from './platform/icons/Settings2Icon'
@@ -63,11 +66,13 @@ export const settingsFeature: ClientFeature = {
     { namespace: 'mcp', zh: MCP_LOCALE_ZH, en: MCP_LOCALE_EN },
     { namespace: 'skills', zh: SKILLS_LOCALE_ZH, en: SKILLS_LOCALE_EN },
     { namespace: 'custom-settings', zh: CUSTOM_SETTINGS_LOCALE_ZH, en: CUSTOM_SETTINGS_LOCALE_EN },
+    { namespace: 'local-cache', zh: LOCAL_CACHE_LOCALE_ZH, en: LOCAL_CACHE_LOCALE_EN },
   ],
   styles: [
     { name: 'mcp', css: MCP_CSS },
     { name: 'skills', css: SKILLS_CSS },
     { name: 'custom-settings', css: CUSTOM_SETTINGS_CSS },
+    { name: 'local-cache', css: LOCAL_CACHE_CSS },
     { name: 'smkit/page', css: pageCss },
     { name: 'smkit/nav-icon', css: NAV_GLYPH_RULE },
   ],
@@ -89,6 +94,7 @@ export const settingsFeature: ClientFeature = {
       mcp: ctx.locale.bind('mcp'),
       skills: ctx.locale.bind('skills'),
       customSettings: ctx.locale.bind('custom-settings'),
+      localCache: ctx.locale.bind('local-cache'),
     })
     ctx.slots.inject('settings.section', () =>
       ctx.slots.register(

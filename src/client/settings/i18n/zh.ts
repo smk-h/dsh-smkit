@@ -4,6 +4,8 @@
  *
  * The shell's own copy only: see `en.ts` for what stays out of here — each
  * tab's page keeps its text in its own namespace.
+ *
+ * Key set must stay identical to `en.ts`.
  */
 
 import type { LocaleDict } from '../../platform/types'
@@ -14,4 +16,5 @@ export const SMKIT_LOCALE_ZH: LocaleDict = {
   tabMcp: "MCP",
   tabSkills: "技能",
   tabCustom: "自定义设置",
+  tabLocalCache: "本地缓存",
 }

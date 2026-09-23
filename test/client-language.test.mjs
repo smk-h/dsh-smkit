@@ -249,6 +249,7 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'dsh-mcp-manager: mcp/dictionaries',
     'dsh-mcp-manager: skills/dictionaries',
     'dsh-mcp-manager: custom-settings/dictionaries',
+    'dsh-mcp-manager: local-cache/dictionaries',
     'dsh-mcp-manager: openspec/dictionaries',
     'dsh-mcp-manager: merged settings nav row',
   ])

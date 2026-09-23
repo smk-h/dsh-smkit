@@ -1,0 +1,48 @@
+/**
+ * The local-cache tab: the intro pair and the one action row.
+ *
+ * The page reads as one sentence and one button, so the rhythm is the
+ * custom-settings page's "Other" tab shortened: the same 12px/18px secondary
+ * intro, then a row that seats the button and the answer it produces side by
+ * side. The answer belongs to the button's line on purpose — a report about a
+ * click should sit where the click was, not float at the top of the panel.
+ *
+ * The button itself is the platform layer's `mm_btn`: this tab borrows the
+ * shared neutral button exactly like every other page does, and declares no
+ * button rules of its own.
+ *
+ * Classes are namespaced `lc_*`: one owner, no cross-terms with `mm_*`,
+ * `cs_*`, `ot_*` or the shell's `st_*`.
+ *
+ * One part of this feature's stylesheet; `local-cache/styles.ts` is the
+ * single piece today, and stays the join point for whatever follows.
+ */
+
+.lc_panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lc_intro {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+.lc_scope {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.lc_row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lc_result {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
