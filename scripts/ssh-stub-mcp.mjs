@@ -18,6 +18,11 @@
  *
  *   工具 `stub_die` / `stub_hang` 分别手动触发上面两种，便于在对话里精确控制时机。
  *
+ * 启动延迟：进程起来后默认**先静默 5 秒**才接 stdin（`--startup-delay=<ms>`，0 关掉），
+ * 用来测「远端拉起得慢」这一形态——这段时间里插件的 initialize 没人应答，
+ * 正好对着设置页上那条「连接中」看它多久变成就绪 / 是否被超时判定拖死。
+ * 延迟不计进 `--lifetime`：lifetime 从**开始服务**那刻算起。
+ *
  * 判据：每次启动都往 --log 追加一行 START（带 pid），所以
  *
  *     grep -c START .tmp/ssh-stub.log
@@ -78,6 +83,9 @@ if (options.help !== undefined) {
       'ssh-stub-mcp — 自断线用的 stdio MCP 服务器（验自动重连）',
       '',
       '  --lifetime=<ms>    多久后自动断开（默认 20000；0 表示不自动断开）',
+      '                     从开始服务算起，不含下面的启动延迟',
+      '  --startup-delay=<ms> 接 stdin 前先静默多久（默认 5000；0 表示立即服务）',
+      '                     模拟远端 MCP 拉起慢：initialize 要等这么久才有人应答',
       '  --mode=<exit|hang> 断开方式：exit=进程退出（默认）；hang=只停止应答',
       '  --log=<path>       启动/断开/协议流水写到这里（默认只写 stderr）',
       '                     相对路径按 cwd 解析，父目录不存在会自动创建',
@@ -108,6 +116,7 @@ function ensureLogDir() {
 
 const MODE = options.mode === 'hang' ? 'hang' : 'exit'
 const LIFETIME_MS = Number(options.lifetime ?? 20_000)
+const STARTUP_DELAY_MS = Number(options['startup-delay'] ?? 5_000)
 const LOG_PATH = typeof options.log === 'string' ? options.log : ''
 const LABEL = typeof options.name === 'string' && options.name ? options.name : 'ssh-stub'
 
@@ -266,41 +275,59 @@ function handle(message) {
   }
 }
 
+const startupDelay = Number.isFinite(STARTUP_DELAY_MS) && STARTUP_DELAY_MS > 0 ? STARTUP_DELAY_MS : 0
+
 logLifecycle(
   `===== START pid=${process.pid} mode=${MODE} ` +
+    `startup-delay=${startupDelay > 0 ? `${startupDelay}ms` : 'none'} ` +
     `lifetime=${LIFETIME_MS > 0 ? `${LIFETIME_MS}ms` : 'none'} ` +
     `log=${LOG_PATH || '(stderr only)'} argv="${process.argv.slice(2).join(' ')}" =====`,
 )
 
-const lifetime = Number.isFinite(LIFETIME_MS) && LIFETIME_MS > 0 ? LIFETIME_MS : 0
-if (lifetime > 0) {
-  setTimeout(() => {
-    if (MODE === 'hang') setHanging(`lifetime ${lifetime}ms elapsed (mode=hang)`)
-    else exitSoon(`lifetime ${lifetime}ms elapsed (mode=exit)`)
-  }, lifetime)
+/**
+ * 开始服务：接 stdin，并起 lifetime 计时。
+ *
+ * 启动延迟到点前不调用它，这段时间里 readline 还没建、stdin 一个字节都不读，
+ * 客户端发来的 `initialize` 就留在管道里没人应答——这正是"远端拉起慢"的形态。
+ * lifetime 也从这一刻算起，所以 `--startup-delay=5000 --lifetime=20000` 是
+ * "静默 5 秒、再服务 20 秒"，总共 25 秒后断开。
+ */
+function serve() {
+  if (startupDelay > 0) logLifecycle(`serving (startup delay ${startupDelay}ms elapsed)`)
+
+  const lifetime = Number.isFinite(LIFETIME_MS) && LIFETIME_MS > 0 ? LIFETIME_MS : 0
+  if (lifetime > 0) {
+    setTimeout(() => {
+      if (MODE === 'hang') setHanging(`lifetime ${lifetime}ms elapsed (mode=hang)`)
+      else exitSoon(`lifetime ${lifetime}ms elapsed (mode=exit)`)
+    }, lifetime)
+  }
+
+  const lines = createInterface({ input: process.stdin })
+
+  lines.on('line', (line) => {
+    const text = line.trim()
+    if (!text) return
+    let message
+    try {
+      message = JSON.parse(text)
+    } catch {
+      trace(`ignored non-JSON line: ${text.slice(0, 80)}`)
+      return
+    }
+    handle(message)
+  })
+
+  // stdin 被关掉 = 客户端（ssh 会话）已经没了，自己也该走：留着只会变成孤儿进程，
+  // 占着串口/日志不放。这正是"重连不会堆积进程"的那一环。
+  lines.on('close', () => {
+    logLifecycle('stdin end (client disconnected)')
+    process.exit(0)
+  })
 }
 
-const lines = createInterface({ input: process.stdin })
-
-lines.on('line', (line) => {
-  const text = line.trim()
-  if (!text) return
-  let message
-  try {
-    message = JSON.parse(text)
-  } catch {
-    trace(`ignored non-JSON line: ${text.slice(0, 80)}`)
-    return
-  }
-  handle(message)
-})
-
-// stdin 被关掉 = 客户端（ssh 会话）已经没了，自己也该走：留着只会变成孤儿进程，
-// 占着串口/日志不放。这正是"重连不会堆积进程"的那一环。
-lines.on('close', () => {
-  logLifecycle('stdin end (client disconnected)')
-  process.exit(0)
-})
+if (startupDelay > 0) setTimeout(serve, startupDelay)
+else serve()
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => exitSoon(`${signal} received`))
