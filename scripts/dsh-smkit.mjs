@@ -84,19 +84,9 @@ function startDsh(profile, port) {
   // 且 web 应用专属的 --port 只对 web 有意义。
   const flags = `--port ${port}`
   const boot = profile === 'web' ? `dsh web ${flags}` : `dsh --profile ${profile}`
-  if (process.platform === 'win32') {
-    // stdio 必须置 ignore：新窗口若继承本脚本的管道句柄，调用方会一直等
-    // 到管道关闭（即窗口关闭）才返回。start 会给窗口分配自己的控制台。
-    spawnSync(`start "dsh web (${profile})" cmd /k "${boot}"`, {
-      shell: true,
-      cwd: ROOT,
-      stdio: 'ignore',
-    })
-    console.log(`debug: 已在新窗口启动：${boot}`)
-    return
-  }
   // stdio 置 inherit：把当前终端交给 dsh，启动链接随日志一起打印；
-  // 本进程阻塞等待，Ctrl+C 同时终止 dsh 与脚本。
+  // 本进程阻塞等待，Ctrl+C 同时终止 dsh 与脚本（Windows 上 Ctrl+C 会
+  // 广播给共享同一控制台的整条进程链，npm/pnpm 一并退出）。
   spawnSync(boot, { shell: true, cwd: ROOT, stdio: 'inherit' })
 }
 
