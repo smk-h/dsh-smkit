@@ -1,0 +1,175 @@
+/* zcode — ZCode 桌面端配色原样移植 | light: #f8f8f8 会话画布、#ececee 窗口面
+   侧栏、白色输入卡片、纯黑主按钮；dark: #161616 画布、#2b2b2b 侧栏、#2b2b2b
+   输入卡片、纯白主按钮。色值取自 ZCode packages/ui/src/styles.css 的
+   .theme-zai-light / .theme-zai-dark —— 桌面端实际渲染的是 zai 主题（实测
+   会话区 #f8f8f8、侧栏 #ececee，与 @theme 默认块的 #fafafa/#f5f5f5 不同）。
+   只写令牌：没有装饰层、没有字体、没有 markdown/pre 覆盖——这个文件没点名的
+   表面（代码块在内）全部保持 DSH 原生。
+   结构注记：静态刻度只写一份、明暗共用（00 最浅 → 1000 最深，与 DSH 自家
+   静态刻度同向），昼夜间的一切差异走下面的 alias & specific 两块。dsh-themes
+   的移植把深色刻度写成反向，深色画布因此吃到浅色槽位——这套不犯同样的错。 */
+
+body[data-dsh-zcode] {
+  color: #262626;
+  background-color: #f8f8f8;
+}
+
+body[data-dsh-zcode][data-ds-dark-theme] {
+  color: #d4d4d4;
+  background-color: #161616;
+}
+
+/* --- static palette: shared by both modes --- */
+body[data-dsh-zcode] {
+  --dsw-static-deepseek-50: #f0f9ff;
+  --dsw-static-blue-50: #f0f9ff;
+  --dsw-static-deepseek-50p: #e0f2fe;
+  --dsw-static-blue-50p: #e0f2fe;
+  --dsw-static-deepseek-75: #e0f2fe;
+  --dsw-static-blue-75: #e0f2fe;
+  --dsw-static-deepseek-100: #e0f2fe;
+  --dsw-static-blue-100: #e0f2fe;
+  --dsw-static-deepseek-200: #bae6fd;
+  --dsw-static-blue-200: #bae6fd;
+  --dsw-static-deepseek-300: #7dd3fc;
+  --dsw-static-blue-300: #7dd3fc;
+  --dsw-static-deepseek-400: #38bdf8;
+  --dsw-static-blue-400: #38bdf8;
+  --dsw-static-deepseek-450: #38bdf8;
+  --dsw-static-blue-450: #38bdf8;
+  --dsw-static-deepseek-500: #0ea5e9;
+  --dsw-static-blue-500: #0ea5e9;
+  --dsw-static-deepseek-600: #0284c7;
+  --dsw-static-blue-600: #0284c7;
+  --dsw-static-deepseek-700-delete: #0369a1;
+  --dsw-static-deepseek-800: #0369a1;
+  --dsw-static-blue-800: #0369a1;
+  --dsw-static-deepseek-900: #075985;
+  --dsw-static-blue-900: #075985;
+  --dsw-static-deepseek-950: #0c4a6e;
+  --dsw-static-blue-950: #0c4a6e;
+  /* Tailwind neutral，单方向：00 白 → 1000 近黑。深色画布由 DSH 的别名层取
+     高位深槽（850–950 落在 #262626–#171717），浅色画布取低位浅槽（50–100 落在
+     #fafafa/#f5f5f5）。ZCode 的中性阶本身不带蓝，bluish 与纯色同值。 */
+  --dsw-static-neutral-bluish-00: #ffffff;
+  --dsw-static-neutral-00: #ffffff;
+  --dsw-static-neutral-bluish-50: #fafafa;
+  --dsw-static-neutral-50: #fafafa;
+  --dsw-static-neutral-bluish-60: #fafafa;
+  --dsw-static-neutral-60: #fafafa;
+  --dsw-static-neutral-bluish-75: #f5f5f5;
+  --dsw-static-neutral-75: #f5f5f5;
+  --dsw-static-neutral-bluish-100: #f5f5f5;
+  --dsw-static-neutral-100: #f5f5f5;
+  --dsw-static-neutral-bluish-150: #f0f0f0;
+  --dsw-static-neutral-150: #f0f0f0;
+  --dsw-static-neutral-bluish-200: #e5e5e5;
+  --dsw-static-neutral-200: #e5e5e5;
+  --dsw-static-neutral-bluish-250: #d4d4d4;
+  --dsw-static-neutral-250: #d4d4d4;
+  --dsw-static-neutral-bluish-300: #d4d4d4;
+  --dsw-static-neutral-300: #d4d4d4;
+  --dsw-static-neutral-bluish-400: #a3a3a3;
+  --dsw-static-neutral-400: #a3a3a3;
+  --dsw-static-neutral-bluish-500: #737373;
+  --dsw-static-neutral-500: #737373;
+  --dsw-static-neutral-bluish-550: #525252;
+  --dsw-static-neutral-550: #525252;
+  --dsw-static-neutral-bluish-600: #525252;
+  --dsw-static-neutral-600: #525252;
+  --dsw-static-neutral-bluish-700: #404040;
+  --dsw-static-neutral-700: #404040;
+  --dsw-static-neutral-bluish-750: #404040;
+  --dsw-static-neutral-750: #404040;
+  --dsw-static-neutral-bluish-800: #262626;
+  --dsw-static-neutral-800: #262626;
+  --dsw-static-neutral-bluish-850: #212121;
+  --dsw-static-neutral-850: #212121;
+  --dsw-static-neutral-bluish-875: #1a1a1a;
+  --dsw-static-neutral-875: #1a1a1a;
+  --dsw-static-neutral-bluish-900: #171717;
+  --dsw-static-neutral-900: #171717;
+  --dsw-static-neutral-bluish-950: #171717;
+  --dsw-static-neutral-950: #171717;
+  --dsw-static-neutral-bluish-1000: #0a0a0a;
+  --dsw-static-neutral-1000: #0a0a0a;
+  /* ZCode 语义色：green-600 / amber-600 / red-600 */
+  --dsw-static-green-50: color-mix(in srgb, #16a34a 10%, white);
+  --dsw-static-green-100: color-mix(in srgb, #16a34a 20%, white);
+  --dsw-static-green-400: #16a34a;
+  --dsw-static-green-500: #16a34a;
+  --dsw-static-green-600: color-mix(in srgb, #16a34a 82%, black);
+  --dsw-static-green-900: color-mix(in srgb, #16a34a 35%, black);
+  --dsw-static-amber-50: color-mix(in srgb, #d97706 10%, white);
+  --dsw-static-amber-100: color-mix(in srgb, #d97706 20%, white);
+  --dsw-static-amber-400: #d97706;
+  --dsw-static-amber-500: #d97706;
+  --dsw-static-amber-600: color-mix(in srgb, #d97706 82%, black);
+  --dsw-static-amber-900: color-mix(in srgb, #d97706 35%, black);
+  --dsw-static-red-50: color-mix(in srgb, #dc2626 10%, white);
+  --dsw-static-red-100: color-mix(in srgb, #dc2626 20%, white);
+  --dsw-static-red-400: #dc2626;
+  --dsw-static-red-500: #dc2626;
+  --dsw-static-red-600: color-mix(in srgb, #dc2626 82%, black);
+  --dsw-static-red-900: color-mix(in srgb, #dc2626 35%, black);
+}
+
+/* --- alias & specific: light --- */
+/* zai-light：主按钮与发送键纯黑（color-primary = #000000），输入卡片纯白，
+   会话画布 #f8f8f8，窗口面（侧栏）#ececee。 */
+body[data-dsh-zcode] {
+  --dsw-alias-bg-base: #f8f8f8;
+  --dsw-alias-button-primary-fill: #000000;
+  --dsw-alias-button-primary-hover: #262626;
+  --dsw-alias-button-primary-dimmed: #f0f0f0;
+  --dsw-alias-button-info-fill: #000000;
+  --dsw-alias-button-info-hover: #262626;
+  --dsw-alias-button-contrast-fill: #000000;
+  --dsw-alias-button-ghost-active-fill: #ededed;
+  --dsw-alias-button-ghost-active-hover: #e6e6e6;
+  --dsw-alias-button-ghost-active-border: #dcdcdc;
+  --dsw-alias-button-elevated-fill: #ffffff;
+  --dsw-alias-button-floating-fill: #ffffff;
+  --dsw-alias-button-floating-hover: #fafafa;
+  --dsw-alias-button-tool-bar-fill-invisible: rgba(13, 13, 13, 0.06);
+  --dsw-alias-button-tool-bar-fill: rgba(13, 13, 13, 0.1);
+  --dsw-alias-button-tool-bar-hover: rgba(13, 13, 13, 0.15);
+  --dsw-specific-bubble: #f0f0f0;
+  --dsw-specific-bubble-highlight: #e6e6e6;
+  --dsw-specific-input-major: #ffffff;
+  --dsw-specific-login-input: #ffffff;
+  --dsw-specific-sidebar-fill: #ececee;
+  --dsw-specific-sidebar-nav-item-active: #e0e0e2;
+  --dsw-specific-sidebar-nav-item-hover: #e7e7e9;
+  --dsw-specific-sidebar-nav-item-active-accent: #000000;
+}
+
+/* --- alias & specific: dark --- */
+/* zai-dark：主按钮与发送键纯白（color-primary = #ffffff），输入卡片 #2b2b2b，
+   会话画布 #161616，窗口面（侧栏）#2b2b2b。 */
+body[data-dsh-zcode][data-ds-dark-theme] {
+  --dsw-alias-bg-base: #161616;
+  --dsw-alias-button-primary-fill: #ffffff;
+  --dsw-alias-button-primary-hover: #d4d4d4;
+  --dsw-alias-button-primary-dimmed: #202020;
+  --dsw-alias-button-info-fill: #ffffff;
+  --dsw-alias-button-info-hover: #d4d4d4;
+  --dsw-alias-button-contrast-fill: #ffffff;
+  --dsw-alias-button-ghost-active-fill: #202020;
+  --dsw-alias-button-ghost-active-hover: #262626;
+  --dsw-alias-button-ghost-active-border: #363636;
+  --dsw-alias-button-elevated-fill: #202020;
+  --dsw-alias-button-floating-fill: #202020;
+  --dsw-alias-button-floating-hover: #2b2b2b;
+  --dsw-alias-button-tool-bar-fill-invisible: rgba(255, 255, 255, 0.06);
+  --dsw-alias-button-tool-bar-fill: rgba(255, 255, 255, 0.1);
+  --dsw-alias-button-tool-bar-hover: rgba(255, 255, 255, 0.15);
+  --dsw-specific-bubble: #202020;
+  --dsw-specific-bubble-highlight: #2b2b2b;
+  --dsw-specific-input-major: #2b2b2b;
+  --dsw-specific-login-input: #2b2b2b;
+  --dsw-specific-sidebar-fill: #2b2b2b;
+  --dsw-specific-sidebar-nav-item-active: #363636;
+  --dsw-specific-sidebar-nav-item-hover: #303030;
+  --dsw-specific-sidebar-nav-item-active-accent: #ffffff;
+}

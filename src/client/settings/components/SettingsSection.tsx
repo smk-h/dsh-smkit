@@ -1,12 +1,12 @@
 /**
- * The merged settings section: the shell around the plugin's four pages.
+ * The merged settings section: the shell around the plugin's five pages.
  *
- * One nav row instead of four, and a strip of four tabs above the panel —
+ * One nav row instead of five, and a strip of five tabs above the panel —
  * each tab is one of the pages this plugin used to seat on its own, so the
  * panels are the very components those seats rendered (`features/mcp`,
- * `features/skills`, `features/custom-settings`, `features/local-cache`),
- * untouched below their intro line. Adding a page is a directory plus one
- * entry in `TABS`; the shell itself does not change.
+ * `features/skills`, `features/custom-settings`, `features/local-cache`,
+ * `features/theme`), untouched below their intro line. Adding a page is a
+ * directory plus one entry in `TABS`; the shell itself does not change.
  *
  * Two things the shell owns:
  *
@@ -35,9 +35,11 @@ import { createMcpContent } from '../../features/mcp/components/McpContent'
 import { createSkillsContent } from '../../features/skills/components/SkillsContent'
 import { createCustomSettingsContent } from '../../features/custom-settings/components/CustomSettingsContent'
 import { createLocalCachePanel } from '../../features/local-cache/components/LocalCachePanel'
+import { createThemeContent } from '../../features/theme/components/ThemeContent'
+import { createPaletteIcon } from '../../features/theme/icons/PaletteIcon'
 import type { ClientDeps, Translator } from '../../platform/types'
 
-/** The copy the merged page reads: the shell's own namespace, then the four
+/** The copy the merged page reads: the shell's own namespace, then the five
  * it seats panels from. */
 export interface PanelDictionaries {
   section: Translator
@@ -45,6 +47,7 @@ export interface PanelDictionaries {
   skills: Translator
   customSettings: Translator
   localCache: Translator
+  theme: Translator
 }
 
 /** One page: its tab's glyph, its key in the strip, and its panel. */
@@ -73,10 +76,12 @@ export function createSettingsSection(
   const WandSparklesIcon = createWandSparklesIcon(deps)
   const Settings2Icon = createSettings2Icon(deps)
   const NotebookTextIcon = createNotebookTextIcon(deps)
+  const PaletteIcon = createPaletteIcon(deps)
   const McpContent = createMcpContent(deps)
   const SkillsContent = createSkillsContent(deps)
   const CustomSettingsContent = createCustomSettingsContent(deps)
   const LocalCachePanel = createLocalCachePanel(deps)
+  const ThemeContent = createThemeContent(deps)
 
   /** The pages, in strip order — the order the settings nav listed them in
    * before they were merged. */
@@ -105,6 +110,12 @@ export function createSettingsSection(
       icon: <NotebookTextIcon size={14} />,
       Panel: (props) => <LocalCachePanel {...props} />,
     },
+    {
+      id: 'theme',
+      label: 'tabTheme',
+      icon: <PaletteIcon size={14} />,
+      Panel: (props) => <ThemeContent {...props} />,
+    },
   ]
 
   // The keys are the TABS ids, verbatim — the panel lookup below indexes by
@@ -115,6 +126,7 @@ export function createSettingsSection(
     skills: panelDictionaries.skills,
     custom: panelDictionaries.customSettings,
     'local-cache': panelDictionaries.localCache,
+    theme: panelDictionaries.theme,
   }
 
   // No props: the slot system hands a section the seat's copy, but this shell

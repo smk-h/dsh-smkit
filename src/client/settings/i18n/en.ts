@@ -2,9 +2,9 @@
  * English dictionary for the merged settings section (`smkit` namespace).
  *
  * Only the shell's own copy lives here: the nav row's label, the line that
- * introduces the merged page, and the four tab names. What each tab holds is
- * that tab's business — the MCP, skills, custom-settings and local-cache
- * namespaces still own their panels' copy.
+ * introduces the merged page, and the five tab names. What each tab holds is
+ * that tab's business — the MCP, skills, custom-settings, local-cache and
+ * theme namespaces still own their panels' copy.
  */
 
 import type { LocaleDict } from '../../platform/types'
@@ -17,4 +17,5 @@ export const SMKIT_LOCALE_EN: LocaleDict = {
   tabSkills: 'Skills',
   tabCustom: 'Custom settings',
   tabLocalCache: 'Local cache',
+  tabTheme: 'Theme',
 }

@@ -1,0 +1,260 @@
+/**
+ * The theme tab: the intro pair, the summary row, and the preview cards.
+ *
+ * The split every rule here observes: the panel's own chrome (intro, count,
+ * card frame, badges) reads the `--dsw-alias-*` tokens the other pages read,
+ * so the page follows whatever skin is applied; the preview surfaces read the
+ * per-card custom properties (`--th-day-*` / `--th-night-*`, set inline by
+ * ThemeCard from the skin's palette), because a preview's whole job is to
+ * show the skin's colours and never the panel's.
+ *
+ * Classes are namespaced `th_*`: one owner, no cross-terms with `mm_*`,
+ * `lc_*`, `cs_*` or the shell's `st_*`. The card is a `<button>` (the whole
+ * surface applies, keyboard included), so its reset lives here too.
+ */
+
+.th_panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.th_intro {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.th_row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.th_spacer {
+  flex: 1;
+}
+
+.th_count {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* ── the card grid ─────────────────────────────────────────────── */
+
+.th_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.th_card {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.th_card:hover {
+  transform: translateY(-2px);
+  border-color: var(--dsw-alias-border-l4);
+  box-shadow: 0 10px 24px -14px var(--dsw-alias-border-l4);
+}
+
+.th_card:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 1px;
+}
+
+/* The applied ring: outline rather than box-shadow, so the ring cannot
+   widen the card's painted bounds and the accent colour comes from the
+   skin itself. */
+.th_card--active {
+  border-color: var(--th-day-accent);
+  outline: 1.5px solid var(--th-day-accent);
+  outline-offset: -1.5px;
+}
+
+/* ── the preview: day on top, night underneath ─────────────────── */
+
+.th_preview {
+  display: flex;
+  flex-direction: column;
+}
+
+.th_day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 12px 12px;
+  background: var(--th-day-bg);
+}
+
+.th_daytop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.th_aa {
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--th-day-fg);
+}
+
+.th_bubble {
+  font-size: 10px;
+  line-height: 14px;
+  padding: 2px 8px;
+  border-radius: 8px 8px 2px 8px;
+  color: var(--th-day-fg);
+  background: color-mix(in srgb, var(--th-day-accent) 15%, var(--th-day-bg));
+}
+
+.th_line {
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.3px;
+  color: var(--th-day-fg);
+}
+
+.th_skel {
+  height: 5px;
+  width: 56%;
+  margin-right: 88px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--th-day-fg) 14%, transparent);
+}
+
+.th_grade {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  font-size: 9.5px;
+  line-height: 14px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: var(--th-day-fg);
+  background: color-mix(in srgb, var(--th-day-bg) 75%, transparent);
+}
+
+.th_night {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--th-night-bg);
+}
+
+.th_aa_night {
+  font-size: 13px;
+  color: var(--th-night-fg);
+}
+
+.th_nightgrade {
+  font-size: 10.5px;
+  line-height: 15px;
+  letter-spacing: 0.3px;
+  color: var(--th-night-fg);
+  opacity: 0.85;
+}
+
+/* ── the meta block: name, state, tagline, palette strip ───────── */
+
+.th_meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 11px;
+}
+
+.th_namerow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.th_name {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.th_pill {
+  margin-left: auto;
+  font-size: 10.5px;
+  line-height: 16px;
+  font-weight: 600;
+  padding: 1px 9px;
+  border-radius: 999px;
+  color: var(--th-day-accent);
+  background: color-mix(in srgb, var(--th-day-accent) 14%, var(--dsw-alias-bg-layer-1));
+}
+
+.th_apply {
+  margin-left: auto;
+  font-size: 10.5px;
+  line-height: 14px;
+  padding: 1px 9px;
+  border-radius: 999px;
+  color: var(--dsw-alias-label-secondary);
+  border: 1px solid var(--dsw-alias-border-l2);
+  opacity: 0.75;
+}
+
+.th_card:hover .th_apply {
+  opacity: 1;
+  color: var(--dsw-alias-brand-primary);
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+.th_tagline {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.th_palette {
+  display: flex;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.th_chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.th_dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid var(--dsw-alias-border-l2);
+}
+
+.th_hex {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 9.5px;
+  line-height: 14px;
+  color: var(--dsw-alias-label-tertiary);
+}

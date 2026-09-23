@@ -209,7 +209,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'openspec']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'theme', 'openspec']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -250,7 +250,11 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'dsh-mcp-manager: skills/dictionaries',
     'dsh-mcp-manager: custom-settings/dictionaries',
     'dsh-mcp-manager: local-cache/dictionaries',
+    'dsh-mcp-manager: theme/dictionaries',
     'dsh-mcp-manager: openspec/dictionaries',
+    // The theme feature's mount-time half: the persisted skin goes back on the
+    // body when the plugin mounts, before the section marks its nav row.
+    'dsh-mcp-manager: theme/skin attribute',
     'dsh-mcp-manager: merged settings nav row',
   ])
   // Every key a component asks for must exist in one of the registered

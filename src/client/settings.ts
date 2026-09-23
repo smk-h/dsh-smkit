@@ -25,11 +25,15 @@ import { CUSTOM_SETTINGS_LOCALE_EN } from './features/custom-settings/i18n/en'
 import { CUSTOM_SETTINGS_LOCALE_ZH } from './features/custom-settings/i18n/zh'
 import { LOCAL_CACHE_LOCALE_EN } from './features/local-cache/i18n/en'
 import { LOCAL_CACHE_LOCALE_ZH } from './features/local-cache/i18n/zh'
+import { THEME_LOCALE_EN } from './features/theme/i18n/en'
+import { THEME_LOCALE_ZH } from './features/theme/i18n/zh'
+import { registerThemeSkin } from './features/theme/apply'
 import { createSettingsSection } from './settings/components/SettingsSection'
 import { MCP_CSS } from './features/mcp/styles'
 import { SKILLS_CSS } from './features/skills/styles'
 import { CUSTOM_SETTINGS_CSS } from './features/custom-settings/styles'
 import { LOCAL_CACHE_CSS } from './features/local-cache/styles'
+import { THEME_CSS } from './features/theme/styles'
 import { SETTINGS_NAV_ATTRIBUTE, markSettingsNavRow } from './platform/ui/settings-nav'
 import { iconMaskDataUri } from './platform/icons/Icon'
 import { SETTINGS2_SPEC } from './platform/icons/Settings2Icon'
@@ -67,16 +71,22 @@ export const settingsFeature: ClientFeature = {
     { namespace: 'skills', zh: SKILLS_LOCALE_ZH, en: SKILLS_LOCALE_EN },
     { namespace: 'custom-settings', zh: CUSTOM_SETTINGS_LOCALE_ZH, en: CUSTOM_SETTINGS_LOCALE_EN },
     { namespace: 'local-cache', zh: LOCAL_CACHE_LOCALE_ZH, en: LOCAL_CACHE_LOCALE_EN },
+    { namespace: 'theme', zh: THEME_LOCALE_ZH, en: THEME_LOCALE_EN },
   ],
   styles: [
     { name: 'mcp', css: MCP_CSS },
     { name: 'skills', css: SKILLS_CSS },
     { name: 'custom-settings', css: CUSTOM_SETTINGS_CSS },
     { name: 'local-cache', css: LOCAL_CACHE_CSS },
+    { name: 'theme', css: THEME_CSS },
     { name: 'smkit/page', css: pageCss },
     { name: 'smkit/nav-icon', css: NAV_GLYPH_RULE },
   ],
   register(ctx: ClientContext, deps: ClientDeps, t: Translator): void {
+    // The skin rides the plugin's lifetime, not the settings dialog's: restore
+    // whatever this browser last chose (the stylesheets are already in), and
+    // let the effect's dispose take the attribute back off on unload.
+    registerThemeSkin(ctx)
     // DSH projects only `id`, `order` and `label` out of a section registration
     // and picks each row's glyph from a closed list of built-in ids, so this
     // section marks its own row and lets the stylesheet paint the glyph (see
@@ -95,6 +105,7 @@ export const settingsFeature: ClientFeature = {
       skills: ctx.locale.bind('skills'),
       customSettings: ctx.locale.bind('custom-settings'),
       localCache: ctx.locale.bind('local-cache'),
+      theme: ctx.locale.bind('theme'),
     })
     ctx.slots.inject('settings.section', () =>
       ctx.slots.register(
