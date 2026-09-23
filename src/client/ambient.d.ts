@@ -134,11 +134,14 @@ declare namespace JSX {
   }
 
   interface InputProps extends CommonProps {
-    type?: 'text' | 'search' | 'checkbox' | 'button'
-    value?: string
+    type?: 'text' | 'search' | 'checkbox' | 'button' | 'range'
+    value?: string | number
     checked?: boolean
     disabled?: boolean
     placeholder?: string
+    min?: number
+    max?: number
+    step?: number
   }
 
   interface SelectProps extends CommonProps {
@@ -153,6 +156,11 @@ declare namespace JSX {
   interface ButtonProps extends CommonProps {
     type?: 'button' | 'submit' | 'reset'
     disabled?: boolean
+  }
+
+  interface DetailsProps extends CommonProps {
+    /** Render the group unfolded; the user folds it locally from there. */
+    open?: boolean
   }
 
   interface AnchorProps extends CommonProps {
@@ -190,5 +198,10 @@ declare namespace JSX {
     option: OptionProps
     button: ButtonProps
     svg: SvgProps
+    /* The debug palette's collapsible groups are native <details>/<summary>:
+     * the open/close state is a drawing rule with no request behind it, and
+     * the elements bring the fold for free. */
+    details: DetailsProps
+    summary: CommonProps
   }
 }

@@ -28,6 +28,7 @@ import { LOCAL_CACHE_LOCALE_ZH } from './features/local-cache/i18n/zh'
 import { THEME_LOCALE_EN } from './features/theme/i18n/en'
 import { THEME_LOCALE_ZH } from './features/theme/i18n/zh'
 import { registerThemeSkin } from './features/theme/apply'
+import { registerThemeDebug } from './features/theme/client'
 import { createSettingsSection } from './settings/components/SettingsSection'
 import { MCP_CSS } from './features/mcp/styles'
 import { SKILLS_CSS } from './features/skills/styles'
@@ -85,8 +86,12 @@ export const settingsFeature: ClientFeature = {
   register(ctx: ClientContext, deps: ClientDeps, t: Translator): void {
     // The skin rides the plugin's lifetime, not the settings dialog's: restore
     // whatever this browser last chose (the stylesheets are already in), and
-    // let the effect's dispose take the attribute back off on unload.
+    // let the effect's dispose take the attribute back off on unload. The
+    // saved color overrides ride their own effect inside the same call, and
+    // the header's palette toggle registers there too — the debug panel is a
+    // conversation-header control, not a settings page.
     registerThemeSkin(ctx)
+    registerThemeDebug(ctx, deps)
     // DSH projects only `id`, `order` and `label` out of a section registration
     // and picks each row's glyph from a closed list of built-in ids, so this
     // section marks its own row and lets the stylesheet paint the glyph (see

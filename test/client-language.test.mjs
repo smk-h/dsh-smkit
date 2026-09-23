@@ -253,8 +253,11 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'dsh-mcp-manager: theme/dictionaries',
     'dsh-mcp-manager: openspec/dictionaries',
     // The theme feature's mount-time half: the persisted skin goes back on the
-    // body when the plugin mounts, before the section marks its nav row.
+    // body when the plugin mounts, before the section marks its nav row — and
+    // the saved palette overrides ride their own effect, since a skin switch
+    // must not retract what the user saved on top of a skin.
     'dsh-mcp-manager: theme/skin attribute',
+    'dsh-mcp-manager: theme/color overrides',
     'dsh-mcp-manager: merged settings nav row',
   ])
   // Every key a component asks for must exist in one of the registered

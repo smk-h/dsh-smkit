@@ -26,7 +26,9 @@ export type CreateElement = (
 
 export interface ReactLike {
   createElement: CreateElement
-  useState<T>(initial: T | (() => T)): [T, (value: T) => void]
+  /** The setter takes the updater form too — a slider drag fires changes
+   * faster than renders flush, so edits must build on the previous state. */
+  useState<T>(initial: T | (() => T)): [T, (value: T | ((prev: T) => T)) => void]
   useEffect(effect: () => void | (() => void), deps?: unknown[]): void
   useCallback<T>(callback: T, deps?: unknown[]): T
 }

@@ -13,9 +13,16 @@
  */
 
 import pageCss from './style/page.css'
+import debugCss from './style/debug.css'
 import skinDragonboatCss from './style/skin-festival-dragonboat.css'
 import skinNordCss from './style/skin-nord.css'
 import skinZcodeCss from './style/skin-zcode.css'
 
 /** The feature's own rules, in cascade order. */
-export const THEME_CSS = [pageCss, skinDragonboatCss, skinNordCss, skinZcodeCss].join('\n')
+export const THEME_CSS = [
+  pageCss,
+  debugCss,
+  skinDragonboatCss,
+  skinNordCss,
+  skinZcodeCss,
+].join('\n')

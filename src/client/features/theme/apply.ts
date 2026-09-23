@@ -71,9 +71,72 @@ export function clearSkin(): void {
   saveSkinChoice(null)
 }
 
+/**
+ * The debug palette's saved edits: token → CSS color, applied as inline custom
+ * properties on the body. Inline wins the cascade over every skin's selector
+ * blocks, which is exactly the override semantics the panel promises; the
+ * same `smkit:` prefix rule applies — the local-cache tab leaves it alone.
+ */
+const OVERRIDES_KEY = 'smkit:skin-colors'
+
+/** The saved edits, or an empty map when nothing is stored (or unparseable). */
+export function loadColorOverrides(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(OVERRIDES_KEY)
+    if (raw === null) return {}
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return {}
+    const out: Record<string, string> = {}
+    for (const [token, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof value === 'string' && token.startsWith('--')) out[token] = value
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+/** Persist the edits; a denied storage keeps the session's paint. */
+export function saveColorOverrides(overrides: Record<string, string>): void {
+  try {
+    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides))
+  } catch {
+    // Private-mode browsers throw on any storage access.
+  }
+}
+
+/** Wipe the saved edits. */
+export function clearColorOverrides(): void {
+  try {
+    localStorage.removeItem(OVERRIDES_KEY)
+  } catch {
+    // Private-mode browsers throw on any storage access.
+  }
+}
+
+/** Paint the edits now: one inline custom property per entry, so the cascade
+ * puts them above whatever the active skin declares. */
+export function applyColorOverrides(overrides: Record<string, string>): void {
+  if (typeof document === 'undefined') return
+  const body = document.body
+  if (!body) return
+  for (const [token, value] of Object.entries(overrides)) body.style.setProperty(token, value)
+}
+
+/** Take the edits back off the body (used by reset and by plugin unload). */
+export function removeColorOverrides(overrides: Record<string, string>): void {
+  if (typeof document === 'undefined') return
+  const body = document.body
+  if (!body) return
+  for (const token of Object.keys(overrides)) body.style.removeProperty(token)
+}
+
 /** Mount-time half of the feature: restore whatever this browser last chose,
  * and take the attribute back off when the plugin unloads, so the hot-reload
- * contract (everything apply() writes, dispose() retracts) holds for skins too. */
+ * contract (everything apply() writes, dispose() retracts) holds for skins too.
+ * The saved color edits ride a second effect: the skin attribute and the
+ * overrides are two independent layers, and a skin switch must not retract
+ * the overrides the user saved on top of it. */
 export function registerThemeSkin(ctx: ClientContext): void {
   ctx.effect(
     () => {
@@ -81,5 +144,13 @@ export function registerThemeSkin(ctx: ClientContext): void {
       return () => paintSkinAttribute(null)
     },
     'dsh-mcp-manager: theme/skin attribute',
+  )
+  ctx.effect(
+    () => {
+      const overrides = loadColorOverrides()
+      applyColorOverrides(overrides)
+      return () => removeColorOverrides(overrides)
+    },
+    'dsh-mcp-manager: theme/color overrides',
   )
 }

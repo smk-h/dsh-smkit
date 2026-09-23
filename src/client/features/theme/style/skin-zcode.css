@@ -173,3 +173,36 @@ body[data-dsh-zcode][data-ds-dark-theme] {
   --dsw-specific-sidebar-nav-item-hover: #303030;
   --dsw-specific-sidebar-nav-item-active-accent: #ffffff;
 }
+
+/* --- 工具输出卡片化 ---
+   对齐 ZCode：工具调用结果（Glob、终端这类）在灰底画布上是「白色圆角卡 +
+   细边框」，深色是「面板色圆角卡 + 白 10% 边框」。卡片色走两个专用变量
+   （--dsw-zcode-tool-card-*，调试面板的滑块直接改它们），挂点用
+   `data-chat-flow-kind='tool-call'`（DSH 会话流的语义属性，跨版本稳定），
+   不碰哈希类名；助手正文不加卡，保持贴在画布上。 */
+body[data-dsh-zcode] {
+  --dsw-zcode-tool-card-bg: #ffffff;
+  --dsw-zcode-tool-card-border: rgba(13, 13, 13, 0.08);
+}
+
+body[data-dsh-zcode][data-ds-dark-theme] {
+  --dsw-zcode-tool-card-bg: #202020;
+  --dsw-zcode-tool-card-border: rgba(255, 255, 255, 0.1);
+}
+
+body[data-dsh-zcode] [data-chat-flow-kind='tool-call'] > div {
+  background: var(--dsw-zcode-tool-card-bg, #ffffff);
+  border: 1px solid var(--dsw-zcode-tool-card-border, rgba(13, 13, 13, 0.08));
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* The terminal body paints its own hardcoded fill (._block_1gdtu_1's
+   `background: #ffffff`), which covers the card above it — the slider moved
+   the wrapper and the terminal did not follow. Point the body at the same
+   variables; [data-terminal] is the attribute the component stamps the block
+   with, terminalBody its CSS-modules suffix. */
+body[data-dsh-zcode] [data-chat-flow-kind='tool-call'] [data-terminal],
+body[data-dsh-zcode] [data-chat-flow-kind='tool-call'] [class*='terminalBody'] {
+  background: var(--dsw-zcode-tool-card-bg, #ffffff);
+}

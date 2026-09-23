@@ -1,0 +1,291 @@
+/**
+ * The debug palette panel: the toggle button's card and the floating panel it
+ * drops from the viewport's top-right corner.
+ *
+ * The panel paints itself from the same alias tokens it edits — so the panel
+ * re-skins along with whatever it is tuning, and its own readability tracks
+ * the user's edits like every other surface does. Class names are namespaced
+ * `tp_*` (theme palette): one owner, no cross-terms with `mm_*`, `th_*` or the
+ * shell's own classes. The sliders are native `input[type=range]` with
+ * `accent-color` following the brand, so there is no track/thumb kit here.
+ */
+
+.dsh_themeDebug {
+  /* The platform skeleton declares no border, and the browser's default
+   * button border showed through — next to the ghost icons it read as a
+   * double ring. The glyph carries the control on its own. At rest it sits
+   * with the neighbours in secondary ink. */
+  border: none;
+  color: var(--dsw-alias-label-secondary);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Hover and keyboard focus share the wash — the header's own icon buttons
+ * (打开侧栏 and friends) repaint exactly like this, grey wash plus the
+ * brand's ink, so the palette toggle reads as one of them. */
+.dsh_themeDebug:hover:not(:disabled),
+.dsh_themeDebug:focus-visible:not(:disabled) {
+  color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.dsh_themeDebug[aria-pressed='true'] {
+  color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tp_panel {
+  position: fixed;
+  top: 56px;
+  right: 12px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  max-height: min(76vh, 720px);
+  padding: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.35);
+}
+
+.tp_head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.tp_title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tp_close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+}
+
+.tp_close:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tp_groups {
+  overflow-y: auto;
+}
+
+.tp_group {
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+}
+
+.tp_group:last-of-type {
+  border-bottom: none;
+}
+
+.tp_groupHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--dsw-alias-label-secondary);
+  list-style: none;
+  user-select: none;
+}
+
+.tp_groupHead::-webkit-details-marker {
+  display: none;
+}
+
+.tp_groupHead::before {
+  content: '▸';
+  font-size: 9px;
+  transition: transform 0.15s ease;
+}
+
+.tp_group[open] > .tp_groupHead::before {
+  transform: rotate(90deg);
+}
+
+.tp_group[open] > .tp_groupHead {
+  color: var(--dsw-alias-label-primary);
+}
+
+.tp_row {
+  padding: 0 8px 2px;
+}
+
+.tp_rowHead {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+}
+
+.tp_rowHead:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tp_swatch {
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 5px;
+}
+
+.tp_label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tp_hex {
+  flex: none;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.tp_sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 6px 8px 30px;
+}
+
+.tp_slider {
+  display: grid;
+  grid-template-columns: 30px 1fr 30px;
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+}
+
+.tp_sliderLabel {
+  font-size: 10px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.tp_slider input[type='range'] {
+  /* The track is painted per-slider from the panel (hue gets the rainbow,
+     saturation and lightness get scales built from the color being tuned), so
+     the native chrome is stripped here and the thumb redrawn by hand. */
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  margin: 0;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+}
+
+.tp_slider input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid var(--dsw-alias-border-l2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+.tp_slider input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid var(--dsw-alias-border-l2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+.tp_sliderValue {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+  text-align: right;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.tp_foot {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+.tp_save,
+.tp_reset {
+  flex: 1;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 18px;
+  border-radius: 8px;
+}
+
+.tp_save {
+  /* The panel overrides the active palette, so its own save follows the
+   * palette's primary button, not the shell's business blue. */
+  color: var(--dsw-alias-label-primary-foreground, #fff);
+  background: var(--dsw-alias-button-primary-fill, #000);
+  border: none;
+}
+
+.tp_save:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+.tp_reset {
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+  border: 1px solid var(--dsw-alias-border-l2);
+}
+
+.tp_reset:not(:disabled):hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tp_reset:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
