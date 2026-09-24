@@ -6,11 +6,12 @@
  * installed once per machine and goes stale independently of any workspace. The
  * CLI ships no self-update command — `openspec update` refreshes a workspace's
  * instruction files, not the binary — so a complete upgrade is two commands run
- * in order: `npm update -g @fission-ai/openspec` to move the installed tool
- * forward, then `openspec update` to rewrite this workspace's generated files
- * against the new version. The second is what makes the first visible here; a
- * newer CLI that leaves the workspace's skills stale has only half upgraded
- * anything.
+ * in order: `npm install -g @fission-ai/openspec@latest` to bring the installed
+ * tool to the newest publish (see `OPENSPEC_UPDATE_ARGS` for why `install`
+ * rather than `update`), then `openspec update` to rewrite this workspace's
+ * generated files against the new version. The second is what makes the first
+ * visible here; a newer CLI that leaves the workspace's skills stale has only
+ * half upgraded anything.
  *
  * Both runs are reported as they happen rather than at the end. A global install
  * reaches the registry and can spend tens of seconds there, and a button that
@@ -169,7 +170,8 @@ export const streamOpenSpecUpdate: OpenSpecUpdateRunner = (command, args, option
   })
 
 /**
- * Start one upgrade: the global tool bump, then the workspace's file refresh.
+ * Start one upgrade: the global install of the newest tool, then the
+ * workspace's file refresh.
  *
  * @param cwd - the workspace directory the panel was showing.
  * @param deps - the logger, and the streamer to spawn each command through.

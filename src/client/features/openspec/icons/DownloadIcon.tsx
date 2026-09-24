@@ -4,9 +4,10 @@
  * Ported verbatim from lucide's `download` (ISC, © Lucide Contributors 2022) —
  * https://lucide.nodejs.cn/icons/download — an arrow into a tray: the thing
  * that arrives comes from further away than the one the reload glyph brings.
- * The button runs `npm update -g` before `openspec update`, so a newer tool is
- * fetched rather than the current one run again, which is what keeps this sign
- * apart from the read-again button beside it.
+ * The button runs `npm install -g @fission-ai/openspec@latest` before
+ * `openspec update`, so a newer tool is fetched rather than the current one run
+ * again, which is what keeps this sign apart from the read-again button beside
+ * it.
  */
 
 import { createIcon, type IconFactory, type IconSpec } from '../../../platform/icons/Icon'

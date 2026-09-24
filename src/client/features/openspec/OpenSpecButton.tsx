@@ -52,9 +52,10 @@
  *
  * **The head's update button upgrades the tool, and streams it.** OpenSpec is
  * installed once per machine and goes stale independently of any workspace, so
- * the button asks the host to run the upgrade chain — `npm update -g
- * @fission-ai/openspec`, then `openspec update` to rewrite this workspace's
- * files — and reads back its event stream, painting each line as it arrives.
+ * the button asks the host to run the upgrade chain — `npm install -g
+ * @fission-ai/openspec@latest`, then `openspec update` to rewrite this
+ * workspace's files — and reads back its event stream, painting each line as it
+ * arrives.
  * The progress lives on the control rather than the panel because a global
  * install outlasts the panel: the panel can be dismissed while npm still works,
  * and opening it again should find the output already there rather than a box

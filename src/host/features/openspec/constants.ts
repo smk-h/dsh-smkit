@@ -49,16 +49,27 @@ export const OPENSPEC_INIT_COMMAND_LINE = `${OPENSPEC_INIT_COMMAND} ${OPENSPEC_I
  *
  * The CLI ships no self-update command — `openspec update` refreshes a
  * workspace's instruction files, not the installed binary — so upgrading the
- * tool is npm's job (`npm update -g @fission-ai/openspec`), and a newer tool
- * then leaves the workspace's own generated files behind until `openspec update`
- * rewrites them. The button does both: the global upgrade, then the local
- * refresh. Each command line is fixed and carries no caller input, which is what
- * lets them run through a shell on Windows (where npm and the CLI are `.cmd`
- * shims) with nothing of a request's to interpret.
+ * tool is npm's job, and a newer tool then leaves the workspace's own generated
+ * files behind until `openspec update` rewrites them. The button does both: the
+ * global upgrade, then the local refresh.
+ *
+ * The upgrade is `install`, not `update`, and it pins `@latest`. `npm update -g`
+ * moves an installed package only within the range it was installed under — a
+ * global install has no `package.json` to widen, so npm reads it as a caret
+ * range and a major bump is never offered. `install` is what the range cannot
+ * veto: it resolves the `latest` dist-tag outright, which is the one thing the
+ * button is for, and it is also the command that installs the tool where none
+ * was yet. It cannot downgrade a deliberate pre-release, because `latest` is
+ * only ever the newest stable publish.
+ *
+ * Each command line is fixed and carries no caller input, which is what lets
+ * them run through a shell on Windows (where npm and the CLI are `.cmd` shims)
+ * with nothing of a request's to interpret.
  */
 export const OPENSPEC_PACKAGE = '@fission-ai/openspec'
+export const OPENSPEC_PACKAGE_LATEST = `${OPENSPEC_PACKAGE}@latest`
 export const OPENSPEC_UPDATE_COMMAND = 'npm'
-export const OPENSPEC_UPDATE_ARGS: readonly string[] = ['update', '-g', OPENSPEC_PACKAGE]
+export const OPENSPEC_UPDATE_ARGS: readonly string[] = ['install', '-g', OPENSPEC_PACKAGE_LATEST]
 
 /** The refresh that follows the upgrade: rewrite this workspace's files. */
 export const OPENSPEC_REFRESH_COMMAND = 'openspec'
@@ -71,11 +82,11 @@ export const OPENSPEC_REFRESH_COMMAND_LINE = `${OPENSPEC_REFRESH_COMMAND} ${OPEN
 /**
  * How long the npm upgrade may take before it is killed.
  *
- * Unlike `init`, this one reaches the registry over the network and reconciles
- * the whole global tree, so its budget is a real one rather than a runaway
- * guard: a slow connection can legitimately spend a minute fetching. Past this
- * the run is assumed stuck and reported as a timeout. The refresh that follows is
- * local file work, so it shares `init`'s shorter bound.
+ * Unlike `init`, this one reaches the registry over the network — resolving the
+ * `latest` dist-tag, then fetching and linking — so its budget is a real one
+ * rather than a runaway guard: a slow connection can legitimately spend a minute
+ * there. Past this the run is assumed stuck and reported as a timeout. The
+ * refresh that follows is local file work, so it shares `init`'s shorter bound.
  */
 export const OPENSPEC_UPDATE_TIMEOUT_MS = 180_000
 
@@ -287,5 +298,5 @@ export const OPENSPEC_INIT_MISSING_CODE = 'openspec/not-installed'
 export const OPENSPEC_INIT_TIMEOUT_CODE = 'openspec/timeout'
 export const OPENSPEC_INIT_FAILED_CODE = 'openspec/failed'
 export const OPENSPEC_INIT_MISSING_ERROR =
-  'the openspec command was not found on PATH; install it with `npm install -g @fission-ai/openspec`'
+  `the openspec command was not found on PATH; install it with \`npm install -g ${OPENSPEC_PACKAGE_LATEST}\``
 export const OPENSPEC_INIT_TIMEOUT_ERROR = `openspec init did not finish within ${OPENSPEC_INIT_TIMEOUT_MS} ms`

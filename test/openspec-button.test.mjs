@@ -1145,7 +1145,7 @@ it('marks the button busy and the panel running while the stream is open', async
 it('streams the upgrade into the panel, then reads the footprint back', async () => {
   const app = mount({
     fetch: updateRouting([
-      { type: 'line', stream: 'out', text: '$ npm update -g @fission-ai/openspec' },
+      { type: 'line', stream: 'out', text: '$ npm install -g @fission-ai/openspec@latest' },
       { type: 'line', stream: 'out', text: 'changed 1 package in 4s' },
       { type: 'line', stream: 'out', text: '$ openspec update' },
       { type: 'done', status: 'ok', exitCode: 0 },
@@ -1173,7 +1173,7 @@ it('streams the upgrade into the panel, then reads the footprint back', async ()
 it('turns a failed upgrade into its localized reason, in the error style', async () => {
   const app = mount({
     fetch: updateRouting([
-      { type: 'line', stream: 'out', text: '$ npm update -g @fission-ai/openspec' },
+      { type: 'line', stream: 'out', text: '$ npm install -g @fission-ai/openspec@latest' },
       { type: 'line', stream: 'err', text: 'npm ERR! 404' },
       { type: 'done', status: 'failed', exitCode: 1 },
     ]),
@@ -1193,7 +1193,7 @@ it('turns a failed upgrade into its localized reason, in the error style', async
 it('phrases a missing npm as an instruction, not a stack', async () => {
   const app = mount({
     fetch: updateRouting([
-      { type: 'line', stream: 'out', text: '$ npm update -g @fission-ai/openspec' },
+      { type: 'line', stream: 'out', text: '$ npm install -g @fission-ai/openspec@latest' },
       { type: 'line', stream: 'err', text: 'npm: command not found on PATH' },
       { type: 'done', status: 'npm-missing', exitCode: null },
     ]),

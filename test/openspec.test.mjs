@@ -478,7 +478,7 @@ it('tells a missing CLI, a timeout and a refusal apart', async () => {
     assert.equal(notFound.status, 503)
     assert.equal(
       notFound.body.error,
-      'the openspec command was not found on PATH; install it with `npm install -g @fission-ai/openspec`',
+      'the openspec command was not found on PATH; install it with `npm install -g @fission-ai/openspec@latest`',
       `the install instruction replaces the shell's undecodable line, on a ${console_} console`,
     )
     assert.equal(notFound.body.output, stderr.trim(), 'what the shell said is still carried for the log')
@@ -603,7 +603,7 @@ it('upgrades the tool then refreshes the store, at the project root, streaming b
 
   assert.equal(runs.length, 2, 'both commands of the chain run')
   assert.equal(runs[0].command, 'npm')
-  assert.deepEqual(runs[0].args, ['update', '-g', '@fission-ai/openspec'])
+  assert.deepEqual(runs[0].args, ['install', '-g', '@fission-ai/openspec@latest'])
   assert.equal(runs[0].cwd, storeRoot)
   assert.equal(runs[0].env.NO_COLOR, '1')
   assert.equal(runs[0].env.npm_config_progress, 'false', 'no animated progress bar over a pipe')
@@ -615,7 +615,7 @@ it('upgrades the tool then refreshes the store, at the project root, streaming b
   assert.equal(runs[1].timeoutMs, 60_000, 'and the short local budget')
 
   assert.deepEqual(lineTexts(events), [
-    '$ npm update -g @fission-ai/openspec',
+    '$ npm install -g @fission-ai/openspec@latest',
     'changed 1 package in 4s',
     '$ openspec update',
     'Refreshed instruction files',
@@ -707,7 +707,7 @@ it('answers the update route as an event stream that ends on the done frame', as
   assert.equal(answered.code, 200)
   assert.match(answered.headers['Content-Type'], /text\/event-stream/, 'the type DSH never gzips')
   const events = sseEvents(answered.raw)
-  assert.deepEqual(events.at(0), { type: 'line', stream: 'out', text: '$ npm update -g @fission-ai/openspec' })
+  assert.deepEqual(events.at(0), { type: 'line', stream: 'out', text: '$ npm install -g @fission-ai/openspec@latest' })
   assert.ok(events.some((event) => event.text === 'changed 1 package'), 'each line is its own frame')
   assert.deepEqual(events.at(-1), { type: 'done', status: 'ok', exitCode: 0 })
   assert.ok(answered.raw.endsWith('\n\n'), 'every frame, including the last, is terminated')
