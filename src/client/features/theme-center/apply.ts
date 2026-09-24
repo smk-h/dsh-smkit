@@ -11,12 +11,15 @@
  * stylesheets: no theme change, however violent, can wipe the settings
  * chrome that paints itself.
  *
- * The choice and the display mode persist under the `dsh-theme:` storage
- * keys, taking over the older `dsh-theme-pack:` keys once on first read and
- * deleting them. The mode is the row's own day/night override: light and
- * dark drive the shell's dark attribute directly, `system` leaves it to the
- * built-in appearance setting — which is also why restoring writes the
- * attribute only for the two explicit modes.
+ * The choice and the display mode persist under the plugin's own `smkit:`
+ * prefix — the same namespace the skins used and the one the local-cache tab
+ * promises to leave alone — taking over the keys of every earlier revision
+ * once on first read and deleting them: `smkit:skin` from the retired skin
+ * feature, whose values are this center's ids, and this center's own former
+ * `dsh-theme:` and `dsh-theme-pack:` pairs. The mode is the row's own day/night
+ * override: light and dark drive the shell's dark attribute directly, `system`
+ * leaves it to the built-in appearance setting — which is also why restoring
+ * writes the attribute only for the two explicit modes.
  *
  * The whole state lives at module level behind a tiny pub/sub, because the
  * API is meant to outlive the settings row: `window.dshTheme` and the
@@ -61,10 +64,19 @@ export interface ThemeCenterApi {
 
 const THEME_ATTR = 'data-dsh-theme'
 const DARK_ATTR = 'data-ds-dark-theme'
-const LS_THEME = 'dsh-theme:theme'
-const LS_MODE = 'dsh-theme:mode'
-const LS_LEGACY_THEME = 'dsh-theme-pack:theme'
-const LS_LEGACY_MODE = 'dsh-theme-pack:mode'
+const LS_THEME = 'smkit:theme'
+const LS_MODE = 'smkit:theme-mode'
+/**
+ * The keys the choice and the mode used to live under, newest first. A browser
+ * that upgrades with a skin or a theme selected must land on the same look, so
+ * every predecessor is read forward into the live key and then cleared.
+ * `smkit:skin` is the retired skin feature's key — its values were this
+ * center's ids, which is what the merge of the two features turned on — and
+ * the `dsh-theme:` pair and the `dsh-theme-pack:` pair are this center's own
+ * earlier names.
+ */
+const LS_LEGACY_THEME = ['smkit:skin', 'dsh-theme:theme', 'dsh-theme-pack:theme']
+const LS_LEGACY_MODE = ['dsh-theme:mode', 'dsh-theme-pack:mode']
 const ACTIVE_STYLE_ID = 'dsh-theme-active-style'
 
 /** The element the applied theme's CSS rides in; null when no document (tests). */
@@ -99,20 +111,36 @@ export function currentMode(): ThemeMode {
   return mode
 }
 
+/**
+ * One live key's value, carried forward from its predecessors on the first read
+ * that finds it empty. Every predecessor is cleared either way — a browser that
+ * already carries the live key still gets its old ones retired, so the
+ * migration happens exactly once and never leaves a stale key behind to win a
+ * later read. The first predecessor to carry a value wins; the rest are only
+ * deleted. A denied storage throws out to `getSaved`, which is the same
+ * session-unthemed outcome a private-mode browser got before.
+ */
+function readForward(live: string, legacy: readonly string[]): string | null {
+  const current = localStorage.getItem(live)
+  let carried: string | null = current
+  for (const key of legacy) {
+    const value = localStorage.getItem(key)
+    if (carried === null && value !== null) {
+      carried = value
+      localStorage.setItem(live, value)
+    }
+    localStorage.removeItem(key)
+  }
+  return carried
+}
+
 /** The persisted choice, with the older keys migrated forward on read. */
 function getSaved(): { theme: string | null; mode: string | null } {
   try {
-    const theme = localStorage.getItem(LS_THEME) ?? localStorage.getItem(LS_LEGACY_THEME)
-    const m = localStorage.getItem(LS_MODE) ?? localStorage.getItem(LS_LEGACY_MODE)
-    if (localStorage.getItem(LS_LEGACY_THEME) !== null && localStorage.getItem(LS_THEME) === null && theme) {
-      localStorage.setItem(LS_THEME, theme)
+    return {
+      theme: readForward(LS_THEME, LS_LEGACY_THEME),
+      mode: readForward(LS_MODE, LS_LEGACY_MODE),
     }
-    if (localStorage.getItem(LS_LEGACY_MODE) !== null && localStorage.getItem(LS_MODE) === null && m) {
-      localStorage.setItem(LS_MODE, m)
-    }
-    localStorage.removeItem(LS_LEGACY_THEME)
-    localStorage.removeItem(LS_LEGACY_MODE)
-    return { theme, mode: m }
   } catch {
     // A private-mode browser throws on any access; a theme that cannot
     // persist should still apply for the session.

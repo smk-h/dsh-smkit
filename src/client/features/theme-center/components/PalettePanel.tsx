@@ -1,5 +1,5 @@
 /**
- * The debug palette panel: every adjustable color, sliders to move them, and
+ * The palette panel: every adjustable color, sliders to move them, and
  * save/reset for the overrides.
  *
  * Rendered through a portal onto the body by the header button — the button
@@ -8,15 +8,24 @@
  * fixed` in the panel's own stylesheet puts it in the viewport's top-right
  * corner regardless.
  *
+ * **Every slider starts on the value the element has right now.** Nothing is
+ * guessed from a table: `readAll` resolves each registry token through a probe
+ * element on the body (`readTokenColor`), so what a row shows is the body's own
+ * computed color after every theme rule, every `var()` chain and every saved
+ * override have had their say. That read is repeated whenever what the body
+ * paints can have moved — the theme applied, its day/night attribute, or the
+ * shell's own display toggle — because a slider that kept a stale start value
+ * would write a color derived from a palette that is no longer on screen.
+ *
  * The editing model is a three-layer sandwich, cheapest read first:
  *   - `colors`  — what the sliders show, one HSL per registry token;
  *   - `edits`   — tokens moved since the last save (or reset), hex/rgba
  *                 strings, live-applied as inline custom properties on the
  *                 body so every edit is visible the moment the slider moves;
- *   - storage   — the same map under `smkit:skin-colors`, written only by
+ *   - storage   — the same map under `smkit:theme-colors`, written only by
  *                 Save, so an experiment is never persisted by accident.
  * Reset throws away both layers and re-reads the resolved colors, which lands
- * the panel back on whatever the active skin paints.
+ * the panel back on whatever the active theme paints.
  *
  * Each row folds its three sliders (hue, saturation, lightness) away until
  * clicked — eighteen colors times three sliders would be a wall — and the
@@ -25,21 +34,16 @@
  */
 
 import type { ClientDeps, Translator } from '../../../platform/types'
-import {
-  PALETTE_GROUPS,
-  hslToCss,
-  parseColor,
-  readTokenColor,
-  type Hsl,
-} from '../palette'
+import { subscribe } from '../apply'
+import { PALETTE_GROUPS, hslToCss, parseColor, readTokenColor, type Hsl } from '../palette'
 import {
   clearColorOverrides,
   loadColorOverrides,
   removeColorOverrides,
   saveColorOverrides,
-} from '../apply'
+} from '../overrides'
 
-export interface ThemeDebugPanelProps {
+export interface PalettePanelProps {
   t: Translator
   onClose: () => void
 }
@@ -65,15 +69,16 @@ function lightTrack(color: { h: number; s: number; l: number; a: number }): stri
   return `linear-gradient(to right, #000, ${pure}, #fff)`
 }
 
-export function createThemeDebugPanel(
-  deps: ClientDeps,
-): (props: ThemeDebugPanelProps) => JSX.Element {
+export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps) => JSX.Element {
   const { h, react } = deps
 
-  return function ThemeDebugPanel({ t, onClose }: ThemeDebugPanelProps): JSX.Element {
-    /** Resolved start colors: one HSL per token, read once at mount. */
-    const readAll = (): Record<string, ReturnType<typeof parseColor>> => {
-      const out: Record<string, ReturnType<typeof parseColor>> = {}
+  return function PalettePanel({ t, onClose }: PalettePanelProps): JSX.Element {
+    /** The colors the body paints right now: one HSL per token, resolved
+     * through the probe. A token whose computed value is not a color the
+     * parser can read falls back to the registry's own default, which is the
+     * value that token would have resolved to anyway. */
+    const readAll = (): Record<string, Hsl> => {
+      const out: Record<string, Hsl> = {}
       for (const group of PALETTE_GROUPS) {
         for (const item of group.items) {
           out[item.token] = parseColor(readTokenColor(item.token, item.fallback)) ?? {
@@ -96,6 +101,32 @@ export function createThemeDebugPanel(
     const [expanded, setExpanded] = react.useState<string | null>(null)
     /** Set for a beat after Save, so the button's answer is visible. */
     const [saved, setSaved] = react.useState(false)
+
+    /** Keep the start values the body's own. The two triggers are the ones that
+     * can repaint a token under an open panel: the theme center's state (a card
+     * clicked, or the restored choice at mount) and the body's two attributes
+     * (the day/night override, and the shell's own display setting moving the
+     * dark one). The `attributeFilter` is load-bearing rather than tidy: an
+     * edit sets the body's `style` attribute, and watching that would make
+     * every slider drag re-read the value it had just written. */
+    react.useEffect(() => {
+      const reread = () => setColors(readAll())
+      const unsub = subscribe(reread)
+      if (typeof MutationObserver === 'undefined') {
+        return () => {
+          unsub()
+        }
+      }
+      const mo = new MutationObserver(reread)
+      mo.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['data-ds-dark-theme', 'data-dsh-theme'],
+      })
+      return () => {
+        unsub()
+        mo.disconnect()
+      }
+    }, [])
 
     /** Apply one edit: paint the body inline, remember it, move the sliders. */
     const edit = (token: string, next: Hsl): void => {
@@ -123,10 +154,15 @@ export function createThemeDebugPanel(
     }
 
     return (
-      <div className="tp_panel" role="dialog" aria-label={t('panelTitle')}>
+      <div className="tp_panel" role="dialog" aria-label={t('paletteTitle')}>
         <div className="tp_head">
-          <span className="tp_title">{t('panelTitle')}</span>
-          <button type="button" className="tp_close" aria-label={t('close')} onClick={onClose}>
+          <span className="tp_title">{t('paletteTitle')}</span>
+          <button
+            type="button"
+            className="tp_close"
+            aria-label={t('paletteClose')}
+            onClick={onClose}
+          >
             ×
           </button>
         </div>
@@ -184,7 +220,7 @@ export function createThemeDebugPanel(
         </div>
         <div className="tp_foot">
           <button type="button" className="tp_save" onClick={onSave}>
-            {saved ? t('savedHint') : t('save')}
+            {saved ? t('paletteSavedHint') : t('paletteSave')}
           </button>
           <button
             type="button"
@@ -192,7 +228,7 @@ export function createThemeDebugPanel(
             onClick={onReset}
             disabled={Object.keys(edits).length === 0}
           >
-            {t('reset')}
+            {t('paletteReset')}
           </button>
         </div>
       </div>

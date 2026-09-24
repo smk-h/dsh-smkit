@@ -209,7 +209,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'theme', 'openspec', 'theme-center']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'openspec', 'theme-center']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -250,19 +250,15 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'dsh-mcp-manager: skills/dictionaries',
     'dsh-mcp-manager: custom-settings/dictionaries',
     'dsh-mcp-manager: local-cache/dictionaries',
-    'dsh-mcp-manager: theme/dictionaries',
     'dsh-mcp-manager: openspec/dictionaries',
     'dsh-mcp-manager: theme-center/dictionaries',
-    // The theme feature's mount-time half: the persisted skin goes back on the
-    // body when the plugin mounts, before the section marks its nav row — and
-    // the saved palette overrides ride their own effect, since a skin switch
-    // must not retract what the user saved on top of a skin.
-    'dsh-mcp-manager: theme/skin attribute',
-    'dsh-mcp-manager: theme/color overrides',
     'dsh-mcp-manager: merged settings nav row',
     // The theme center's mount-time half: the swap element, the saved mode and
     // theme, and the programmatic API — all before the settings row renders.
     'dsh-mcp-manager: theme-center/restore',
+    // And the layer above it: the palette panel's saved color edits, which must
+    // survive a theme switch and so ride an effect of their own.
+    'dsh-mcp-manager: theme-center/palette overrides',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared

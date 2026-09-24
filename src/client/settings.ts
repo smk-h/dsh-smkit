@@ -25,16 +25,11 @@ import { CUSTOM_SETTINGS_LOCALE_EN } from './features/custom-settings/i18n/en'
 import { CUSTOM_SETTINGS_LOCALE_ZH } from './features/custom-settings/i18n/zh'
 import { LOCAL_CACHE_LOCALE_EN } from './features/local-cache/i18n/en'
 import { LOCAL_CACHE_LOCALE_ZH } from './features/local-cache/i18n/zh'
-import { THEME_LOCALE_EN } from './features/theme/i18n/en'
-import { THEME_LOCALE_ZH } from './features/theme/i18n/zh'
-import { registerThemeSkin } from './features/theme/apply'
-import { registerThemeDebug } from './features/theme/client'
 import { createSettingsSection } from './settings/components/SettingsSection'
 import { MCP_CSS } from './features/mcp/styles'
 import { SKILLS_CSS } from './features/skills/styles'
 import { CUSTOM_SETTINGS_CSS } from './features/custom-settings/styles'
 import { LOCAL_CACHE_CSS } from './features/local-cache/styles'
-import { THEME_CSS } from './features/theme/styles'
 import { SETTINGS_NAV_ATTRIBUTE, markSettingsNavRow } from './platform/ui/settings-nav'
 import { iconMaskDataUri } from './platform/icons/Icon'
 import { SETTINGS2_SPEC } from './platform/icons/Settings2Icon'
@@ -56,7 +51,7 @@ const NAV_GLYPH_RULE = `[${SETTINGS_NAV_ATTRIBUTE}='smkit']{--dsh-smkit-nav-glyp
 /**
  * The section component, built once for the life of the module: it closes over
  * `deps`, and building it again would hand the slot a different component
- * identity than the one already mounted (the same reason the three pages this
+ * identity than the one already mounted (the same reason the four pages this
  * replaces were each built once).
  */
 let section: unknown
@@ -64,34 +59,30 @@ let section: unknown
 export const settingsFeature: ClientFeature = {
   id: 'smkit',
   locale: { namespace: 'smkit', zh: SMKIT_LOCALE_ZH, en: SMKIT_LOCALE_EN },
-  // The three pages' own dictionaries: their panels still read their copy
-  // through their own namespace, so this section registers what the three
-  // descriptors used to.
+  // The four pages' own dictionaries: their panels still read their copy
+  // through their own namespace, so this section registers what the four
+  // descriptors used to. Theme is not among them — it seats no panel here, and
+  // the row and the palette control that carry it register their own namespace
+  // from the theme-center feature itself.
   extraLocales: [
     { namespace: 'mcp', zh: MCP_LOCALE_ZH, en: MCP_LOCALE_EN },
     { namespace: 'skills', zh: SKILLS_LOCALE_ZH, en: SKILLS_LOCALE_EN },
     { namespace: 'custom-settings', zh: CUSTOM_SETTINGS_LOCALE_ZH, en: CUSTOM_SETTINGS_LOCALE_EN },
     { namespace: 'local-cache', zh: LOCAL_CACHE_LOCALE_ZH, en: LOCAL_CACHE_LOCALE_EN },
-    { namespace: 'theme', zh: THEME_LOCALE_ZH, en: THEME_LOCALE_EN },
   ],
   styles: [
     { name: 'mcp', css: MCP_CSS },
     { name: 'skills', css: SKILLS_CSS },
     { name: 'custom-settings', css: CUSTOM_SETTINGS_CSS },
     { name: 'local-cache', css: LOCAL_CACHE_CSS },
-    { name: 'theme', css: THEME_CSS },
     { name: 'smkit/page', css: pageCss },
     { name: 'smkit/nav-icon', css: NAV_GLYPH_RULE },
   ],
   register(ctx: ClientContext, deps: ClientDeps, t: Translator): void {
-    // The skin rides the plugin's lifetime, not the settings dialog's: restore
-    // whatever this browser last chose (the stylesheets are already in), and
-    // let the effect's dispose take the attribute back off on unload. The
-    // saved color overrides ride their own effect inside the same call, and
-    // the header's palette toggle registers there too — the debug panel is a
-    // conversation-header control, not a settings page.
-    registerThemeSkin(ctx)
-    registerThemeDebug(ctx, deps)
+    // The theme is not this feature's any more: its row, its palette control,
+    // the restoring effect and the override layer all live in the theme-center
+    // feature, which knows about none of the pages below. What is left here is
+    // this section's own seat.
     // DSH projects only `id`, `order` and `label` out of a section registration
     // and picks each row's glyph from a closed list of built-in ids, so this
     // section marks its own row and lets the stylesheet paint the glyph (see
@@ -110,7 +101,6 @@ export const settingsFeature: ClientFeature = {
       skills: ctx.locale.bind('skills'),
       customSettings: ctx.locale.bind('custom-settings'),
       localCache: ctx.locale.bind('local-cache'),
-      theme: ctx.locale.bind('theme'),
     })
     ctx.slots.inject('settings.section', () =>
       ctx.slots.register(

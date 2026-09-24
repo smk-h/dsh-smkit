@@ -17,5 +17,4 @@ export const SMKIT_LOCALE_ZH: LocaleDict = {
   tabSkills: "技能",
   tabCustom: "自定义设置",
   tabLocalCache: "本地缓存",
-  tabTheme: "主题",
 }

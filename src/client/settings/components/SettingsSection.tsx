@@ -1,12 +1,21 @@
 /**
- * The merged settings section: the shell around the plugin's five pages.
+ * The merged settings section: the shell around the plugin's four pages.
  *
- * One nav row instead of five, and a strip of five tabs above the panel —
+ * One nav row instead of five, and a strip of four tabs above the panel —
  * each tab is one of the pages this plugin used to seat on its own, so the
  * panels are the very components those seats rendered (`features/mcp`,
- * `features/skills`, `features/custom-settings`, `features/local-cache`,
- * `features/theme`), untouched below their intro line. Adding a page is a
- * directory plus one entry in `TABS`; the shell itself does not change.
+ * `features/skills`, `features/custom-settings`, `features/local-cache`),
+ * untouched below their intro line. Adding a page is a directory plus one
+ * entry in `TABS`; the shell itself does not change.
+ *
+ * A fifth tab used to sit here for `features/theme`, and it is the one page
+ * that did not survive as a tab: it described a second theme system (the three
+ * ported skins, applied by a `data-dsh-<id>` attribute of their own) beside the
+ * theme center's, and the two could not share a card or a selection. The skins
+ * are entries in the center now and the card that page drew is the card the
+ * center draws, so there is nothing left for a tab to show — theme is
+ * appearance, and the center already sits with the shell's appearance rows on
+ * Settings → General.
  *
  * Two things the shell owns:
  *
@@ -35,11 +44,9 @@ import { createMcpContent } from '../../features/mcp/components/McpContent'
 import { createSkillsContent } from '../../features/skills/components/SkillsContent'
 import { createCustomSettingsContent } from '../../features/custom-settings/components/CustomSettingsContent'
 import { createLocalCachePanel } from '../../features/local-cache/components/LocalCachePanel'
-import { createThemeContent } from '../../features/theme/components/ThemeContent'
-import { createPaletteIcon } from '../../features/theme/icons/PaletteIcon'
 import type { ClientDeps, Translator } from '../../platform/types'
 
-/** The copy the merged page reads: the shell's own namespace, then the five
+/** The copy the merged page reads: the shell's own namespace, then the four
  * it seats panels from. */
 export interface PanelDictionaries {
   section: Translator
@@ -47,7 +54,6 @@ export interface PanelDictionaries {
   skills: Translator
   customSettings: Translator
   localCache: Translator
-  theme: Translator
 }
 
 /** One page: its tab's glyph, its key in the strip, and its panel. */
@@ -76,12 +82,10 @@ export function createSettingsSection(
   const WandSparklesIcon = createWandSparklesIcon(deps)
   const Settings2Icon = createSettings2Icon(deps)
   const NotebookTextIcon = createNotebookTextIcon(deps)
-  const PaletteIcon = createPaletteIcon(deps)
   const McpContent = createMcpContent(deps)
   const SkillsContent = createSkillsContent(deps)
   const CustomSettingsContent = createCustomSettingsContent(deps)
   const LocalCachePanel = createLocalCachePanel(deps)
-  const ThemeContent = createThemeContent(deps)
 
   /** The pages, in strip order — the order the settings nav listed them in
    * before they were merged. */
@@ -110,12 +114,6 @@ export function createSettingsSection(
       icon: <NotebookTextIcon size={14} />,
       Panel: (props) => <LocalCachePanel {...props} />,
     },
-    {
-      id: 'theme',
-      label: 'tabTheme',
-      icon: <PaletteIcon size={14} />,
-      Panel: (props) => <ThemeContent {...props} />,
-    },
   ]
 
   // The keys are the TABS ids, verbatim — the panel lookup below indexes by
@@ -126,7 +124,6 @@ export function createSettingsSection(
     skills: panelDictionaries.skills,
     custom: panelDictionaries.customSettings,
     'local-cache': panelDictionaries.localCache,
-    theme: panelDictionaries.theme,
   }
 
   // No props: the slot system hands a section the seat's copy, but this shell

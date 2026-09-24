@@ -1,5 +1,5 @@
 /**
- * The conversation-header control that toggles the debug palette panel.
+ * The conversation-header control that toggles the palette panel.
  *
  * Mounted into the same right-aligned utilities seat as the session-delete and
  * OpenSpec controls (`mm_iconBtn`, the shell's hover bubble for the label), so
@@ -17,27 +17,27 @@
 
 import type { ClientDeps, Translator } from '../../../platform/types'
 import { createPaletteIcon } from '../icons/PaletteIcon'
-import { createThemeDebugPanel } from './ThemeDebugPanel'
+import { createPalettePanel } from './PalettePanel'
 
-export interface ThemeDebugButtonProps {
+export interface PaletteButtonProps {
   t: Translator
 }
 
-export function createThemeDebugButton(deps: ClientDeps): (props: ThemeDebugButtonProps) => JSX.Element {
+export function createPaletteButton(deps: ClientDeps): (props: PaletteButtonProps) => JSX.Element {
   const { h, react, createPortal, Tooltip } = deps
   const Palette = createPaletteIcon(deps)
-  const Panel = createThemeDebugPanel(deps)
+  const Panel = createPalettePanel(deps)
 
-  return function ThemeDebugButton({ t }: ThemeDebugButtonProps): JSX.Element {
+  return function PaletteButton({ t }: PaletteButtonProps): JSX.Element {
     const [open, setOpen] = react.useState(false)
 
     const anchor = (
       <button
-        className="mm_iconBtn dsh_themeDebug"
+        className="mm_iconBtn dsh_palette"
         type="button"
-        aria-label={t('debugOpen')}
+        aria-label={t('paletteOpen')}
         aria-pressed={open}
-        title={!open && Tooltip === undefined ? t('debugOpen') : undefined}
+        title={!open && Tooltip === undefined ? t('paletteOpen') : undefined}
         onClick={() => setOpen((prev) => !prev)}
       >
         <Palette size={15} />
@@ -45,14 +45,14 @@ export function createThemeDebugButton(deps: ClientDeps): (props: ThemeDebugButt
     )
 
     return (
-      <span className="dsh_themeDebugHost">
+      <span className="dsh_paletteHost">
         {/* While the panel is open the bubble is dropped entirely: the shell's
          * tooltip sits side="bottom", exactly where the panel floats, and a
          * hover bubble overlapping the panel it names is noise. Toggling the
          * panel unmounts the wrapper, so a bubble already showing goes with
          * it. */}
         {!open && Tooltip !== undefined ? (
-          <Tooltip label={t('debugOpen')} side="bottom" delayMs={500}>
+          <Tooltip label={t('paletteOpen')} side="bottom" delayMs={500}>
             {anchor}
           </Tooltip>
         ) : (

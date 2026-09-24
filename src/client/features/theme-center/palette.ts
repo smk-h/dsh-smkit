@@ -1,34 +1,35 @@
 /**
- * The debug palette: which colors are adjustable, and the math that lets a
- * slider drive them.
+ * The palette panel's registry: which colors are adjustable, and the math that
+ * lets a slider drive them.
  *
  * The registry is a flat list of CSS custom properties grouped by the surface
  * they paint — the theme's accents, the left sidebar, the conversation area,
  * tool-call cards, and the right panel's layer stack. Each item names its
  * token, a dictionary key for its label, and a fallback used only when the
- * token cannot be resolved (the tool-card variables are the case: the other
- * skins do not define them, so the stylesheet's `var()` fallback answers).
+ * token cannot be resolved (the tool-card variables are the case: themes other
+ * than zcode do not define them, so this fallback answers).
  *
  * Every value is read *resolved*: a probe element is attached to the body with
  * `color: var(--the-token)` and the computed color is read back, so var()
- * chains and color-mix() arrive as concrete rgb()/rgba() — what the sliders
- * need. Editing converts RGB ↔ HSL; the alpha channel survives untouched, so
- * translucent borders stay translucent no matter how the sliders move.
+ * chains and color-mix() arrive as concrete rgb()/rgba() — the value the
+ * element actually has, which is what the sliders have to start from. Editing
+ * converts RGB ↔ HSL; the alpha channel survives untouched, so translucent
+ * borders stay translucent no matter how the sliders move.
  */
 
 /** One adjustable color: a custom property, its label key, its fallback. */
 export interface PaletteItem {
   /** The custom property name, spelled with the leading `--`. */
   token: string
-  /** Dictionary key of the row label, in the theme namespace. */
+  /** Dictionary key of the row label, in the theme-center namespace. */
   labelKey: string
-  /** Resolved when the token is not defined in the current mode or skin. */
+  /** Resolved when the token is not defined in the current mode or theme. */
   fallback: string
 }
 
 /** One surface group, drawn as a collapsible section of the panel. */
 export interface PaletteGroup {
-  /** Dictionary key of the group title, in the theme namespace. */
+  /** Dictionary key of the group title, in the theme-center namespace. */
   labelKey: string
   items: PaletteItem[]
 }
@@ -90,6 +91,33 @@ export interface Hsl {
 }
 
 let probe: HTMLDivElement | undefined
+let sampler: CanvasRenderingContext2D | null | undefined
+
+/**
+ * Normalize a computed color into a syntax `parseColor` reads, for the one case
+ * the parser cannot: a token whose value lives in a wide-gamut color space
+ * (`oklch()`, `lab()`, `color(display-p3 …)`) is computed *in that space* and
+ * read back verbatim, and rgb/hex parsing has nothing to say about it. Without
+ * this step such a token would silently show the registry's fallback — a
+ * made-up number standing in for the element's real color, which is exactly
+ * what the panel must not do.
+ *
+ * A 1×1 canvas is the cheapest normalizer there is: assigning to `fillStyle`
+ * and reading it back returns any color the browser can parse as `#rrggbb` or
+ * `rgba()`. An unparseable value leaves the sentinel in place, and the original
+ * string is handed back for the caller's fallback path.
+ */
+function normalize(color: string): string {
+  if (sampler === undefined) {
+    sampler = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d')
+  }
+  if (sampler === null) return color
+  const sentinel = '#000001'
+  sampler.fillStyle = sentinel
+  sampler.fillStyle = color
+  const read = String(sampler.fillStyle)
+  return read === sentinel ? color : read
+}
 
 /**
  * Resolve one custom property to a concrete CSS color, through a probe element
@@ -98,7 +126,7 @@ let probe: HTMLDivElement | undefined
  * not give. Returns the item's fallback when the token resolves to nothing.
  */
 export function readTokenColor(token: string, fallback: string): string {
-  if (typeof document === 'undefined') return fallback
+  if (typeof document === 'undefined' || document.body === null) return fallback
   if (probe === undefined || !probe.isConnected) {
     probe = document.createElement('div')
     probe.style.display = 'none'
@@ -107,7 +135,9 @@ export function readTokenColor(token: string, fallback: string): string {
   probe.style.color = `var(${token}, ${fallback})`
   const resolved = getComputedStyle(probe).color
   probe.style.color = ''
-  return parseColor(resolved) === undefined ? fallback : resolved
+  if (parseColor(resolved) !== undefined) return resolved
+  const normalized = normalize(resolved)
+  return parseColor(normalized) !== undefined ? normalized : fallback
 }
 
 /** Parse a computed CSS color — `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`,

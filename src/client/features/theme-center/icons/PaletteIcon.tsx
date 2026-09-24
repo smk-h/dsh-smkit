@@ -1,6 +1,7 @@
 /**
- * The theme tab: a painter's palette — the tab names what the page offers
- * (colour to put on the whole interface), not the act of applying one.
+ * The palette control's glyph: a painter's palette — the button opens the
+ * colors one can put on the whole interface, rather than naming the act of
+ * choosing a theme.
  *
  * Glyph ported verbatim from lucide (`palette`) — ISC, © Lucide Contributors
  * 2022 (portions © 2013-2022 Cole Bemis, MIT), https://lucide.dev/icons/palette

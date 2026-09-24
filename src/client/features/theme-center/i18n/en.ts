@@ -1,6 +1,13 @@
 /**
  * English dictionary for the `theme-center` locale namespace.
  *
+ * Both halves of the feature: the settings row's chrome, its cards' sample
+ * strings and one name plus one description per theme; then the palette panel,
+ * whose chrome keys carry the `palette` prefix so the panel's `paletteReset`
+ * (throw the color edits away) cannot be confused with the row's `reset` (back
+ * to the shell's default look) now that the two share one dictionary. See
+ * `zh.ts` for the full note.
+ *
  * Key set must stay identical to `zh.ts`.
  */
 
@@ -14,6 +21,9 @@ export const THEME_CENTER_LOCALE_EN: LocaleDict = {
   modeDark: "Dark",
   hint: "Selection is saved automatically",
   reset: "Reset",
+  bubbleSample: "User message…",
+  lineSample: "Sample body text, previewing this palette",
+  nightGrade: "Night {grade}",
   name_ocean: "Ocean",
   name_midnight: "Midnight",
   name_aurora: "Aurora",
@@ -27,4 +37,55 @@ export const THEME_CENTER_LOCALE_EN: LocaleDict = {
   name_matcha: "Matcha",
   name_charcoal: "Charcoal",
   name_mono: "Mono",
+  "name_festival-dragonboat": "Dragon Boat Festival",
+  name_nord: "Nord",
+  name_zcode: "ZCode",
+  desc_ocean: "Cool blue seas and quiet depth.",
+  desc_midnight: "Deep navy with electric blue accents.",
+  desc_aurora: "Violet skies melting into teal.",
+  desc_forest: "Pine greens and soft moss.",
+  desc_graphite: "Soft neutral gray, easy on the eyes.",
+  desc_ink: "Pure black and white, nothing more.",
+  desc_mint: "Fresh green-teal, crisp and cool.",
+  desc_terminal: "Green phosphor on a CRT black.",
+  desc_steel: "Cool blue-gray, industrial calm.",
+  desc_autumn: "Golden leaves on a harvest afternoon.",
+  desc_matcha: "Mossy greens with a hint of tea.",
+  desc_charcoal: "Honest grays, no color to distract.",
+  desc_mono: "Strict monochrome, maximal focus.",
+  "desc_festival-dragonboat": "Mugwort green and zongzi fragrance; dragon boats race in lacquer red",
+  desc_nord: "Snow Storm daylight, Frost blue accents",
+  desc_zcode: "ZCode desktop look: light day, deep night, monochrome CTA",
+  paletteOpen: "Palette",
+  paletteTitle: "Palette",
+  paletteClose: "Close",
+  paletteSave: "Save",
+  paletteReset: "Reset",
+  paletteSavedHint: "✓ Saved, overrides the active palette",
+  sliderHue: "Hue",
+  sliderSat: "Sat",
+  sliderLight: "Light",
+  groupTheme: "Theme accents",
+  groupLeftSidebar: "Left sidebar",
+  groupConversation: "Conversation",
+  groupToolCalls: "Tool calls",
+  groupRightPanel: "Right panel",
+  itemPrimaryFill: "Primary button",
+  itemSendFill: "Send button",
+  itemBrand: "Brand accent",
+  itemInk: "Body ink",
+  itemSidebarFill: "Sidebar fill",
+  itemNavActive: "Active item",
+  itemNavHover: "Hovered item",
+  itemNavAccent: "Active marker",
+  itemCanvas: "Conversation canvas",
+  itemBubble: "User bubble",
+  itemBubbleHighlight: "Bubble highlight",
+  itemInput: "Input box",
+  itemToolCardBg: "Tool card fill",
+  itemToolCardBorder: "Tool card border",
+  itemCodeBlock: "Code block fill",
+  itemPanel1: "Panel layer 1",
+  itemPanel2: "Panel layer 2",
+  itemPanel3: "Panel layer 3",
 }

@@ -1,16 +1,17 @@
 /**
- * The debug palette panel: the toggle button's card and the floating panel it
- * drops from the viewport's top-right corner.
+ * The palette panel: the header toggle's card and the floating panel it drops
+ * from the viewport's top-right corner.
  *
  * The panel paints itself from the same alias tokens it edits — so the panel
- * re-skins along with whatever it is tuning, and its own readability tracks
- * the user's edits like every other surface does. Class names are namespaced
- * `tp_*` (theme palette): one owner, no cross-terms with `mm_*`, `th_*` or the
- * shell's own classes. The sliders are native `input[type=range]` with
- * `accent-color` following the brand, so there is no track/thumb kit here.
+ * re-skins along with whatever it is tuning, and its own readability tracks the
+ * user's edits like every other surface does. Class names are namespaced `tp_*`
+ * (theme palette), matching the row's `dt_*` as the other half of this feature;
+ * one owner, no cross-terms with `mm_*` or the shell's own classes. The sliders
+ * are native `input[type=range]` with `accent-color` following the brand, so
+ * there is no track/thumb kit here.
  */
 
-.dsh_themeDebug {
+.dsh_palette {
   /* The platform skeleton declares no border, and the browser's default
    * button border showed through — next to the ghost icons it read as a
    * double ring. The glyph carries the control on its own. At rest it sits
@@ -21,15 +22,15 @@
 }
 
 /* Hover and keyboard focus share the wash — the header's own icon buttons
- * (打开侧栏 and friends) repaint exactly like this, grey wash plus the
- * brand's ink, so the palette toggle reads as one of them. */
-.dsh_themeDebug:hover:not(:disabled),
-.dsh_themeDebug:focus-visible:not(:disabled) {
+ * (the sidebar toggle and friends) repaint exactly like this, grey wash plus
+ * the brand's ink, so the palette toggle reads as one of them. */
+.dsh_palette:hover:not(:disabled),
+.dsh_palette:focus-visible:not(:disabled) {
   color: var(--dsw-alias-brand-primary);
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.dsh_themeDebug[aria-pressed='true'] {
+.dsh_palette[aria-pressed='true'] {
   color: var(--dsw-alias-brand-primary);
   background: var(--dsw-alias-interactive-bg-hover);
 }
