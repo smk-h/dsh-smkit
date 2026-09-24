@@ -16,3 +16,4 @@ Thumbs.db
 
 # local scratch: 测试脚本的日志等一次性产物（如 ssh-stub-mcp.mjs --log=.tmp/ssh-stub.log）
 .tmp/
+.workbuddy
