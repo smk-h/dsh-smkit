@@ -1,6 +1,6 @@
 /**
  * The key/value row list the server form uses for environment variables and
- * both header maps: a label, one `mm_kv` row per entry (two inputs + a remove
+ * both header maps: a label, one `smkit-mcp-form-kv` row per entry (two inputs + a remove
  * button), and an add button.
  *
  * The rows-to-object conversions live here too, next to the only shape they
@@ -56,7 +56,7 @@ export function createKeyValueEditor(deps: ClientDeps): (props: KeyValueEditorPr
       <label className="wide">
         {label}
         {rows.map((entry, i) => (
-          <div className="mm_kv" key={i}>
+          <div className="smkit-mcp-form-kv" key={i}>
             <input
               value={entry.key}
               onChange={(e) =>
@@ -80,7 +80,7 @@ export function createKeyValueEditor(deps: ClientDeps): (props: KeyValueEditorPr
               placeholder={valuePlaceholder}
             />
             <button
-              className="mm_btn"
+              className="smkit-ui-button"
               onClick={() => onChange(rows.filter((_, index) => index !== i))}
               disabled={busy}
             >
@@ -89,7 +89,7 @@ export function createKeyValueEditor(deps: ClientDeps): (props: KeyValueEditorPr
           </div>
         ))}
         <button
-          className="mm_btn"
+          className="smkit-ui-button"
           onClick={() => onChange([...rows, { ...EMPTY_KEY_VALUE_ROW }])}
           disabled={busy}
         >

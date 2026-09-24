@@ -19,7 +19,7 @@
  * tab's rules so both read as one settings dialog.
  */
 
-.mi_panel {
+.smkit-cs-model-input-panel {
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -28,26 +28,26 @@
 /* The tab's own heading, sized under the page title above the strip — see the
  * same reasoning in `retry.css`. The count is the models this page can show,
  * not the routes, because a route is a container here and a model the row. */
-.mi_catalogHeading {
+.smkit-cs-model-input-catalog-heading {
   align-items: baseline;
   gap: 7px;
   padding: 0 2px;
   display: flex;
 }
-.mi_catalogHeading h3 {
+.smkit-cs-model-input-catalog-heading h3 {
   font-size: 15px;
   font-weight: 600;
   line-height: 22px;
   margin: 0;
 }
-.mi_catalogHeading span {
+.smkit-cs-model-input-catalog-heading span {
   color: var(--dsw-alias-label-tertiary);
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   line-height: 18px;
 }
 
-.mi_intro,.mi_note {
+.smkit-cs-model-input-intro,.smkit-cs-model-input-note {
   margin: 0;
   padding: 0 2px;
   font-size: 12px;
@@ -55,21 +55,21 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-.mi_meta {
+.smkit-cs-model-input-meta {
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
   word-break: break-all;
 }
 
-.mi_cards {
+.smkit-cs-model-input-cards {
   grid-template-columns: minmax(0,1fr);
   align-items: start;
   gap: 10px;
   display: grid;
 }
 
-.mi_route {
+.smkit-cs-model-input-route {
   color: var(--dsw-alias-label-tertiary);
   font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   font-size: 12px;
@@ -79,7 +79,7 @@
 /* What a collapsed card still says about its models: how many there are, and
  * how many of them take pictures. The card is closed, so these numbers are the
  * reason to open it. */
-.mi_summary {
+.smkit-cs-model-input-summary {
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   line-height: 18px;
@@ -93,7 +93,7 @@
  * The head does not squeeze. The name's column is the only piece that gives,
  * and it ellipsises before it vanishes; the body's pieces travel as whole lines
  * that wrap below their own right edge instead. */
-.mi_modelCard {
+.smkit-cs-model-input-model-card {
   border: 0.5px solid var(--dsw-alias-border-l4);
   flex-direction: column;
   gap: 2px;
@@ -102,7 +102,7 @@
   display: flex;
 }
 
-.mi_modelHead {
+.smkit-cs-model-input-model-head {
   align-items: center;
   row-gap: 6px;
   column-gap: 6px;
@@ -115,7 +115,7 @@
  * caret button beside them. The two boxes split the row evenly. Each keeps a
  * floor worth reading; under the floors the tail falls to a line of its own
  * rather than squeezing a box to nothing. */
-.mi_modelId,.mi_modelName {
+.smkit-cs-model-input-model-id,.smkit-cs-model-input-model-name {
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: 8px;
   background: var(--dsw-alias-bg-layer-1);
@@ -129,7 +129,7 @@
   display: flex;
 }
 
-.mi_modelId {
+.smkit-cs-model-input-model-id {
   color: var(--dsw-alias-label-tertiary);
   font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   font-size: 12px;
@@ -137,7 +137,7 @@
   flex: 1 1 100px;
 }
 
-.mi_modelName {
+.smkit-cs-model-input-model-name {
   font-size: 13px;
   line-height: 20px;
   color: var(--dsw-alias-label-primary);
@@ -147,7 +147,7 @@
 /* The head's right-hand end: the caret and the dot travel as one piece and
  * hold the row's edge with a margin, so a wrapped head still ends the same
  * way. */
-.mi_headTail {
+.smkit-cs-model-input-head-tail {
   margin-left: auto;
   align-items: center;
   gap: 6px;
@@ -159,12 +159,12 @@
  * right edge, the host's caret as a button of its own. The disclosure keeps
  * the row, the caret keeps its 28px square, so the two sit side by side and
  * the labels give before the caret ever does. */
-.mi_cardHead {
+.smkit-cs-model-input-card-head {
   align-items: center;
   gap: 6px;
   display: flex;
 }
-.mi_cardHead>.mm_cardContent {
+.smkit-cs-model-input-card-head>.smkit-ui-disclosure-card-content {
   min-width: 0;
   flex: 1;
 }
@@ -173,7 +173,7 @@
  * until hovered, holding the 14px caret its own `IconChevron` draws — the caret
  * turning a quarter-clockwise while the card is open, on the host's 120ms.
  * Both cards use it: the route card's head and each model mini-card. */
-.mi_caretBtn {
+.smkit-cs-model-input-caret-btn {
   box-sizing: border-box;
   width: 28px;
   height: 28px;
@@ -188,21 +188,21 @@
   display: inline-flex;
   flex: none;
 }
-.mi_caretBtn:hover {
+.smkit-cs-model-input-caret-btn:hover {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
-.mi_caret {
+.smkit-cs-model-input-caret {
   transition: transform 120ms ease;
 }
-.mi_caretBtn[data-open=true] .mi_caret {
+.smkit-cs-model-input-caret-btn[data-smkit-open=true] .smkit-cs-model-input-caret {
   transform: rotate(90deg);
 }
 
 /* The opened body: the boxes hold the left edge, the way back keeps the right
  * one, and at a width that cannot pay for both the button falls to a line of
  * its own with the edge it had. */
-.mi_modelBody {
+.smkit-cs-model-input-model-body {
   align-items: center;
   row-gap: 6px;
   column-gap: 10px;
@@ -215,11 +215,11 @@
  * rather than a growing column, so they stay there on their own line once the
  * body wraps — and are cut to the measure of the boxes they sit beside: the
  * platform check chip's, the same height, the same corner, the same inside
- * edge, one line of words. `mm_btn` already carries the hairline, the
+ * edge, one line of words. `smkit-ui-button` already carries the hairline, the
  * transparent fill and the 12px type, so only these travel. The measures are
  * stated as literals rather than borrowed because a stylesheet cannot read
  * another rule's numbers; if the chip's measure moves, these move with it. */
-.mi_bodyTail {
+.smkit-cs-model-input-body-tail {
   margin-left: auto;
   align-items: center;
   column-gap: 6px;
@@ -228,7 +228,7 @@
   display: inline-flex;
 }
 
-.mi_bodyBtn {
+.smkit-cs-model-input-body-btn {
   border-radius: 7px;
   min-height: 26px;
   align-items: center;
@@ -241,7 +241,7 @@
  * buttons — a 100% basis in the wrapping body, so it never squeezes them off
  * their row. Quiet label type while it only reports; the platform's error
  * colour when the check itself failed. */
-.mi_detectNote {
+.smkit-cs-model-input-detect-note {
   flex-basis: 100%;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
@@ -249,6 +249,6 @@
   min-width: 0;
 }
 
-.mi_detectNote[data-failed=true] {
+.smkit-cs-model-input-detect-note[data-smkit-failed=true] {
   color: var(--dsw-alias-state-error-primary);
 }

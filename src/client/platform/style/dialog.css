@@ -4,10 +4,10 @@
  * One part of the platform layer's stylesheet, which `platform/styles.ts`
  * imports and joins. The dialog serves every feature — the MCP row deletes and
  * the session-header control all open it — so its rules live here, including
- * the `mm_dialogWide` variant a caller needs when it passes a fact block.
+ * the `smkit-ui-dialog-wide` variant a caller needs when it passes a fact block.
  */
 
-.mm_overlay {
+.smkit-ui-dialog-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.45);
@@ -18,7 +18,7 @@
   z-index: 1000;
 }
 
-.mm_dialog {
+.smkit-ui-dialog {
   background: var(--dsw-alias-bg-layer-3);
   border: 1px solid var(--dsw-alias-border-l1);
   border-radius: 12px;
@@ -31,20 +31,20 @@
   gap: 12px;
 }
 
-.mm_dialogTitle {
+.smkit-ui-dialog-title {
   font-size: 15px;
   font-weight: 600;
   line-height: 22px;
   color: var(--dsw-alias-label-primary);
 }
 
-.mm_dialogBody {
+.smkit-ui-dialog-body {
   font-size: 13px;
   line-height: 20px;
   color: var(--dsw-alias-label-secondary);
 }
 
-.mm_dialogActions {
+.smkit-ui-dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -52,6 +52,6 @@
 
 /* The delete dialog carries a fact block, so it needs more width than the
  * 360px default: absolute host paths wrap badly in a narrow column. */
-.mm_dialogWide {
+.smkit-ui-dialog-wide {
   max-width: 520px;
 }

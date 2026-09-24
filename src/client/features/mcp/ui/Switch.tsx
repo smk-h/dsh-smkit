@@ -19,20 +19,20 @@ export function createSwitch(deps: ClientDeps): (props: SwitchProps) => JSX.Elem
 
   return function Switch({ on, text, busy, onToggle, ariaLabel }: SwitchProps): JSX.Element {
     return (
-      <span className="mm_switchRow">
+      <span className="smkit-mcp-switch-row">
         <button
-          className="mm_switch"
+          className="smkit-mcp-switch"
           type="button"
           role="switch"
-          data-on={on ? 'true' : undefined}
+          data-smkit-on={on ? 'true' : undefined}
           aria-checked={on}
           aria-label={ariaLabel}
           onClick={onToggle}
           disabled={busy}
         >
-          <span className="mm_switchThumb" />
+          <span className="smkit-mcp-switch-thumb" />
         </button>
-        <span className="mm_switchText">{text}</span>
+        <span className="smkit-mcp-switch-text">{text}</span>
       </span>
     )
   }

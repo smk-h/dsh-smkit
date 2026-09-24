@@ -194,7 +194,7 @@ function makeWorkspace(label, serverName, url) {
 }
 
 async function workspaceRows(handler) {
-  const listed = await request(handler, 'GET', '/mcp-manager/api/workspaces')
+  const listed = await request(handler, 'GET', '/smkit/api/workspaces')
   return listed.json.workspaces
 }
 
@@ -264,7 +264,7 @@ it('keeps the same-workspace and global-tier rules', async (t) => {
 
   // Same workspace, same name: the config file is the authority, and adding a
   // second entry under that name would silently replace the first.
-  const inWorkspace = await request(handler, 'POST', '/mcp-manager/api/workspaces/servers', {
+  const inWorkspace = await request(handler, 'POST', '/smkit/api/workspaces/servers', {
     path: ws,
     name: 'dup',
     type: 'http',
@@ -276,7 +276,7 @@ it('keeps the same-workspace and global-tier rules', async (t) => {
 
   // The global tier still refuses a name a live workspace holds: its tools land
   // in the shared root registry, where both surfaces would be visible at once.
-  const global = await request(handler, 'POST', '/mcp-manager/api/servers', {
+  const global = await request(handler, 'POST', '/smkit/api/servers', {
     name: 'dup',
     type: 'http',
     url: 'http://127.0.0.1:1/mcp',

@@ -40,14 +40,14 @@ export function createServerDetails(
     status = server.status,
   }: ServerDetailsProps): Array<JSX.Element | null> {
     return [
-      <div className="mm_url" key="transport">
+      <div className="smkit-mcp-card-url" key="transport">
         {server.type === 'stdio'
           ? `stdio · ${server.command} ${(server.args || []).join(' ')}`
           : `${server.authMode === 'oauth' ? 'OAuth' : server.authMode === 'none' ? t('noAuth') : t('staticToken')} · ${server.url}`}
       </div>,
       status === 'connected' ? <ToolList t={t} tools={server.tools} key="tools" /> : null,
       server.error ? (
-        <div className="mm_err" key="error">
+        <div className="smkit-ui-field-error" key="error">
           {server.error}
         </div>
       ) : null,

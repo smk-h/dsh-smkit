@@ -5,7 +5,7 @@
  * One part per stylesheet owner: the page's own rules (the tab strip and the
  * panels beneath it), then the tabs', in strip order. The platform layer's
  * stylesheet is injected first, so the pieces a tab wears that the whole plugin
- * shares (`mm_btn` buttons, `mm_err` error lines) resolve there.
+ * shares (`smkit-ui-button` buttons, `smkit-ui-field-error` error lines) resolve there.
  *
  * The settings-nav mask this page used to paint lives in the merged section now
  * (`src/client/settings.ts`): one nav row stands for all three pages.

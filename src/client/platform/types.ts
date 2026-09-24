@@ -128,10 +128,13 @@ export interface ClientContext {
   /**
    * Cordis's service publication: the mirror image of `inject`, handing a
    * named service to whoever declares it. The theme center publishes its
-   * programmatic API through it (`dshTheme`) so a sibling plugin can drive
+   * programmatic API through it (`smkitTheme`) so a sibling plugin can drive
    * themes without reaching into `window`. Optional because the harnesses
    * that mount the client half in Node provide reflection reads, not
    * publication.
+   *
+   * The name is the plugin's own: Cordis throws on a second registration of one
+   * service name, and `dsh-theme` already publishes `dshTheme`.
    */
   provide?: (name: string, value: unknown) => void
 }
@@ -149,9 +152,9 @@ export interface SlotOptions {
   locale: string
 }
 
-/** One stylesheet a feature ships, keyed by its `data-plugin-css` name. */
+/** One stylesheet a feature ships, keyed by its `data-smkit-css` name. */
 export interface FeatureStylesheet {
-  /** Suffix after `dsh-mcp-manager/` — `mcp`, `mcp/nav-icon`, `custom-settings`. */
+  /** Suffix after `smkit/` — `mcp`, `mcp/nav-icon`, `custom-settings`. */
   name: string
   css: string
 }
@@ -182,7 +185,7 @@ export interface ClientFeature {
   register(ctx: ClientContext, deps: ClientDeps, t: Translator): void
 }
 
-/** Result of one `/mcp-manager/api/*` call. */
+/** Result of one `/smkit/api/*` call. */
 export interface ApiResult {
   ok: boolean
   status: number

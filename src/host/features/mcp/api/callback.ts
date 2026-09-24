@@ -1,5 +1,5 @@
 /**
- * `GET /mcp-manager/callback/:id` — the OAuth redirect receiver.
+ * `GET /smkit/callback/:id` — the OAuth redirect receiver.
  *
  * This is a browser navigation, not a fetch, so it answers with a tiny HTML
  * page. Every failure path still trips `setServerAuthStatus` so the Settings
@@ -11,7 +11,7 @@
 import { toErrorMessage } from '../../../platform/util/text.js'
 import type { McpApiDeps, McpHandler } from './context.js'
 
-const CALLBACK_RE = /^\/mcp-manager\/callback\/([A-Za-z0-9_-]+)$/
+const CALLBACK_RE = /^\/smkit\/callback\/([A-Za-z0-9_-]+)$/
 
 function htmlPage(res: Parameters<McpHandler>[1], ok: boolean, message: string): void {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })

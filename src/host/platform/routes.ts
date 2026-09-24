@@ -12,6 +12,7 @@
  */
 
 import { sendJson } from './util/http.js'
+import { LOG_PREFIX } from './constants.js'
 import { errorText, isRecord, toErrorMessage } from './util/text.js'
 import type { LoggerLike, RequestLike, ResponseLike, RouteDefinition } from './types.js'
 
@@ -100,7 +101,7 @@ export function createPrefixRoute(options: PrefixRouteOptions): RouteDefinition 
         res.end()
       } catch (error) {
         const detail = isRecord(error) && typeof error.stack === 'string' ? error.stack : errorText(error)
-        options.logger.error(`mcp-manager api: ${detail}`)
+        options.logger.error(`${LOG_PREFIX} api: ${detail}`)
         sendJson(res, 500, { error: toErrorMessage(error) })
       }
     },

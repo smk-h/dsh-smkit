@@ -101,9 +101,9 @@ export function createReconnectForm(
       })
 
     return (
-      <div className="mm_row mm_add">
-        <div className="mm_form">
-          <div className="mm_field wide">
+      <div className="smkit-ui-disclosure-card smkit-mcp-form-add">
+        <div className="smkit-mcp-form">
+          <div className="smkit-mcp-form-field wide">
             <span>{t('autoReconnect')}</span>
             <Switch
               on={autoReconnect}
@@ -138,19 +138,19 @@ export function createReconnectForm(
             />
           </label>
         </div>
-        <div className="mm_meta">{t('reconnectHelp')}</div>
-        {error ? <div className="mm_err">{error}</div> : null}
-        <div className="mm_actions">
+        <div className="smkit-mcp-section-meta">{t('reconnectHelp')}</div>
+        {error ? <div className="smkit-ui-field-error">{error}</div> : null}
+        <div className="smkit-mcp-card-actions">
           <button
-            className="mm_btn"
+            className="smkit-ui-button"
             onClick={save}
             disabled={busy}
-            data-pending={busy ? 'true' : undefined}
+            data-smkit-pending={busy ? 'true' : undefined}
             aria-busy={busy}
           >
             {t('save')}
           </button>
-          <button className="mm_btn" onClick={restore} disabled={busy}>
+          <button className="smkit-ui-button" onClick={restore} disabled={busy}>
             {t('restoreDefault')}
           </button>
         </div>

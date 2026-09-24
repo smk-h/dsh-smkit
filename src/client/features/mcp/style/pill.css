@@ -7,26 +7,26 @@
  * string: the split is a reading aid, the order in `index.ts` decides the
  * cascade.
  *
- * Each status maps to one colour through `--mm-status-color`; the dot paints
+ * Each status maps to one colour through `--smkit-status-color`; the dot paints
  * it as a fill and the transient spinner strokes its arc with it.
  */
 
-.mm_statusDot {
-  background: var(--mm-status-color, var(--dsw-alias-label-tertiary));
+.smkit-mcp-pill-status-dot {
+  background: var(--smkit-status-color, var(--dsw-alias-label-tertiary));
   border-radius: 999px;
   flex: none;
   width: 7px;
   height: 7px;
   display: inline-block;
 }
-.mm_statusDot.connected {
-  --mm-status-color: var(--dsw-alias-state-success-primary);
+.smkit-mcp-pill-status-dot.connected {
+  --smkit-status-color: var(--dsw-alias-state-success-primary);
 }
-.mm_statusDot.needs-auth,.mm_statusDot.authorizing,.mm_statusDot.connecting,.mm_statusDot.reconnecting {
-  --mm-status-color: var(--dsw-alias-state-business-primary);
+.smkit-mcp-pill-status-dot.needs-auth,.smkit-mcp-pill-status-dot.authorizing,.smkit-mcp-pill-status-dot.connecting,.smkit-mcp-pill-status-dot.reconnecting {
+  --smkit-status-color: var(--dsw-alias-state-business-primary);
 }
-.mm_statusDot.error,.mm_statusDot.conflict {
-  --mm-status-color: var(--dsw-alias-state-error-primary);
+.smkit-mcp-pill-status-dot.error,.smkit-mcp-pill-status-dot.conflict {
+  --smkit-status-color: var(--dsw-alias-state-error-primary);
 }
 
 /* A connection that is being established or rebuilt
@@ -36,13 +36,13 @@
  * (McpContent's `statusPreviews`), so the indicator no longer waits for the
  * 3-second poll that feeds it; `reconnecting` arrives on the poll itself, from
  * the supervisor's retry. */
-.mm_statusDot[data-spin=true] {
+.smkit-mcp-pill-status-dot[data-smkit-spin=true] {
   width: auto;
   height: auto;
   background: transparent;
   display: inline-flex;
 }
-.mm_badge {
+.smkit-mcp-pill-badge {
   background: var(--dsw-alias-bg-layer-1);
   min-height: 20px;
   color: var(--dsw-alias-label-secondary);
@@ -54,18 +54,18 @@
   display: inline-flex;
   transition: background-color .2s ease, color .2s ease, opacity .2s ease;
 }
-.mm_badge.connected {
+.smkit-mcp-pill-badge.connected {
   background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
   color: var(--dsw-alias-state-success-primary);
 }
-.mm_badge.error,.mm_badge.conflict {
+.smkit-mcp-pill-badge.error,.smkit-mcp-pill-badge.conflict {
   background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
   color: var(--dsw-alias-state-error-primary);
 }
-.mm_badge.needs-auth,.mm_badge.authorizing,.mm_badge.connecting,.mm_badge.reconnecting {
+.smkit-mcp-pill-badge.needs-auth,.smkit-mcp-pill-badge.authorizing,.smkit-mcp-pill-badge.connecting,.smkit-mcp-pill-badge.reconnecting {
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
   color: var(--dsw-alias-state-business-primary);
 }
-.mm_badge.disabled {
+.smkit-mcp-pill-badge.disabled {
   color: var(--dsw-alias-label-tertiary);
 }

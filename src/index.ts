@@ -25,7 +25,7 @@ import type { ServiceAccessor } from './host/platform/types.js'
 export type { PluginContext }
 
 /** Display metadata for loader diagnostics. */
-export const name = 'mcp-manager'
+export const name = 'dsh-smkit'
 
 /** Host-side hard dependency: every tier registers tools through `ctx.tools`. */
 export const inject = ['tools']

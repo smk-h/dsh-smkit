@@ -8,7 +8,7 @@
  * package root; package.json ships with the package, so the read works both in
  * the repo and installed into a profile.
  *
- * The HTTP surface (`/mcp-manager/...`) is declared here rather than with the
+ * The HTTP surface (`/smkit/...`) is declared here rather than with the
  * feature that serves it: it is the prefix the package owns, and every route —
  * MCP's and the session delete's — mounts under the same one.
  */
@@ -25,17 +25,12 @@ export const PLUGIN_ID = name
 /** Package version, for the surfaces that must quote it (the MCP client info). */
 export const PLUGIN_VERSION = version
 
-/** `ctx.logger` message prefix. */
-export const LOG_PREFIX = 'mcp-manager'
-
-/** Prefix route the GUI webserver mounts. */
-export const ROUTE_PATH = '/mcp-manager'
-
-/** JSON API base, mounted on the DSH GUI webserver. */
-export const API_PREFIX = '/mcp-manager/api'
-
-/** OAuth redirect receiver prefix. */
-export const CALLBACK_PATH = '/mcp-manager/callback'
+/**
+ * The HTTP surface lives in `shared/http.ts`, because the browser half fetches
+ * these same paths and is built by a different toolchain. Re-exported here so
+ * every host feature keeps importing them from the platform constants.
+ */
+export { API_PREFIX, CALLBACK_PATH, LOG_PREFIX, ROUTE_PATH } from '../../shared/http.js'
 
 /** Cap applied to error strings persisted into live status. */
 export const MAX_ERROR_LENGTH = 300

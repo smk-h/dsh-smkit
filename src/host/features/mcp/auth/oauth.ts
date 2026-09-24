@@ -85,7 +85,7 @@ export function createOAuth(runtime: Runtime, deps: OAuthDeps): OAuthService {
     if (server.oauth?.clientId && server.oauth.redirect === redirect) return server.oauth.clientId
     const regEndpoint = md.registration_endpoint ?? `${issuerOf(server)}/register`
     const resp = await httpPostJson(regEndpoint, {}, {
-      client_name: `dsh-mcp-manager-${server.name}`,
+      client_name: `smkit-${server.name}`,
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
       token_endpoint_auth_method: 'none',

@@ -46,7 +46,7 @@ const NAV_GLYPH = iconMaskDataUri(SETTINGS2_SPEC)
  * code can produce. The platform layer's `style/settings-nav.css` consumes it
  * on every marked row; this rule supplies it on this section's row alone,
  * keyed by the marker's value. */
-const NAV_GLYPH_RULE = `[${SETTINGS_NAV_ATTRIBUTE}='smkit']{--dsh-smkit-nav-glyph:url("${NAV_GLYPH}")}`
+const NAV_GLYPH_RULE = `[${SETTINGS_NAV_ATTRIBUTE}='smkit']{--smkit-shell-nav-glyph:url("${NAV_GLYPH}")}`
 
 /**
  * The section component, built once for the life of the module: it closes over
@@ -91,7 +91,7 @@ export const settingsFeature: ClientFeature = {
     // adaptation HMR-safe.
     ctx.effect(
       () => markSettingsNavRow('smkit', () => t('sectionLabel')),
-      'dsh-mcp-manager: merged settings nav row',
+      'smkit: merged settings nav row',
     )
     // Each panel reads its own namespace: the seat binds this shell's, but the
     // words inside a page still belong to the feature that wrote them.

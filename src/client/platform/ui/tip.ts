@@ -1,5 +1,5 @@
 /**
- * Auto-clamping for the `.mm_tip` hover bubbles.
+ * Auto-clamping for the `.smkit-ui-tip` hover bubbles.
  *
  * The bubble is a `::after` pseudo-element centered above its element (the
  * rules live in `platform/style/tip.css`, so every page that marks an element
@@ -9,8 +9,8 @@
  * elements with alignment variants, the bubble's horizontal shift is a CSS
  * variable: one delegated `pointerover` measures the rendered pseudo-element,
  * walks the element's ancestors for real clip boundaries, and writes the
- * smallest shift that keeps the bubble inside them into `--mm-tip-shift`
- * (consumed by `.mm_tip::after`'s transform). Removing the variable on leave
+ * smallest shift that keeps the bubble inside them into `--smkit-ui-tip-shift`
+ * (consumed by `.smkit-ui-tip::after`'s transform). Removing the variable on leave
  * resets for the next hover; `focusin` covers the keyboard path, whose tooltip
  * shows without any pointer event.
  *
@@ -91,14 +91,14 @@ function clampTip(button: HTMLElement): void {
   let shift = 0
   if (center - width / 2 < left) shift = left - (center - width / 2)
   else if (center + width / 2 > right) shift = right - (center + width / 2)
-  button.style.setProperty('--mm-tip-shift', `${shift}px`)
+  button.style.setProperty('--smkit-ui-tip-shift', `${shift}px`)
 }
 
 /**
  * Install the document-level listeners; returns the uninstaller for the
  * caller's effect cleanup. Delegation means one listener set serves every
- * `.mm_tip` on the page, present and future, and no element opts in beyond
- * carrying the class and its `data-tip` label.
+ * `.smkit-ui-tip` on the page, present and future, and no element opts in beyond
+ * carrying the class and its `data-smkit-tip` label.
  */
 export function watchTipBoundaries(): () => void {
   // `document` is absent outside a browser (the hook test harness runs the
@@ -110,24 +110,24 @@ export function watchTipBoundaries(): () => void {
   const over = (event: PointerEvent): void => {
     const target = event.target
     if (target instanceof Element) {
-      const button = target.closest<HTMLElement>('.mm_tip')
+      const button = target.closest<HTMLElement>('.smkit-ui-tip')
       if (button) clampTip(button)
     }
   }
   const out = (event: PointerEvent): void => {
     const target = event.target
     if (!(target instanceof Element)) return
-    const button = target.closest<HTMLElement>('.mm_tip')
+    const button = target.closest<HTMLElement>('.smkit-ui-tip')
     if (!button) return
     // Moving between the element's own children fires `pointerout` too; only a
     // leave that no longer lands inside it clears the shift.
     const related = event.relatedTarget
     if (related instanceof Node && button.contains(related)) return
-    button.style.removeProperty('--mm-tip-shift')
+    button.style.removeProperty('--smkit-ui-tip-shift')
   }
   const focusin = (event: FocusEvent): void => {
     const target = event.target
-    if (target instanceof Element && target.matches('.mm_tip')) clampTip(target as HTMLElement)
+    if (target instanceof Element && target.matches('.smkit-ui-tip')) clampTip(target as HTMLElement)
   }
   document.addEventListener('pointerover', over)
   document.addEventListener('pointerout', out)

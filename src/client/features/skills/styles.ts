@@ -10,7 +10,7 @@
  * parts are namespaced `sk_*` and raise specificity by adding a class, so no
  * rule's winner depends on this order; keep it in reading order anyway. The
  * platform layer's stylesheet is injected before this one, which is also what
- * lets `.sk_detail` widen the platform's `.mm_dialog` cap.
+ * lets `.smkit-skill-detail` widen the platform's `.smkit-ui-dialog` cap.
  *
  * The settings-nav mask this section used to paint lives in the merged section
  * now (`src/client/settings.ts`): one nav row stands for all three pages.

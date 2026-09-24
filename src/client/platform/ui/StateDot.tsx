@@ -52,8 +52,8 @@ export function createStateDot(deps: ClientDeps): (props: StateDotProps) => JSX.
     const named = label !== undefined
     return (
       <span
-        className={className === undefined ? 'mm_stateDot' : `mm_stateDot ${className}`}
-        data-state={state}
+        className={className === undefined ? 'smkit-ui-state-dot' : `smkit-ui-state-dot ${className}`}
+        data-smkit-state={state}
         style={{ width: `${size ?? DEFAULT_SIZE}px`, height: `${size ?? DEFAULT_SIZE}px` }}
         role={named ? 'img' : undefined}
         aria-label={label}

@@ -19,6 +19,23 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { it } from 'node:test'
+import {
+  DATA_ROOT,
+  FOREIGN_DATA_ATTRS,
+  FROZEN,
+  HOST_PROPERTY_ROOT,
+  MODIFIERS,
+  PROPERTY_ROOT,
+  ROOT,
+  dataAttributes,
+  definedProperties,
+  findStylesheets,
+  prefixesOf,
+  referencedClasses,
+  sheetViolations,
+  usedProperties,
+  withoutComments,
+} from '../scripts/namespace-guard.mjs'
 
 const SRC_DIR = fileURLToPath(new URL('../src', import.meta.url))
 
@@ -81,6 +98,107 @@ it('keeps the platform layer from importing any feature', () => {
         `${rel(file)} imports ${spec}: the platform layer must not know a feature`,
       )
     }
+  }
+})
+
+/**
+ * The namespace guards: every name this plugin puts on the page has to carry
+ * the root it is nameable under.
+ *
+ * The prefix scheme replaced a dozen hand-kept ones (`mm_`, `sk_`, `dt_`,
+ * `dsh-theme-set*` …) that had quietly cross-pollinated — the platform layer
+ * was wearing the MCP feature's `mm_`, one feature carried four different
+ * prefixes, and some of them squatted on `dsh-`, which belongs to the host.
+ * None of that was written down anywhere enforceable, which is exactly why it
+ * drifted.
+ *
+ * A stylesheet owns `smkit-<scope>-<sheet>` plus anything hanging off it, and
+ * that is derived from its path rather than remembered. Components are checked
+ * more loosely — reaching for another layer's button is legitimate — so what is
+ * enforced there is only that the name is ours at all.
+ *
+ * The class rule is applied from `scripts/namespace-guard.mjs` rather than
+ * written here, because the bundler applies the same one (`tsdown.config.ts`):
+ * a sheet that would fail below cannot be built either. The attribute and
+ * property rules have no such counterpart, but they are the two that were
+ * missing when a rename left `data-on` behind in a tool and nothing noticed —
+ * the class guard covered the class names in the same file and said nothing
+ * about the attribute beside them.
+ *
+ * Prose is stripped first (`withoutComments`): these files explain themselves
+ * at length and name the very things they must not carry.
+ */
+const CLIENT_DIR = `${SRC_DIR}/client`
+const SHEETS = findStylesheets(CLIENT_DIR, SRC_DIR)
+const PREFIXES = prefixesOf(SHEETS)
+
+/** Every file the attribute and property guards read. */
+const nameBearingFiles = () => [
+  ...walk(CLIENT_DIR, (path) => path.endsWith('.css')),
+  ...walk(CLIENT_DIR, isTypeScript),
+]
+
+it('keeps every class inside the namespace of some stylesheet', () => {
+  for (const file of SHEETS) {
+    const css = readFileSync(`${SRC_DIR}/${file}`, 'utf8')
+    const messages = sheetViolations(file, css, PREFIXES)
+    assert.deepEqual(messages, [], `\n${messages.join('\n')}\n`)
+  }
+})
+
+it('keeps every class a component asks for inside the plugin namespace', () => {
+  for (const file of walk(CLIENT_DIR, isTypeScript)) {
+    for (const name of referencedClasses(readFileSync(file, 'utf8'))) {
+      if (MODIFIERS.includes(name)) continue
+      assert.ok(
+        name.startsWith(`${ROOT}-`),
+        `${rel(file)}: "${name}" is outside the plugin namespace — every class a component wears must start with ${ROOT}-`,
+      )
+    }
+  }
+})
+
+it('keeps every data attribute this plugin writes inside its own namespace', () => {
+  for (const file of nameBearingFiles()) {
+    const source = withoutComments(readFileSync(file, 'utf8'))
+    for (const name of dataAttributes(source)) {
+      if (FOREIGN_DATA_ATTRS.includes(name)) continue
+      assert.ok(
+        name.startsWith(`${DATA_ROOT}-`),
+        `${rel(file)}: "${name}" — a data attribute this plugin reads or writes must start with ${DATA_ROOT}-, unless the host owns it and it is listed in FOREIGN_DATA_ATTRS`,
+      )
+    }
+  }
+})
+
+it('namespaces every custom property this plugin defines and reads', () => {
+  for (const file of nameBearingFiles()) {
+    const source = withoutComments(readFileSync(file, 'utf8'))
+    for (const name of definedProperties(source)) {
+      assert.ok(
+        name.startsWith(`${PROPERTY_ROOT}-`),
+        `${rel(file)}: defines "${name}" — a custom property this plugin owns must start with ${PROPERTY_ROOT}-`,
+      )
+    }
+    for (const name of usedProperties(source)) {
+      assert.ok(
+        name.startsWith(`${PROPERTY_ROOT}-`) || name.startsWith(`${HOST_PROPERTY_ROOT}-`),
+        `${rel(file)}: reads "${name}" — a plugin stylesheet may read its own ${PROPERTY_ROOT}-* properties or the shell's ${HOST_PROPERTY_ROOT}-* tokens, and nothing else`,
+      )
+    }
+  }
+})
+
+it('keeps the names that are deliberately not renamed', () => {
+  for (const frozen of FROZEN) {
+    const file = `${SRC_DIR.replace(/src$/, '')}${frozen.where}`
+    assert.ok(existsSync(file), `frozen name ${frozen.name}: ${frozen.where} is gone`)
+    const source = readFileSync(file, 'utf8')
+    assert.ok(
+      source.includes(frozen.name),
+      `${frozen.where} no longer contains "${frozen.name}" — ${frozen.why}. ` +
+        `If the rename is intended, change FROZEN in scripts/namespace-guard.mjs in the same commit.`,
+    )
   }
 })
 

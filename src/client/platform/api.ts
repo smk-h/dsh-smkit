@@ -1,17 +1,18 @@
 /**
  * The only channel between the browser half and the host half: same-origin
- * JSON calls under `/mcp-manager/api`.
+ * JSON calls under `/smkit/api`.
  *
  * The client never touches Node APIs and the host never renders UI, so every
  * piece of state (servers, workspaces, settings) flows through here and is
  * polled by `McpContent` every 3 seconds.
  */
 
+import { API_PREFIX } from '../../shared/http'
 import type { ApiFn, ApiResult, StreamFn } from './types'
 
 export function createApi(): ApiFn {
   function api(path: string, options?: RequestInit): Promise<ApiResult> {
-    return fetch('/mcp-manager/api' + path, {
+    return fetch(API_PREFIX + path, {
       headers: { 'Content-Type': 'application/json' },
       ...options,
     }).then(async (resp) => ({
@@ -41,7 +42,7 @@ export function createStream(): StreamFn {
     options: RequestInit,
     onEvent: (event: Record<string, any>) => void,
   ): Promise<void> {
-    const resp = await fetch('/mcp-manager/api' + path, {
+    const resp = await fetch(API_PREFIX + path, {
       headers: { 'Content-Type': 'application/json' },
       ...options,
     })

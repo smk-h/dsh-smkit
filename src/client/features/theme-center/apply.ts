@@ -2,11 +2,11 @@
  * What applying a theme of the center is: one body attribute and one
  * stylesheet swap.
  *
- * Every theme's rules are scoped on `body[data-dsh-theme="<id>"]` (its dark
+ * Every theme's rules are scoped on `body[data-smkit-theme="<id>"]` (its dark
  * variant on the same scope plus the shell's own `data-ds-dark-theme`), so
  * the applier's job is to keep exactly the chosen theme's attribute on the
  * body and its CSS in a dedicated `<style>` element — swapped by
- * `id="dsh-theme-active-style"`, reused across hot re-applies so a reload
+ * `id="smkit-theme-active-style"`, reused across hot re-applies so a reload
  * can never stack copies. The element stays apart from every feature's own
  * stylesheets: no theme change, however violent, can wipe the settings
  * chrome that paints itself.
@@ -14,17 +14,27 @@
  * The choice and the display mode persist under the plugin's own `smkit:`
  * prefix — the same namespace the skins used and the one the local-cache tab
  * promises to leave alone — taking over the keys of every earlier revision
- * once on first read and deleting them: `smkit:skin` from the retired skin
- * feature, whose values are this center's ids, and this center's own former
- * `dsh-theme:` and `dsh-theme-pack:` pairs. The mode is the row's own day/night
+ * once on first read: `smkit:skin` from the retired skin feature, whose values
+ * are this center's ids. The mode is the row's own day/night
  * override: light and dark drive the shell's dark attribute directly, `system`
  * leaves it to the built-in appearance setting — which is also why restoring
  * writes the attribute only for the two explicit modes.
  *
+ * Nothing outside `smkit:` is ever removed, and every name a coexisting
+ * `dsh-theme` install still uses is out of reach — see `LS_LEGACY_*` and
+ * `LEGACY_STYLE_ID` for the two places that used to reach in.
+ *
  * The whole state lives at module level behind a tiny pub/sub, because the
- * API is meant to outlive the settings row: `window.dshTheme` and the
- * `dshTheme` service drive the same state the cards paint, and a programmatic
- * switch moves the cards' selection ring with it.
+ * API is meant to outlive the settings row: `window.smkitTheme` and the
+ * `smkitTheme` service drive the same state the cards paint, and a
+ * programmatic switch moves the cards' selection ring with it.
+ *
+ * Both used to be called `dshTheme`, which is `dsh-theme`'s own name — that
+ * plugin calls `ctx.provide('dshTheme', …)` too, and Cordis throws on a second
+ * registration of one service name, taking the whole client entry down with it.
+ * Publishing under our own name is what lets the two coexist; the service call
+ * is additionally wrapped, because a future collision should cost the
+ * publication, not the entry.
  */
 
 import { THEMES, type ThemeDef } from './themes.data'
@@ -43,7 +53,7 @@ export interface ThemeInfo {
   tags: readonly string[]
 }
 
-/** The programmatic face of the center, published on `window.dshTheme`. */
+/** The programmatic face of the center, published on `window.smkitTheme`. */
 export interface ThemeCenterApi {
   /** Every theme of the center, in card order. */
   list(): ThemeInfo[]
@@ -62,22 +72,51 @@ export interface ThemeCenterApi {
   getMode(): ThemeMode
 }
 
-const THEME_ATTR = 'data-dsh-theme'
-const DARK_ATTR = 'data-ds-dark-theme'
+/**
+ * The body attribute that scopes every theme's rules, exported because three
+ * other places have to name it and must not disagree about it: this module's
+ * own `setAttribute`, the two `MutationObserver`s that watch for a theme swap
+ * (`ThemeCenterRow`, `PalettePanel`), and the data build that rewrites each
+ * ported stylesheet onto this attribute (`scripts/build-theme-data.mjs`).
+ *
+ * It used to be `data-dsh-theme`, inherited from the days when themes were a
+ * separate plugin — and shared with it, down to this very attribute.
+ */
+export const THEME_ATTR = 'data-smkit-theme'
+/** The shell's own day/night flag — not ours, so it keeps the host's name. */
+export const DARK_ATTR = 'data-ds-dark-theme'
 const LS_THEME = 'smkit:theme'
 const LS_MODE = 'smkit:theme-mode'
 /**
  * The keys the choice and the mode used to live under, newest first. A browser
  * that upgrades with a skin or a theme selected must land on the same look, so
- * every predecessor is read forward into the live key and then cleared.
+ * every predecessor is read forward into the live key.
+ *
  * `smkit:skin` is the retired skin feature's key — its values were this
- * center's ids, which is what the merge of the two features turned on — and
- * the `dsh-theme:` pair and the `dsh-theme-pack:` pair are this center's own
- * earlier names.
+ * center's ids, which is what the merge of the two features turned on.
+ * `dsh-theme-pack:` is the name this lineage carried before the center
+ * existed; `dsh-theme` migrates from the very same pair, so it is read and
+ * left in place rather than deleted — a coexisting install keeps its own
+ * upgrade path.
+ *
+ * The `dsh-theme:` pair is deliberately **not** on the list. It looks like one
+ * more earlier name of ours, but `dsh-theme` declares it as its *live* keys
+ * (`LS_THEME` / `LS_MODE`, `src/client.template.js:46`), so reading them away
+ * cleared the saved theme and mode of a coexisting install on every boot.
  */
-const LS_LEGACY_THEME = ['smkit:skin', 'dsh-theme:theme', 'dsh-theme-pack:theme']
-const LS_LEGACY_MODE = ['dsh-theme:mode', 'dsh-theme-pack:mode']
-const ACTIVE_STYLE_ID = 'dsh-theme-active-style'
+const LS_LEGACY_THEME = ['smkit:skin', 'dsh-theme-pack:theme']
+const LS_LEGACY_MODE = ['dsh-theme-pack:mode']
+/** The one prefix a predecessor may be deleted under. */
+const LS_OWN = 'smkit:'
+const ACTIVE_STYLE_ID = 'smkit-theme-active-style'
+/**
+ * The `<style>` id this feature used before the rename — and the id `dsh-theme`
+ * still uses (`src/client.template.js:231`), which is why sharing it was never
+ * safe: both plugins looked it up, reused whatever they found and wrote their
+ * own sheet into it, so whichever activated last owned the element. It is only
+ * read now, and only to retire an element that is demonstrably ours.
+ */
+const LEGACY_STYLE_ID = 'dsh-theme-active-style'
 
 /** The element the applied theme's CSS rides in; null when no document (tests). */
 let themeStyleEl: HTMLStyleElement | null = null
@@ -113,12 +152,13 @@ export function currentMode(): ThemeMode {
 
 /**
  * One live key's value, carried forward from its predecessors on the first read
- * that finds it empty. Every predecessor is cleared either way — a browser that
- * already carries the live key still gets its old ones retired, so the
- * migration happens exactly once and never leaves a stale key behind to win a
- * later read. The first predecessor to carry a value wins; the rest are only
- * deleted. A denied storage throws out to `getSaved`, which is the same
- * session-unthemed outcome a private-mode browser got before.
+ * that finds it empty. The first predecessor to carry a value wins; the rest
+ * are only read. Only a predecessor under this plugin's own prefix is cleared:
+ * a browser that already carries the live key still gets its own old key
+ * retired, so the migration happens exactly once — while a key another plugin
+ * also migrates from survives for it to find. A denied storage throws out to
+ * `getSaved`, which is the same session-unthemed outcome a private-mode browser
+ * got before.
  */
 function readForward(live: string, legacy: readonly string[]): string | null {
   const current = localStorage.getItem(live)
@@ -129,7 +169,7 @@ function readForward(live: string, legacy: readonly string[]): string | null {
       carried = value
       localStorage.setItem(live, value)
     }
-    localStorage.removeItem(key)
+    if (key.startsWith(LS_OWN)) localStorage.removeItem(key)
   }
   return carried
 }
@@ -192,12 +232,25 @@ export function applyMode(next: string | null): void {
   notify()
 }
 
-/** The `window.dshTheme` surface, typed onto the window only where it is set. */
+/**
+ * Name the API publishes itself under — both as a Cordis service and as the
+ * `window` handle. It is the plugin's own name, not `dsh-theme`'s.
+ */
+const SERVICE_NAME = 'smkitTheme'
+
+/**
+ * The `window.smkitTheme` surface, typed onto the window only where it is
+ * set. The handle is the plugin's own name: `window.dshTheme` belongs to
+ * `dsh-theme`, and writing it here would silently replace that plugin's object.
+ */
 function exposeApi(api: ThemeCenterApi): void {
-  const target = window as unknown as { dshTheme: ThemeCenterApi; dshThemeCenter: ThemeCenterApi }
-  target.dshTheme = api
+  const target = window as unknown as {
+    smkitTheme: ThemeCenterApi
+    smkitThemeCenter: ThemeCenterApi
+  }
+  target.smkitTheme = api
   // The feature's own name as a second handle; both drive the same state.
-  target.dshThemeCenter = api
+  target.smkitThemeCenter = api
 }
 
 /** The programmatic API, over the same module state the cards drive. */
@@ -245,6 +298,13 @@ export function registerThemeCenter(ctx: ClientContext): void {
       if (typeof document === 'undefined' || typeof document.getElementById !== 'function') {
         return () => {}
       }
+      // Retire the swap element earlier revisions wrote into, so an upgrade
+      // does not leave a second copy of the same sheet behind. Only ours goes:
+      // the id is shared with `dsh-theme`, and the disposer below removes
+      // whatever it finds by id — deleting the host of another plugin's rules
+      // would be the same reach-in this rename exists to undo.
+      const legacy = document.getElementById(LEGACY_STYLE_ID)
+      if (legacy !== null && (legacy.textContent ?? '').includes(THEME_ATTR)) legacy.remove()
       // Reuse an existing swap element so a hot re-apply never stacks copies.
       themeStyleEl = document.getElementById(ACTIVE_STYLE_ID) as HTMLStyleElement | null
       if (themeStyleEl === null) {
@@ -258,13 +318,19 @@ export function registerThemeCenter(ctx: ClientContext): void {
       applyTheme(saved.theme)
       const api = createThemeCenterApi()
       exposeApi(api)
-      ctx.provide?.('dshTheme', api)
+      try {
+        ctx.provide?.(SERVICE_NAME, api)
+      } catch {
+        // Cordis throws when the name is already registered. Going without the
+        // service costs other plugins the handle; letting it throw costs the
+        // whole client entry, so the publication is the thing that gives.
+      }
       return () => {
         themeStyleEl?.remove()
         themeStyleEl = null
         listeners.clear()
       }
     },
-    'dsh-mcp-manager: theme-center/restore',
+    'smkit: theme-center/restore',
   )
 }

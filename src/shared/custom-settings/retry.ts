@@ -3,7 +3,7 @@
  *
  * The host projects every registered provider route and the retry policy that
  * currently applies to it into these shapes over
- * `/mcp-manager/api/llm-retry/*`; the browser half renders exactly these shapes
+ * `/smkit/api/llm-retry/*`; the browser half renders exactly these shapes
  * and posts one back.
  *
  * Type-only by design: the browser bundle is a single CommonJS script with no

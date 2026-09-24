@@ -7,7 +7,7 @@
  * side. The answer belongs to the button's line on purpose — a report about a
  * click should sit where the click was, not float at the top of the panel.
  *
- * The button itself is the platform layer's `mm_btn`: this tab borrows the
+ * The button itself is the platform layer's `smkit-ui-button`: this tab borrows the
  * shared neutral button exactly like every other page does, and declares no
  * button rules of its own.
  *
@@ -18,30 +18,30 @@
  * single piece today, and stays the join point for whatever follows.
  */
 
-.lc_panel {
+.smkit-cache-page-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.lc_intro {
+.smkit-cache-page-intro {
   margin: 0;
   padding: 0 2px;
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-secondary);
 }
-.lc_scope {
+.smkit-cache-page-scope {
   color: var(--dsw-alias-label-tertiary);
 }
 
-.lc_row {
+.smkit-cache-page-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.lc_result {
+.smkit-cache-page-result {
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-secondary);

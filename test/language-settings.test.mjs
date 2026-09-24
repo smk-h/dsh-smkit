@@ -61,7 +61,7 @@ async function request(handler, method, path, body) {
 
 it('settings omits language, rejects the removed route, and preserves legacy state', async () => {
   let handler = makeCtx().routes[0].handler
-  const get = () => request(handler, 'GET', '/mcp-manager/api/settings')
+  const get = () => request(handler, 'GET', '/smkit/api/settings')
   // The payload is exactly the settings this plugin owns: the broker switch, the
   // global tool-call timeout and the reconnection knobs — never a language of its
   // own. Absent values arrive as the defaults they stand for.
@@ -79,10 +79,10 @@ it('settings omits language, rejects the removed route, and preserves legacy sta
   handler = makeCtx().routes[0].handler
   assert.deepEqual((await get()).json, defaults)
   for (const body of [{ language: 'en' }, { language: 'zh' }, {}, null]) {
-    assert.equal((await request(handler, 'POST', '/mcp-manager/api/settings/language', body)).code, 404)
+    assert.equal((await request(handler, 'POST', '/smkit/api/settings/language', body)).code, 404)
   }
   assert.equal(JSON.parse(readFileSync(statePath, 'utf8')).language, 'zh')
-  assert.equal((await request(handler, 'POST', '/mcp-manager/api/settings/on-demand', { enabled: true })).code, 200)
+  assert.equal((await request(handler, 'POST', '/smkit/api/settings/on-demand', { enabled: true })).code, 200)
   assert.equal(JSON.parse(readFileSync(statePath, 'utf8')).language, 'zh')
   handler = makeCtx().routes[0].handler
   assert.deepEqual((await get()).json, { ...defaults, onDemandToolInjection: true })

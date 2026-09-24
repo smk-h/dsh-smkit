@@ -106,6 +106,6 @@ export function registerPaletteOverrides(ctx: ClientContext): void {
       applyColorOverrides(overrides)
       return () => removeColorOverrides(overrides)
     },
-    'dsh-mcp-manager: theme-center/palette overrides',
+    'smkit: theme-center/palette overrides',
   )
 }

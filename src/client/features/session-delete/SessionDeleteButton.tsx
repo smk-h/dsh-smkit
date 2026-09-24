@@ -250,10 +250,10 @@ export function createSessionDeleteButton(
       : (
         // A flat label/value stream laid out as a two-column grid: the rows need
         // no wrapper, and the value column takes the remaining width.
-        <div className="mm_sessionInfo">
+        <div className="smkit-del-session-delete-session-info">
           {infoRows(measured).flatMap(row => [
-            <span className="mm_sessionInfoLabel" key={`${row.label}-label`}>{row.label}</span>,
-            <span className="mm_sessionInfoValue" key={`${row.label}-value`} title={row.hint}>{row.value}</span>,
+            <span className="smkit-del-session-delete-session-info-label" key={`${row.label}-label`}>{row.label}</span>,
+            <span className="smkit-del-session-delete-session-info-value" key={`${row.label}-value`} title={row.hint}>{row.value}</span>,
           ])}
         </div>
       )
@@ -287,7 +287,7 @@ export function createSessionDeleteButton(
 
     const anchor = (
       <button
-        className="mm_iconBtn mm_sessionDelete"
+        className="smkit-ui-icon-button smkit-del-session-delete"
         type="button"
         // The shell's bubble replaces the browser's: keeping `title` as well
         // would stack a native tooltip underneath the styled one.
@@ -300,13 +300,13 @@ export function createSessionDeleteButton(
          * opened yet, so this arc is the only feedback) and the delete itself
          * once the dialog is up. */}
         {busy
-          ? <LoaderIcon className="mm_statusSpin" size={15} />
+          ? <LoaderIcon className="smkit-ui-spin" size={15} />
           : <TrashIcon size={15} />}
       </button>
     )
 
     return (
-      <span className="mm_sessionDeleteHost">
+      <span className="smkit-del-session-delete-host">
         {/* The bubble clones this one anchor and adds a fixed-position sibling
          * of its own, so the button stays exactly the control it is. `bottom`
          * plus the shell's 500ms hover delay is what DSH's own header buttons

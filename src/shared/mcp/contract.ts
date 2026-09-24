@@ -2,7 +2,7 @@
  * The wire contract of the MCP feature.
  *
  * The host projects its runtime state into these shapes and serializes them
- * over `/mcp-manager/api/*`; the browser half renders exactly these shapes.
+ * over `/smkit/api/*`; the browser half renders exactly these shapes.
  * They live outside both `src/host` and `src/client` because each half used to
  * declare its own copy — with the client quietly widening `status` to `string`,
  * so nothing caught a host-side status the UI had no label for.

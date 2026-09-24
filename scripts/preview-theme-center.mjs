@@ -13,7 +13,7 @@
  *    file. What a screenshot shows is what the row draws, at the widths the
  *    settings column gives it.
  * 2. **The rescope.** The three skins' stylesheets are injected verbatim from
- *    `themes.data.json`, which is to say scoped on `body[data-dsh-theme="<id>"]`
+ *    `themes.data.json`, which is to say scoped on `body[data-smkit-theme="<id>"]`
  *    rather than on the `body[data-dsh-<dataset>]` they shipped with. The shell
  *    demo applies them the way `apply.ts` does — the attribute on the body, the
  *    sheet swapped into one `<style>` element — and prints the computed colors
@@ -110,6 +110,10 @@ body{margin:0;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
 .note{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary);margin:0;padding-top:12px}
 h2{font-size:13px;font-weight:500;margin:0;padding:16px 0 10px;color:var(--dsw-alias-label-primary)}
 .bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-bottom:12px}
+/* The data-on attribute from here down belongs to this page's own tool bar and
+   mock shell, and is styled by the rules below. The shipped row uses
+   data-smkit-on instead; the two are unrelated — do not sweep one into the
+   other. */
 .bar select,.bar button{font-size:12px;line-height:20px;padding:3px 10px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);background:transparent;color:inherit;cursor:pointer}
 .bar button[data-on="true"]{background:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary);color:#fff}
 .shell{display:flex;height:190px;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;overflow:hidden}
@@ -131,7 +135,7 @@ h2{font-size:13px;font-weight:500;margin:0;padding:16px 0 10px;color:var(--dsw-a
 
 /** One palette chip, as the component renders it. */
 const chip = (color) =>
-  `<span class="dt_chip"><span class="dt_dot" style="background:${color}"></span><span class="dt_hex">${color}</span></span>`
+  `<span class="smkit-theme-row-chip"><span class="smkit-theme-row-dot" style="background:${color}"></span><span class="smkit-theme-row-hex">${color}</span></span>`
 
 /** One card, transcribed from `ThemeCenterRow`'s markup and style props. */
 function card(theme, active) {
@@ -145,24 +149,24 @@ function card(theme, active) {
     `--dt-night-fg:${nightFg}`,
   ].join(';')
   return `
-  <button type="button" class="dt_card" data-on="${active}" aria-pressed="${active}"
+  <button type="button" class="smkit-theme-row-card" data-smkit-on="${active}" aria-pressed="${active}"
           title="${theme.nameZh} · ${theme.name}" style="${vars}">
-    <span class="dt_prev">
-      <span class="dt_day">
-        <span class="dt_daytop"><span class="dt_aa">Aa</span><span class="dt_bub">用户消息…</span></span>
-        <span class="dt_line">${LABELS.lineSample ?? 'Sample body text'}</span>
-        <span class="dt_skel"></span>
-        <span class="dt_grade">${theme.gradeDay}</span>
+    <span class="smkit-theme-row-prev">
+      <span class="smkit-theme-row-day">
+        <span class="smkit-theme-row-daytop"><span class="smkit-theme-row-aa">Aa</span><span class="smkit-theme-row-bub">用户消息…</span></span>
+        <span class="smkit-theme-row-line">${LABELS.lineSample ?? 'Sample body text'}</span>
+        <span class="smkit-theme-row-skel"></span>
+        <span class="smkit-theme-row-grade">${theme.gradeDay}</span>
       </span>
-      <span class="dt_night">
-        <span class="dt_aa dt_aa-night">Aa</span>
-        <span class="dt_nightgrade">夜间 ${theme.gradeNight}</span>
+      <span class="smkit-theme-row-night">
+        <span class="smkit-theme-row-aa smkit-theme-row-aa-night">Aa</span>
+        <span class="smkit-theme-row-nightgrade">夜间 ${theme.gradeNight}</span>
       </span>
     </span>
-    <span class="dt_meta">
-      <span class="dt_name">${theme.nameZh}</span>
-      <span class="dt_tag">${theme.descZh}</span>
-      <span class="dt_chips">${chip(bg)}${chip(surface)}${chip(accent)}</span>
+    <span class="smkit-theme-row-meta">
+      <span class="smkit-theme-row-name">${theme.nameZh}</span>
+      <span class="smkit-theme-row-tag">${theme.descZh}</span>
+      <span class="smkit-theme-row-chips">${chip(bg)}${chip(surface)}${chip(accent)}</span>
     </span>
   </button>`
 }
@@ -188,31 +192,31 @@ const panelGroups = REGISTRY.map((group, groupIndex) => {
   const rows = group.items
     .map(
       (item, itemIndex) => `
-      <div class="tp_row">
-        <button type="button" class="tp_rowHead">
-          <span class="tp_swatch" data-swatch="${item.token}"></span>
-          <span class="tp_label">${LABELS[item.labelKey] ?? item.labelKey}</span>
-          <span class="tp_hex" data-hex="${item.token}"></span>
+      <div class="smkit-theme-palette-row">
+        <button type="button" class="smkit-theme-palette-row-head">
+          <span class="smkit-theme-palette-swatch" data-swatch="${item.token}"></span>
+          <span class="smkit-theme-palette-label">${LABELS[item.labelKey] ?? item.labelKey}</span>
+          <span class="smkit-theme-palette-hex" data-hex="${item.token}"></span>
         </button>
         ${
           groupIndex === 0 && itemIndex === 0
-            ? `<div class="tp_sliders">
-            <label class="tp_slider"><span class="tp_sliderLabel">色相</span>
+            ? `<div class="smkit-theme-palette-sliders">
+            <label class="smkit-theme-palette-slider"><span class="smkit-theme-palette-slider-label">色相</span>
               <input type="range" min="0" max="360" step="1" value="0" data-slider="${item.token}:h">
-              <span class="tp_sliderValue" data-value="${item.token}:h">0</span></label>
-            <label class="tp_slider"><span class="tp_sliderLabel">饱和</span>
+              <span class="smkit-theme-palette-slider-value" data-value="${item.token}:h">0</span></label>
+            <label class="smkit-theme-palette-slider"><span class="smkit-theme-palette-slider-label">饱和</span>
               <input type="range" min="0" max="100" step="1" value="0" data-slider="${item.token}:s">
-              <span class="tp_sliderValue" data-value="${item.token}:s">0</span></label>
-            <label class="tp_slider"><span class="tp_sliderLabel">明度</span>
+              <span class="smkit-theme-palette-slider-value" data-value="${item.token}:s">0</span></label>
+            <label class="smkit-theme-palette-slider"><span class="smkit-theme-palette-slider-label">明度</span>
               <input type="range" min="0" max="100" step="1" value="0" data-slider="${item.token}:l">
-              <span class="tp_sliderValue" data-value="${item.token}:l">0</span></label>
+              <span class="smkit-theme-palette-slider-value" data-value="${item.token}:l">0</span></label>
           </div>`
             : ''
         }
       </div>`,
     )
     .join('')
-  return `<details class="tp_group" open><summary class="tp_groupHead">${LABELS[group.labelKey] ?? group.labelKey}</summary>${rows}</details>`
+  return `<details class="smkit-theme-palette-group" open><summary class="smkit-theme-palette-group-head">${LABELS[group.labelKey] ?? group.labelKey}</summary>${rows}</details>`
 }).join('')
 
 const html = `<!doctype html>
@@ -222,7 +226,7 @@ const html = `<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>smkit 主题中心 · 合并后冒烟预览</title>
 <style>${TOKEN_STUBS}${PAGE_CSS}</style>
-<style id="dsh-theme-active-style"></style>
+<style id="smkit-theme-active-style"></style>
 <style>${ROW_CSS}</style>
 <style>${PALETTE_CSS}</style>
 <style>${THEME_CSS}</style>
@@ -232,19 +236,19 @@ const html = `<!doctype html>
 
   <div class="panel">
     <h2>一 · 主题中心的一行（真实 row.css + 组件同构 DOM）</h2>
-    <div class="dsh-theme-set">
-      <div class="dsh-theme-set-head">
-        <div class="dsh-theme-set-title">主题中心<span class="dsh-theme-set-count">${THEMES.length} 款</span></div>
-        <div class="dsh-theme-set-modes">
-          <button type="button" data-on="true">自动</button>
-          <button type="button" data-on="false">浅色</button>
-          <button type="button" data-on="false">深色</button>
+    <div class="smkit-theme-row">
+      <div class="smkit-theme-row-head">
+        <div class="smkit-theme-row-title">主题中心<span class="smkit-theme-row-count">${THEMES.length} 款</span></div>
+        <div class="smkit-theme-row-modes">
+          <button type="button" data-smkit-on="true">自动</button>
+          <button type="button" data-smkit-on="false">浅色</button>
+          <button type="button" data-smkit-on="false">深色</button>
         </div>
       </div>
-      <div class="dsh-theme-set-grid">${GRID}</div>
-      <div class="dsh-theme-set-foot">
-        <span class="dsh-theme-set-hint">选择即保存</span>
-        <button type="button" class="dsh-theme-set-reset">恢复默认</button>
+      <div class="smkit-theme-row-grid">${GRID}</div>
+      <div class="smkit-theme-row-foot">
+        <span class="smkit-theme-row-hint">选择即保存</span>
+        <button type="button" class="smkit-theme-row-reset">恢复默认</button>
       </div>
     </div>
     <p class="note">第 14 张（Nord）带选中环 —— 选中状态沿用主题中心原有的样式。每张卡片上半是昼间预览、右上角是实测对比度徽章，下半夜间条，再往下是名称、描述与三色板。</p>
@@ -280,15 +284,15 @@ const html = `<!doctype html>
          inline here it has to sit in flow, so this one declaration is
          neutralized on the element and every other rule of palette.css still
          does its job. Inline beats the class no matter the sheet order. -->
-    <div class="tp_panel" style="position:static;top:auto;right:auto;bottom:auto;max-height:none">
-      <div class="tp_head">
-        <span class="tp_title">调色板</span>
-        <button type="button" class="tp_close">×</button>
+    <div class="smkit-theme-palette-panel" style="position:static;top:auto;right:auto;bottom:auto;max-height:none">
+      <div class="smkit-theme-palette-head">
+        <span class="smkit-theme-palette-title">调色板</span>
+        <button type="button" class="smkit-theme-palette-close">×</button>
       </div>
-      <div class="tp_groups">${panelGroups}</div>
-      <div class="tp_foot">
-        <button type="button" class="tp_save">保存</button>
-        <button type="button" class="tp_reset">重置</button>
+      <div class="smkit-theme-palette-groups">${panelGroups}</div>
+      <div class="smkit-theme-palette-foot">
+        <button type="button" class="smkit-theme-palette-save">保存</button>
+        <button type="button" class="smkit-theme-palette-reset">重置</button>
       </div>
     </div>
     <table class="readout"><thead><tr><th class="sw"></th><th>token</th><th>元素实际计算值</th><th>滑块 HSL</th></tr></thead><tbody id="readout"></tbody></table>
@@ -298,17 +302,17 @@ const html = `<!doctype html>
 <script>
   var THEMES = ${JSON.stringify(THEMES.map(({ id, css }) => ({ id, css })))};
   var REGISTRY = ${JSON.stringify(REGISTRY)};
-  var styleEl = document.getElementById('dsh-theme-active-style');
+  var styleEl = document.getElementById('smkit-theme-active-style');
 
   // The applier, reduced to what a preview needs: the attribute on the body and
   // the sheet in the one style element, exactly the pair apply.ts moves.
   function applyTheme(id) {
     if (id) {
-      document.body.setAttribute('data-dsh-theme', id);
+      document.body.setAttribute('data-smkit-theme', id);
       var found = THEMES.filter(function (theme) { return theme.id === id; })[0];
       styleEl.textContent = found ? found.css : '';
     } else {
-      document.body.removeAttribute('data-dsh-theme');
+      document.body.removeAttribute('data-smkit-theme');
       styleEl.textContent = '';
     }
     refresh();
@@ -380,7 +384,7 @@ const html = `<!doctype html>
     };
     var body = getComputedStyle(document.body);
     document.getElementById('report').textContent = [
-      'data-dsh-theme     = ' + (document.body.getAttribute('data-dsh-theme') || '(none)'),
+      'data-smkit-theme   = ' + (document.body.getAttribute('data-smkit-theme') || '(none)'),
       'data-ds-dark-theme = ' + document.body.hasAttribute('data-ds-dark-theme'),
       'body  background   = ' + body.backgroundColor,
       'body  color        = ' + body.color,

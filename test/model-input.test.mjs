@@ -94,7 +94,7 @@ function call(route, { method, path, body }) {
     }
     const req = {
       method,
-      url: `/mcp-manager/api${path}`,
+      url: `/smkit/api${path}`,
       headers: { host: '127.0.0.1:3080' },
       async *[Symbol.asyncIterator]() {
         if (body !== undefined) yield Buffer.from(JSON.stringify(body))
@@ -949,9 +949,9 @@ it('gives every model a row of boxes showing what it takes', async () => {
   const view = await app.open()
 
   assert.ok(view.text.includes('tabModelInput'), 'the strip lists the area as its own tab')
-  assert.equal(app.calls[0].url, '/mcp-manager/api/llm-retry/routes', 'the shell opens on the retry tab, which polls first')
+  assert.equal(app.calls[0].url, '/smkit/api/llm-retry/routes', 'the shell opens on the retry tab, which polls first')
   assert.ok(
-    app.calls.some((request) => request.url === '/mcp-manager/api/model-input/providers'),
+    app.calls.some((request) => request.url === '/smkit/api/model-input/providers'),
     'the tab asks the host for the model lists when it opens',
   )
   assert.ok(
@@ -967,12 +967,12 @@ it('gives every model a row of boxes showing what it takes', async () => {
   assert.equal(chip(view, 'catalog-vision', 'modalityImage').props.checked, true, 'nor is a model the catalog says takes images')
   assert.equal(view.text.includes('stateDeclared'), false, 'no row narrates where its answer comes from')
   assert.equal(view.text.includes('stateInherited'), false, 'neither does it name the state it is not in')
-  assert.equal(dot(view, 'OpenRouter').props['data-state'], 'active', 'a route with any stored declaration wears the blue dot')
-  assert.equal(dot(view, 'DeepSeek').props['data-state'], 'idle', 'a route none of whose models was written wears the grey one')
+  assert.equal(dot(view, 'OpenRouter').props['data-smkit-state'], 'active', 'a route with any stored declaration wears the blue dot')
+  assert.equal(dot(view, 'DeepSeek').props['data-smkit-state'], 'idle', 'a route none of whose models was written wears the grey one')
   assert.ok(hasInherit(view, 'union-alpha'), 'a row with a stored declaration can be reset')
   assert.ok(hasInherit(view, 'plain-model'), 'and so can one that never had one, which the reset leaves as it is')
-  assert.equal(dot(view, 'union-alpha').props['data-state'], 'active', 'the row this page wrote wears the blue dot')
-  assert.equal(dot(view, 'plain-model').props['data-state'], 'idle', 'the row it never wrote wears the grey one')
+  assert.equal(dot(view, 'union-alpha').props['data-smkit-state'], 'active', 'the row this page wrote wears the blue dot')
+  assert.equal(dot(view, 'plain-model').props['data-smkit-state'], 'idle', 'the row it never wrote wears the grey one')
 })
 
 it('shows a modality it has no box for as its own locked chip', async () => {
@@ -1040,12 +1040,12 @@ it('turns the dot grey again once the row has been reset', async () => {
     },
   })
   const view = await app.open()
-  assert.equal(dot(view, 'union-alpha').props['data-state'], 'active', 'the stored declaration paints the blue dot')
+  assert.equal(dot(view, 'union-alpha').props['data-smkit-state'], 'active', 'the stored declaration paints the blue dot')
 
   app.render().labelled('union-alpha · choiceInherit').props.onClick()
   await settle()
 
-  assert.equal(dot(app.render(), 'union-alpha').props['data-state'], 'idle', 'and the read after the reset paints grey')
+  assert.equal(dot(app.render(), 'union-alpha').props['data-smkit-state'], 'idle', 'and the read after the reset paints grey')
 })
 
 it('shows the localized message for a refused write, and reads the row again', async () => {
@@ -1076,7 +1076,7 @@ it('names the reason a foreign route is read-only, and keeps its boxes inert', a
   assert.equal(view.labelled('deepseek-chat · modalityImage').props.checked, false, 'the fact is still shown')
   assert.equal(hasInherit(view, 'deepseek-chat'), false, 'a route that cannot be written offers no reset either')
   assert.equal(hasAutoDetect(view, 'deepseek-chat'), false, 'and no capability check')
-  assert.equal(dot(view, 'deepseek-chat').props['data-state'], 'idle', 'the dot still says where that row stands')
+  assert.equal(dot(view, 'deepseek-chat').props['data-smkit-state'], 'idle', 'the dot still says where that row stands')
   assert.equal(app.calls.some((request) => request.url.endsWith('/model-input/modalities')), false, 'nothing is posted')
 })
 

@@ -6,7 +6,7 @@
  * each carry — the 12px/18px secondary intro, the 18px/600 heading sized to
  * their catalog titles, the 760px cap — so the merged page reads exactly like
  * the page it replaces. The strip itself is the platform layer's `Tabs`
- * (`mm_tabs*`, glyphs included), and the identity badge is `VersionBadge`; only
+ * (`smkit-ui-tabs*`, glyphs included), and the identity badge is `VersionBadge`; only
  * this shell's rhythm is declared here.
  *
  * Classes are namespaced `st_*`, deliberately not the MCP page's `mm_*`, the
@@ -15,7 +15,7 @@
  * must not reach into a panel it does not render.
  */
 
-.st_section {
+.smkit-shell-page-section {
   width: 100%;
   max-width: 760px;
   color: var(--dsw-alias-label-primary);
@@ -24,7 +24,7 @@
   gap: 12px;
 }
 
-.st_heading {
+.smkit-shell-page-heading {
   margin: 0;
   padding: 0 2px;
   font-size: 18px;
@@ -32,7 +32,7 @@
   line-height: 26px;
 }
 
-.st_intro {
+.smkit-shell-page-intro {
   margin: 0;
   padding: 0 2px;
   font-size: 12px;
@@ -43,11 +43,11 @@
 /* The strip sits two points under the identity block, the way the
  * custom-settings page seated its own; the panel's tab intro follows the strip,
  * so switching tabs moves that one line with the panel it describes. */
-.st_section > .mm_tabs {
+.smkit-shell-page-section > .smkit-ui-tabs {
   margin-top: 2px;
 }
 
-.st_panel {
+.smkit-shell-page-panel {
   min-width: 0;
   padding-top: 2px;
   display: flex;

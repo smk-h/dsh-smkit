@@ -6,7 +6,7 @@
  * may register dozens of tools, and the row should read as one line until the
  * list is asked for.
  *
- * The card is real DOM, not a `.mm_tip::after` bubble, because it carries more
+ * The card is real DOM, not a `.smkit-ui-tip::after` bubble, because it carries more
  * than a label. Its geometry is measured in JS and written inline (`position:
  * fixed`, so the section's scroll area cannot clip it); everything here is the
  * look only — surface, shadow, and the scroll a long description needs. It is
@@ -22,16 +22,16 @@
 /* `flex-start`, not the default `stretch`: the chip row and the summary line
  * each size to their own content, so the block never presents a wide invisible
  * hover target beside the last chip of a line. */
-.mm_tools {
+.smkit-mcp-tools {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
 }
 
-/* The summary line, wearing the old `.mm_meta` text as a button: the count is
+/* The summary line, wearing the old `.smkit-mcp-section-meta` text as a button: the count is
  * always readable, and the caret says the names are one click away. */
-.mm_toolsToggle {
+.smkit-mcp-tools-toggle {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -46,43 +46,43 @@
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
 }
-.mm_toolsToggle:hover {
+.smkit-mcp-tools-toggle:hover {
   background: var(--dsw-alias-interactive-bg-hover-solid);
   color: var(--dsw-alias-label-secondary);
 }
-.mm_toolsToggle:focus-visible {
+.smkit-mcp-tools-toggle:focus-visible {
   outline: 1px solid var(--dsw-alias-state-business-primary);
   outline-offset: 1px;
 }
 /* A connected server with no tools: the line still reports the zero, but there
  * is nothing to open. */
-.mm_toolsToggle:disabled {
+.smkit-mcp-tools-toggle:disabled {
   cursor: default;
 }
-.mm_toolsToggle:disabled:hover {
+.smkit-mcp-tools-toggle:disabled:hover {
   background: none;
   color: var(--dsw-alias-label-tertiary);
 }
 
 /* The caret: right while closed, down while open. */
-.mm_toolsCaret {
+.smkit-mcp-tools-caret {
   display: inline-flex;
   transform: rotate(-90deg);
   transition: transform .15s;
 }
-.mm_toolsCaret[data-open=true] {
+.smkit-mcp-tools-caret[data-smkit-open=true] {
   transform: rotate(0);
 }
 
 /* Names wrap as tags rather than as one long line: a server with 38 tools reads
  * as a block of names, which is what the count alone cannot convey. */
-.mm_toolChips {
+.smkit-mcp-tools-tool-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.mm_toolChip {
+.smkit-mcp-tools-tool-chip {
   border: 1px solid var(--dsw-alias-border-l2);
   background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-secondary);
@@ -93,8 +93,8 @@
   font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   cursor: default;
 }
-.mm_toolChip:hover,
-.mm_toolChip:focus-visible {
+.smkit-mcp-tools-tool-chip:hover,
+.smkit-mcp-tools-tool-chip:focus-visible {
   border-color: var(--dsw-alias-border-l1);
   background: var(--dsw-alias-interactive-bg-hover-solid);
   color: var(--dsw-alias-label-primary);
@@ -108,7 +108,7 @@
  * text is there to be read and copied, hence the text cursor and the explicit
  * selection: a tool description is exactly the kind of text one pastes into an
  * issue. */
-.mm_toolCard {
+.smkit-mcp-tools-tool-card {
   position: fixed;
   z-index: 40;
   box-sizing: border-box;
@@ -126,13 +126,13 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-.mm_toolCardHead {
+.smkit-mcp-tools-tool-card-head {
   display: flex;
   align-items: baseline;
   gap: 6px;
 }
 
-.mm_toolCardName {
+.smkit-mcp-tools-tool-card-name {
   font-weight: 600;
   font-size: 13px;
   line-height: 20px;
@@ -142,22 +142,22 @@
 }
 
 /* The `[tool]` tag beside the title, as the shell's own tool lists show it. */
-.mm_toolCardKind {
+.smkit-mcp-tools-tool-card-kind {
   flex: none;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.mm_toolCardDesc {
+.smkit-mcp-tools-tool-card-desc {
   margin-top: 6px;
   word-break: break-word;
 }
 
-.mm_toolCardEmpty {
+.smkit-mcp-tools-tool-card-empty {
   margin-top: 6px;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.mm_toolCardParams {
+.smkit-mcp-tools-tool-card-params {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--dsw-alias-border-l2);
@@ -166,26 +166,26 @@
   gap: 8px;
 }
 
-.mm_toolParamHead {
+.smkit-mcp-tools-tool-param-head {
   display: flex;
   align-items: baseline;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.mm_toolParamName {
+.smkit-mcp-tools-tool-param-name {
   font-weight: 600;
   color: var(--dsw-alias-label-primary);
   font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   word-break: break-all;
 }
 
-.mm_toolParamType {
+.smkit-mcp-tools-tool-param-type {
   flex: none;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.mm_toolParamRequired {
+.smkit-mcp-tools-tool-param-required {
   flex: none;
   border-radius: 4px;
   padding: 0 5px;
@@ -195,7 +195,7 @@
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
 }
 
-.mm_toolParamDesc {
+.smkit-mcp-tools-tool-param-desc {
   margin-top: 2px;
   color: var(--dsw-alias-label-tertiary);
   word-break: break-word;

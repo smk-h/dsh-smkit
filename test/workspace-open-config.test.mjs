@@ -69,19 +69,19 @@ async function request(handler, method, path, body) {
 
 it('refuses a request without a path', async () => {
   const { handler } = makeCtx()
-  const r = await request(handler, 'POST', '/mcp-manager/api/workspaces/open-config', {})
+  const r = await request(handler, 'POST', '/smkit/api/workspaces/open-config', {})
   assert.equal(r.code, 400)
 })
 
 it('refuses a path that is not a registered workspace', async () => {
   const { handler } = makeCtx()
-  const r = await request(handler, 'POST', '/mcp-manager/api/workspaces/open-config', { path: join(scratchHome, 'elsewhere') })
+  const r = await request(handler, 'POST', '/smkit/api/workspaces/open-config', { path: join(scratchHome, 'elsewhere') })
   assert.equal(r.code, 403)
 })
 
 it('opens the profile state file for the global tier', async () => {
   const { handler } = makeCtx()
-  const r = await request(handler, 'POST', '/mcp-manager/api/open-config', {})
+  const r = await request(handler, 'POST', '/smkit/api/open-config', {})
   assert.equal(r.code, 200)
   assert.equal(r.json.file, join(scratchHome, '.dsh', 'mcp-manager.json'))
   assert.ok(existsSync(r.json.file), 'a missing state file must be materialized before the open')
@@ -91,7 +91,7 @@ it('creates the config file when absent and answers its path', async () => {
   const wsDir = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-smkit-openconfig-ws-')))
   const { handler } = makeCtx({ workspacePath: wsDir })
 
-  const r = await request(handler, 'POST', '/mcp-manager/api/workspaces/open-config', { path: wsDir })
+  const r = await request(handler, 'POST', '/smkit/api/workspaces/open-config', { path: wsDir })
   assert.equal(r.code, 200)
   assert.equal(r.json.file, join(wsDir, '.dsh', 'dshmm', 'mcp.json'))
   assert.equal(readFileSync(r.json.file, 'utf8'), '{}\n', 'the created file must be the minimal valid config')
@@ -105,7 +105,7 @@ it('leaves an existing config file untouched', async () => {
   writeFileSync(file, existing)
   const { handler } = makeCtx({ workspacePath: wsDir })
 
-  const r = await request(handler, 'POST', '/mcp-manager/api/workspaces/open-config', { path: wsDir })
+  const r = await request(handler, 'POST', '/smkit/api/workspaces/open-config', { path: wsDir })
   assert.equal(r.code, 200)
   assert.equal(r.json.file, file)
   assert.ok(existsSync(file))

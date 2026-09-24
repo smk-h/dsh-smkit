@@ -80,7 +80,7 @@ const texts = (tree) => nodes(tree).flatMap(node => node.children ?? []).filter(
 /** The one node carrying a class, or `undefined`. */
 const withClass = (tree, className) => nodes(tree).find(node => node.props?.className === className)
 
-/** The one node whose class list contains a token (`os_init`, `os_remove`). */
+/** The one node whose class list contains a token (`smkit-spec-openspec-init`, `smkit-spec-openspec-remove`). */
 const token = (tree, name) =>
   nodes(tree).find(node => String(node.props?.className ?? '').split(' ').includes(name))
 
@@ -92,15 +92,15 @@ const token = (tree, name) =>
  * position.
  */
 const toolbarOf = (tree) => {
-  const row = withClass(tree, 'os_actions')
+  const row = withClass(tree, 'smkit-spec-openspec-actions')
   if (row === undefined) return []
   return (row.children ?? [])
-    .filter(child => String(child?.props?.className ?? '').split(' ').includes('mm_btn'))
+    .filter(child => String(child?.props?.className ?? '').split(' ').includes('smkit-ui-button'))
     .map(child => String(child.props.className))
 }
 
 /**
- * The one tree row of a kind (`os_dirRow`, `os_fileRow`) whose own text names
+ * The one tree row of a kind (`smkit-spec-openspec-dir-row`, `smkit-spec-openspec-file-row`) whose own text names
  * `name`. A row's text is just its connector and its name — a directory's
  * children are siblings of its row, not descendants of it — so a name matches
  * exactly one row.
@@ -110,7 +110,7 @@ const rowFor = (tree, kind, name) =>
 
 /** The tree's connectors, top to bottom: the shape the block is drawn in. */
 const branchesOf = (tree) =>
-  nodes(tree).filter(node => node.props?.className === 'os_branch').map(node => node.children[0])
+  nodes(tree).filter(node => node.props?.className === 'smkit-spec-openspec-branch').map(node => node.children[0])
 
 /**
  * The control's own stand-in: the panel is placed from its viewport rect, which
@@ -393,7 +393,7 @@ function mount({
     reflect: { get: (name) => (name === 'sidebarRight' ? sidebarFace : undefined) },
   }
   exported.apply(ctx)
-  const OpenSpec = registrations.get('mcp-manager-openspec')
+  const OpenSpec = registrations.get('smkit-openspec')
   assert.equal(typeof OpenSpec, 'function', 'the header slot must seat the OpenSpec control')
   const props = {
     sessionId: 's1',
@@ -427,7 +427,7 @@ function mount({
       onWindow.emit(type, event)
     },
     /** A target inside the panel, and one outside everything the panel owns. */
-    inside: () => new SandboxElement('DIV', (selector) => (selector === '.os_panel' ? 'panel' : null)),
+    inside: () => new SandboxElement('DIV', (selector) => (selector === '.smkit-spec-openspec-panel' ? 'panel' : null)),
     outside: () => new SandboxElement('DIV', () => null),
     /** Let the grace period elapse, then render what it did. */
     runTimers() {
@@ -463,7 +463,7 @@ function mount({
      * the control opens on is the point of the reflow test below.
      */
     async hover() {
-      const host = withClass(this.render(), 'os_host')
+      const host = withClass(this.render(), 'smkit-spec-openspec-host')
       assert.ok(host, 'the control must render a host element')
       if (typeof host.props.onMouseEnter === 'function') host.props.onMouseEnter({ currentTarget: node })
       this.move()
@@ -472,7 +472,7 @@ function mount({
     },
     /** Move the pointer on the control: the gesture the panel opens on. */
     move() {
-      const host = withClass(this.render(), 'os_host')
+      const host = withClass(this.render(), 'smkit-spec-openspec-host')
       assert.ok(host, 'the control must render a host element')
       host.props.onMouseMove({ currentTarget: node, clientX: 1010, clientY: 30 })
       return this.render()
@@ -484,7 +484,7 @@ function mount({
      * that opens on this is the bug, not this harness.
      */
     arrive() {
-      const host = withClass(this.render(), 'os_host')
+      const host = withClass(this.render(), 'smkit-spec-openspec-host')
       assert.ok(host, 'the control must render a host element')
       if (typeof host.props.onMouseEnter === 'function') host.props.onMouseEnter({ currentTarget: node })
       return this.render()
@@ -495,13 +495,13 @@ function mount({
      *   control's box is what a right-press reports, and is not a leave.
      */
     leave(at = { x: 0, y: 0 }) {
-      const host = withClass(this.render(), 'os_host')
+      const host = withClass(this.render(), 'smkit-spec-openspec-host')
       host.props.onMouseLeave({ clientX: at.x, clientY: at.y, currentTarget: node })
       return this.render()
     },
     /** Move the pointer off the panel; `at` as in `leave`. */
     leavePanel(at = { x: 0, y: 0 }) {
-      const panel = withClass(this.render(), 'os_panel')
+      const panel = withClass(this.render(), 'smkit-spec-openspec-panel')
       // The one shared object, so the guard's identity check against the
       // hit-test's answer sees the same surface the event was delivered to.
       panel.props.onMouseLeave({
@@ -536,7 +536,7 @@ it('reads nothing until it is hovered, and opens closed', () => {
 
   assert.ok(control, 'the control names itself for a screen reader')
   assert.equal(control.props['aria-expanded'], false)
-  assert.equal(withClass(tree, 'os_panel'), undefined, 'the panel is not rendered before a hover')
+  assert.equal(withClass(tree, 'smkit-spec-openspec-panel'), undefined, 'the panel is not rendered before a hover')
   assert.deepEqual(app.calls, [], 'and nothing has been asked of the host')
 })
 
@@ -544,8 +544,8 @@ it('opens on hover, right-aligned under the control, and shows the footprint', a
   const app = mount({ fetch: routing(), sidebar: true })
   const shown = await app.hover()
 
-  assert.equal(app.calls[0].url, '/mcp-manager/api/openspec?cwd=%2Fwork%2Fapp')
-  const panel = nodes(shown).find((node) => node.props?.className === 'os_panel')
+  assert.equal(app.calls[0].url, '/smkit/api/openspec?cwd=%2Fwork%2Fapp')
+  const panel = nodes(shown).find((node) => node.props?.className === 'smkit-spec-openspec-panel')
   assert.ok(panel, 'the hover opens the panel')
 
   // Placed from the control's own rect: right edges aligned, hanging below it.
@@ -555,18 +555,18 @@ it('opens on hover, right-aligned under the control, and shows the footprint', a
 
   const text = texts(shown).join(' | ')
   assert.equal(
-    token(shown, 'mm_stateDot').props.title,
+    token(shown, 'smkit-ui-state-dot').props.title,
     'openSpecStatusReady',
     'the init status is the panel\u2019s answer, worn as a dot',
   )
-  const dot = token(shown, 'mm_stateDot')
+  const dot = token(shown, 'smkit-ui-state-dot')
   assert.equal(
     dot.props['aria-label'],
     'openSpecStatusReady',
     'a dot with no words still names itself to a screen reader',
   )
   assert.ok(
-    String(dot.props.className).includes('os_state'),
+    String(dot.props.className).includes('smkit-spec-openspec-state'),
     'the platform dot is seated by this panel\u2019s own class',
   )
   assert.equal(
@@ -588,7 +588,7 @@ it('opens on hover, right-aligned under the control, and shows the footprint', a
   // says otherwise.
   assert.deepEqual(branchesOf(shown), ['├── ', '└── '])
   assert.ok(text.includes('add-login') === false, 'a closed directory keeps its children to itself')
-  const rootRow = rowFor(shown, 'os_dirRow', 'openspec')
+  const rootRow = rowFor(shown, 'smkit-spec-openspec-dir-row', 'openspec')
   assert.equal(rootRow.props['aria-expanded'], true, 'the store\u2019s own root is the one directory that opens open')
   assert.equal(
     rootRow.children.at(-1).children[0],
@@ -599,38 +599,38 @@ it('opens on hover, right-aligned under the control, and shows the footprint', a
   // Opening a directory draws its children under it, connectors and all — a
   // connector per entry, with the ancestor's `│` carried down through the
   // levels that are not last — and one level at a time.
-  rowFor(shown, 'os_dirRow', 'changes').props.onClick()
+  rowFor(shown, 'smkit-spec-openspec-dir-row', 'changes').props.onClick()
   const unfolded = app.render()
   assert.deepEqual(branchesOf(unfolded), ['├── ', '│   └── ', '└── '])
   assert.ok(texts(unfolded).includes('add-login'), 'the open directory shows what is under it')
   assert.ok(texts(unfolded).includes('proposal.md') === false, 'and only what is directly under it')
 
-  rowFor(unfolded, 'os_dirRow', 'add-login').props.onClick()
+  rowFor(unfolded, 'smkit-spec-openspec-dir-row', 'add-login').props.onClick()
   const deep = app.render()
   assert.deepEqual(branchesOf(deep), ['├── ', '│   └── ', '│       └── ', '└── '])
 
   // A file row goes to the shell's sidebar viewer, addressed the way the
   // sidebar's own tree addresses one: session-scoped and workspace-relative.
-  rowFor(deep, 'os_fileRow', 'proposal.md').props.onClick()
+  rowFor(deep, 'smkit-spec-openspec-file-row', 'proposal.md').props.onClick()
   assert.deepEqual(app.opened, ['dsh-resource://file/session/s1/openspec/changes/add-login/proposal.md'])
 
   // Closing a directory hides its children again, down to the default fold.
-  rowFor(deep, 'os_dirRow', 'changes').props.onClick()
+  rowFor(deep, 'smkit-spec-openspec-dir-row', 'changes').props.onClick()
   assert.deepEqual(branchesOf(app.render()), ['├── ', '└── '])
 
-  assert.equal(dot.props['data-state'], 'done', 'the dot still says the store is there')
+  assert.equal(dot.props['data-smkit-state'], 'done', 'the dot still says the store is there')
 })
 
 it('leaves a file click alone on a host without the sidebar column', async () => {
   const app = mount({ fetch: routing() })
   const shown = await app.hover()
 
-  rowFor(shown, 'os_dirRow', 'changes').props.onClick()
+  rowFor(shown, 'smkit-spec-openspec-dir-row', 'changes').props.onClick()
   const unfolded = app.render()
-  rowFor(unfolded, 'os_fileRow', 'config.yaml').props.onClick()
+  rowFor(unfolded, 'smkit-spec-openspec-file-row', 'config.yaml').props.onClick()
 
   assert.deepEqual(app.opened, [], 'nothing is handed to a sidebar that does not exist')
-  assert.ok(withClass(app.render(), 'os_panel'), 'and the panel is none the worse for the click')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'and the panel is none the worse for the click')
 })
 
 it('keeps the generated entries behind a toggle, and the tree at the bottom', async () => {
@@ -639,12 +639,12 @@ it('keeps the generated entries behind a toggle, and the tree at the bottom', as
 
   // Closed by default: the count is what an open usually wants, the list of
   // generated names is not.
-  const toggle = nodes(shown).find((node) => node.props?.className === 'os_toggle')
+  const toggle = nodes(shown).find((node) => node.props?.className === 'smkit-spec-openspec-toggle')
   assert.ok(toggle, 'the generated entries get a heading that opens')
   assert.equal(toggle.props['aria-expanded'], false)
   assert.equal(toggle.props.title, 'openSpecExpand')
   assert.equal(
-    nodes(shown).filter((node) => node.props?.className === 'os_group').length,
+    nodes(shown).filter((node) => node.props?.className === 'smkit-spec-openspec-group').length,
     0,
     'and nothing under it is rendered until it is opened',
   )
@@ -653,16 +653,16 @@ it('keeps the generated entries behind a toggle, and the tree at the bottom', as
   // The tree is the panel's last block, under the generated entries.
   const order = nodes(shown).map((node) => node.props?.className)
   assert.ok(
-    order.indexOf('os_tree') > order.indexOf('os_toggle'),
+    order.indexOf('smkit-spec-openspec-tree') > order.indexOf('smkit-spec-openspec-toggle'),
     'the store is the reference the generated entries are read against, so it comes last',
   )
 
   toggle.props.onClick()
   const opened = app.render()
   const text = texts(opened).join(' | ')
-  assert.equal(nodes(opened).find((node) => node.props?.className === 'os_toggle').props['aria-expanded'], true)
+  assert.equal(nodes(opened).find((node) => node.props?.className === 'smkit-spec-openspec-toggle').props['aria-expanded'], true)
   assert.equal(
-    nodes(opened).find((node) => node.props?.className === 'os_toggle').props.title,
+    nodes(opened).find((node) => node.props?.className === 'smkit-spec-openspec-toggle').props.title,
     'openSpecCollapse',
   )
   assert.ok(text.includes('openSpecKindSkills') && text.includes('openspec-propose'), 'a skill directory is listed')
@@ -673,13 +673,13 @@ it('keeps the generated entries behind a toggle, and the tree at the bottom', as
   // What a shared directory keeps is a count in the confirmation, not a list in
   // the panel: naming a machine's other skills back at it is noise.
   const chips = nodes(opened)
-    .filter((node) => String(node.props?.className ?? '').split(' ').includes('os_chipItem'))
+    .filter((node) => String(node.props?.className ?? '').split(' ').includes('smkit-spec-openspec-chip-item'))
     .map((node) => node.children[0])
   assert.deepEqual(chips, ['openspec-propose', '.openspec-target', 'opsx'])
 
   // The marker is neither a skill nor a command, so it is drawn apart from them
   // and explains itself on hover rather than being a dotfile among the skills.
-  const marker = nodes(opened).find((node) => node.props?.className === 'os_chipItem os_chipMarker')
+  const marker = nodes(opened).find((node) => node.props?.className === 'smkit-spec-openspec-chip-item smkit-spec-openspec-chip-marker')
   assert.ok(marker, 'the ownership marker wears its own chip')
   assert.ok(String(marker.props.title).startsWith('openSpecMarker'), 'and names what it is')
 })
@@ -687,11 +687,11 @@ it('keeps the generated entries behind a toggle, and the tree at the bottom', as
 it('asks before removing, and names everything the question covers', async () => {
   const app = mount({ fetch: routing() })
   const shown = await app.hover()
-  const remove = nodes(shown).find((node) => node.props?.className === 'mm_btn danger os_remove')
+  const remove = nodes(shown).find((node) => node.props?.className === 'smkit-ui-button danger smkit-spec-openspec-remove')
   assert.equal(remove.props.disabled, false)
 
   remove.props.onClick()
-  const dialog = withClass(app.render(), 'mm_overlay')
+  const dialog = withClass(app.render(), 'smkit-ui-dialog-overlay')
   assert.ok(dialog, 'the panel\u2019s delete opens the confirmation')
   const text = texts(app.render()).join(' | ')
   assert.ok(text.includes('openSpecConfirm'), 'the question says what it means')
@@ -706,21 +706,21 @@ it('posts the workspace, keeps the panel through the question, and reports what 
     fetch: routing(VIEW, { removed: ['.agents/skills/openspec-propose'], failed: [{ rel: 'openspec', error: 'EBUSY' }], bytes: 300 }),
   })
   await app.hover()
-  nodes(app.render()).find((node) => node.props?.className === 'mm_btn danger os_remove').props.onClick()
+  nodes(app.render()).find((node) => node.props?.className === 'smkit-ui-button danger smkit-spec-openspec-remove').props.onClick()
 
   // Reaching the confirmation is a leave — the pointer is on the dialog now —
   // and it is the one leave the panel has to survive: the answer to the
   // question is what it is there to show.
   app.leavePanel()
-  assert.ok(withClass(app.render(), 'os_panel'), 'the panel outlives the confirmation')
-  assert.ok(withClass(app.runTimers(), 'os_panel'), 'and the pending leave is refused while the question is up')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'the panel outlives the confirmation')
+  assert.ok(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), 'and the pending leave is refused while the question is up')
 
-  nodes(app.render()).find((node) => node.props?.className === 'mm_btn danger').props.onClick()
+  nodes(app.render()).find((node) => node.props?.className === 'smkit-ui-button danger').props.onClick()
   await flush()
 
-  assert.deepEqual(app.calls[1], { url: '/mcp-manager/api/openspec/delete', body: { cwd: '/work/app' } })
-  assert.equal(app.calls[2].url, '/mcp-manager/api/openspec?cwd=%2Fwork%2Fapp', 'the panel reads what is left')
-  assert.equal(withClass(app.render(), 'mm_overlay'), undefined, 'the dialog closes once the host answered')
+  assert.deepEqual(app.calls[1], { url: '/smkit/api/openspec/delete', body: { cwd: '/work/app' } })
+  assert.equal(app.calls[2].url, '/smkit/api/openspec?cwd=%2Fwork%2Fapp', 'the panel reads what is left')
+  assert.equal(withClass(app.render(), 'smkit-ui-dialog-overlay'), undefined, 'the dialog closes once the host answered')
 
   const text = texts(app.render()).join(' | ')
   assert.ok(text.includes('openSpecPartial'), 'a partial failure is not a success')
@@ -759,13 +759,13 @@ it('offers the initialise where there is nothing to delete', async () => {
 
   const text = texts(shown).join(' | ')
   assert.ok(text.includes('openSpecStatusAbsent'), 'the body says what is missing in words')
-  const dot = token(shown, 'mm_stateDot')
-  assert.equal(dot.props['data-state'], 'idle')
+  const dot = token(shown, 'smkit-ui-state-dot')
+  assert.equal(dot.props['data-smkit-state'], 'idle')
   assert.equal(dot.props.title, 'openSpecStatusAbsent', 'and the dot carries the same answer as its hover')
   assert.ok(text.includes('openSpecEmpty'), 'the panel says how to create one')
-  assert.equal(token(shown, 'os_remove'), undefined, 'there is nothing to delete, so nothing offers it')
+  assert.equal(token(shown, 'smkit-spec-openspec-remove'), undefined, 'there is nothing to delete, so nothing offers it')
 
-  const init = token(shown, 'os_init')
+  const init = token(shown, 'smkit-spec-openspec-init')
   assert.ok(init, 'an uninitialised workspace offers to create one')
   assert.equal(init.props.title, 'openSpecInitCommand', 'and shows the command it runs')
   assert.equal(init.props.disabled, false)
@@ -783,35 +783,35 @@ it('runs openspec init for the workspace, then reads the store back', async () =
     },
   })
   const shown = await app.hover()
-  token(shown, 'os_init').props.onClick()
+  token(shown, 'smkit-spec-openspec-init').props.onClick()
   await flush()
 
-  assert.deepEqual(app.calls[1], { url: '/mcp-manager/api/openspec/init', body: { cwd: '/work/app' } })
-  assert.equal(app.calls[2].url, '/mcp-manager/api/openspec?cwd=%2Fwork%2Fapp', 'the panel reads what it created')
+  assert.deepEqual(app.calls[1], { url: '/smkit/api/openspec/init', body: { cwd: '/work/app' } })
+  assert.equal(app.calls[2].url, '/smkit/api/openspec?cwd=%2Fwork%2Fapp', 'the panel reads what it created')
 
   const after = app.render()
   const text = texts(after).join(' | ')
   assert.ok(text.includes('openSpecInitDone'), 'the CLI\u2019s own output is shown')
   assert.ok(text.includes('Created openspec/'))
   assert.equal(
-    token(after, 'mm_stateDot').props['data-state'],
+    token(after, 'smkit-ui-state-dot').props['data-smkit-state'],
     'done',
     'and the workspace is initialised now',
   )
-  assert.ok(token(after, 'os_remove'), 'and what was created can be taken back out')
-  assert.equal(toolbarOf(shown)[0], 'mm_btn os_init', 'the create button leads the three that never leave')
-  assert.equal(token(shown, 'os_init').props['data-state'], 'warn', 'amber while there is nothing there yet')
-  assert.equal(token(after, 'os_init').props['data-state'], 'done', 'and green once the store stands')
+  assert.ok(token(after, 'smkit-spec-openspec-remove'), 'and what was created can be taken back out')
+  assert.equal(toolbarOf(shown)[0], 'smkit-ui-button smkit-spec-openspec-init', 'the create button leads the three that never leave')
+  assert.equal(token(shown, 'smkit-spec-openspec-init').props['data-smkit-state'], 'warn', 'amber while there is nothing there yet')
+  assert.equal(token(after, 'smkit-spec-openspec-init').props['data-smkit-state'], 'done', 'and green once the store stands')
   assert.equal(
     toolbarOf(after)[1],
-    'mm_btn os_ignore',
+    'smkit-ui-button smkit-spec-openspec-ignore',
     // The permanent three hold the right end, so what the answer brings lands
     // at the left end of the group instead: the seats under the pointer, which
     // is still on the create button, have not moved, and no delete has arrived
     // beside them either.
     'what an answer brings arrives away from where the pointer rests',
   )
-  assert.equal(token(after, 'os_init').props.disabled, true, 'and the button that created the store has nothing left to do')
+  assert.equal(token(after, 'smkit-spec-openspec-init').props.disabled, true, 'and the button that created the store has nothing left to do')
 })
 
 it('reports a refused init as an instruction, and offers it again', async () => {
@@ -821,13 +821,13 @@ it('reports a refused init as an instruction, and offers it again', async () => 
       : response(EMPTY),
   })
   const shown = await app.hover()
-  token(shown, 'os_init').props.onClick()
+  token(shown, 'smkit-spec-openspec-init').props.onClick()
   await flush()
 
   const after = app.render()
   assert.ok(texts(after).join(' | ').includes('openSpecInitNotInstalled'), 'the refusal is localized as an instruction')
-  assert.equal(withClass(after, 'mm_overlay'), undefined, 'a run needs no confirmation, and leaves none behind')
-  assert.equal(token(after, 'os_init').props.disabled, false, 'the button stays available')
+  assert.equal(withClass(after, 'smkit-ui-dialog-overlay'), undefined, 'a run needs no confirmation, and leaves none behind')
+  assert.equal(token(after, 'smkit-spec-openspec-init').props.disabled, false, 'the button stays available')
   assert.equal(app.calls.length, 2, 'a refused run is not followed by a read')
 })
 
@@ -835,8 +835,8 @@ it('offers both actions when the store is gone but its skills are not', async ()
   const app = mount({ fetch: routing({ ...EMPTY, artifacts: VIEW.artifacts, totalEntries: 2 }) })
   const shown = await app.hover()
 
-  assert.ok(token(shown, 'os_init'), 'the store can be created again')
-  assert.ok(token(shown, 'os_remove'), 'and what is left can still be removed')
+  assert.ok(token(shown, 'smkit-spec-openspec-init'), 'the store can be created again')
+  assert.ok(token(shown, 'smkit-spec-openspec-remove'), 'and what is left can still be removed')
 })
 
 it('says so when the session has no workspace at all', async () => {
@@ -846,12 +846,12 @@ it('says so when the session has no workspace at all', async () => {
   assert.deepEqual(app.calls, [], 'a session without a directory is not asked about')
   assert.ok(texts(shown).join(' | ').includes('openSpecNoWorkspace'))
   assert.equal(
-    token(shown, 'os_init').props['data-state'],
+    token(shown, 'smkit-spec-openspec-init').props['data-smkit-state'],
     'reading',
     'with nothing to point at the create button reports no status — it keeps its seat and waits',
   )
-  assert.equal(token(shown, 'os_init').props.disabled, true)
-  assert.equal(token(shown, 'os_remove'), undefined)
+  assert.equal(token(shown, 'smkit-spec-openspec-init').props.disabled, true)
+  assert.equal(token(shown, 'smkit-spec-openspec-remove'), undefined)
 })
 
 it('reports a failed read inside the panel rather than as an empty workspace', async () => {
@@ -859,32 +859,32 @@ it('reports a failed read inside the panel rather than as an empty workspace', a
   const shown = await app.hover()
 
   assert.ok(texts(shown).join(' | ').includes('openSpecLoadFailed'))
-  assert.equal(token(shown, 'mm_stateDot'), undefined, 'and claims no status it could not read')
+  assert.equal(token(shown, 'smkit-ui-state-dot'), undefined, 'and claims no status it could not read')
 })
 
 it('survives the page scrolling under it, and follows the control instead', async () => {
   const app = mount({ fetch: routing() })
   await app.hover()
-  assert.ok(withClass(app.render(), 'os_panel'), 'the hover opened it')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'the hover opened it')
 
   // Reading past the fold scrolls the panel's own body: a re-measure finds the
   // control exactly where it was, and the panel keeps its placement.
   app.dispatch('scroll', { type: 'scroll', target: app.inside() })
   app.flushFrames()
-  assert.ok(withClass(app.render(), 'os_panel'), 'scrolling the panel is reading it')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'scrolling the panel is reading it')
 
   // The streaming bug: a chat auto-scrolling under a reply dispatches page
   // scrolls the panel used to treat as a dismissal, closing it under a pointer
   // that never left. The control has not moved, so the answer is still no.
   app.dispatch('scroll', { type: 'scroll', target: app.outside() })
   app.flushFrames()
-  assert.ok(withClass(app.render(), 'os_panel'), 'a page scroll that leaves the header alone is not a leave')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'a page scroll that leaves the header alone is not a leave')
 })
 
 it('re-places itself when the control moves, and goes when the control leaves the viewport', async () => {
   const app = mount({ fetch: routing() })
   const before = await app.hover()
-  const panelBefore = withClass(before, 'os_panel')
+  const panelBefore = withClass(before, 'smkit-spec-openspec-panel')
   assert.ok(panelBefore)
 
   // A header the page scrolled sideways: the panel follows the measured box
@@ -892,7 +892,7 @@ it('re-places itself when the control moves, and goes when the control leaves th
   app.moveNode({ top: 120, bottom: 148 })
   app.dispatch('resize', { type: 'resize' })
   const moved = app.flushFrames()
-  const panelMoved = withClass(moved, 'os_panel')
+  const panelMoved = withClass(moved, 'smkit-spec-openspec-panel')
   assert.ok(panelMoved, 'a moved control is followed, not abandoned')
   assert.notEqual(
     panelMoved.props.style.top,
@@ -905,7 +905,7 @@ it('re-places itself when the control moves, and goes when the control leaves th
   app.moveNode({ top: -40, bottom: -12 })
   app.dispatch('scroll', { type: 'scroll', target: app.outside() })
   assert.equal(
-    withClass(app.flushFrames(), 'os_panel'),
+    withClass(app.flushFrames(), 'smkit-spec-openspec-panel'),
     undefined,
     'a control off the viewport closes the panel that pointed at it',
   )
@@ -914,14 +914,14 @@ it('re-places itself when the control moves, and goes when the control leaves th
 it('closes when its control leaves the document', async () => {
   const app = mount({ fetch: routing() })
   await app.hover()
-  assert.ok(withClass(app.render(), 'os_panel'))
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'))
 
   // The header re-rendering away the seat: the measured node is gone, and a
   // panel hung off a detached control would float over nothing.
   app.detachNode()
   app.dispatch('scroll', { type: 'scroll', target: app.outside() })
   assert.equal(
-    withClass(app.flushFrames(), 'os_panel'),
+    withClass(app.flushFrames(), 'smkit-spec-openspec-panel'),
     undefined,
     'a panel whose control no longer exists has nothing to follow',
   )
@@ -930,23 +930,23 @@ it('closes when its control leaves the document', async () => {
 it('stays open when the press lands on a part of it that cannot be focused', async () => {
   const app = mount({ fetch: routing() })
   await app.hover()
-  const host = withClass(app.render(), 'os_host')
+  const host = withClass(app.render(), 'smkit-spec-openspec-host')
 
   // A press on the panel's own text, tree or chips focuses nothing, which puts
   // focus on the body: that is not the user walking away.
   host.props.onBlur({ relatedTarget: app.document.body, currentTarget: app.node })
-  assert.ok(withClass(app.render(), 'os_panel'), 'focus landing on the body is not a walk away')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'focus landing on the body is not a walk away')
 
   host.props.onBlur({ relatedTarget: null, currentTarget: app.node })
-  assert.ok(withClass(app.render(), 'os_panel'), 'and neither is focus landing nowhere')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'and neither is focus landing nowhere')
 
   // The panel's own controls live in a portaled subtree this host does not
   // contain, so `contains` cannot answer for them: the panel class is what does.
   host.props.onBlur({ relatedTarget: app.inside(), currentTarget: app.node })
-  assert.ok(withClass(app.render(), 'os_panel'), 'focus moving to the panel\u2019s own toggle is not a walk away')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'focus moving to the panel\u2019s own toggle is not a walk away')
 
   host.props.onBlur({ relatedTarget: app.outside(), currentTarget: app.node })
-  assert.equal(withClass(app.render(), 'os_panel'), undefined, 'a Tab onto another control still closes it')
+  assert.equal(withClass(app.render(), 'smkit-spec-openspec-panel'), undefined, 'a Tab onto another control still closes it')
 })
 
 it('closes on a press outside it, and only there', async () => {
@@ -954,14 +954,14 @@ it('closes on a press outside it, and only there', async () => {
   await app.hover()
 
   app.dispatch('pointerdown', { target: app.inside() })
-  assert.ok(withClass(app.render(), 'os_panel'), 'a press on the panel is not a dismissal')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'a press on the panel is not a dismissal')
 
   app.dispatch('keydown', { key: 'Escape' })
-  assert.equal(withClass(app.render(), 'os_panel'), undefined, 'Escape is')
+  assert.equal(withClass(app.render(), 'smkit-spec-openspec-panel'), undefined, 'Escape is')
 
   await app.hover()
   app.dispatch('pointerdown', { target: app.outside() })
-  assert.equal(withClass(app.render(), 'os_panel'), undefined, 'and so is a press on the page behind it')
+  assert.equal(withClass(app.render(), 'smkit-spec-openspec-panel'), undefined, 'and so is a press on the page behind it')
 })
 
 it('keeps the panel through a right-press, which reports a leave it never made', async () => {
@@ -972,15 +972,15 @@ it('keeps the panel through a right-press, which reports a leave it never made',
   // under it is reported as losing the pointer. The tell is that the point
   // still lands on the control's own surface.
   app.leave({ x: 1010, y: 30 })
-  assert.ok(withClass(app.render(), 'os_panel'), 'a leave reported from the control itself is not a leave')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'a leave reported from the control itself is not a leave')
 
   // The panel itself: the same report, from a point still on its surface.
   app.leavePanel({ x: 700, y: 100 })
-  assert.ok(withClass(app.render(), 'os_panel'), 'and neither is one from inside the panel')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'and neither is one from inside the panel')
 
   // A leave the pointer did make is still a leave.
   app.leavePanel({ x: 4, y: 4 })
-  assert.equal(withClass(app.runTimers(), 'os_panel'), undefined)
+  assert.equal(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), undefined)
 })
 
 it('closes on a slow leave through a rounded corner, which the box test swallowed', async () => {
@@ -989,7 +989,7 @@ it('closes on a slow leave through a rounded corner, which the box test swallowe
   // The panel has been entered, so no host-side timer is pending: the panel's
   // own leave is the only thing that can dismiss the panel from here — exactly
   // the state a real slow walk-out leaves behind.
-  withClass(app.render(), 'os_panel').props.onMouseEnter()
+  withClass(app.render(), 'smkit-spec-openspec-panel').props.onMouseEnter()
 
   // A point a couple of pixels into the top-right corner square is inside the
   // panel's bounding rectangle but outside its drawn, rounded surface: the
@@ -997,28 +997,28 @@ it('closes on a slow leave through a rounded corner, which the box test swallowe
   // along the arc. The old guard read them as "still on the panel" and the
   // panel stayed open forever.
   app.leavePanel({ x: panelRect.right - 2, y: panelRect.top + 2 })
-  assert.ok(withClass(app.render(), 'os_panel'), 'the leave is a leave, but dismissal is still on the grace timer')
-  assert.equal(withClass(app.runTimers(), 'os_panel'), undefined, 'and the timer finds nothing to cancel: the panel closes')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'the leave is a leave, but dismissal is still on the grace timer')
+  assert.equal(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), undefined, 'and the timer finds nothing to cancel: the panel closes')
 })
 
 it('gives the pointer time to cross to the panel', async () => {
   const app = mount({ fetch: routing() })
   await app.hover()
-  assert.ok(withClass(app.render(), 'os_panel'), 'the hover opened it')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'the hover opened it')
 
   // A diagonal move toward the panel's far half leaves the control's 28px box
   // through its *side*, at a height no geometric test can tell apart from
   // walking away — so the leave starts a timer rather than closing.
   app.leave({ x: 990, y: 30 })
-  assert.ok(withClass(app.render(), 'os_panel'), 'the panel is still there the moment the pointer leaves')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'the panel is still there the moment the pointer leaves')
 
   // Reaching the panel is what the grace period is for.
-  withClass(app.render(), 'os_panel').props.onMouseEnter()
-  assert.ok(withClass(app.runTimers(), 'os_panel'), 'and stays once the pointer got there')
+  withClass(app.render(), 'smkit-spec-openspec-panel').props.onMouseEnter()
+  assert.ok(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), 'and stays once the pointer got there')
 
   // Walking away instead lets the timer have it.
   app.leave({ x: 990, y: 30 })
-  assert.equal(withClass(app.runTimers(), 'os_panel'), undefined, 'a leave nothing cancels closes it')
+  assert.equal(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), undefined, 'a leave nothing cancels closes it')
 })
 
 it('lets the pointer come back before the grace period is up', async () => {
@@ -1028,7 +1028,7 @@ it('lets the pointer come back before the grace period is up', async () => {
   app.leave({ x: 990, y: 30 })
   // Coming back is a move onto the control: there is no other way back onto it.
   app.move()
-  assert.ok(withClass(app.runTimers(), 'os_panel'), 'returning to the control cancels the leave too')
+  assert.ok(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), 'returning to the control cancels the leave too')
 })
 
 it('does not open for a control that reflowed under a still pointer', () => {
@@ -1039,14 +1039,14 @@ it('does not open for a control that reflowed under a still pointer', () => {
   // pointer that is still where its last click left it. The browser reports
   // that arrival as an enter, and no move follows it.
   assert.equal(
-    withClass(app.arrive(), 'os_panel'),
+    withClass(app.arrive(), 'smkit-spec-openspec-panel'),
     undefined,
     'a control that came to the pointer is not a hover',
   )
   assert.deepEqual(app.calls, [], 'and a gesture nobody made reads nothing from the host')
 
   // The smallest move on the control is a hand, and opens it.
-  assert.ok(withClass(app.move(), 'os_panel'), 'moving on the control is what opens the panel')
+  assert.ok(withClass(app.move(), 'smkit-spec-openspec-panel'), 'moving on the control is what opens the panel')
   assert.equal(app.calls.length, 1, 'and the arrival reads the workspace once, as it always did')
 })
 
@@ -1055,7 +1055,7 @@ it('does not open for a control that reflowed under a still pointer', () => {
 it('holds the refresh face for the floor, not just for the read', async () => {
   const app = mount({ fetch: routing() })
   const shown = await app.hover()
-  const refresh = token(shown, 'os_refresh')
+  const refresh = token(shown, 'smkit-spec-openspec-refresh')
   assert.equal(refresh.props.disabled, false, 'an arrival leaves nothing pending')
 
   refresh.props.onClick()
@@ -1067,16 +1067,16 @@ it('holds the refresh face for the floor, not just for the read', async () => {
   // that did nothing.
   const busy = app.render()
   assert.equal(
-    app.calls.filter((call) => call.url.startsWith('/mcp-manager/api/openspec?')).length,
+    app.calls.filter((call) => call.url.startsWith('/smkit/api/openspec?')).length,
     2,
     'the re-read has already come back',
   )
-  assert.equal(token(busy, 'os_refresh').props.disabled, true, 'the face is still up')
-  assert.ok(token(busy, 'mm_statusSpin'), 'as the turning arc, not as a blink')
+  assert.equal(token(busy, 'smkit-spec-openspec-refresh').props.disabled, true, 'the face is still up')
+  assert.ok(token(busy, 'smkit-ui-spin'), 'as the turning arc, not as a blink')
 
   const settled = app.runTimers()
-  assert.equal(token(settled, 'os_refresh').props.disabled, false, 'and it comes down with the floor')
-  assert.equal(token(settled, 'mm_statusSpin'), undefined)
+  assert.equal(token(settled, 'smkit-spec-openspec-refresh').props.disabled, false, 'and it comes down with the floor')
+  assert.equal(token(settled, 'smkit-ui-spin'), undefined)
 })
 
 // --- the head's update button ------------------------------------------------
@@ -1085,12 +1085,12 @@ it('holds the row\u2019s right end, wearing a glyph and naming the commands it r
   const app = mount({ fetch: routing() })
   const shown = await app.hover()
 
-  const dot = token(shown, 'mm_stateDot')
-  const update = token(shown, 'os_update')
-  const refresh = token(shown, 'os_refresh')
+  const dot = token(shown, 'smkit-ui-state-dot')
+  const update = token(shown, 'smkit-spec-openspec-update')
+  const refresh = token(shown, 'smkit-spec-openspec-refresh')
   assert.ok(dot && update && refresh, 'the head carries all three')
-  assert.ok(orderOf(shown, 'mm_stateDot') < orderOf(shown, 'os_update'), 'the update sits after the dot')
-  assert.ok(orderOf(shown, 'os_refresh') < orderOf(shown, 'os_update'), 'and last of all, at the right end')
+  assert.ok(orderOf(shown, 'smkit-ui-state-dot') < orderOf(shown, 'smkit-spec-openspec-update'), 'the update sits after the dot')
+  assert.ok(orderOf(shown, 'smkit-spec-openspec-refresh') < orderOf(shown, 'smkit-spec-openspec-update'), 'and last of all, at the right end')
   // The word it used to wear is now its hover's subject, so the seat is a
   // square like the rest of them. The fill stays because this is the one action
   // here that changes what is installed, and the pointer is meant to land on it.
@@ -1104,12 +1104,12 @@ it('holds the row\u2019s right end, wearing a glyph and naming the commands it r
 it('marks the button busy and the panel running while the stream is open', async () => {
   const app = mount({ fetch: updateRouting([{ type: 'line', stream: 'out', text: 'working' }]) })
   const shown = await app.hover()
-  token(shown, 'os_update').props.onClick()
+  token(shown, 'smkit-spec-openspec-update').props.onClick()
 
   // The click flips `updating` synchronously, before the first awaited read; a
   // render taken here sees the run in flight.
   const busy = app.render()
-  assert.equal(token(busy, 'os_update').props.disabled, true, 'the button cannot start a second upgrade')
+  assert.equal(token(busy, 'smkit-spec-openspec-update').props.disabled, true, 'the button cannot start a second upgrade')
   assert.ok(texts(busy).join(' | ').includes('openSpecUpdateRunning'), 'and the panel says the run is going')
 })
 
@@ -1123,22 +1123,22 @@ it('streams the upgrade into the panel, then reads the footprint back', async ()
     ]),
   })
   const shown = await app.hover()
-  token(shown, 'os_update').props.onClick()
+  token(shown, 'smkit-spec-openspec-update').props.onClick()
   await flush(20)
 
-  const post = app.calls.find((call) => call.url === '/mcp-manager/api/openspec/update')
+  const post = app.calls.find((call) => call.url === '/smkit/api/openspec/update')
   assert.ok(post, 'the click POSTs to the streaming route')
   assert.deepEqual(post.body, { cwd: '/work/app' }, 'and names the workspace')
 
   const after = app.render()
   const text = texts(after).join(' | ')
   assert.ok(text.includes('openSpecUpdateDone'), 'the closing frame becomes the block heading')
-  const output = withClass(after, 'os_output')
+  const output = withClass(after, 'smkit-spec-openspec-output')
   assert.ok(output, 'the streamed lines are painted into the panel')
   assert.ok(text.includes('changed 1 package in 4s'), 'verbatim, as npm wrote them')
   assert.ok(text.includes('$ openspec update'), 'including the second command echo')
-  assert.equal(token(after, 'os_update').props.disabled, false, 'the button frees once the run lands')
-  assert.ok(app.calls.at(-1).url.startsWith('/mcp-manager/api/openspec?cwd='), 'and the footprint is re-read')
+  assert.equal(token(after, 'smkit-spec-openspec-update').props.disabled, false, 'the button frees once the run lands')
+  assert.ok(app.calls.at(-1).url.startsWith('/smkit/api/openspec?cwd='), 'and the footprint is re-read')
 })
 
 it('turns a failed upgrade into its localized reason, in the error style', async () => {
@@ -1150,14 +1150,14 @@ it('turns a failed upgrade into its localized reason, in the error style', async
     ]),
   })
   const shown = await app.hover()
-  token(shown, 'os_update').props.onClick()
+  token(shown, 'smkit-spec-openspec-update').props.onClick()
   await flush(20)
 
   const after = app.render()
   const text = texts(after).join(' | ')
   assert.ok(text.includes('openSpecUpdateFailed'), 'a non-zero exit is reported as a failure')
   assert.ok(text.includes('npm ERR! 404'), 'and the CLI\u2019s own words still reach the block')
-  const heading = withClass(after, 'os_error')
+  const heading = withClass(after, 'smkit-spec-openspec-error')
   assert.ok(heading && texts(heading).includes('openSpecUpdateFailed'), 'the heading wears the error style')
 })
 
@@ -1170,7 +1170,7 @@ it('phrases a missing npm as an instruction, not a stack', async () => {
     ]),
   })
   const shown = await app.hover()
-  token(shown, 'os_update').props.onClick()
+  token(shown, 'smkit-spec-openspec-update').props.onClick()
   await flush(20)
 
   assert.ok(texts(app.render()).join(' | ').includes('openSpecUpdateNpmMissing'))
@@ -1184,7 +1184,7 @@ it('prints a finished upgrade on the next opening, then drops it', async () => {
     ]),
   })
   const shown = await app.hover()
-  token(shown, 'os_update').props.onClick()
+  token(shown, 'smkit-spec-openspec-update').props.onClick()
   await flush(20)
   const done = texts(app.render()).join(' | ')
   assert.ok(done.includes('openSpecUpdateDone'), 'the opening the run finished on shows the record')
@@ -1205,7 +1205,7 @@ it('prints a finished upgrade on the next opening, then drops it', async () => {
   const text = texts(gone).join(' | ')
   assert.ok(!text.includes('openSpecUpdateDone'), 'the opening after that drops the receipt')
   assert.ok(!text.includes('openSpecUpdateExpiry'), 'and the notice goes with it')
-  assert.equal(withClass(gone, 'os_output'), undefined, 'and its output goes with it')
+  assert.equal(withClass(gone, 'smkit-spec-openspec-output'), undefined, 'and its output goes with it')
 })
 
 it('does not count openings while the upgrade is still running', async () => {
@@ -1235,7 +1235,7 @@ it('does not count openings while the upgrade is still running', async () => {
   }
   const app = mount({ fetch: live })
   const shown = await app.hover()
-  token(shown, 'os_update').props.onClick()
+  token(shown, 'smkit-spec-openspec-update').props.onClick()
   await flush(20)
 
   for (const view of [1, 2, 3, 4]) {
@@ -1274,35 +1274,35 @@ it('offers the ignore action on a footprint, and not on an empty workspace', asy
   const app = mount({ fetch: routing() })
   const shown = await app.hover()
 
-  const ignore = token(shown, 'os_ignore')
+  const ignore = token(shown, 'smkit-spec-openspec-ignore')
   assert.ok(ignore, 'a workspace with a footprint can be handed to git')
   assert.equal(ignore.props.title, 'openSpecGitignoreCommand', 'the tooltip says what it asks and where it writes')
   assert.equal(ignore.props['aria-label'], 'openSpecGitignore', 'a button with no words still has a name')
   assert.equal(texts([ignore]).length, 0, 'the hover holds the sentence; the button wears only the glyph')
   assert.equal(ignore.props.disabled, false)
   // The delete is the loud answer and this the quiet one; the toolbar holds both.
-  assert.ok(orderOf(shown, 'os_ignore') < orderOf(shown, 'os_remove'), 'the reversible action sits before the destructive one')
+  assert.ok(orderOf(shown, 'smkit-spec-openspec-ignore') < orderOf(shown, 'smkit-spec-openspec-remove'), 'the reversible action sits before the destructive one')
 
   const emptyApp = mount({ fetch: routing(EMPTY) })
   const empty = await emptyApp.hover()
-  assert.equal(token(empty, 'os_ignore'), undefined, 'a workspace with nothing in it has nothing to hide')
+  assert.equal(token(empty, 'smkit-spec-openspec-ignore'), undefined, 'a workspace with nothing in it has nothing to hide')
 
   const outsideApp = mount({ fetch: routing({ ...VIEW, repo: false }) })
   const outside = await outsideApp.hover()
   assert.equal(
-    token(outside, 'os_ignore'),
+    token(outside, 'smkit-spec-openspec-ignore'),
     undefined,
     'outside a repository, hiding a footprint from git is meaningless, so the offer stays out',
   )
-  assert.ok(token(outside, 'os_remove'), 'the delete needs no git: it is a filesystem answer')
+  assert.ok(token(outside, 'smkit-spec-openspec-remove'), 'the delete needs no git: it is a filesystem answer')
 })
 
 it('asks git once for the workspace and reports what each entry became', async () => {
   const { app, shown } = await withIgnore(ignoreBody())
-  token(shown, 'os_ignore').props.onClick()
+  token(shown, 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
 
-  assert.deepEqual(app.calls[1], { url: '/mcp-manager/api/openspec/gitignore', body: { cwd: '/work/app' } },
+  assert.deepEqual(app.calls[1], { url: '/smkit/api/openspec/gitignore', body: { cwd: '/work/app' } },
     'the host re-derives the targets, so the panel names only the workspace')
   const text = texts(app.render()).join(' | ')
   assert.ok(text.includes('openSpecGitignoreUntracked({"count":1})'), 'one entry had to leave the index first')
@@ -1333,7 +1333,7 @@ it('re-reads the store after writing an ignore file into it', async () => {
   const shown = await app.hover()
   assert.equal(texts(shown).includes('.gitignore'), false, 'the store has no ignore file on disk yet')
 
-  token(shown, 'os_ignore').props.onClick()
+  token(shown, 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
 
   assert.equal(reads, 2, 'a file landed inside the store, so the tree that draws it reads again')
@@ -1342,7 +1342,7 @@ it('re-reads the store after writing an ignore file into it', async () => {
 
 it('names the ignore files it wrote, beside the entries they carry', async () => {
   const { app, shown } = await withIgnore(ignoreBody({ files: ['openspec/.gitignore', '.agents/skills/.gitignore'] }))
-  token(shown, 'os_ignore').props.onClick()
+  token(shown, 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
 
   assert.ok(
@@ -1358,7 +1358,7 @@ it('says so when there was nothing to hide and nothing was written', async () =>
       { rel: 'openspec', ignoreFile: 'openspec/.gitignore', patterns: ['*', '!.gitignore'], ignored: true, untracked: false, listed: false, alreadyListed: false },
     ],
   })
-  token(shown, 'os_ignore').props.onClick()
+  token(shown, 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
 
   const text = texts(app.render()).join(' | ')
@@ -1368,14 +1368,14 @@ it('says so when there was nothing to hide and nothing was written', async () =>
 
 it('tells a workspace outside a repository from a machine without git', async () => {
   const outside = await withIgnore({ repo: false, reason: 'not-a-repo', results: [] })
-  token(outside.shown, 'os_ignore').props.onClick()
+  token(outside.shown, 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
   const outsideText = texts(outside.app.render()).join(' | ')
   assert.ok(outsideText.includes('openSpecGitignoreNoRepo'))
   assert.equal(outsideText.includes('openSpecGitignoreListed'), false, 'nothing was counted, because nothing was asked')
 
   const noGit = await withIgnore({ repo: false, reason: 'no-git', results: [] })
-  token(noGit.shown, 'os_ignore').props.onClick()
+  token(noGit.shown, 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
   assert.ok(
     texts(noGit.app.render()).join(' | ').includes('openSpecGitignoreNoGit'),
@@ -1387,7 +1387,7 @@ it('names an entry git refused, with its own reason', async () => {
   const refused = ignoreBody()
   refused.results[0].error = "fatal: something's in the way"
   const { app, shown } = await withIgnore(refused)
-  token(shown, 'os_ignore').props.onClick()
+  token(shown, 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
 
   const tree = app.render()
@@ -1407,18 +1407,18 @@ it('marks itself busy while git is being asked, and localises a refused call', a
       return response(VIEW)
     },
   })
-  token(await app.hover(), 'os_ignore').props.onClick()
+  token(await app.hover(), 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
 
   const busy = app.render()
-  assert.equal(token(busy, 'os_ignore').props.disabled, true, 'a second press while the first is running would ask git twice')
-  assert.equal(token(busy, 'os_ignore').props['aria-busy'], true)
+  assert.equal(token(busy, 'smkit-spec-openspec-ignore').props.disabled, true, 'a second press while the first is running would ask git twice')
+  assert.equal(token(busy, 'smkit-spec-openspec-ignore').props['aria-busy'], true)
   assert.ok(texts(busy).join(' | ').includes('openSpecGitignoreRunning'))
 
   settle(response(ignoreBody({ files: ['openspec/.gitignore'] })))
   await flush()
   const done = app.render()
-  assert.equal(token(done, 'os_ignore').props.disabled, false, 'the button is itself again once the answer is in')
+  assert.equal(token(done, 'smkit-spec-openspec-ignore').props.disabled, false, 'the button is itself again once the answer is in')
   assert.ok(texts(done).join(' | ').includes('openSpecGitignoreFiles'))
 
   const failed = mount({
@@ -1426,7 +1426,7 @@ it('marks itself busy while git is being asked, and localises a refused call', a
       ? response({ error: '' }, false, 500)
       : response(VIEW)),
   })
-  token(await failed.hover(), 'os_ignore').props.onClick()
+  token(await failed.hover(), 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
   assert.ok(
     texts(failed.render()).join(' | ').includes('openSpecGitignoreFailed({"status":500})'),
@@ -1436,7 +1436,7 @@ it('marks itself busy while git is being asked, and localises a refused call', a
 
 it('clears its answer when the panel opens again', async () => {
   const { app, shown } = await withIgnore(ignoreBody())
-  token(shown, 'os_ignore').props.onClick()
+  token(shown, 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
   assert.ok(texts(app.render()).join(' | ').includes('openSpecGitignore'), 'the receipt is showing')
 
@@ -1463,8 +1463,8 @@ it('says what the delete took back out of the ignore files', async () => {
     }),
   })
   await app.hover()
-  nodes(app.render()).find((node) => node.props?.className === 'mm_btn danger os_remove').props.onClick()
-  nodes(app.render()).find((node) => node.props?.className === 'mm_btn danger').props.onClick()
+  nodes(app.render()).find((node) => node.props?.className === 'smkit-ui-button danger smkit-spec-openspec-remove').props.onClick()
+  nodes(app.render()).find((node) => node.props?.className === 'smkit-ui-button danger').props.onClick()
   await flush()
 
   const text = texts(app.render()).join(' | ')
@@ -1516,22 +1516,22 @@ it('offers the un-ignore action beside the one it reverses, and not on an empty 
   const app = mount({ fetch: routing() })
   const shown = await app.hover()
 
-  const untrack = token(shown, 'os_untrack')
+  const untrack = token(shown, 'smkit-spec-openspec-untrack')
   assert.ok(untrack, 'what the ignore button handed to git, this one takes back')
   assert.equal(untrack.props.title, 'openSpecUntrackCommand', 'the tooltip says what comes out, what goes with it, and what git is never asked')
   assert.equal(untrack.props['aria-label'], 'openSpecUntrack', 'a button with no words still has a name')
   assert.equal(texts([untrack]).length, 0, 'the hover holds the sentence; the button wears only the glyph')
-  assert.ok(orderOf(shown, 'os_untrack') < orderOf(shown, 'os_ignore'), 'it sits directly to its twin\u2019s left, the undo beside the act')
-  assert.ok(orderOf(shown, 'os_ignore') < orderOf(shown, 'os_remove'), 'and both reversible actions precede the destructive one')
+  assert.ok(orderOf(shown, 'smkit-spec-openspec-untrack') < orderOf(shown, 'smkit-spec-openspec-ignore'), 'it sits directly to its twin\u2019s left, the undo beside the act')
+  assert.ok(orderOf(shown, 'smkit-spec-openspec-ignore') < orderOf(shown, 'smkit-spec-openspec-remove'), 'and both reversible actions precede the destructive one')
 
   const emptyApp = mount({ fetch: routing(EMPTY) })
   const empty = await emptyApp.hover()
-  assert.equal(token(empty, 'os_untrack'), undefined, 'a workspace with nothing in it has nothing to take back')
+  assert.equal(token(empty, 'smkit-spec-openspec-untrack'), undefined, 'a workspace with nothing in it has nothing to take back')
 
   const quietApp = mount({ fetch: routing({ ...VIEW, hasIgnoreRules: false }) })
   const quiet = await quietApp.hover()
-  assert.ok(token(quiet, 'os_ignore'), 'hiding stays on offer while the store stands')
-  const quietUntrack = token(quiet, 'os_untrack')
+  assert.ok(token(quiet, 'smkit-spec-openspec-ignore'), 'hiding stays on offer while the store stands')
+  const quietUntrack = token(quiet, 'smkit-spec-openspec-untrack')
   assert.ok(quietUntrack, 'and its twin keeps its seat rather than vanishing out of the row')
   assert.equal(
     quietUntrack.props.disabled,
@@ -1542,7 +1542,7 @@ it('offers the un-ignore action beside the one it reverses, and not on an empty 
   const outsideApp = mount({ fetch: routing({ ...VIEW, repo: false }) })
   const outside = await outsideApp.hover()
   assert.equal(
-    token(outside, 'os_untrack'),
+    token(outside, 'smkit-spec-openspec-untrack'),
     undefined,
     'outside a repository there is no tracking to take back, so the twin stays out too',
   )
@@ -1550,10 +1550,10 @@ it('offers the un-ignore action beside the one it reverses, and not on an empty 
 
 it('asks the host once for the workspace and reports what each entry became', async () => {
   const { app, shown } = await withUntrack(untrackBody({ files: [{ rel: 'openspec/.gitignore', lines: 2, deleted: true }] }))
-  token(shown, 'os_untrack').props.onClick()
+  token(shown, 'smkit-spec-openspec-untrack').props.onClick()
   await flush()
 
-  assert.deepEqual(app.calls[1], { url: '/mcp-manager/api/openspec/untrack', body: { cwd: '/work/app' } },
+  assert.deepEqual(app.calls[1], { url: '/smkit/api/openspec/untrack', body: { cwd: '/work/app' } },
     'the host re-derives the targets, so the panel names only the workspace')
   const text = texts(app.render()).join(' | ')
   assert.ok(text.includes('openSpecUntrackUnlisted({"count":1})'), 'one entry had its line taken out')
@@ -1566,7 +1566,7 @@ it('asks the host once for the workspace and reports what each entry became', as
   assert.equal(app.calls.length, 3, 'a file inside the store went, so the tree that draws it reads again')
 
   const quiet = await withUntrack(untrackBody())
-  token(quiet.shown, 'os_untrack').props.onClick()
+  token(quiet.shown, 'smkit-spec-openspec-untrack').props.onClick()
   await flush()
   assert.equal(quiet.app.calls.length, 2, 'nothing on disk moved, so nothing is re-read')
 })
@@ -1577,24 +1577,24 @@ it('marks itself busy while the host works, and localises a refused call', async
   const app = mount({
     fetch: (url) => (url.includes('/openspec/untrack') ? held.promise : response(VIEW)),
   })
-  token(await app.hover(), 'os_untrack').props.onClick()
+  token(await app.hover(), 'smkit-spec-openspec-untrack').props.onClick()
   await flush()
 
   const busy = app.render()
-  assert.equal(token(busy, 'os_untrack').props.disabled, true, 'a second press while the first runs would rewrite the same files twice')
-  assert.equal(token(busy, 'os_untrack').props['aria-busy'], true)
+  assert.equal(token(busy, 'smkit-spec-openspec-untrack').props.disabled, true, 'a second press while the first runs would rewrite the same files twice')
+  assert.equal(token(busy, 'smkit-spec-openspec-untrack').props['aria-busy'], true)
   assert.ok(texts(busy).join(' | ').includes('openSpecUntrackRunning'))
 
   settle(response(untrackBody()))
   await flush()
-  assert.equal(token(app.render(), 'os_untrack').props.disabled, false, 'the button is itself again once the answer is in')
+  assert.equal(token(app.render(), 'smkit-spec-openspec-untrack').props.disabled, false, 'the button is itself again once the answer is in')
 
   const failed = mount({
     fetch: (url) => (url.includes('/openspec/untrack')
       ? response({ error: '' }, false, 500)
       : response(VIEW)),
   })
-  token(await failed.hover(), 'os_untrack').props.onClick()
+  token(await failed.hover(), 'smkit-spec-openspec-untrack').props.onClick()
   await flush()
   assert.ok(
     texts(failed.render()).join(' | ').includes('openSpecUntrackFailed({"status":500})'),
@@ -1606,7 +1606,7 @@ it('names an entry whose file could not be rewritten', async () => {
   const refused = untrackBody()
   refused.results[2].error = 'EPERM: operation not permitted'
   const { app, shown } = await withUntrack(refused)
-  token(shown, 'os_untrack').props.onClick()
+  token(shown, 'smkit-spec-openspec-untrack').props.onClick()
   await flush()
   const tree = app.render()
   assert.ok(texts(tree).join(' | ').includes('openSpecUntrackPartial'), 'the section says the run was not whole')
@@ -1617,7 +1617,7 @@ it('names an entry whose file could not be rewritten', async () => {
 
 it('clears its answer when the panel opens again', async () => {
   const { app, shown } = await withUntrack(untrackBody())
-  token(shown, 'os_untrack').props.onClick()
+  token(shown, 'smkit-spec-openspec-untrack').props.onClick()
   await flush()
   assert.ok(texts(app.render()).join(' | ').includes('openSpecUntrackUnlisted'), 'the receipt is showing')
 
@@ -1635,7 +1635,7 @@ it('clears its answer when the panel opens again', async () => {
 
 /** The receipts the panel holds open, top to bottom. */
 const openItems = (tree) =>
-  nodes(tree).filter(node => String(node.props?.className ?? '').split(' ').includes('os_logItem'))
+  nodes(tree).filter(node => String(node.props?.className ?? '').split(' ').includes('smkit-spec-openspec-log-item'))
 
 /**
  * A panel that answers both ignore actions, so two receipts can stack up in the
@@ -1658,7 +1658,7 @@ async function withTwoAnswers(ignore, untrack) {
 it('mounts the log before there is anything in it', async () => {
   const app = mount({ fetch: routing() })
   const shown = await app.hover()
-  const messages = withClass(shown, 'os_messages')
+  const messages = withClass(shown, 'smkit-spec-openspec-messages')
   assert.ok(messages, 'the block is on the panel with no receipt to report')
   assert.equal(nodes(messages).length, 1, 'and nothing hangs off it, so it takes no room')
   assert.equal(openItems(shown).length, 0)
@@ -1666,12 +1666,12 @@ it('mounts the log before there is anything in it', async () => {
 
 it('keeps every answer in the one window, newest first', async () => {
   const { app, shown } = await withTwoAnswers(ignoreBody(), untrackBody())
-  token(shown, 'os_ignore').props.onClick()
+  token(shown, 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
   let tree = app.render()
   assert.equal(openItems(tree).length, 1, 'the answer just earned is in the log')
 
-  token(tree, 'os_untrack').props.onClick()
+  token(tree, 'smkit-spec-openspec-untrack').props.onClick()
   await flush()
   tree = app.render()
   const items = openItems(tree)
@@ -1680,7 +1680,7 @@ it('keeps every answer in the one window, newest first', async () => {
     2,
     'the older answer stays in the window rather than being filed away: folding it gave the panel height back, and the pointer was left outside',
   )
-  assert.equal(withClass(tree, 'os_older'), undefined, 'and there is no expander to read the log through')
+  assert.equal(withClass(tree, 'smkit-spec-openspec-older'), undefined, 'and there is no expander to read the log through')
   assert.ok(texts(items[0]).join(' ').includes('openSpecUntrack'), 'newest first, where no scrolling is needed')
   assert.ok(texts(items[1]).join(' ').includes('openSpecGitignore'), 'and the answer before it right underneath')
 })
@@ -1689,9 +1689,9 @@ it('keeps a receipt that failed above the one that came after it', async () => {
   const refused = ignoreBody()
   refused.results[2].error = 'EPERM: operation not permitted'
   const { app, shown } = await withTwoAnswers(refused, untrackBody())
-  token(shown, 'os_ignore').props.onClick()
+  token(shown, 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
-  token(app.render(), 'os_untrack').props.onClick()
+  token(app.render(), 'smkit-spec-openspec-untrack').props.onClick()
   await flush()
 
   const items = openItems(app.render())
@@ -1710,12 +1710,12 @@ it('puts every action in the head, so no click waits on the panel\u2019s bottom 
   assert.deepEqual(
     toolbarOf(shown),
     [
-      'mm_btn os_untrack',
-      'mm_btn os_ignore',
-      'mm_btn danger os_remove',
-      'mm_btn os_init',
-      'mm_btn os_refresh',
-      'mm_btn primary os_update',
+      'smkit-ui-button smkit-spec-openspec-untrack',
+      'smkit-ui-button smkit-spec-openspec-ignore',
+      'smkit-ui-button danger smkit-spec-openspec-remove',
+      'smkit-ui-button smkit-spec-openspec-init',
+      'smkit-ui-button smkit-spec-openspec-refresh',
+      'smkit-ui-button primary smkit-spec-openspec-update',
     ],
     // The two actions the panel offers whatever the workspace holds hold the
     // right end; the ones a read brings or takes away are the further-left
@@ -1723,21 +1723,21 @@ it('puts every action in the head, so no click waits on the panel\u2019s bottom 
     'one row, permanent on the right and volatile on the left',
   )
   assert.ok(
-    orderOf(shown, 'os_head') < orderOf(shown, 'os_body'),
+    orderOf(shown, 'smkit-spec-openspec-head') < orderOf(shown, 'smkit-spec-openspec-body'),
     'the actions are above what they act on, so the pointer that clicks is a body away from the edge a shrinking body lifts',
   )
-  assert.equal(withClass(shown, 'os_foot'), undefined, 'nothing asks the pointer to wait under the facts')
+  assert.equal(withClass(shown, 'smkit-spec-openspec-foot'), undefined, 'nothing asks the pointer to wait under the facts')
   // The only words the head wears are the name the entry button answers to and
   // the panel carries as its own — every action is a glyph, so the row has room
   // for the full name again.
-  assert.deepEqual(texts(withClass(shown, 'os_head')), ['manageOpenSpec'], 'one name, no second label')
+  assert.deepEqual(texts(withClass(shown, 'smkit-spec-openspec-head')), ['manageOpenSpec'], 'one name, no second label')
 
-  const remove = token(shown, 'os_remove')
+  const remove = token(shown, 'smkit-spec-openspec-remove')
   assert.equal(texts([remove]).length, 0, 'the delete wears only the glyph the rest of the plugin wears for it')
   assert.equal(remove.props.title, 'openSpecRemove', 'and the words it dropped ride its hover')
   assert.equal(remove.props['aria-label'], 'openSpecRemove', 'so the button still has a name without them')
 
-  const init = token(shown, 'os_init')
+  const init = token(shown, 'smkit-spec-openspec-init')
   assert.equal(texts([init]).length, 0, 'the create button wears lucide\u2019s letter initial, not the word')
   assert.equal(init.props['aria-label'], 'openSpecInit', 'and keeps its name without the word')
 })

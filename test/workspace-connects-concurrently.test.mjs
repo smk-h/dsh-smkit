@@ -186,7 +186,7 @@ it('registers every workspace row at once and opens their transports concurrentl
   assert.equal(creationSettled, true, 'session creation must not wait for the workspace transports')
   assert.equal(creationError, undefined, `session creation must not fail: ${creationError}`)
 
-  const midFlight = await request(handler, 'GET', '/mcp-manager/api/workspaces')
+  const midFlight = await request(handler, 'GET', '/smkit/api/workspaces')
   const rows = midFlight.json.workspaces
     .find((workspace) => workspace.path === wsDir)
     ?.servers ?? []
@@ -200,7 +200,7 @@ it('registers every workspace row at once and opens their transports concurrentl
   // the session from here: its tools must arrive through the settle callback.
   gate.resolve()
   const settledRows = await waitFor(async () => {
-    const settled = await request(handler, 'GET', '/mcp-manager/api/workspaces')
+    const settled = await request(handler, 'GET', '/smkit/api/workspaces')
     const current = settled.json.workspaces
       .find((workspace) => workspace.path === wsDir)
       ?.servers ?? []

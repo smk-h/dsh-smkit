@@ -90,7 +90,7 @@ async function request(handler, method, path, body) {
   return { code: res.code, json: res.body ? JSON.parse(res.body) : undefined }
 }
 
-const settingsOf = (handler) => request(handler, 'GET', '/mcp-manager/api/settings')
+const settingsOf = (handler) => request(handler, 'GET', '/smkit/api/settings')
 
 /**
  * An MCP endpoint that answers the connect phase and then never answers
@@ -162,7 +162,7 @@ it('refuses a timeout outside the bounds and keeps the stored one', async () => 
     { timeoutMs: '60000' },
     {},
   ]) {
-    const refused = await request(handler, 'POST', '/mcp-manager/api/settings/tool-timeout', body)
+    const refused = await request(handler, 'POST', '/smkit/api/settings/tool-timeout', body)
     assert.equal(refused.code, 400, JSON.stringify(body) + ' must be refused')
   }
   assert.equal((await settingsOf(handler)).json.toolCallTimeoutMs, 60_000)
@@ -172,7 +172,7 @@ it('refuses a timeout outside the bounds and keeps the stored one', async () => 
 it('stores a timeout, reports it, and clears back to the default', async () => {
   const { handler } = makeCtx()
 
-  const written = await request(handler, 'POST', '/mcp-manager/api/settings/tool-timeout', { timeoutMs: 120_000 })
+  const written = await request(handler, 'POST', '/smkit/api/settings/tool-timeout', { timeoutMs: 120_000 })
   assert.equal(written.code, 200)
   assert.equal(written.json.toolCallTimeoutMs, 120_000)
   assert.equal(persistedState().toolCallTimeoutMs, 120_000)
@@ -182,7 +182,7 @@ it('stores a timeout, reports it, and clears back to the default', async () => {
   const remounted = makeCtx()
   assert.equal((await settingsOf(remounted.handler)).json.toolCallTimeoutMs, 120_000)
 
-  const cleared = await request(handler, 'POST', '/mcp-manager/api/settings/tool-timeout', { timeoutMs: null })
+  const cleared = await request(handler, 'POST', '/smkit/api/settings/tool-timeout', { timeoutMs: null })
   assert.equal(cleared.code, 200)
   assert.equal(cleared.json.toolCallTimeoutMs, 60_000)
   assert.equal('toolCallTimeoutMs' in persistedState(), false, 'clearing must remove the key')
@@ -193,17 +193,17 @@ it('ends a tools/call that outlives the configured timeout', async () => {
   try {
     const { handler, definitions } = makeCtx()
 
-    const configured = await request(handler, 'POST', '/mcp-manager/api/settings/tool-timeout', { timeoutMs: 1_000 })
+    const configured = await request(handler, 'POST', '/smkit/api/settings/tool-timeout', { timeoutMs: 1_000 })
     assert.equal(configured.code, 200)
 
-    const created = await request(handler, 'POST', '/mcp-manager/api/servers', {
+    const created = await request(handler, 'POST', '/smkit/api/servers', {
       name: 'silent',
       type: 'http',
       url: 'http://127.0.0.1:9/mcp',
       authMode: 'none',
     })
     assert.equal(created.code, 201)
-    const connected = await request(handler, 'POST', `/mcp-manager/api/servers/${created.json.server.id}/connect`)
+    const connected = await request(handler, 'POST', `/smkit/api/servers/${created.json.server.id}/connect`)
     assert.equal(connected.json.server.status, 'connected')
 
     const slow = definitions.find((definition) => definition.mcpRawName === 'slow')

@@ -6,7 +6,7 @@
  * section's question — the inputs a model takes, the formats a tool returns, the
  * scopes a grant covers are all the same kind of answer, and the control that
  * asks it should be one control. A section that needs it drops it in and keeps no
- * rules of its own; the row the chips are read as is the `mm_chipRow` class this
+ * rules of its own; the row the chips are read as is the `smkit-ui-check-chip-chip-row` class this
  * file's stylesheet owns, and what each chip means is the `onChange` the section
  * passes.
  *
@@ -54,25 +54,25 @@ export function createCheckChip(deps: ClientDeps): (props: CheckChipProps) => JS
     const name = props.of === undefined ? props.label : `${props.of} · ${props.label}`
     return (
       <label
-        className="mm_chip"
-        data-on={props.checked ? 'true' : undefined}
-        data-locked={props.locked ? 'true' : undefined}
-        data-inert={props.inert ? 'true' : undefined}
+        className="smkit-ui-check-chip"
+        data-smkit-on={props.checked ? 'true' : undefined}
+        data-smkit-locked={props.locked ? 'true' : undefined}
+        data-smkit-inert={props.inert ? 'true' : undefined}
       >
         {/* The native control stays in the tree under the pill — the role, the
           * keyboard and the checked state are the browser's — but it is the box
           * below that is looked at, so this one is only ever felt. */}
         <input
-          className="mm_chipInput"
+          className="smkit-ui-check-chip-chip-input"
           type="checkbox"
           checked={props.checked}
           disabled={props.disabled === true || props.locked === true || props.inert === true}
           aria-label={name}
           onChange={(e) => { props.onChange?.(e.target.checked) }}
         />
-        <span className="mm_chipBox">{props.checked ? <CheckIcon size={10} /> : null}</span>
-        <span className="mm_chipLabel">{props.label}</span>
-        {props.locked ? <LockIcon size={11} className="mm_chipLock" /> : null}
+        <span className="smkit-ui-check-chip-chip-box">{props.checked ? <CheckIcon size={10} /> : null}</span>
+        <span className="smkit-ui-check-chip-label">{props.label}</span>
+        {props.locked ? <LockIcon size={11} className="smkit-ui-check-chip-chip-lock" /> : null}
       </label>
     )
   }

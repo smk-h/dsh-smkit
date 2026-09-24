@@ -83,7 +83,7 @@ export const openSpecFeature: ClientFeature = {
       ctx.slots.register(
         {
           name: SESSION_HEADER_UTILITIES,
-          id: 'mcp-manager-openspec',
+          id: 'smkit-openspec',
           order: 49,
           locale: 'openspec',
         },

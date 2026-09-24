@@ -2,7 +2,7 @@
  * The wire contract of the OpenSpec feature.
  *
  * The host inspects one workspace's project root and serves these shapes over
- * `/mcp-manager/api/openspec*`; the browser half renders exactly these shapes.
+ * `/smkit/api/openspec*`; the browser half renders exactly these shapes.
  * They live outside both `src/host` and `src/client` for the same reason the
  * MCP and skills contracts do: each half would otherwise declare its own copy
  * of such a shape, and nothing would catch the two drifting apart.

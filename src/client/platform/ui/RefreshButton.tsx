@@ -23,13 +23,13 @@
  * vocabulary (the MCP toolbar's `openConfig`, the session-delete control) is a
  * dimmed control with the platform's spinner in it, not a control that still
  * looks ready. The arc is `platform/icons/LoaderIcon`, turning on the shared
- * `mm_statusSpin` keyframes (`style/spin.css`), so a refresh in flight and a
+ * `smkit-ui-spin` keyframes (`style/spin.css`), so a refresh in flight and a
  * connection in flight turn at the same rate and honour `prefers-reduced-motion`
  * together. And the face comes down by *changing back* — the arc giving way to
  * the arrow — rather than by stopping mid-turn, which is what lets the floor be
  * a plain deadline instead of a whole number of rotations.
  *
- * The bubble is the shell's own `.mm_tip` mark, so a page's toolbar bubbles all
+ * The bubble is the shell's own `.smkit-ui-tip` mark, so a page's toolbar bubbles all
  * clamp through the one document-level watch it already installs
  * (`platform/ui/tip`).
  */
@@ -67,17 +67,17 @@ export function createRefreshButton(deps: ClientDeps): (props: RefreshButtonProp
     const label = platformT('refresh')
     return (
       <button
-        className="mm_iconBtn mm_refreshBtn mm_tip"
+        className="smkit-ui-icon-button smkit-ui-refresh-button smkit-ui-tip"
         type="button"
         aria-label={label}
-        data-tip={label}
-        data-busy={turning ? 'true' : undefined}
+        data-smkit-tip={label}
+        data-smkit-busy={turning ? 'true' : undefined}
         aria-busy={turning ? true : undefined}
         disabled={turning || disabled === true}
         onClick={click}
       >
         {turning ? (
-          <SpinnerIcon className="mm_statusSpin" size={14} />
+          <SpinnerIcon className="smkit-ui-spin" size={14} />
         ) : (
           <RefreshIcon size={14} />
         )}

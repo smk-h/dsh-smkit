@@ -8,7 +8,7 @@
  * caller that wants another trigger look passes its own class names
  * (`IconSelectProps.classes`) and keeps those rules in its own stylesheet — the
  * MCP server form's field-shaped trigger is the one caller that does
- * (`features/mcp/style/form.css`, `mm_fieldSelect*`), and it anchors this
+ * (`features/mcp/style/form.css`, `smkit-mcp-form-field-select*`), and it anchors this
  * absolutely positioned menu through the `position: relative` on its own root.
  *
  * Why this exists at all, next to a perfectly good native `<select>`: the
@@ -20,13 +20,13 @@
  * joins them in the order listed there.
  */
 
-.mm_scope {
+.smkit-ui-picker {
   position: relative;
   display: inline-flex;
   max-width: 100%;
 }
 
-.mm_scopeTrigger {
+.smkit-ui-picker-scope-trigger {
   align-items: center;
   gap: 8px;
   font: inherit;
@@ -41,24 +41,24 @@
   display: inline-flex;
   max-width: 100%;
 }
-.mm_scopeTrigger:hover {
+.smkit-ui-picker-scope-trigger:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
-.mm_scopeTrigger>svg {
+.smkit-ui-picker-scope-trigger>svg {
   flex: none;
   color: var(--dsw-alias-label-secondary);
 }
-.mm_scopeTrigger .mm_chevron {
+.smkit-ui-picker-scope-trigger .smkit-ui-picker-chevron {
   margin-left: 0;
 }
 
-.mm_scopeLabel {
+.smkit-ui-picker-scope-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.mm_scopeMenu {
+.smkit-ui-picker-scope-menu {
   flex-direction: column;
   gap: 2px;
   position: absolute;
@@ -75,14 +75,14 @@
   display: flex;
 }
 
-.mm_scopeGroup {
+.smkit-ui-picker-scope-group {
   padding: 6px 10px 2px;
   font-size: 11px;
   line-height: 16px;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.mm_scopeItem {
+.smkit-ui-picker-scope-item {
   align-items: center;
   gap: 8px;
   font: inherit;
@@ -98,15 +98,15 @@
   display: flex;
   width: 100%;
 }
-.mm_scopeItem:hover {
+.smkit-ui-picker-scope-item:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
-.mm_scopeItem>svg {
+.smkit-ui-picker-scope-item>svg {
   flex: none;
   color: var(--dsw-alias-label-secondary);
 }
 
-.mm_scopeItemLabel {
+.smkit-ui-picker-scope-item-label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -114,7 +114,7 @@
   white-space: nowrap;
 }
 
-.mm_scopeCheck {
+.smkit-ui-picker-scope-check {
   flex: none;
   display: inline-flex;
   color: var(--dsw-alias-state-business-primary);
@@ -123,13 +123,13 @@
 /* The caret: on a picker trigger (a picker's own rule above cancels the auto
  * margin, which would push it to the trigger's far edge) and on an expandable
  * row, whose disclosure arrow rotates while its details are open. */
-.mm_chevron {
+.smkit-ui-picker-chevron {
   color: var(--dsw-alias-label-tertiary);
   flex: none;
   margin-left: auto;
   transition: transform .15s;
   display: inline-flex;
 }
-.mm_chevron[data-open=true] {
+.smkit-ui-picker-chevron[data-smkit-open=true] {
   transform: rotate(180deg);
 }

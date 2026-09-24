@@ -48,7 +48,7 @@ try {
 } catch (error) {
   failure(`cannot import lib/index.js — run \`pnpm build\` first: ${error?.stack ?? error}`)
 }
-assert.equal(mod.name, 'mcp-manager', 'the plugin must export name = "mcp-manager"')
+assert.equal(mod.name, 'dsh-smkit', 'the plugin must export name = "dsh-smkit"')
 assert.equal(typeof mod.apply, 'function', 'the plugin must export a function-form apply()')
 assert.ok(
   Array.isArray(mod.inject) && mod.inject.includes('tools'),
@@ -82,7 +82,7 @@ function hostCtx() {
 
 const routes = hostCtx()
 assert.equal(routes.length, 1, 'apply() must mount exactly one prefix route')
-assert.equal(routes[0].path, '/mcp-manager', 'the route must live under /mcp-manager')
+assert.equal(routes[0].path, '/smkit', 'the route must live under /smkit')
 
 const probe = await new Promise((resolve) => {
   const res = {
@@ -93,13 +93,13 @@ const probe = await new Promise((resolve) => {
   }
   const req = {
     method: 'GET',
-    url: '/mcp-manager/api/ping',
+    url: '/smkit/api/ping',
     headers: { host: '127.0.0.1:3080' },
     async *[Symbol.asyncIterator]() {},
   }
   routes[0].handler(req, res)
 })
-assert.equal(probe.code, 200, 'GET /mcp-manager/api/ping must answer 200')
+assert.equal(probe.code, 200, 'GET /smkit/api/ping must answer 200')
 assert.equal(JSON.parse(probe.body).ok, true, 'the ping probe must report ok')
 
 /** 3. The bundle patch + manifest must still point at this package. */
@@ -178,12 +178,12 @@ assert.equal(
 )
 assert.ok(dictionaries.smkit.zh.sectionLabel, 'and the row is named from that dictionary')
 
-const deleteSlot = entryOf('conversation.session.header.utilities', 'mcp-manager-session-delete')
+const deleteSlot = entryOf('conversation.session.header.utilities', 'smkit-session-delete')
 assert.equal(deleteSlot.locale, 'session-delete', 'the delete control binds its own locale namespace')
 
 // The fifth seat: the OpenSpec control, immediately before the delete control
 // in the same utilities list, so the two read as one pair.
-const openSpecSlot = entryOf('conversation.session.header.utilities', 'mcp-manager-openspec')
+const openSpecSlot = entryOf('conversation.session.header.utilities', 'smkit-openspec')
 assert.equal(openSpecSlot.locale, 'openspec', 'the OpenSpec control binds its own locale namespace')
 assert.ok(openSpecSlot.order < deleteSlot.order, 'it sits before the destructive control')
 

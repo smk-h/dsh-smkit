@@ -82,21 +82,21 @@ export function createOtherSettingsPanel(
 
   return function OtherSettingsPanel({ t }: OtherSettingsPanelProps): JSX.Element {
     return (
-      <div className="ot_panel">
-        <p className="ot_intro">{t('otherIntro')}</p>
-        <div className="ot_list">
+      <div className="smkit-cs-other-panel">
+        <p className="smkit-cs-other-intro">{t('otherIntro')}</p>
+        <div className="smkit-cs-other-list">
           {PLANNED.map((setting) => (
-            <div className="ot_item" key={setting.id}>
-              <div className="ot_head">
-                <span className="ot_title">{t(setting.title)}</span>
-                <span className="ot_badge">{t('otherPlanned')}</span>
+            <div className="smkit-cs-other-item" key={setting.id}>
+              <div className="smkit-cs-other-head">
+                <span className="smkit-cs-other-title">{t(setting.title)}</span>
+                <span className="smkit-cs-other-badge">{t('otherPlanned')}</span>
               </div>
-              <div className="ot_help">{t(setting.help)}</div>
-              <div className="ot_addr">{setting.where}</div>
+              <div className="smkit-cs-other-help">{t(setting.help)}</div>
+              <div className="smkit-cs-other-addr">{setting.where}</div>
             </div>
           ))}
         </div>
-        <p className="ot_note">{t('otherNote')}</p>
+        <p className="smkit-cs-other-note">{t('otherNote')}</p>
       </div>
     )
   }

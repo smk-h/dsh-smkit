@@ -7,9 +7,9 @@
  * outside click, check mark on the selected row):
  *
  * - the default: the scope pill both settings pages put above their lists
- *   (`mm_scope*`, styled by this layer's own `style/picker.css`);
+ *   (`smkit-ui-picker*`, styled by this layer's own `style/picker.css`);
  * - any family a caller names through `classes`: the MCP server form's
- *   field-shaped trigger (`mm_fieldSelect*`), whose rules stay in that feature's
+ *   field-shaped trigger (`smkit-mcp-form-field-select*`), whose rules stay in that feature's
  *   stylesheet because that look belongs to the form, not to the picker.
  *
  * Menus always render with one set of item styles, so every dropdown in the
@@ -29,7 +29,7 @@ export interface IconSelectOption {
    * differs from the previous option's group (options render in array order). */
   group?: string
   /** Hover tooltip for the row and for the trigger while selected, rendered as
-   * the shared `.mm_tip` bubble (a project shows its full path here, its name
+   * the shared `.smkit-ui-tip` bubble (a project shows its full path here, its name
    * in the label); rows without one show no bubble. */
   title?: string
 }
@@ -43,9 +43,9 @@ export interface IconSelectClasses {
 
 /** The default family: the scope pill, whose rules this layer ships. */
 const SCOPE_CLASSES: IconSelectClasses = {
-  root: 'mm_scope',
-  trigger: 'mm_scopeTrigger',
-  label: 'mm_scopeLabel',
+  root: 'smkit-ui-picker',
+  trigger: 'smkit-ui-picker-scope-trigger',
+  label: 'smkit-ui-picker-scope-label',
 }
 
 export interface IconSelectProps {
@@ -86,7 +86,7 @@ export function createIconSelect(deps: ClientDeps): (props: IconSelectProps) => 
       if (!open || typeof document === 'undefined') return undefined
       const onMouseDown = (event: MouseEvent): void => {
         const node = event.target as HTMLElement | null
-        if (node?.closest('[data-mm-icon-select]')) return
+        if (node?.closest('[data-smkit-icon-select]')) return
         setOpen(false)
       }
       document.addEventListener('mousedown', onMouseDown)
@@ -99,7 +99,7 @@ export function createIconSelect(deps: ClientDeps): (props: IconSelectProps) => 
       const row: JSX.Element[] = []
       if (option.group && option.group !== options[index - 1]?.group) {
         row.push(
-          <div className="mm_scopeGroup" key={`group:${option.group}`}>
+          <div className="smkit-ui-picker-scope-group" key={`group:${option.group}`}>
             {option.group}
           </div>,
         )
@@ -107,11 +107,11 @@ export function createIconSelect(deps: ClientDeps): (props: IconSelectProps) => 
       const selected = option.value === value
       row.push(
         <button
-          className={option.title ? 'mm_scopeItem mm_tip' : 'mm_scopeItem'}
+          className={option.title ? 'smkit-ui-picker-scope-item smkit-ui-tip' : 'smkit-ui-picker-scope-item'}
           type="button"
           role="option"
           aria-selected={selected}
-          data-tip={option.title}
+          data-smkit-tip={option.title}
           onClick={() => {
             setOpen(false)
             onChange(option.value)
@@ -119,9 +119,9 @@ export function createIconSelect(deps: ClientDeps): (props: IconSelectProps) => 
           key={option.value}
         >
           {option.icon ?? null}
-          <span className="mm_scopeItemLabel">{option.label}</span>
+          <span className="smkit-ui-picker-scope-item-label">{option.label}</span>
           {selected ? (
-            <span className="mm_scopeCheck">
+            <span className="smkit-ui-picker-scope-check">
               <CheckIcon />
             </span>
           ) : null}
@@ -131,25 +131,25 @@ export function createIconSelect(deps: ClientDeps): (props: IconSelectProps) => 
     })
 
     return (
-      <div className={root} data-mm-icon-select="true">
+      <div className={root} data-smkit-icon-select="true">
         <button
-          className={current?.title ? `${trigger} mm_tip` : trigger}
+          className={current?.title ? `${trigger} smkit-ui-tip` : trigger}
           type="button"
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-label={ariaLabel}
           disabled={disabled}
-          data-tip={current?.title}
+          data-smkit-tip={current?.title}
           onClick={() => setOpen(!open)}
         >
           {current?.icon ?? null}
           <span className={label}>{current?.label ?? ''}</span>
-          <span className="mm_chevron" data-open={open ? 'true' : undefined}>
+          <span className="smkit-ui-picker-chevron" data-smkit-open={open ? 'true' : undefined}>
             <ChevronDownIcon size={12} />
           </span>
         </button>
         {open && !disabled ? (
-          <div className="mm_scopeMenu" role="listbox" aria-label={ariaLabel}>
+          <div className="smkit-ui-picker-scope-menu" role="listbox" aria-label={ariaLabel}>
             {rows}
           </div>
         ) : null}

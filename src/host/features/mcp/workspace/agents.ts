@@ -69,12 +69,12 @@ function installMethodWrapper(
   const holder = isRecord(value) ? (value as Record<string | symbol, unknown>) : undefined
   const raw = holder?.[ORIGINAL] ?? value
   if (!isRecord(raw) && typeof raw !== 'function') {
-    throw new TypeError(`mcp-manager: cannot wrap non-function method ${String(method)}`)
+    throw new TypeError(`${LOG_PREFIX}: cannot wrap non-function method ${String(method)}`)
   }
   const target = raw as object
   const before = getPropertyDescriptor(target, method)
   if (!before || typeof before.value !== 'function') {
-    throw new TypeError(`mcp-manager: cannot wrap non-function method ${String(method)}`)
+    throw new TypeError(`${LOG_PREFIX}: cannot wrap non-function method ${String(method)}`)
   }
   const original = before.value as (...args: unknown[]) => unknown
   const hadOwn = Object.prototype.hasOwnProperty.call(target, method)
@@ -172,12 +172,12 @@ export function createAgentDecorators(deps: AgentDecoratorsDeps): AgentDecorator
   function installAgentDecorators(agents: unknown): () => void {
     const wrapCreate = (original: (...args: unknown[]) => unknown, thisArg: unknown, args: unknown[]): unknown => {
       const options = args[0]
-      if (!isRecord(options)) throw new TypeError('mcp-manager: agents.create() requires options')
+      if (!isRecord(options)) throw new TypeError(`${LOG_PREFIX}: agents.create() requires options`)
       return original.call(thisArg, { ...options, setup: composeAgentSetup(options.setup) })
     }
     const wrapResume = (original: (...args: unknown[]) => unknown, thisArg: unknown, args: unknown[]): unknown => {
       const options = args[0]
-      if (!isRecord(options)) throw new TypeError('mcp-manager: agents.resume() requires options')
+      if (!isRecord(options)) throw new TypeError(`${LOG_PREFIX}: agents.resume() requires options`)
       return original.call(thisArg, { ...options, setup: composeAgentSetup(options.setup) })
     }
     const create = installMethodWrapper(agents, 'create', wrapCreate)

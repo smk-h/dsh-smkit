@@ -7,7 +7,7 @@
  * reads each skill's header off the filesystem to build the row in the first
  * place. Nothing is fetched here, so the dialog opens whole.
  *
- * The card wears the platform's dialog frame (`.mm_dialog`, injected before
+ * The card wears the platform's dialog frame (`.smkit-ui-dialog`, injected before
  * this feature's own rules), so this overlay and the confirmation dialog read
  * as one dialog family; only the width, the close control and the field layout
  * are this feature's own.
@@ -33,9 +33,9 @@ export function createSkillDetailDialog(
 
   /** One labelled field of the dialog. */
   const field = (label: string, value: string, className?: string): JSX.Element => (
-    <div className="sk_detailField">
-      <div className="sk_detailLabel">{label}</div>
-      <div className={className === undefined ? 'sk_detailValue' : `sk_detailValue ${className}`}>
+    <div className="smkit-skill-detail-field">
+      <div className="smkit-skill-detail-label">{label}</div>
+      <div className={className === undefined ? 'smkit-skill-detail-value' : `smkit-skill-detail-value ${className}`}>
         {value}
       </div>
     </div>
@@ -48,20 +48,20 @@ export function createSkillDetailDialog(
     onClose,
   }: SkillDetailDialogProps): JSX.Element {
     return (
-      <div className="mm_overlay" onClick={onClose}>
+      <div className="smkit-ui-dialog-overlay" onClick={onClose}>
         <div
-          className="mm_dialog sk_detail"
+          className="smkit-ui-dialog smkit-skill-detail"
           role="dialog"
           aria-modal="true"
           aria-label={skill.name}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="sk_detailHead">
-            <div className="sk_detailTitle">{skill.name}</div>
-            {skill.rel ? <span className="sk_chip">{skill.rel}</span> : null}
-            {skill.linked ? <span className="sk_chip">{t('linked')}</span> : null}
+          <div className="smkit-skill-detail-head">
+            <div className="smkit-skill-detail-title">{skill.name}</div>
+            {skill.rel ? <span className="smkit-skill-row-chip">{skill.rel}</span> : null}
+            {skill.linked ? <span className="smkit-skill-row-chip">{t('linked')}</span> : null}
             <button
-              className="mm_iconBtn sk_detailClose"
+              className="smkit-ui-icon-button smkit-skill-detail-close"
               type="button"
               aria-label={t('close')}
               onClick={onClose}
@@ -71,7 +71,7 @@ export function createSkillDetailDialog(
           </div>
           {field(t('detailDescription'), skill.description)}
           {skill.whenToUse ? field(t('detailWhenToUse'), skill.whenToUse) : null}
-          <div className="sk_detailPair">
+          <div className="smkit-skill-detail-pair">
             {field(t('detailStatus'), skill.enabled ? t('statusEnabled') : t('statusDisabled'))}
             {/* Both invocation flags matter: a header may narrow either side, and
                 "user only" is not what a `disable-model-invocation` alone means. */}
@@ -87,12 +87,12 @@ export function createSkillDetailDialog(
             )}
           </div>
           {skill.rel ? field(t('group'), skill.rel) : null}
-          {field(t('detailRoot'), root, 'sk_detailPath')}
-          {field(t('detailPath'), skill.path, 'sk_detailPath')}
+          {field(t('detailRoot'), root, 'smkit-skill-detail-path')}
+          {field(t('detailPath'), skill.path, 'smkit-skill-detail-path')}
           {/* A skill installed through a link shows both ends: the path its root
               holds it by, and the directory it really lives in — the latter is
               what a person needs to find the skill they actually edited. */}
-          {skill.linked ? field(t('detailRealPath'), skill.realPath, 'sk_detailPath') : null}
+          {skill.linked ? field(t('detailRealPath'), skill.realPath, 'smkit-skill-detail-path') : null}
         </div>
       </div>
     )

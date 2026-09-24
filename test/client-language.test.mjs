@@ -230,12 +230,12 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
   assert.ok(app.inject.includes('sessions'), 'the header delete control needs the client session store')
   // The second seat: the conversation header's delete control, which carries no
   // nav label and binds the same dictionary.
-  const header = app.registrations.get('mcp-manager-session-delete')
+  const header = app.registrations.get('smkit-session-delete')
   assert.equal(header.options.name, 'conversation.session.header.utilities')
   assert.equal(header.options.locale, 'session-delete')
   // The third: the OpenSpec control, in the same conversation-header utilities
   // list as the delete control and just before it.
-  const openSpec = app.registrations.get('mcp-manager-openspec')
+  const openSpec = app.registrations.get('smkit-openspec')
   assert.equal(openSpec.options.name, 'conversation.session.header.utilities')
   assert.equal(openSpec.options.locale, 'openspec')
   assert.ok(openSpec.options.order < header.options.order, 'it sits beside, not on, the delete control')
@@ -243,22 +243,22 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-locale'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-conversation'))
   assert.deepEqual(app.effectLabels, [
-    'dsh-mcp-manager: platform/dictionaries',
-    'dsh-mcp-manager: session-delete/dictionaries',
-    'dsh-mcp-manager: smkit/dictionaries',
-    'dsh-mcp-manager: mcp/dictionaries',
-    'dsh-mcp-manager: skills/dictionaries',
-    'dsh-mcp-manager: custom-settings/dictionaries',
-    'dsh-mcp-manager: local-cache/dictionaries',
-    'dsh-mcp-manager: openspec/dictionaries',
-    'dsh-mcp-manager: theme-center/dictionaries',
-    'dsh-mcp-manager: merged settings nav row',
+    'smkit: platform/dictionaries',
+    'smkit: session-delete/dictionaries',
+    'smkit: smkit/dictionaries',
+    'smkit: mcp/dictionaries',
+    'smkit: skills/dictionaries',
+    'smkit: custom-settings/dictionaries',
+    'smkit: local-cache/dictionaries',
+    'smkit: openspec/dictionaries',
+    'smkit: theme-center/dictionaries',
+    'smkit: merged settings nav row',
     // The theme center's mount-time half: the swap element, the saved mode and
     // theme, and the programmatic API — all before the settings row renders.
-    'dsh-mcp-manager: theme-center/restore',
+    'smkit: theme-center/restore',
     // And the layer above it: the palette panel's saved color edits, which must
     // survive a theme switch and so ride an effect of their own.
-    'dsh-mcp-manager: theme-center/palette overrides',
+    'smkit: theme-center/palette overrides',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared

@@ -9,11 +9,11 @@
  * Classes are namespaced `lr_*` (llm retry — this tab's own subject),
  * deliberately not the page shell's `cs_*` nor the MCP page's `mm_*`: the three
  * are separate owners and may only share what the platform layer already owns
- * (`mm_btn`, `mm_err`). The tokens and the rhythm below mirror the MCP page's
+ * (`smkit-ui-button`, `smkit-ui-field-error`). The tokens and the rhythm below mirror the MCP page's
  * rules so both sections read as one settings dialog.
  */
 
-.lr_panel {
+.smkit-cs-retry-panel {
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -22,26 +22,26 @@
 /* The tab's own heading. Smaller than the page's title above the strip (see
  * `page.css`), because the page now names itself there: two headings of one
  * size, one tab apart, would read as siblings instead of as page and area. */
-.lr_catalogHeading {
+.smkit-cs-retry-catalog-heading {
   align-items: baseline;
   gap: 7px;
   padding: 0 2px;
   display: flex;
 }
-.lr_catalogHeading h3 {
+.smkit-cs-retry-catalog-heading h3 {
   font-size: 15px;
   font-weight: 600;
   line-height: 22px;
   margin: 0;
 }
-.lr_catalogHeading span {
+.smkit-cs-retry-catalog-heading span {
   color: var(--dsw-alias-label-tertiary);
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   line-height: 18px;
 }
 
-.lr_intro {
+.smkit-cs-retry-intro {
   margin: 0;
   padding: 0 2px;
   font-size: 12px;
@@ -49,21 +49,21 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-.lr_meta {
+.smkit-cs-retry-meta {
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
   word-break: break-all;
 }
 
-.lr_cards {
+.smkit-cs-retry-cards {
   grid-template-columns: minmax(0,1fr);
   align-items: start;
   gap: 10px;
   display: grid;
 }
 
-.lr_card {
+.smkit-cs-retry-card {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -73,13 +73,13 @@
   padding: 12px 14px;
 }
 
-.lr_cardHead {
+.smkit-cs-retry-card-head {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.lr_name {
+.smkit-cs-retry-name {
   font-weight: 600;
   font-size: 13px;
   line-height: 20px;
@@ -89,7 +89,7 @@
   overflow: hidden;
 }
 
-.lr_route {
+.smkit-cs-retry-route {
   color: var(--dsw-alias-label-tertiary);
   font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   font-size: 12px;
@@ -99,7 +99,7 @@
 /* The override badge: what the route stores versus what it inherits. Both
  * variants are neutral — "custom" is not a problem to flag, only a fact — and
  * they differ by weight, so the list stays calm at a glance. */
-.lr_badge {
+.smkit-cs-retry-badge {
   margin-left: auto;
   background: var(--dsw-alias-bg-layer-1);
   min-height: 20px;
@@ -111,11 +111,11 @@
   line-height: 16px;
   display: inline-flex;
 }
-.lr_badge.custom {
+.smkit-cs-retry-badge.custom {
   color: var(--dsw-alias-label-secondary);
 }
 
-.lr_summary {
+.smkit-cs-retry-summary {
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   line-height: 18px;
@@ -124,7 +124,7 @@
 
 /* The form: the same two-column field grid the MCP form uses, so a settings
  * form looks the same wherever it lives. */
-.lr_row {
+.smkit-cs-retry-row {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -134,19 +134,19 @@
   padding: 12px 14px;
 }
 
-.lr_form {
+.smkit-cs-retry-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
-.lr_form label {
+.smkit-cs-retry-form label {
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
   color: var(--dsw-alias-label-secondary);
 }
-.lr_form input,.lr_form select {
+.smkit-cs-retry-form input,.smkit-cs-retry-form select {
   font: inherit;
   font-size: 13px;
   padding: 6px 8px;
@@ -155,24 +155,24 @@
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
 }
-.lr_form select option {
+.smkit-cs-retry-form select option {
   background: var(--dsw-alias-bg-layer-3);
   color: var(--dsw-alias-label-primary);
 }
 
-.lr_help {
+.smkit-cs-retry-help {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.lr_actions {
+.smkit-cs-retry-actions {
   display: flex;
   align-items: center;
   gap: 6px;
   justify-content: flex-end;
 }
 
-.lr_spacer {
+.smkit-cs-retry-spacer {
   flex: 1 1 0;
 }

@@ -6,7 +6,7 @@
  * Purely additive to the page: each view keeps its own heading in the content;
  * the bar is a quiet wayfinding layer above it, both levels at text size (the
  * strip is the shell's chrome, and an enlarged current level would read as the
- * shell's title). The last crumb is the current page (`h3.mm_breadcrumbCurrent`)
+ * shell's title). The last crumb is the current page (`h3.smkit-mcp-breadcrumb-current`)
  * and does not navigate; every earlier crumb with an `onClick` renders as a
  * link — typically back to the list — and one without degrades to plain
  * current-page styling. Generic on purpose: `McpContent` mounts it today, and
@@ -39,19 +39,19 @@ export function createBreadcrumb(deps: ClientDeps): (props: BreadcrumbProps) => 
       const last = index === crumbs.length - 1
       if (index > 0) {
         elements.push(
-          <ChevronRightIcon className="mm_breadcrumbSep" size={12} key={`sep-${index}`} />,
+          <ChevronRightIcon className="smkit-mcp-breadcrumb-sep" size={12} key={`sep-${index}`} />,
         )
       }
       if (last) {
         elements.push(
-          <h3 className="mm_breadcrumbCurrent" key={`crumb-${index}`}>
+          <h3 className="smkit-mcp-breadcrumb-current" key={`crumb-${index}`}>
             {crumb.label}
           </h3>,
         )
       } else if (crumb.onClick) {
         elements.push(
           <button
-            className="mm_breadcrumbLink"
+            className="smkit-mcp-breadcrumb-link"
             type="button"
             onClick={crumb.onClick}
             key={`crumb-${index}`}
@@ -61,14 +61,14 @@ export function createBreadcrumb(deps: ClientDeps): (props: BreadcrumbProps) => 
         )
       } else {
         elements.push(
-          <span className="mm_breadcrumbCurrent" key={`crumb-${index}`}>
+          <span className="smkit-mcp-breadcrumb-current" key={`crumb-${index}`}>
             {crumb.label}
           </span>,
         )
       }
     })
     return (
-      <nav className="mm_breadcrumb" aria-label={ariaLabel}>
+      <nav className="smkit-mcp-breadcrumb" aria-label={ariaLabel}>
         {elements}
       </nav>
     )

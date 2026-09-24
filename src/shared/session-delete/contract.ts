@@ -2,7 +2,7 @@
  * The wire contract of the session-delete feature.
  *
  * The host projects what a delete would remove into these shapes and serializes
- * them over `/mcp-manager/api/sessions/*`; the browser half renders exactly
+ * them over `/smkit/api/sessions/*`; the browser half renders exactly
  * these shapes.
  *
  * Type-only by design: the browser bundle is a single CommonJS script with no

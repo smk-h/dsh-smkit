@@ -2,7 +2,7 @@
  * Page shell for the section (McpContent): the container, its headings, the
  * lists that hold the rows/cards, the add button, the on-demand feature row,
  * the toolbar (scope picker, search) and the path hint. The page's intro line is
- * the merged section's own (`settings/style/page.css`, `st_intro`).
+ * the merged section's own (`settings/style/page.css`, `smkit-shell-page-intro`).
  *
  * One part of the MCP feature's stylesheet. `features/mcp/styles.ts` imports
  * the parts and joins them in the order listed there, and the build inlines the
@@ -10,7 +10,7 @@
  * cascade.
  */
 
-.mm_section {
+.smkit-mcp-section {
   width: 100%;
   max-width: 760px;
   color: var(--dsw-alias-label-primary);
@@ -19,25 +19,25 @@
   gap: 14px;
 }
 
-.mm_meta {
+.smkit-mcp-section-meta {
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.mm_catalogHeading {
+.smkit-mcp-section-catalog-heading {
   align-items: baseline;
   gap: 7px;
   padding: 0 2px;
   display: flex;
 }
-.mm_catalogHeading h3 {
+.smkit-mcp-section-catalog-heading h3 {
   font-size: 18px;
   font-weight: 600;
   line-height: 26px;
   margin: 0;
 }
-.mm_catalogHeading span {
+.smkit-mcp-section-catalog-heading span {
   color: var(--dsw-alias-label-tertiary);
   font-variant-numeric: tabular-nums;
   font-size: 12px;
@@ -49,54 +49,54 @@
  * Icon-only on purpose: a label squeezed the search box onto its own line.
  * The picker's trigger already names the selected workspace (hover shows the
  * full path), and the button's tooltip names the file it opens. */
-.mm_openConfig {
+.smkit-mcp-section-open-config {
   flex: 0 0 auto;
   color: var(--dsw-alias-label-primary);
   border: 1px solid var(--dsw-alias-border-l2);
 }
-.mm_openConfig:hover {
+.smkit-mcp-section-open-config:hover {
   background: var(--dsw-alias-interactive-bg-hover-solid);
 }
-.mm_openConfig:disabled {
+.smkit-mcp-section-open-config:disabled {
   cursor: default;
   opacity: 0.5;
 }
 
-.mm_cards {
+.smkit-mcp-section-cards {
   grid-template-columns: minmax(0,1fr);
   align-items: start;
   gap: 10px;
   display: grid;
 }
 
-.mm_addBtn {
+.smkit-mcp-section-add-btn {
   color: var(--dsw-alias-label-primary);
   border: 1px solid var(--dsw-alias-border-l2);
 }
-.mm_addBtn:hover {
+.smkit-mcp-section-add-btn:hover {
   background: var(--dsw-alias-interactive-bg-hover-solid);
 }
 
 /* The Advanced sub-view's entry: a text button on the toolbar. The round icon
  * buttons there each name themselves with a hover bubble; a word needs none, so
  * it only has to keep its own width when the row wraps. */
-.mm_toolbarAction {
+.smkit-mcp-section-toolbar-action {
   flex: 0 0 auto;
 }
 
-/* The `mm_tip` hover bubble the toolbar controls raise is not this sheet's: the
+/* The `smkit-ui-tip` hover bubble the toolbar controls raise is not this sheet's: the
  * paint is shared by every settings page and lives in the platform layer
  * (`platform/style/tip.css`), together with the clamping that keeps a bubble
  * near a clip edge — the ＋ button at this section's right edge — inside it
  * (`platform/ui/tip.ts`). */
 
-.mm_wsList {
+.smkit-mcp-section-ws-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.mm_toolbar {
+.smkit-mcp-section-toolbar {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
@@ -107,7 +107,7 @@
 /* The scope picker yields first when the row runs short: `min-width: 0` lets
  * the pill compress below its label so the trigger's ellipsis engages instead
  * of the search wrapping to its own line. */
-.mm_toolbar>.mm_scope {
+.smkit-mcp-section-toolbar>.smkit-ui-picker {
   min-width: 0;
 }
 
@@ -117,7 +117,7 @@
  * and holds search+add against the right edge; when the search wraps, the
  * spacer stays behind on the scope's line, where the row's two-line rules
  * stand it down (see below). */
-.mm_toolbarSpacer {
+.smkit-mcp-section-toolbar-spacer {
   flex: 1 1 0;
 }
 
@@ -129,7 +129,7 @@
  * content's intrinsic width, which would hold the pair at full size and let
  * it overflow the card) and lets a narrow panel squeeze the search box inside
  * it, down to the search's own floor. */
-.mm_toolbarActions {
+.smkit-mcp-section-toolbar-actions {
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -147,32 +147,32 @@
  * a row width inside that 10px window would wrap, unmark, unwrap and flip
  * forever. Growing from zero adds nothing to the break sum, so both states
  * break identically and the mark stays put. */
-.mm_toolbar[data-wrapped]>.mm_scope {
+.smkit-mcp-section-toolbar[data-smkit-wrapped]>.smkit-ui-picker {
   flex-grow: 1;
 }
 
 /* The pill's own slack goes to its label, which already carries the ellipsis,
  * so the chevron stays on the pill's right edge as the pill stretches. Inert on
  * one line: a trigger sized by its content has no slack to hand out. */
-.mm_toolbar[data-wrapped] .mm_scopeLabel {
+.smkit-mcp-section-toolbar[data-smkit-wrapped] .smkit-ui-picker-scope-label {
   flex: 1 1 auto;
 }
 
-.mm_toolbar[data-wrapped]>.mm_toolbarSpacer {
+.smkit-mcp-section-toolbar[data-smkit-wrapped]>.smkit-mcp-section-toolbar-spacer {
   flex-grow: 0;
 }
 
 /* The cluster is alone on its line: it grows to the row's width, and the search
  * inside it — free to grow, still based at its working width — grows to the
  * cluster's. */
-.mm_toolbar[data-wrapped] .mm_toolbarActions {
+.smkit-mcp-section-toolbar[data-smkit-wrapped] .smkit-mcp-section-toolbar-actions {
   flex-grow: 1;
 }
-.mm_toolbar[data-wrapped] .mm_search {
+.smkit-mcp-section-toolbar[data-smkit-wrapped] .smkit-mcp-search {
   flex-grow: 1;
 }
 
-.mm_wsPathHint {
+.smkit-mcp-section-ws-path-hint {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 18px;
@@ -180,7 +180,7 @@
   padding: 0 2px;
 }
 
-.mm_groupTitle {
+.smkit-mcp-section-group-title {
   font-size: 12px;
   font-weight: 600;
   line-height: 18px;
@@ -189,7 +189,7 @@
   margin-top: 4px;
 }
 
-.mm_feature {
+.smkit-mcp-section-feature {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -199,7 +199,7 @@
   padding: 10px 12px;
 }
 
-.mm_featureText {
+.smkit-mcp-section-feature-text {
   display: flex;
   flex: 1;
   min-width: 0;
@@ -207,13 +207,13 @@
   gap: 2px;
 }
 
-.mm_featureTitle {
+.smkit-mcp-section-feature-title {
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
 }
 
-.mm_featureMeta {
+.smkit-mcp-section-feature-meta {
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);

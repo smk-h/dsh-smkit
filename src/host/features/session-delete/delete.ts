@@ -84,6 +84,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { encodeSegment, sessionDir } from './path.js'
 import { serviceOf } from '../../platform/util/services.js'
+import { LOG_PREFIX } from '../../platform/constants.js'
 import type {
   SessionDeleteRefusal,
   SessionDeleteReceipt,
@@ -446,7 +447,7 @@ async function readHeader(
     // trustworthy header, hence no cwd to derive a directory from: the call
     // reports it as a miss, the same nothing a listing that skips such an
     // artifact already shows the user. Deletion never guesses a path.
-    logger.warn(`mcp-manager: could not read session "${sessionId}" before deletion: ${String(error)}`)
+    logger.warn(`${LOG_PREFIX}: could not read session "${sessionId}" before deletion: ${String(error)}`)
     return undefined
   }
 }
@@ -466,7 +467,7 @@ async function archiveSession(deps: SessionDeleterDeps, sessionId: string): Prom
     await registry.archiveSession(sessionId)
     return true
   } catch (error) {
-    deps.logger.warn(`mcp-manager: could not archive session "${sessionId}" while deleting it: ${String(error)}`)
+    deps.logger.warn(`${LOG_PREFIX}: could not archive session "${sessionId}" while deleting it: ${String(error)}`)
     return false
   }
 }
@@ -492,7 +493,7 @@ async function removeArtifacts(
     // Nothing on disk: either the session never materialized (a created-but-
     // empty session leaves no footprint) or it was removed out of band. The
     // in-memory and registry halves of the delete still stand.
-    deps.logger.info(`mcp-manager: session "${sessionId}" has no artifact directory to remove`)
+    deps.logger.info(`${LOG_PREFIX}: session "${sessionId}" has no artifact directory to remove`)
     return []
   }
   await rm(dir, { recursive: true, force: true })
@@ -552,7 +553,7 @@ async function locateSessionDir(
         if (basename(dir) === encoded && await isDirectory(dir)) return resolve(dir)
       }
     } catch (error) {
-      logger.warn(`mcp-manager: could not locate session "${sessionId}" through persistence: ${String(error)}`)
+      logger.warn(`${LOG_PREFIX}: could not locate session "${sessionId}" through persistence: ${String(error)}`)
     }
   }
 
@@ -649,7 +650,7 @@ async function forgetSpillFiles(deps: SessionDeleterDeps, sessionId: string): Pr
   try {
     await rm(dir, { recursive: true, force: true })
   } catch (error) {
-    deps.logger.warn(`mcp-manager: could not remove the spill directory for "${sessionId}": ${String(error)}`)
+    deps.logger.warn(`${LOG_PREFIX}: could not remove the spill directory for "${sessionId}": ${String(error)}`)
     return undefined
   }
   return dir
@@ -693,7 +694,7 @@ async function forgetProjectionRows(deps: SessionDeleterDeps, sessionId: string)
       await rm(path, { force: true })
     } catch (error) {
       // A cache row is disposable derived data: never fail the delete over it.
-      deps.logger.warn(`mcp-manager: could not remove the projection cache row for "${sessionId}": ${String(error)}`)
+      deps.logger.warn(`${LOG_PREFIX}: could not remove the projection cache row for "${sessionId}": ${String(error)}`)
     }
   }
 }

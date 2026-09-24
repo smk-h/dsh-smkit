@@ -78,14 +78,14 @@ export function createLocalCachePanel(
             : t('resultDenied')
 
     return (
-      <div className="lc_panel">
-        <p className="lc_intro">{t('intro')}</p>
-        <p className="lc_intro lc_scope">{t('scope')}</p>
-        <div className="lc_row">
-          <button type="button" className="mm_btn" onClick={clear}>
+      <div className="smkit-cache-page-panel">
+        <p className="smkit-cache-page-intro">{t('intro')}</p>
+        <p className="smkit-cache-page-intro smkit-cache-page-scope">{t('scope')}</p>
+        <div className="smkit-cache-page-row">
+          <button type="button" className="smkit-ui-button" onClick={clear}>
             {t('action')}
           </button>
-          {answer !== null && <span className="lc_result">{answer}</span>}
+          {answer !== null && <span className="smkit-cache-page-result">{answer}</span>}
         </div>
       </div>
     )

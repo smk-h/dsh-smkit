@@ -11,7 +11,7 @@
  * there is no track/thumb kit here.
  */
 
-.dsh_palette {
+.smkit-theme-palette-trigger {
   /* The platform skeleton declares no border, and the browser's default
    * button border showed through — next to the ghost icons it read as a
    * double ring. The glyph carries the control on its own. At rest it sits
@@ -24,18 +24,18 @@
 /* Hover and keyboard focus share the wash — the header's own icon buttons
  * (the sidebar toggle and friends) repaint exactly like this, grey wash plus
  * the brand's ink, so the palette toggle reads as one of them. */
-.dsh_palette:hover:not(:disabled),
-.dsh_palette:focus-visible:not(:disabled) {
+.smkit-theme-palette-trigger:hover:not(:disabled),
+.smkit-theme-palette-trigger:focus-visible:not(:disabled) {
   color: var(--dsw-alias-brand-primary);
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.dsh_palette[aria-pressed='true'] {
+.smkit-theme-palette-trigger[aria-pressed='true'] {
   color: var(--dsw-alias-brand-primary);
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.tp_panel {
+.smkit-theme-palette-panel {
   position: fixed;
   top: 56px;
   right: 12px;
@@ -55,7 +55,7 @@
   box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.35);
 }
 
-.tp_head {
+.smkit-theme-palette-head {
   display: flex;
   flex: none;
   align-items: center;
@@ -64,13 +64,13 @@
   border-bottom: 1px solid var(--dsw-alias-border-l2);
 }
 
-.tp_title {
+.smkit-theme-palette-title {
   flex: 1;
   font-size: 13px;
   font-weight: 600;
 }
 
-.tp_close {
+.smkit-theme-palette-close {
   display: inline-flex;
   flex: none;
   align-items: center;
@@ -87,24 +87,24 @@
   border-radius: 6px;
 }
 
-.tp_close:hover {
+.smkit-theme-palette-close:hover {
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.tp_groups {
+.smkit-theme-palette-groups {
   overflow-y: auto;
 }
 
-.tp_group {
+.smkit-theme-palette-group {
   border-bottom: 1px solid var(--dsw-alias-border-l1);
 }
 
-.tp_group:last-of-type {
+.smkit-theme-palette-group:last-of-type {
   border-bottom: none;
 }
 
-.tp_groupHead {
+.smkit-theme-palette-group-head {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -118,29 +118,29 @@
   user-select: none;
 }
 
-.tp_groupHead::-webkit-details-marker {
+.smkit-theme-palette-group-head::-webkit-details-marker {
   display: none;
 }
 
-.tp_groupHead::before {
+.smkit-theme-palette-group-head::before {
   content: '▸';
   font-size: 9px;
   transition: transform 0.15s ease;
 }
 
-.tp_group[open] > .tp_groupHead::before {
+.smkit-theme-palette-group[open] > .smkit-theme-palette-group-head::before {
   transform: rotate(90deg);
 }
 
-.tp_group[open] > .tp_groupHead {
+.smkit-theme-palette-group[open] > .smkit-theme-palette-group-head {
   color: var(--dsw-alias-label-primary);
 }
 
-.tp_row {
+.smkit-theme-palette-row {
   padding: 0 8px 2px;
 }
 
-.tp_rowHead {
+.smkit-theme-palette-row-head {
   display: flex;
   width: 100%;
   align-items: center;
@@ -155,11 +155,11 @@
   border-radius: 8px;
 }
 
-.tp_rowHead:hover {
+.smkit-theme-palette-row-head:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.tp_swatch {
+.smkit-theme-palette-swatch {
   display: inline-block;
   flex: none;
   width: 16px;
@@ -168,7 +168,7 @@
   border-radius: 5px;
 }
 
-.tp_label {
+.smkit-theme-palette-label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -176,21 +176,21 @@
   text-overflow: ellipsis;
 }
 
-.tp_hex {
+.smkit-theme-palette-hex {
   flex: none;
   font-family: ui-monospace, Consolas, monospace;
   font-size: 10px;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.tp_sliders {
+.smkit-theme-palette-sliders {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 2px 6px 8px 30px;
 }
 
-.tp_slider {
+.smkit-theme-palette-slider {
   display: grid;
   grid-template-columns: 30px 1fr 30px;
   align-items: center;
@@ -201,12 +201,12 @@
   user-select: none;
 }
 
-.tp_sliderLabel {
+.smkit-theme-palette-slider-label {
   font-size: 10px;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.tp_slider input[type='range'] {
+.smkit-theme-palette-slider input[type='range'] {
   /* The track is painted per-slider from the panel (hue gets the rainbow,
      saturation and lightness get scales built from the color being tuned), so
      the native chrome is stripped here and the thumb redrawn by hand. */
@@ -220,7 +220,7 @@
   cursor: pointer;
 }
 
-.tp_slider input[type='range']::-webkit-slider-thumb {
+.smkit-theme-palette-slider input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 14px;
@@ -232,7 +232,7 @@
   cursor: pointer;
 }
 
-.tp_slider input[type='range']::-moz-range-thumb {
+.smkit-theme-palette-slider input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -242,14 +242,14 @@
   cursor: pointer;
 }
 
-.tp_sliderValue {
+.smkit-theme-palette-slider-value {
   font-family: ui-monospace, Consolas, monospace;
   font-size: 10px;
   text-align: right;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.tp_foot {
+.smkit-theme-palette-foot {
   display: flex;
   flex: none;
   gap: 8px;
@@ -257,8 +257,8 @@
   border-top: 1px solid var(--dsw-alias-border-l2);
 }
 
-.tp_save,
-.tp_reset {
+.smkit-theme-palette-save,
+.smkit-theme-palette-reset {
   flex: 1;
   padding: 5px 10px;
   cursor: pointer;
@@ -267,7 +267,7 @@
   border-radius: 8px;
 }
 
-.tp_save {
+.smkit-theme-palette-save {
   /* The panel overrides the active palette, so its own save follows the
    * palette's primary button, not the shell's business blue. */
   color: var(--dsw-alias-label-primary-foreground, #fff);
@@ -275,21 +275,21 @@
   border: none;
 }
 
-.tp_save:not(:disabled):hover {
+.smkit-theme-palette-save:not(:disabled):hover {
   filter: brightness(1.08);
 }
 
-.tp_reset {
+.smkit-theme-palette-reset {
   color: var(--dsw-alias-label-primary);
   background: transparent;
   border: 1px solid var(--dsw-alias-border-l2);
 }
 
-.tp_reset:not(:disabled):hover {
+.smkit-theme-palette-reset:not(:disabled):hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.tp_reset:disabled {
+.smkit-theme-palette-reset:disabled {
   cursor: default;
   opacity: 0.45;
 }

@@ -15,7 +15,7 @@
  * cascade.
  */
 
-.mm_search {
+.smkit-mcp-search {
   position: relative;
   color: var(--dsw-alias-label-tertiary);
   align-items: center;
@@ -32,12 +32,12 @@
   width: 260px;
   min-width: 150px;
 }
-.mm_search>svg {
+.smkit-mcp-search>svg {
   pointer-events: none;
   position: absolute;
   left: 12px;
 }
-.mm_search input {
+.smkit-mcp-search input {
   border: 1px solid var(--dsw-alias-border-l2);
   background: var(--dsw-alias-bg-layer-1);
   width: 100%;
@@ -52,18 +52,18 @@
   padding: 0 30px 0 34px;
   font-size: 13px;
 }
-.mm_search input::-webkit-search-cancel-button {
+.smkit-mcp-search input::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
 }
-.mm_search input::placeholder {
+.smkit-mcp-search input::placeholder {
   color: var(--dsw-alias-label-tertiary);
 }
-.mm_search input:focus-visible {
+.smkit-mcp-search input:focus-visible {
   border-color: var(--dsw-alias-state-business-primary);
 }
 
-.mm_searchClear {
+.smkit-mcp-search-clear {
   position: absolute;
   right: 6px;
   width: 20px;
@@ -78,7 +78,7 @@
   align-items: center;
   justify-content: center;
 }
-.mm_searchClear:hover {
+.smkit-mcp-search-clear:hover {
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-interactive-bg-hover-solid);
 }

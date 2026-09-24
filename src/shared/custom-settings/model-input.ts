@@ -3,7 +3,7 @@
  *
  * The host projects every registered provider route and the request modalities
  * of each of its models into these shapes over
- * `/mcp-manager/api/model-input/*`; the browser half renders exactly these
+ * `/smkit/api/model-input/*`; the browser half renders exactly these
  * shapes and posts one model's next choice back.
  *
  * Type-only by design, like the retry contract next to it: the browser bundle

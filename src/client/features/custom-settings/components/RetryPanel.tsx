@@ -87,12 +87,12 @@ export function createRetryPanel(deps: ClientDeps): (props: RetryPanelProps) => 
     const edited = editing === '' ? undefined : routes.find((route) => route.provider === editing)
     if (edited !== undefined) {
       return (
-        <div className="lr_panel">
-          <div className="lr_catalogHeading">
+        <div className="smkit-cs-retry-panel">
+          <div className="smkit-cs-retry-catalog-heading">
             <h3>{t('editTitle')}</h3>
             <span>{edited.displayName}</span>
           </div>
-          <div className="lr_meta">{t('provider')} · {edited.provider}</div>
+          <div className="smkit-cs-retry-meta">{t('provider')} · {edited.provider}</div>
           <RetryForm
             t={t}
             route={edited}
@@ -108,33 +108,33 @@ export function createRetryPanel(deps: ClientDeps): (props: RetryPanelProps) => 
 
     const seamNotice = unavailableText(t, unavailable)
     return (
-      <div className="lr_panel">
-        <div className="lr_catalogHeading">
+      <div className="smkit-cs-retry-panel">
+        <div className="smkit-cs-retry-catalog-heading">
           <h3>{t('heading')}</h3>
           <span>{t('countRoutes', { count: routes.length })}</span>
         </div>
-        <p className="lr_intro">{t('retryIntro')}</p>
-        {seamNotice ? <div className="mm_err">{seamNotice}</div> : null}
-        {loadError ? <div className="mm_err">{loadError}</div> : null}
+        <p className="smkit-cs-retry-intro">{t('retryIntro')}</p>
+        {seamNotice ? <div className="smkit-ui-field-error">{seamNotice}</div> : null}
+        {loadError ? <div className="smkit-ui-field-error">{loadError}</div> : null}
         {/* An absent seam already explains an empty list; saying "no routes"
             underneath it would read as a second, contradictory fact. */}
-        {loaded && routes.length === 0 && !seamNotice ? <div className="lr_meta">{t('empty')}</div> : null}
-        <div className="lr_cards">
+        {loaded && routes.length === 0 && !seamNotice ? <div className="smkit-cs-retry-meta">{t('empty')}</div> : null}
+        <div className="smkit-cs-retry-cards">
           {routes.map((route) => (
-            <div className="lr_card" key={route.provider}>
-              <div className="lr_cardHead">
-                <span className="lr_name">{route.displayName}</span>
-                <span className="lr_route">{route.provider}</span>
-                <span className={route.overridden ? 'lr_badge custom' : 'lr_badge'}>
+            <div className="smkit-cs-retry-card" key={route.provider}>
+              <div className="smkit-cs-retry-card-head">
+                <span className="smkit-cs-retry-name">{route.displayName}</span>
+                <span className="smkit-cs-retry-route">{route.provider}</span>
+                <span className={route.overridden ? 'smkit-cs-retry-badge custom' : 'smkit-cs-retry-badge'}>
                   {route.overridden ? t('policyCustom') : t('policyDefault')}
                 </span>
               </div>
-              <div className="lr_summary">{summaryOf(route.policy, t)}</div>
-              {route.editable ? null : <div className="lr_meta">{t('readOnly')}</div>}
-              {route.error ? <div className="mm_err">{route.error}</div> : null}
-              <div className="lr_actions">
+              <div className="smkit-cs-retry-summary">{summaryOf(route.policy, t)}</div>
+              {route.editable ? null : <div className="smkit-cs-retry-meta">{t('readOnly')}</div>}
+              {route.error ? <div className="smkit-ui-field-error">{route.error}</div> : null}
+              <div className="smkit-cs-retry-actions">
                 <button
-                  className="mm_btn"
+                  className="smkit-ui-button"
                   onClick={() => setEditing(route.provider)}
                   disabled={!route.editable}
                 >

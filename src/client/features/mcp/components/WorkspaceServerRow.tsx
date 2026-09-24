@@ -102,18 +102,18 @@ export function createWorkspaceServerRow(
       (authorizing || status === 'needs-auth' || status === 'error' || status === 'connected')
 
     return (
-      <div className="mm_row" key={server.name}>
-        <div className="mm_rowHead">
-          <span className="mm_name">{server.name}</span>
+      <div className="smkit-ui-disclosure-card" key={server.name}>
+        <div className="smkit-mcp-card-row-head">
+          <span className="smkit-ui-disclosure-card-name">{server.name}</span>
           <StatusDot status={status} />
           <StatusBadge t={t} status={status} />
-          <span className="mm_actions">
+          <span className="smkit-mcp-card-actions">
             {hasLiveInstance ? (
               <button
-                className="mm_btn"
+                className="smkit-ui-button"
                 onClick={() => runtimeOp('restart')}
                 disabled={busy}
-                data-pending={pending === 'restart' ? 'true' : undefined}
+                data-smkit-pending={pending === 'restart' ? 'true' : undefined}
                 aria-busy={pending === 'restart'}
               >
                 {t('restart')}
@@ -121,10 +121,10 @@ export function createWorkspaceServerRow(
             ) : null}
             {hasLiveInstance ? (
               <button
-                className="mm_btn"
+                className="smkit-ui-button"
                 onClick={() => runtimeOp('stop')}
                 disabled={busy}
-                data-pending={pending === 'stop' ? 'true' : undefined}
+                data-smkit-pending={pending === 'stop' ? 'true' : undefined}
                 aria-busy={pending === 'stop'}
               >
                 {t('stop')}
@@ -132,25 +132,25 @@ export function createWorkspaceServerRow(
             ) : null}
             {showAuth ? (
               <button
-                className="mm_btn"
+                className="smkit-ui-button"
                 onClick={startAuth}
                 disabled={busy || authorizing}
-                data-pending={pending === 'auth' || authorizing ? 'true' : undefined}
+                data-smkit-pending={pending === 'auth' || authorizing ? 'true' : undefined}
                 aria-busy={pending === 'auth' || authorizing}
               >
                 {status === 'connected' ? t('reauth') : t('auth')}
               </button>
             ) : null}
-            <button className="mm_btn" onClick={onEdit} disabled={busy}>
+            <button className="smkit-ui-button" onClick={onEdit} disabled={busy}>
               {t('edit')}
             </button>
-            <button className="mm_btn danger" onClick={() => setConfirming(true)} disabled={busy}>
+            <button className="smkit-ui-button danger" onClick={() => setConfirming(true)} disabled={busy}>
               {t('delete')}
             </button>
           </span>
         </div>
         {serverDetails({ t, server, status })}
-        {error ? <div className="mm_err">{error}</div> : null}
+        {error ? <div className="smkit-ui-field-error">{error}</div> : null}
         {confirming ? (
           <ConfirmDialog
             title={t('deleteWorkspaceServer')}

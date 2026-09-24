@@ -20,7 +20,7 @@
  * The 14px left indent squares the bar with the section below: the strip pads
  * its left edge 10px while the section area pads 24px, so without it the
  * trail hangs 14px left of the intro line, badge and heading it introduces. */
-.mm_breadcrumb {
+.smkit-mcp-breadcrumb {
   order: -1;
   flex: 0 1 auto;
   min-width: 0;
@@ -35,13 +35,13 @@
 
 /* The chevron has no text baseline to sit on; centering it in the line keeps
  * it at the visual middle of the labels beside it. */
-.mm_breadcrumbSep {
+.smkit-mcp-breadcrumb-sep {
   flex: 0 0 auto;
   align-self: center;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.mm_breadcrumbLink {
+.smkit-mcp-breadcrumb-link {
   color: var(--dsw-alias-label-tertiary);
   font-size: 13px;
   line-height: 20px;
@@ -50,7 +50,7 @@
   padding: 0;
   cursor: pointer;
 }
-.mm_breadcrumbLink:hover {
+.smkit-mcp-breadcrumb-link:hover {
   color: var(--dsw-alias-label-primary);
   text-decoration: underline;
 }
@@ -60,7 +60,7 @@
  * than the links and a touch heavier, so the eye lands here first without the
  * bar competing with the page below. A non-last crumb without an `onClick`
  * renders through the same class on a `span` and reads as plain text. */
-.mm_breadcrumbCurrent {
+.smkit-mcp-breadcrumb-current {
   margin: 0;
   color: var(--dsw-alias-label-primary);
   font-size: 13px;

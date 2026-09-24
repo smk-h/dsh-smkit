@@ -8,7 +8,7 @@
  * package.
  *
  * `StatusPill` renders it in the status-dot slot while the server reports a
- * transient status; `style/pill.css` rotates it (`mm_statusSpin`) and tints it
+ * transient status; `style/pill.css` rotates it (`smkit-ui-spin`) and tints it
  * with the same status colour the dot would have had.
  */
 

@@ -31,11 +31,11 @@ export function createGlobalMaskRow(deps: ClientDeps): (props: GlobalMaskRowProp
     busy,
   }: GlobalMaskRowProps): JSX.Element {
     return (
-      <div className="mm_wsServer" key={server.id}>
+      <div className="smkit-mcp-workspace-ws-server" key={server.id}>
         <StatusDot status={server.status} />
-        <span className="mm_name">{server.name}</span>
+        <span className="smkit-ui-disclosure-card-name">{server.name}</span>
         <StatusBadge t={t} status={server.status} />
-        <label className="mm_wsCheck">
+        <label className="smkit-mcp-workspace-ws-check">
           <input
             type="checkbox"
             checked={excluded}
@@ -44,7 +44,7 @@ export function createGlobalMaskRow(deps: ClientDeps): (props: GlobalMaskRowProp
           />
           <span>{t('hide')}</span>
         </label>
-        <button className="mm_btn" onClick={onEdit} disabled={busy}>
+        <button className="smkit-ui-button" onClick={onEdit} disabled={busy}>
           {t('edit')}
         </button>
       </div>

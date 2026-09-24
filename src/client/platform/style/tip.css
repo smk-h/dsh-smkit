@@ -1,6 +1,6 @@
 /**
- * The shared hover bubble: what `.mm_tip` draws for any element that carries
- * the class and a `data-tip` label, everywhere in the settings dialog.
+ * The shared hover bubble: what `.smkit-ui-tip` draws for any element that carries
+ * the class and a `data-smkit-tip` label, everywhere in the settings dialog.
  *
  * DSH-settings style: a dark pill floating above the element. Theme-inverting
  * on purpose — the bubble paints itself with the label colour and writes with
@@ -21,16 +21,16 @@
  * and scope picker, and the Skills page's scope picker.
  */
 
-.mm_tip {
+.smkit-ui-tip {
   position: relative;
 }
-.mm_tip::after {
-  content: attr(data-tip);
+.smkit-ui-tip::after {
+  content: attr(data-smkit-tip);
   box-sizing: border-box;
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
-  transform: translateX(calc(-50% + var(--mm-tip-shift, 0px)));
+  transform: translateX(calc(-50% + var(--smkit-ui-tip-shift, 0px)));
   background: var(--dsw-alias-label-primary);
   color: var(--dsw-alias-bg-layer-2);
   font-size: 12px;
@@ -43,8 +43,8 @@
   transition: opacity 120ms ease 0s;
   z-index: 20;
 }
-.mm_tip:hover::after,
-.mm_tip:focus-visible::after {
+.smkit-ui-tip:hover::after,
+.smkit-ui-tip:focus-visible::after {
   opacity: 1;
   transition: opacity 120ms ease 200ms;
 }

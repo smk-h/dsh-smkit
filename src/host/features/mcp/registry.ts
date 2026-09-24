@@ -9,7 +9,7 @@
  * tools from the model-facing prompt.
  */
 
-import { MAX_ERROR_LENGTH } from './constants.js'
+import { LOG_PREFIX, MAX_ERROR_LENGTH } from './constants.js'
 import { needsAuth } from './auth/credentials.js'
 import { closeHandleQuietly } from './mcp/handle.js'
 import { disposeRegistrations, listAllTools, syncToolRegistrations } from './mcp/tools.js'
@@ -111,7 +111,7 @@ export function createRegistry(deps: RegistryDeps): Registry {
     conn.status = 'connected'
     conn.error = ''
     setGlobalTools(server.name, names)
-    logger.info(`mcp-manager: ${server.name} connected, ${list.length} tools`)
+    logger.info(`${LOG_PREFIX}: ${server.name} connected, ${list.length} tools`)
   }
 
   async function connectOnce(server: ServerConfig): Promise<LiveConnection> {
@@ -152,7 +152,7 @@ export function createRegistry(deps: RegistryDeps): Registry {
       clearGlobalTools(server.name)
       conn.status = needsAuth(server) ? 'needs-auth' : 'error'
       conn.error = toErrorMessage(error, MAX_ERROR_LENGTH)
-      logger.warn(`mcp-manager: ${server.name} ${conn.status}: ${conn.error}`)
+      logger.warn(`${LOG_PREFIX}: ${server.name} ${conn.status}: ${conn.error}`)
     }
     return conn
   }

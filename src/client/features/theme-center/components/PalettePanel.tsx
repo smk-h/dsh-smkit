@@ -45,7 +45,7 @@
  */
 
 import type { ClientDeps, Translator } from '../../../platform/types'
-import { subscribe } from '../apply'
+import { DARK_ATTR, subscribe, THEME_ATTR } from '../apply'
 import {
   PALETTE_GROUPS,
   hslToCss,
@@ -138,7 +138,7 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
       const mo = new MutationObserver(reread)
       mo.observe(document.body, {
         attributes: true,
-        attributeFilter: ['data-ds-dark-theme', 'data-dsh-theme'],
+        attributeFilter: [DARK_ATTR, THEME_ATTR],
       })
       return () => {
         unsub()
@@ -210,39 +210,39 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
     }
 
     return (
-      <div className="tp_panel" role="dialog" aria-label={t('paletteTitle')}>
-        <div className="tp_head">
-          <span className="tp_title">{t('paletteTitle')}</span>
+      <div className="smkit-theme-palette-panel" role="dialog" aria-label={t('paletteTitle')}>
+        <div className="smkit-theme-palette-head">
+          <span className="smkit-theme-palette-title">{t('paletteTitle')}</span>
           <button
             type="button"
-            className="tp_close"
+            className="smkit-theme-palette-close"
             aria-label={t('paletteClose')}
             onClick={onClose}
           >
             ×
           </button>
         </div>
-        <div className="tp_groups">
+        <div className="smkit-theme-palette-groups">
           {PALETTE_GROUPS.map((group) => (
-            <details key={group.labelKey} className="tp_group" open>
-              <summary className="tp_groupHead">{t(group.labelKey)}</summary>
+            <details key={group.labelKey} className="smkit-theme-palette-group" open>
+              <summary className="smkit-theme-palette-group-head">{t(group.labelKey)}</summary>
               {group.items.map((item) => {
                 const color = colors[item.token] ?? { h: 0, s: 0, l: 100, a: 1 }
                 const value = hslToCss(color.h, color.s, color.l, color.a)
                 const isOpen = expanded === item.token
                 return (
-                  <div key={item.token} className="tp_row">
+                  <div key={item.token} className="smkit-theme-palette-row">
                     <button
                       type="button"
-                      className="tp_rowHead"
+                      className="smkit-theme-palette-row-head"
                       onClick={() => setExpanded(isOpen ? null : item.token)}
                     >
-                      <span className="tp_swatch" style={{ background: value }} />
-                      <span className="tp_label">{t(item.labelKey)}</span>
-                      <span className="tp_hex">{value}</span>
+                      <span className="smkit-theme-palette-swatch" style={{ background: value }} />
+                      <span className="smkit-theme-palette-label">{t(item.labelKey)}</span>
+                      <span className="smkit-theme-palette-hex">{value}</span>
                     </button>
                     {isOpen && (
-                      <div className="tp_sliders">
+                      <div className="smkit-theme-palette-sliders">
                         {(
                           [
                             ['h', t('sliderHue'), 360, HUE_TRACK],
@@ -252,11 +252,11 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
                         ).map(([channel, label, max, track]) => (
                           <label
                             key={channel}
-                            className="tp_slider"
+                            className="smkit-theme-palette-slider"
                             title={t('sliderResetHint')}
                             onDoubleClick={() => resetChannel(item, channel)}
                           >
-                            <span className="tp_sliderLabel">{label}</span>
+                            <span className="smkit-theme-palette-slider-label">{label}</span>
                             <input
                               type="range"
                               min={0}
@@ -268,7 +268,7 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
                                 edit(item.token, { ...color, [channel]: Number(e.target.value) })
                               }
                             />
-                            <span className="tp_sliderValue">{color[channel]}</span>
+                            <span className="smkit-theme-palette-slider-value">{color[channel]}</span>
                           </label>
                         ))}
                       </div>
@@ -279,13 +279,13 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
             </details>
           ))}
         </div>
-        <div className="tp_foot">
-          <button type="button" className="tp_save" onClick={onSave}>
+        <div className="smkit-theme-palette-foot">
+          <button type="button" className="smkit-theme-palette-save" onClick={onSave}>
             {saved ? t('paletteSavedHint') : t('paletteSave')}
           </button>
           <button
             type="button"
-            className="tp_reset"
+            className="smkit-theme-palette-reset"
             onClick={onReset}
             disabled={Object.keys(edits).length === 0}
           >

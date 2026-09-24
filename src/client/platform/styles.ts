@@ -49,15 +49,20 @@ export const PLATFORM_CSS = [
 
 /**
  * Idempotently add one stylesheet to the document head, keyed by `name`.
- * @param name - the `data-plugin-css` key; a second call with the same name is a no-op.
+ * @param name - the `data-smkit-css` key; a second call with the same name is a no-op.
  * @param css - the rules to inject.
  */
 export function installStylesheet(name: string, css: string): void {
   if (typeof document === 'undefined') return
-  if (document.querySelector(`style[data-plugin-css="${name}"]`) !== null) return
+  if (document.querySelector(`style[data-smkit-css="${name}"]`) !== null) return
   const tag = document.createElement('style')
-  tag.dataset.plugin = 'dsh-mcp-manager'
-  tag.dataset.pluginCss = name
+  // The key has to match the selector above character for character. It did
+  // not once: the query took `data-smkit-css` while this line still wrote
+  // `data-plugin-css` (a camel tail the rename never touched), so the guard
+  // could not find the tag it had just made and every mount stacked another
+  // copy — the exact thing the line above promises cannot happen.
+  tag.dataset.plugin = 'smkit'
+  tag.dataset.smkitCss = name
   tag.textContent = css
   document.head.appendChild(tag)
 }

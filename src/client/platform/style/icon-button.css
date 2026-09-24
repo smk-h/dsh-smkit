@@ -1,7 +1,7 @@
 /**
  * The skeleton every 28px round icon button in this plugin shares: the two
- * settings toolbar buttons (`.mm_addBtn`, `.mm_openConfig`) and the
- * conversation header's delete control (`.mm_sessionDelete`).
+ * settings toolbar buttons (`.smkit-mcp-section-add-btn`, `.smkit-mcp-section-open-config`) and the
+ * conversation header's delete control (`.smkit-del-session-delete`).
  *
  * Only the declarations all three spell identically live here; colour, border
  * and hover treatment stay with each feature, and because the platform
@@ -9,7 +9,7 @@
  * (see `platform/styles.ts`).
  */
 
-.mm_iconBtn {
+.smkit-ui-icon-button {
   box-sizing: border-box;
   width: 28px;
   height: 28px;

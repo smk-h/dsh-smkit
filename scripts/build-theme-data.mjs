@@ -11,7 +11,7 @@
  *    active `<style>` element). The two never met, so they could not share a
  *    card, a selection or a storage key. Folding the skins in costs exactly one
  *    rewrite: every `body[data-dsh-nord]` selector becomes
- *    `body[data-dsh-theme="nord"]`, verbatim otherwise — same rules, same
+ *    `body[data-smkit-theme="nord"]`, verbatim otherwise — same rules, same
  *    order, same specificity. The job runs only while the skin stylesheets are
  *    still reachable (the working tree before the merge, the pre-merge revision
  *    after it) and reports when it has nothing to fold, so a re-run on a merged
@@ -43,6 +43,14 @@ import { fileURLToPath } from 'node:url'
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const DATA_PATH = `${ROOT}/src/client/features/theme-center/themes.data.json`
 const SKIN_DIR = `${ROOT}/src/client/features/theme/style`
+
+/**
+ * The body attribute every theme's rules are scoped on. Kept in step with
+ * `THEME_ATTR` in `src/client/features/theme-center/apply.ts` — they are two
+ * halves of the same contract, the data side and the runtime side, and if they
+ * disagree every rule in this file silently stops applying.
+ */
+const SCOPE_ATTR = 'data-smkit-theme'
 
 /** The three skins, as `theme/skins.ts` shipped them plus the center's surface.
  * `previous` carries the grades that file published, as the oracle for
@@ -225,7 +233,7 @@ function canonical(entry) {
  * and therefore the rewrite. */
 function rescope(css, skin) {
   const from = `body[data-${skin.dataset}]`
-  const to = `body[data-dsh-theme="${skin.id}"]`
+  const to = `body[${SCOPE_ATTR}="${skin.id}"]`
   const rewritten = css.split(from).join(to)
   if (!rewritten.includes(to)) throw new Error(`${skin.id}: nothing to rescope`)
   return rewritten
@@ -274,7 +282,26 @@ function buildEntry(skin, css) {
   })
 }
 
-const existing = JSON.parse(readFileSync(DATA_PATH, 'utf8'))
+/**
+ * Put every theme's rules back on the attribute the runtime actually sets.
+ *
+ * Themes used to be scoped on `data-dsh-theme`, a name this plugin shared with
+ * the separate `dsh-theme` it grew out of; both wrote `body[data-dsh-theme="<id>"]`
+ * from their own rows, which is how one ended up driving the other's choices.
+ * The scope is now ours alone (`data-smkit-theme`, matching `THEME_ATTR` in
+ * `features/theme-center/apply.ts`) — but this file is checked in, and nothing
+ * in the fold-in path below revisits entries that are already in it. Without
+ * this pass a rebuild would keep whatever attribute it found, including the old
+ * one, and there would be no reason to look twice.
+ */
+function rescopecheck(css) {
+  return css.replaceAll('data-dsh-theme', SCOPE_ATTR)
+}
+
+const existing = JSON.parse(readFileSync(DATA_PATH, 'utf8')).map((entry) => ({
+  ...entry,
+  css: rescopecheck(entry.css),
+}))
 const foldable = SKINS.map((skin) => ({ skin, css: readSkinCss(skin) })).filter(
   (candidate) => candidate.css !== null,
 )

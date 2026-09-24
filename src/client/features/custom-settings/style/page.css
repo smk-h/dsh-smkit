@@ -4,21 +4,21 @@
  * The shell mirrors DSH's own tabbed settings pages, because this panel is the
  * same kind of page: one tab per configuration area, so a new area costs a tab
  * rather than a redesign. The strip itself is the platform layer's `Tabs`
- * (`mm_tabs*`, styled by that layer's `style/tabs.css`), the same one the
+ * (`smkit-ui-tabs*`, styled by that layer's `style/tabs.css`), the same one the
  * skills panel and the merged section's own strip render; only the two-point
  * nudge that seats it in this panel's rhythm is declared here. The page's
  * title and intro line moved up into the merged section (`st_*`).
  *
  * Classes are namespaced `cs_*`, deliberately not the MCP page's `mm_*` nor the
  * model-retry tab's `lr_*`: the three are separate owners and may only share
- * what the platform layer already owns (`mm_btn`, `mm_err`, the tab strip).
+ * what the platform layer already owns (`smkit-ui-button`, `smkit-ui-field-error`, the tab strip).
  *
  * One part of this feature's stylesheet. `custom-settings/styles.ts` imports
  * the parts and joins them: the split is a reading aid, the order there decides
  * the cascade.
  */
 
-.cs_section {
+.smkit-cs-page-section {
   width: 100%;
   max-width: 760px;
   color: var(--dsw-alias-label-primary);
@@ -27,11 +27,11 @@
   gap: 12px;
 }
 
-.cs_section>.mm_tabs {
+.smkit-cs-page-section>.smkit-ui-tabs {
   margin-top: 2px;
 }
 
-.cs_panel {
+.smkit-cs-page-panel {
   min-width: 0;
   padding-top: 2px;
   display: flex;

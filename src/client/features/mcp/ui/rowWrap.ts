@@ -8,7 +8,7 @@
  * to take the row it cleared and the search to fill the one it landed on. No
  * stylesheet can choose between them — nothing differs but the line an item
  * ended up on, and a selector cannot see that — so the wrap is observed here,
- * from the boxes' own geometry, and the row is marked `data-wrapped` for the
+ * from the boxes' own geometry, and the row is marked `data-smkit-wrapped` for the
  * rules in `style/section.css` to key off.
  *
  * The measurement keeps no state, and neither the mark nor the rules it turns
@@ -29,8 +29,8 @@ const LINE_TOLERANCE = 1
  * bottom edge rather than its top keeps that right however the two boxes'
  * heights differ. */
 function rowWraps(bar: HTMLElement): boolean | null {
-  const scope = bar.querySelector<HTMLElement>('.mm_scope')
-  const cluster = bar.querySelector<HTMLElement>('.mm_toolbarActions')
+  const scope = bar.querySelector<HTMLElement>('.smkit-ui-picker')
+  const cluster = bar.querySelector<HTMLElement>('.smkit-mcp-section-toolbar-actions')
   if (!scope || !cluster) return null
   const pill = scope.getBoundingClientRect()
   const search = cluster.getBoundingClientRect()

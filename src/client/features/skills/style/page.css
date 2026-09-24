@@ -3,13 +3,13 @@
  * and count, the toolbar (directory picker, spacer, search box and the shared
  * refresh button), the shown directory's path line and the standalone note
  * lines. The page's intro line is the merged section's own
- * (`settings/style/page.css`, `st_intro`). The refresh button itself is the platform layer's
+ * (`settings/style/page.css`, `smkit-shell-page-intro`). The refresh button itself is the platform layer's
  * (`platform/ui/RefreshButton`, painted by `platform/style/refresh-button.css`);
  * only the cluster that positions it is this page's.
  *
  * Classes are namespaced `sk_*`, deliberately not the MCP page's `mm_*` nor the
  * custom-settings page's `cs_*`: the three are separate owners and may only
- * share what the platform layer already owns (`mm_btn`, `mm_err`, the dialog).
+ * share what the platform layer already owns (`smkit-ui-button`, `smkit-ui-field-error`, the dialog).
  *
  * The rules mirror the MCP page's, because the two pages are the same kind of
  * page — a picker on the left, a filter box against the right edge — so they
@@ -22,7 +22,7 @@
  * one string: the split is a reading aid, the order there decides the cascade.
  */
 
-.sk_section {
+.smkit-skill-page-section {
   width: 100%;
   max-width: 760px;
   color: var(--dsw-alias-label-primary);
@@ -31,26 +31,26 @@
   gap: 14px;
 }
 
-.sk_catalogHeading {
+.smkit-skill-page-catalog-heading {
   align-items: baseline;
   gap: 7px;
   padding: 0 2px;
   display: flex;
 }
-.sk_catalogHeading h3 {
+.smkit-skill-page-catalog-heading h3 {
   font-size: 18px;
   font-weight: 600;
   line-height: 26px;
   margin: 0;
 }
-.sk_catalogHeading span {
+.smkit-skill-page-catalog-heading span {
   color: var(--dsw-alias-label-tertiary);
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   line-height: 18px;
 }
 
-.sk_toolbar {
+.smkit-skill-page-toolbar {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
@@ -58,28 +58,28 @@
   display: flex;
 }
 
-/* The scope picker is the platform layer's icon dropdown (`mm_scope`, the same
+/* The scope picker is the platform layer's icon dropdown (`smkit-ui-picker`, the same
  * component and rules the MCP page's picker uses), so nothing about its pill or
  * its menu is declared here. The toolbar does add the one layout rule MCP's
  * toolbar carries: the picker yields first when the row runs short, letting its
  * label ellipsize instead of pushing the search onto a line of its own. */
-.sk_toolbar>.mm_scope {
+.smkit-skill-page-toolbar>.smkit-ui-picker {
   min-width: 0;
 }
 
 /* The right-hand pull for the search box, as its own flex item rather than an
  * auto margin on the cluster below: an auto margin would push a wrapped cluster
  * to the right of its own line too. */
-.sk_toolbarSpacer {
+.smkit-skill-page-toolbar-spacer {
   flex: 1 1 0;
 }
 
 /* The search box and the refresh button, wrapped as one flex item so the pair
- * moves to the next line together — the MCP toolbar's `.mm_toolbarActions` in
+ * moves to the next line together — the MCP toolbar's `.smkit-mcp-section-toolbar-actions` in
  * this page's own namespace. `min-width: 0` waives the automatic minimum (the
  * content's intrinsic width), which is what lets a narrow panel squeeze the
  * search box down to its own floor instead of overflowing the section. */
-.sk_toolbarActions {
+.smkit-skill-page-toolbar-actions {
   flex: 0 1 auto;
   align-items: center;
   gap: 10px;
@@ -87,7 +87,7 @@
   display: flex;
 }
 
-.sk_search {
+.smkit-skill-page-search {
   position: relative;
   color: var(--dsw-alias-label-tertiary);
   align-items: center;
@@ -96,12 +96,12 @@
   width: 240px;
   min-width: 150px;
 }
-.sk_search>svg {
+.smkit-skill-page-search>svg {
   pointer-events: none;
   position: absolute;
   left: 12px;
 }
-.sk_search input {
+.smkit-skill-page-search input {
   border: 1px solid var(--dsw-alias-border-l2);
   background: var(--dsw-alias-bg-layer-1);
   width: 100%;
@@ -116,18 +116,18 @@
    * when the button appears. */
   padding: 0 30px 0 34px;
 }
-.sk_search input::-webkit-search-cancel-button {
+.smkit-skill-page-search input::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
 }
-.sk_search input::placeholder {
+.smkit-skill-page-search input::placeholder {
   color: var(--dsw-alias-label-tertiary);
 }
-.sk_search input:focus-visible {
+.smkit-skill-page-search input:focus-visible {
   border-color: var(--dsw-alias-state-business-primary);
 }
 
-.sk_searchClear {
+.smkit-skill-page-search-clear {
   position: absolute;
   right: 6px;
   width: 20px;
@@ -142,12 +142,12 @@
   align-items: center;
   justify-content: center;
 }
-.sk_searchClear:hover {
+.smkit-skill-page-search-clear:hover {
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-interactive-bg-hover-solid);
 }
 
-.sk_pathHint {
+.smkit-skill-page-path-hint {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 18px;
@@ -157,7 +157,7 @@
 
 /* A standalone line where a list would otherwise be: the empty states and the
  * two discovery notices. */
-.sk_meta {
+.smkit-skill-page-meta {
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);

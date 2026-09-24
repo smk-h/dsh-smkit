@@ -2,7 +2,7 @@
  * The add/edit form: its field grid, the key-value editor rows and the
  * dashed add-field row (ServerForm, ui/KeyValueEditor), plus the trigger of
  * the form's icon dropdowns. The dropdown itself is the platform layer's
- * (`platform/ui/IconSelect`, whose `mm_scope*` rules live in
+ * (`platform/ui/IconSelect`, whose `smkit-ui-picker*` rules live in
  * `platform/style/picker.css`); only the field-shaped trigger family is this
  * feature's own look, and the shared menu anchors to the root defined here.
  *
@@ -12,19 +12,19 @@
  * cascade.
  */
 
-.mm_form {
+.smkit-mcp-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
-.mm_form label,.mm_form .mm_field {
+.smkit-mcp-form label,.smkit-mcp-form .smkit-mcp-form-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
   color: var(--dsw-alias-label-secondary);
 }
-.mm_form input,.mm_form select {
+.smkit-mcp-form input,.smkit-mcp-form select {
   font: inherit;
   font-size: 13px;
   padding: 6px 8px;
@@ -33,24 +33,24 @@
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
 }
-.mm_form input::placeholder,.mm_form select::placeholder {
+.smkit-mcp-form input::placeholder,.smkit-mcp-form select::placeholder {
   color: var(--dsw-alias-label-tertiary);
 }
-.mm_form select option {
+.smkit-mcp-form select option {
   background: var(--dsw-alias-bg-layer-3);
   color: var(--dsw-alias-label-primary);
 }
-.mm_form .wide {
+.smkit-mcp-form .wide {
   grid-column: 1 / -1;
 }
 
 /* The shared dropdown's field family (`IconSelectProps.classes`, passed by
    ServerForm): a trigger shaped like the native select above it, with the
    shared menu anchored to this root. */
-.mm_fieldSelect {
+.smkit-mcp-form-field-select {
   position: relative;
 }
-.mm_fieldSelectTrigger {
+.smkit-mcp-form-field-select-trigger {
   width: 100%;
   align-items: center;
   gap: 8px;
@@ -65,18 +65,18 @@
   display: flex;
   text-align: left;
 }
-.mm_fieldSelectTrigger>svg {
+.smkit-mcp-form-field-select-trigger>svg {
   flex: none;
   color: var(--dsw-alias-label-secondary);
 }
-.mm_fieldSelectTrigger[disabled] {
+.smkit-mcp-form-field-select-trigger[disabled] {
   cursor: default;
   color: var(--dsw-alias-label-tertiary);
 }
-.mm_fieldSelectTrigger[disabled]>svg {
+.smkit-mcp-form-field-select-trigger[disabled]>svg {
   color: var(--dsw-alias-label-tertiary);
 }
-.mm_fieldSelectLabel {
+.smkit-mcp-form-field-select-label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -84,18 +84,18 @@
   white-space: nowrap;
 }
 
-.mm_add {
+.smkit-mcp-form-add {
   border-style: dashed;
 }
 
-.mm_kv {
+.smkit-mcp-form-kv {
   display: flex;
   gap: 6px;
   align-items: center;
 }
-.mm_kv input {
+.smkit-mcp-form-kv input {
   flex: 1;
 }
-.mm_kv .mm_btn {
+.smkit-mcp-form-kv .smkit-ui-button {
   flex: none;
 }

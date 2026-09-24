@@ -22,7 +22,7 @@
  */
 
 /** Attribute a marked row carries; its value is the owning section's name. */
-export const SETTINGS_NAV_ATTRIBUTE = 'data-dsh-smkit-nav'
+export const SETTINGS_NAV_ATTRIBUTE = 'data-smkit-nav'
 
 /**
  * Keep the marker on the settings-nav row whose visible text is `label()`.

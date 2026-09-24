@@ -133,12 +133,12 @@ export function createSettingsSection(
     const [selected, setSelected] = react.useState(TABS[0].id)
     const active = TABS.find((tab) => tab.id === selected) ?? TABS[0]
     return (
-      <div className="st_section">
+      <div className="smkit-shell-page-section">
         {/* The identity block, top down: the page's name, the line that says what
             the page is, the plugin pill. All three name the merged page rather
             than the open panel, so they stay put while the tabs move. */}
-        <h3 className="st_heading">{t('sectionLabel')}</h3>
-        <p className="st_intro">{t('sectionIntro')}</p>
+        <h3 className="smkit-shell-page-heading">{t('sectionLabel')}</h3>
+        <p className="smkit-shell-page-intro">{t('sectionIntro')}</p>
         <VersionBadge />
         <Tabs
           ariaLabel={t('sectionLabel')}
@@ -146,7 +146,7 @@ export function createSettingsSection(
           onChange={setSelected}
           tabs={TABS.map((tab) => ({ id: tab.id, label: t(tab.label), icon: tab.icon }))}
         />
-        <div className="st_panel" role="tabpanel">
+        <div className="smkit-shell-page-panel" role="tabpanel">
           <active.Panel t={PANEL_T[active.id]} />
         </div>
       </div>

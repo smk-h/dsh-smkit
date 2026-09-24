@@ -165,13 +165,13 @@ const settleMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /** One global-tier row from `GET /servers`, or undefined when it is gone. */
 async function globalRow(handler, name) {
-  const listed = await request(handler, 'GET', '/mcp-manager/api/servers')
+  const listed = await request(handler, 'GET', '/smkit/api/servers')
   return listed.json.servers.find((server) => server.name === name)
 }
 
 /** One workspace-tier row from `GET /workspaces`, or undefined when it is gone. */
 async function workspaceRow(handler, wsPath, name) {
-  const listed = await request(handler, 'GET', '/mcp-manager/api/workspaces')
+  const listed = await request(handler, 'GET', '/smkit/api/workspaces')
   const workspace = listed.json.workspaces.find((candidate) => candidate.path === wsPath)
   return workspace?.servers.find((server) => server.name === name)
 }
@@ -201,7 +201,7 @@ const waitForGlobal = (handler, name, done, timeoutMs) =>
 
 /** Write the reconnect settings this test needs (they persist in the store). */
 const configure = (handler, settings) =>
-  request(handler, 'POST', '/mcp-manager/api/settings/reconnect', settings)
+  request(handler, 'POST', '/smkit/api/settings/reconnect', settings)
 
 /**
  * A newline-delimited JSON-RPC MCP server that appends its pid to
@@ -240,7 +240,7 @@ async function addStdioServer(handler, { name, dir }) {
   const log = join(dir, `${name}.log`)
   const script = join(dir, `${name}.mjs`)
   writeFileSync(script, STDIO_STUB)
-  const created = await request(handler, 'POST', '/mcp-manager/api/servers', {
+  const created = await request(handler, 'POST', '/smkit/api/servers', {
     name,
     type: 'stdio',
     command: process.execPath,
@@ -352,7 +352,7 @@ it('keeps a stopped server stopped', async () => {
   // Stop from inside the retry window: the drop has been seen and a retry is
   // already scheduled.
   await waitForGlobal(handler, 'stopped-bridge', (row) => row.status === 'reconnecting')
-  const stopped = await request(handler, 'POST', `/mcp-manager/api/servers/${id}/stop`)
+  const stopped = await request(handler, 'POST', `/smkit/api/servers/${id}/stop`)
   assert.equal(stopped.code, 200)
 
   // Longer than one full retry window: a retry that survived the stop would
@@ -378,7 +378,7 @@ it('leaves a first connect that failed alone', async () => {
       reconnectMaxAttempts: 0,
       autoReconnect: true,
     })
-    const created = await request(handler, 'POST', '/mcp-manager/api/servers', {
+    const created = await request(handler, 'POST', '/smkit/api/servers', {
       name: 'never-up',
       type: 'http',
       url: stub.url,
@@ -410,7 +410,7 @@ it('never retries a server that still needs authentication', async () => {
       autoReconnect: true,
     })
     // OAuth with no tokens: the browser round trip has not happened yet.
-    const created = await request(handler, 'POST', '/mcp-manager/api/servers', {
+    const created = await request(handler, 'POST', '/smkit/api/servers', {
       name: 'pending-auth',
       type: 'http',
       url: stub.url,
@@ -439,7 +439,7 @@ it('finds a dead-but-alive HTTP session with the health probe and rebuilds it', 
       reconnectMaxAttempts: 0,
       autoReconnect: true,
     })
-    const created = await request(handler, 'POST', '/mcp-manager/api/servers', {
+    const created = await request(handler, 'POST', '/smkit/api/servers', {
       name: 'probe-http',
       type: 'http',
       url: stub.url,
@@ -481,7 +481,7 @@ it('keeps a workspace retry alive across its own failures', async () => {
     })
     // Opening the workspace is what connects its servers.
     await agents.create({ setup: async () => {} })
-    const created = await request(handler, 'POST', '/mcp-manager/api/workspaces/servers', {
+    const created = await request(handler, 'POST', '/smkit/api/workspaces/servers', {
       path: wsDir,
       name: 'ws-probe',
       type: 'http',
@@ -531,7 +531,7 @@ it('gives up once the retry budget is spent', async () => {
       reconnectMaxAttempts: 1,
       autoReconnect: true,
     })
-    const created = await request(handler, 'POST', '/mcp-manager/api/servers', {
+    const created = await request(handler, 'POST', '/smkit/api/servers', {
       name: 'give-up',
       type: 'http',
       url: stub.url,
@@ -564,7 +564,7 @@ it('reports the effective settings, defaults included', async () => {
   resetState()
   const { handler, dispose } = makeCtx()
   try {
-    const initial = await request(handler, 'GET', '/mcp-manager/api/settings')
+    const initial = await request(handler, 'GET', '/smkit/api/settings')
     assert.deepEqual(initial.json, {
       onDemandToolInjection: false,
       toolCallTimeoutMs: 60_000,
@@ -582,7 +582,7 @@ it('reports the effective settings, defaults included', async () => {
     // One bad field refuses the whole body: nothing partial may land.
     const refused = await configure(handler, { reconnectMaxDelayMs: 10, autoReconnect: false })
     assert.equal(refused.code, 400)
-    assert.equal((await request(handler, 'GET', '/mcp-manager/api/settings')).json.autoReconnect, true)
+    assert.equal((await request(handler, 'GET', '/smkit/api/settings')).json.autoReconnect, true)
 
     // `null` per field restores the built-in default.
     const restored = await configure(handler, { reconnectMaxAttempts: null })

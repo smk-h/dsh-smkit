@@ -6,7 +6,7 @@ import { describe, it } from 'node:test'
 
 // STATE_PATH is derived from homedir() when the module is evaluated, so point
 // HOME at a scratch directory *before* the dynamic import below.
-process.env.HOME = mkdtempSync(join(tmpdir(), 'dsh-mcp-manager-home-'))
+process.env.HOME = mkdtempSync(join(tmpdir(), 'smkit-home-'))
 process.env.USERPROFILE = process.env.HOME // Windows: homedir() 读 USERPROFILE 而非 HOME
 
 const { apply, resolveSetupAgent } = await import('../lib/index.js')
@@ -15,7 +15,7 @@ const { apply, resolveSetupAgent } = await import('../lib/index.js')
 function makeAgent() {
   return {
     id: 'session-test',
-    session: { header: { cwd: mkdtempSync(join(tmpdir(), 'dsh-mcp-manager-ws-')) } },
+    session: { header: { cwd: mkdtempSync(join(tmpdir(), 'smkit-ws-')) } },
     ctx: {
       tools: {
         register: () => () => {},

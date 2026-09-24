@@ -6,7 +6,7 @@
  * three API-surfaced data sets, re-polled every 3 seconds so a server that
  * reconnects on the host side updates its badge without a page reload.
  *
- * Each view keeps its own heading in the content (`mm_catalogHeading`); the
+ * Each view keeps its own heading in the content (`smkit-mcp-section-catalog-heading`); the
  * three sub-views additionally mount a breadcrumb (`ui/Breadcrumb`) into the
  * settings shell's title strip through a portal — the list view is the trail's
  * root, and clicking it is the second way back besides the form's cancel
@@ -178,7 +178,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     const [wrapped, setWrapped] = react.useState(false)
     react.useEffect(() => {
       if (typeof document === 'undefined') return
-      const bar = document.querySelector<HTMLElement>('.mm_toolbar')
+      const bar = document.querySelector<HTMLElement>('.smkit-mcp-section-toolbar')
       return bar ? watchRowWrap(bar, setWrapped) : undefined
     })
 
@@ -222,7 +222,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     }, [refresh])
 
     // Hover bubbles slide clear of clip edges; one document-level watch
-    // serves every `.mm_tip` the section renders.
+    // serves every `.smkit-ui-tip` the section renders.
     react.useEffect(() => watchTipBoundaries(), [])
 
     // Drop the selection if the workspace disappeared.
@@ -322,10 +322,10 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
 
     const addBtn = (
       <button
-        className="mm_iconBtn mm_addBtn mm_tip"
+        className="smkit-ui-icon-button smkit-mcp-section-add-btn smkit-ui-tip"
         type="button"
         aria-label={t('addServer')}
-        data-tip={t('addServer')}
+        data-smkit-tip={t('addServer')}
         onClick={() => setView('add')}
       >
         <PlusIcon size={14} />
@@ -360,8 +360,8 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
 
     if (view === 'advanced') {
       return (
-        <div className="mm_section">
-          <div className="mm_catalogHeading">
+        <div className="smkit-mcp-section">
+          <div className="smkit-mcp-section-catalog-heading">
             <h3>{t('advancedTitle')}</h3>
           </div>
           {headerBreadcrumb}
@@ -382,8 +382,8 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
 
     if (view === 'add') {
       return (
-        <div className="mm_section">
-          <div className="mm_catalogHeading">
+        <div className="smkit-mcp-section">
+          <div className="smkit-mcp-section-catalog-heading">
             <h3>{t('addServer')}</h3>
           </div>
           {headerBreadcrumb}
@@ -406,8 +406,8 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
       view === 'edit-global' ? servers.find((server) => server.id === editingId) ?? null : null
     if (view === 'edit-global' && globalEditing) {
       return (
-        <div className="mm_section">
-          <div className="mm_catalogHeading">
+        <div className="smkit-mcp-section">
+          <div className="smkit-mcp-section-catalog-heading">
             <h3>{t('editGlobal')}</h3>
           </div>
           {headerBreadcrumb}
@@ -431,12 +431,12 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
         : null
     if (view === 'edit-ws' && selected && wsEditing) {
       return (
-        <div className="mm_section">
-          <div className="mm_catalogHeading">
+        <div className="smkit-mcp-section">
+          <div className="smkit-mcp-section-catalog-heading">
             <h3>{t('editWorkspace')}</h3>
           </div>
           {headerBreadcrumb}
-          <div className="mm_wsPathHint">{selected}</div>
+          <div className="smkit-mcp-section-ws-path-hint">{selected}</div>
           <ServerForm
             t={t}
             initial={wsEditing}
@@ -459,11 +459,11 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     const workspaceBranch: JSX.Element[] = []
     if (!searching || filteredWsServers.length > 0) {
       workspaceBranch.push(
-        <div className="mm_groupTitle" key="ws-title">
+        <div className="smkit-mcp-section-group-title" key="ws-title">
           {t('workspaceServers')}
         </div>,
         wsServers.length > 0 ? (
-          <div className="mm_wsList" key="ws-list">
+          <div className="smkit-mcp-section-ws-list" key="ws-list">
             {filteredWsServers.map((server) => (
               <WorkspaceServerRow
                 t={t}
@@ -480,7 +480,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             ))}
           </div>
         ) : (
-          <div className="mm_meta" key="ws-empty">
+          <div className="smkit-mcp-section-meta" key="ws-empty">
             {t('emptyWorkspace')}
           </div>
         ),
@@ -488,11 +488,11 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     }
     if (!searching || filteredServers.length > 0) {
       workspaceBranch.push(
-        <div className="mm_groupTitle" key="global-title">
+        <div className="smkit-mcp-section-group-title" key="global-title">
           {t('globalServers')}
         </div>,
         servers.length > 0 ? (
-          <div className="mm_wsList" key="global-list">
+          <div className="smkit-mcp-section-ws-list" key="global-list">
             {filteredServers.map((server) => (
               <GlobalMaskRow
                 t={t}
@@ -509,7 +509,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             ))}
           </div>
         ) : (
-          <div className="mm_meta" key="global-empty">
+          <div className="smkit-mcp-section-meta" key="global-empty">
             {t('emptyGlobal')}
           </div>
         ),
@@ -517,14 +517,14 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     }
     if (searching && filteredWsServers.length === 0 && filteredServers.length === 0) {
       workspaceBranch.push(
-        <div className="mm_meta" key="search-empty">
+        <div className="smkit-mcp-section-meta" key="search-empty">
           {t('searchEmpty')}
         </div>,
       )
     }
 
     const globalBranch: JSX.Element[] = [
-      <div className="mm_cards" key="cards">
+      <div className="smkit-mcp-section-cards" key="cards">
         {filteredServers.map((server) => (
           <ServerRow
             t={t}
@@ -544,22 +544,22 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     ]
     if (searching && filteredServers.length === 0) {
       globalBranch.push(
-        <div className="mm_meta" key="search-empty">
+        <div className="smkit-mcp-section-meta" key="search-empty">
           {t('searchEmpty')}
         </div>,
       )
     }
 
     return (
-      <div className="mm_section">
-        <div className="mm_catalogHeading">
+      <div className="smkit-mcp-section">
+        <div className="smkit-mcp-section-catalog-heading">
           <h3>{t('servers')}</h3>
           <span>
             {t('countGlobal', { count: servers.length })} ·{' '}
             {t('countWorkspace', { count: wsTotal })}
           </span>
         </div>
-        <div className="mm_toolbar" data-wrapped={wrapped ? 'true' : undefined}>
+        <div className="smkit-mcp-section-toolbar" data-smkit-wrapped={wrapped ? 'true' : undefined}>
           <ScopeSelect
             t={t}
             value={selected}
@@ -573,25 +573,25 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             }}
           />
           <button
-            className="mm_iconBtn mm_openConfig mm_tip"
+            className="smkit-ui-icon-button smkit-mcp-section-open-config smkit-ui-tip"
             type="button"
             aria-label={t('openConfig')}
-            data-tip={t('openConfig')}
+            data-smkit-tip={t('openConfig')}
             disabled={openConfigAction.busy}
             onClick={openConfig}
           >
             <Settings2Icon size={14} />
           </button>
           <button
-            className="mm_btn mm_toolbarAction"
+            className="smkit-ui-button smkit-mcp-section-toolbar-action"
             type="button"
             onClick={() => setView('advanced')}
           >
             {t('advanced')}
           </button>
-          <span className="mm_toolbarSpacer" aria-hidden="true" />
-          <div className="mm_toolbarActions">
-            <label className="mm_search">
+          <span className="smkit-mcp-section-toolbar-spacer" aria-hidden="true" />
+          <div className="smkit-mcp-section-toolbar-actions">
+            <label className="smkit-mcp-search">
               <SearchIcon size={14} />
               <input
                 type="search"
@@ -602,7 +602,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
               />
               {query ? (
                 <button
-                  className="mm_searchClear"
+                  className="smkit-mcp-search-clear"
                   type="button"
                   aria-label={t('clearSearch')}
                   title={t('clearSearch')}
@@ -615,10 +615,10 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             {addBtn}
           </div>
         </div>
-        <div className="mm_feature">
-          <span className="mm_featureText">
-            <span className="mm_featureTitle">{t('onDemand')}</span>
-            <span className="mm_featureMeta">{t('onDemandHelp')}</span>
+        <div className="smkit-mcp-section-feature">
+          <span className="smkit-mcp-section-feature-text">
+            <span className="smkit-mcp-section-feature-title">{t('onDemand')}</span>
+            <span className="smkit-mcp-section-feature-meta">{t('onDemandHelp')}</span>
           </span>
           <Switch
             on={settings.onDemandToolInjection}
@@ -628,8 +628,8 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             ariaLabel={t('onDemand')}
           />
         </div>
-        {settingsAction.error ? <div className="mm_err">{settingsAction.error}</div> : null}
-        {selectedWs?.error ? <div className="mm_err">{selectedWs.error}</div> : null}
+        {settingsAction.error ? <div className="smkit-ui-field-error">{settingsAction.error}</div> : null}
+        {selectedWs?.error ? <div className="smkit-ui-field-error">{selectedWs.error}</div> : null}
         {selected ? workspaceBranch : globalBranch}
       </div>
     )

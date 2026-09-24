@@ -86,7 +86,7 @@ function call(route, { method, path, body }) {
     }
     const req = {
       method,
-      url: `/mcp-manager/api${path}`,
+      url: `/smkit/api${path}`,
       headers: { host: '127.0.0.1:3080' },
       async *[Symbol.asyncIterator]() {
         if (body !== undefined) yield Buffer.from(JSON.stringify(body))
@@ -545,7 +545,7 @@ it('renders the policy in force for every route, and what it stores', async () =
   await settle()
   const view = app.render()
 
-  assert.equal(app.calls[0].url, '/mcp-manager/api/llm-retry/routes', 'the page asks the host first')
+  assert.equal(app.calls[0].url, '/smkit/api/llm-retry/routes', 'the page asks the host first')
   assert.ok(view.text.includes('tabRetry'), 'the page opens on the retry tab')
   assert.ok(view.text.includes('bigmodel') && view.text.includes('deepseek-official'), 'both routes are listed')
   assert.ok(view.text.includes('policyCustom'), 'the route with a stored policy is marked custom')
@@ -593,7 +593,7 @@ it('seeds the form from the policy in force and posts the revision it read', asy
 
   const posted = app.calls.filter((request) => request.url.endsWith('/llm-retry/policy'))
   assert.deepEqual(plain(posted), [{
-    url: '/mcp-manager/api/llm-retry/policy',
+    url: '/smkit/api/llm-retry/policy',
     body: {
       provider: 'bigmodel',
       policy: { mode: 'normal', maxRetries: 300, initialDelayMs: 2000, maxDelayMs: 10000, jitterRatio: 0 },

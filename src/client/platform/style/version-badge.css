@@ -5,11 +5,11 @@
  * `align-self` seats it left inside the section column, which is a flex stack
  * on every page that mounts the badge.
  *
- * Consumed through `mm_` names like the rest of this layer's paint (`mm_btn`,
- * `mm_tabs`), so the three pages cannot drift in look or behavior.
+ * Consumed through `mm_` names like the rest of this layer's paint (`smkit-ui-button`,
+ * `smkit-ui-tabs`), so the three pages cannot drift in look or behavior.
  */
 
-.mm_versionBadge {
+.smkit-ui-version-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -27,22 +27,22 @@
 /* The name is plain text now that the pill itself carries the link; only the
  * words are underlined on hover, not the version chip or the mark, because a
  * flex item is not a text run. */
-.mm_versionBadgeName {
+.smkit-ui-version-badge-name {
   font-weight: 600;
 }
-a.mm_versionBadge:hover .mm_versionBadgeName {
+a.smkit-ui-version-badge:hover .smkit-ui-version-badge-name {
   text-decoration: underline;
 }
 
 /* The mark at its own 16px, which is the size Octicons pairs it with UI text of
  * this size at. It takes the pill's colour, so it follows the theme the same way
  * the words beside it do; it is decoration, so it never shrinks to fit. */
-.mm_versionBadgeMark {
+.smkit-ui-version-badge-mark {
   flex: none;
   display: inline-flex;
 }
 
-.mm_versionBadgeTag {
+.smkit-ui-version-badge-tag {
   padding: 1px 8px;
   border-radius: 999px;
   background: var(--dsw-alias-accent-soft,var(--dsw-alias-border-l2));

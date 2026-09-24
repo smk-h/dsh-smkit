@@ -27,12 +27,18 @@
  *
  * One small plugin rides along: `cssTextPlugin` turns the section's stylesheet
  * into a string module, for the same reason everything else is inlined — the
- * browser fetches one script and nothing beside it.
+ * browser fetches one script and nothing beside it. It carries the namespace
+ * guard as well, so a stylesheet that drifted out of the scheme fails the build
+ * rather than shipping unstyled: the rule itself lives in
+ * `scripts/namespace-guard.mjs`, shared with `test/architecture.test.mjs`, and
+ * this hook only decides when to apply it.
  */
 
 import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { dirname, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { TsdownPlugin, UserConfig } from 'tsdown'
+import { findStylesheets, prefixesOf, sheetViolations } from './scripts/namespace-guard.mjs'
 
 /**
  * Module specifiers the web shell resolves at runtime through the factory's
@@ -82,6 +88,12 @@ const CSS_VIRTUAL_PREFIX = '\0dsh-smkit-css:'
 const CSS_VIRTUAL_SUFFIX = '.mjs'
 
 /**
+ * The root the namespace guard resolves paths against: `namespace-guard.mjs`
+ * matches `client/…`, so the base has to be `src`.
+ */
+const SRC_DIR = resolve(fileURLToPath(new URL('.', import.meta.url)), 'src')
+
+/**
  * Compile every relative `.css` import into a string module:
  * `export default "<rules>"`.
  *
@@ -93,8 +105,16 @@ const CSS_VIRTUAL_SUFFIX = '.mjs'
  *   resolveId  `./section.css` becomes the virtual id `\0dsh-smkit-css:<abs>.mjs`
  *   load       that id is read back and returned as a JSON-escaped string
  *
+ * `load` also runs the namespace guard, over `namespace-guard.mjs` — the same
+ * module `test/architecture.test.mjs` reads, so the two cannot disagree about
+ * what the scheme is. A stylesheet that slipped out of it stops the build here,
+ * where the author still has the file open, instead of shipping rules whose
+ * selectors nothing will ever match. The prefix set is taken once per build
+ * (`buildStart`) rather than once per process, so adding a stylesheet under
+ * `--watch` re-derives it the same way a fresh build would.
+ *
  * This mirrors `dsh-css-inline` from DSH-better-sidebar, minus its CSS-Modules
- * branch: this section's classes (`mm_*`) are global on purpose — the shell is a
+ * branch: this section's classes (`smkit-*`) are global on purpose — the shell is a
  * single document and the rules are namespaced by prefix — so nothing needs
  * hashing and no `lightningcss` dependency is pulled in. Where the reference
  * emits the `<style>` tag from inside the generated module, this one only hands
@@ -107,8 +127,13 @@ const CSS_VIRTUAL_SUFFIX = '.mjs'
  * either, which is why the wrapper id above is needed to bypass the guard.
  */
 function cssTextPlugin(): TsdownPlugin {
+  /** Every prefix a stylesheet owns, for the duration of one build. */
+  let prefixes = prefixesOf(findStylesheets(resolve(SRC_DIR, 'client'), SRC_DIR))
   return {
     name: 'dsh-smkit:css-text',
+    buildStart() {
+      prefixes = prefixesOf(findStylesheets(resolve(SRC_DIR, 'client'), SRC_DIR))
+    },
     resolveId(source: string, importer: string | undefined) {
       // Relative only, and by design: the build has exactly one stylesheet. A
       // bare specifier (`@scope/pkg/style.css`) would need `createRequire`
@@ -122,7 +147,12 @@ function cssTextPlugin(): TsdownPlugin {
       if (!virtualId.startsWith(CSS_VIRTUAL_PREFIX)) return null
       const file = virtualId.slice(CSS_VIRTUAL_PREFIX.length, -CSS_VIRTUAL_SUFFIX.length)
       this.addWatchFile(file)
-      return `export default ${JSON.stringify(readFileSync(file, 'utf8'))}`
+      const css = readFileSync(file, 'utf8')
+      const messages = sheetViolations(relative(SRC_DIR, file).replaceAll('\\', '/'), css, prefixes)
+      if (messages.length > 0) {
+        this.error(`namespace guard:\n${messages.join('\n')}`)
+      }
+      return `export default ${JSON.stringify(css)}`
     },
   }
 }

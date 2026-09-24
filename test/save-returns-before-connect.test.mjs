@@ -142,11 +142,11 @@ it('answers a global-server save with `connecting` and connects in the backgroun
   const stub = await startStub(600)
   const { handler } = makeCtx()
 
-  const created = await request(handler, 'POST', '/mcp-manager/api/servers', { name: 'slow', type: 'http', url: stub.url, authMode: 'none' })
+  const created = await request(handler, 'POST', '/smkit/api/servers', { name: 'slow', type: 'http', url: stub.url, authMode: 'none' })
   assert.equal(created.code, 201)
   assert.equal(created.json.server.status, 'connecting', 'the save must return while the transport is still opening')
 
-  const listed = await settleMs(2500).then(() => request(handler, 'GET', '/mcp-manager/api/servers'))
+  const listed = await settleMs(2500).then(() => request(handler, 'GET', '/smkit/api/servers'))
   const row = listed.json.servers.find((server) => server.name === 'slow')
   assert.equal(row.status, 'connected', 'the background connect must settle on its own')
   assert.equal(row.toolCount, 1)
@@ -162,7 +162,7 @@ it('answers a workspace-server save with the row connecting and settles in the b
   // Open the workspace once so it goes live (server map + config watcher).
   await agents.create({ setup: async () => {} })
 
-  const created = await request(handler, 'POST', '/mcp-manager/api/workspaces/servers', { path: wsDir, name: 'ws-slow', type: 'http', url: stub.url, authMode: 'none' })
+  const created = await request(handler, 'POST', '/smkit/api/workspaces/servers', { path: wsDir, name: 'ws-slow', type: 'http', url: stub.url, authMode: 'none' })
   assert.equal(created.code, 200)
   const row = created.json.workspaces
     .find((workspace) => workspace.path === wsDir)
@@ -170,7 +170,7 @@ it('answers a workspace-server save with the row connecting and settles in the b
   assert.ok(row, 'the response must already list the new server')
   assert.equal(row.status, 'connecting', 'the save must return while the transport is still opening')
 
-  const listed = await settleMs(2500).then(() => request(handler, 'GET', '/mcp-manager/api/workspaces'))
+  const listed = await settleMs(2500).then(() => request(handler, 'GET', '/smkit/api/workspaces'))
   const settled = listed.json.workspaces
     .find((workspace) => workspace.path === wsDir)
     ?.servers.find((server) => server.name === 'ws-slow')

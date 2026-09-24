@@ -2,7 +2,7 @@
  * The skill detail dialog (`SkillDetailDialog`) and the fact block the removal
  * confirmation carries.
  *
- * The card itself is the platform's dialog frame (`.mm_dialog`, injected
+ * The card itself is the platform's dialog frame (`.smkit-ui-dialog`, injected
  * before this sheet), so only what is specific to a detail view lives here: a
  * wider cap than the confirmation's narrow column, the title row with its close
  * control, and the labelled fields — a stack of full-width ones, with the scope
@@ -12,17 +12,17 @@
  * and joins them in the order listed there.
  */
 
-.sk_detail {
+.smkit-skill-detail {
   max-width: 560px;
 }
 
-.sk_detailHead {
+.smkit-skill-detail-head {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.sk_detailTitle {
+.smkit-skill-detail-title {
   flex: 1 1 auto;
   min-width: 0;
   font-size: 16px;
@@ -34,31 +34,31 @@
   white-space: nowrap;
 }
 
-.sk_detailClose {
+.smkit-skill-detail-close {
   flex: none;
   border: none;
   color: var(--dsw-alias-label-tertiary);
 }
-.sk_detailClose:hover {
+.smkit-skill-detail-close:hover {
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-interactive-bg-hover-solid);
 }
 
-.sk_detailField {
+.smkit-skill-detail-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
 }
 
-.sk_detailLabel {
+.smkit-skill-detail-label {
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
   color: var(--dsw-alias-label-primary);
 }
 
-.sk_detailValue {
+.smkit-skill-detail-value {
   font-size: 13px;
   line-height: 20px;
   color: var(--dsw-alias-label-secondary);
@@ -66,7 +66,7 @@
 }
 
 /* A host path is one token with no spaces to break on, so it wraps anywhere. */
-.sk_detailPath {
+.smkit-skill-detail-path {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   word-break: break-all;
@@ -74,7 +74,7 @@
 
 /* Scope and status: two short values that fit one row, the way a settings
  * detail view pairs them. */
-.sk_detailPair {
+.smkit-skill-detail-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
@@ -82,26 +82,26 @@
 
 /* The confirmation's fact block: the root the skill came from, and the file the
  * delete takes with it. */
-.sk_facts {
+.smkit-skill-detail-facts {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.sk_fact {
+.smkit-skill-detail-fact {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.sk_factLabel {
+.smkit-skill-detail-fact-label {
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.sk_factValue {
+.smkit-skill-detail-fact-value {
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-secondary);

@@ -4,7 +4,7 @@
  *
  * These rules ship in this feature's own <style> tag (`styles.ts` beside this
  * file): the MCP and session-delete stylesheets are not involved. The 28px
- * round skeleton comes from the platform layer's `.mm_iconBtn`, which is
+ * round skeleton comes from the platform layer's `.smkit-ui-icon-button`, which is
  * injected first, so only what makes this control *this* control is declared
  * here.
  *
@@ -24,12 +24,12 @@
  * covers it rather than landing underneath.
  */
 
-.os_host {
+.smkit-spec-openspec-host {
   display: inline-flex;
   align-items: center;
 }
 
-.os_btn {
+.smkit-spec-openspec-btn {
   border: 0;
   color: var(--dsw-alias-label-secondary);
 }
@@ -37,25 +37,25 @@
 /* One treatment for the three ways the panel can be live: pointer over the
  * control, keyboard focus on it, and the panel being open (the state survives
  * the pointer leaving the button on its way to the panel). */
-.os_btn:hover:not(:disabled),
-.os_btn:focus-visible:not(:disabled),
-.os_btn[data-open='true'] {
+.smkit-spec-openspec-btn:hover:not(:disabled),
+.smkit-spec-openspec-btn:focus-visible:not(:disabled),
+.smkit-spec-openspec-btn[data-smkit-open='true'] {
   color: var(--dsw-alias-state-business-primary);
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
 }
 
-.os_btn:disabled {
+.smkit-spec-openspec-btn:disabled {
   cursor: default;
   opacity: 0.5;
 }
 
 /* The spinner arc is the status pill's class and carries the status palette, so
  * this control re-tints it with its own colour. */
-.os_btn .mm_statusSpin {
+.smkit-spec-openspec-btn .smkit-ui-spin {
   color: inherit;
 }
 
-.os_panel {
+.smkit-spec-openspec-panel {
   position: fixed;
   z-index: 900;
   box-sizing: border-box;
@@ -87,7 +87,7 @@
  * fixed top, so a click's answer — a tree row that goes away, a receipt that
  * changes — cannot lift the edge the pointer is resting on the way it used to
  * from the footer below. */
-.os_head {
+.smkit-spec-openspec-head {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -96,7 +96,7 @@
   border-bottom: 1px solid var(--dsw-alias-border-l2);
 }
 
-.os_title {
+.smkit-spec-openspec-title {
   font-size: 13px;
   font-weight: 600;
   /* Measured at the panel's 360px: 「Manage OpenSpec」 fills the row to the
@@ -120,7 +120,7 @@
  * is on the wrapper rather than on the first button in it because which button
  * that is depends on what the read found, and a gap that arrives or leaves with
  * the answer would slide every seat in the row sideways. */
-.os_actions {
+.smkit-spec-openspec-actions {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
@@ -132,12 +132,12 @@
  * the glyph the only thing in it, the words each one dropped riding its
  * tooltip. A row of controls at four sizes reads as four different kinds of
  * thing; these are one kind — a thing you can press on this store. */
-.os_update,
-.os_refresh,
-.os_init,
-.os_ignore,
-.os_untrack,
-.os_remove {
+.smkit-spec-openspec-update,
+.smkit-spec-openspec-refresh,
+.smkit-spec-openspec-init,
+.smkit-spec-openspec-ignore,
+.smkit-spec-openspec-untrack,
+.smkit-spec-openspec-remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -150,22 +150,22 @@
 
 /* Both ends of the refresh's busy face are a dimming — in when the click lands,
  * out when the platform's floor runs out — so both fade rather than snap. */
-.os_refresh {
+.smkit-spec-openspec-refresh {
   transition: color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
 }
 
-.os_refresh:disabled {
+.smkit-spec-openspec-refresh:disabled {
   cursor: default;
   opacity: 0.5;
   /* The button is dimmed while the read runs, and the arc inside it has to keep
    * its ink through the dimming — the platform's refresh button does the same
-   * (`style/refresh-button.css`). `mm_statusSpin` would otherwise paint the arc
+   * (`style/refresh-button.css`). `smkit-ui-spin` would otherwise paint the arc
    * tertiary, and tertiary at half strength is near invisible on the panel. */
-  --mm-status-color: var(--dsw-alias-label-primary);
+  --smkit-status-color: var(--dsw-alias-label-primary);
 }
 
 /* The create button wears the shape the platform's destructive button wears
- * (`button.css`'s `.mm_btn.danger`): the colour in the border and the glyph,
+ * (`button.css`'s `.smkit-ui-button.danger`): the colour in the border and the glyph,
  * the panel's own ground behind them, and the same colour watered to a tenth
  * under the pointer. The row's meaning is then in one channel for every button
  * in it — a border and an ink that say what this one is — and amber versus
@@ -175,41 +175,41 @@
  * The hover is spelled out beside the resting state because the neutral
  * button's hover paints a grey wash that would cover the state's colour rather
  * than lightening it. */
-.os_init[data-state='warn'] {
+.smkit-spec-openspec-init[data-smkit-state='warn'] {
   border-color: var(--dsw-alias-state-warn-primary);
   color: var(--dsw-alias-state-warn-primary);
 }
 
-.os_init[data-state='warn']:hover:not(:disabled) {
+.smkit-spec-openspec-init[data-smkit-state='warn']:hover:not(:disabled) {
   background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 10%, transparent);
 }
 
-.os_init[data-state='done'] {
+.smkit-spec-openspec-init[data-smkit-state='done'] {
   border-color: var(--dsw-alias-state-success-primary);
   color: var(--dsw-alias-state-success-primary);
 }
 
-.os_init[data-state='done']:hover:not(:disabled) {
+.smkit-spec-openspec-init[data-smkit-state='done']:hover:not(:disabled) {
   background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
 }
 
 /* The green one reports a fact rather than offering a click, so it must not
  * fade into the spent look the platform gives a disabled button — a half-strength
  * green reads as "this one is broken", not as "this one is done". */
-.os_init[data-state='done']:disabled {
+.smkit-spec-openspec-init[data-smkit-state='done']:disabled {
   opacity: 1;
   cursor: default;
 }
 
 /* While the read that decides between the two is still running it says neither,
  * and the platform's own dimming says that. */
-.os_init[data-state='reading'] {
+.smkit-spec-openspec-init[data-smkit-state='reading'] {
   opacity: 0.5;
 }
 
 /* The scrolling half: a tall store must not push the head's toolbar off screen,
  * so the two fixed rows sit above it and only this absorbs the overflow. */
-.os_body {
+.smkit-spec-openspec-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -222,7 +222,7 @@
  * inset by the body's own padding: four answers (where it is, what the layout
  * holds, what the tree is, what was generated) that read as one column rather
  * than as a run-on. */
-.os_body > * + * {
+.smkit-spec-openspec-body > * + * {
   margin-top: 9px;
   padding-top: 9px;
   border-top: 1px solid var(--dsw-alias-border-l2);
@@ -236,7 +236,7 @@
  * bottom edge past where the pointer sat, and the hover was over a panel that
  * was no longer there. Growth moves that edge down, away from the pointer, and
  * stops once the window is full. */
-.os_messages {
+.smkit-spec-openspec-messages {
   max-height: 132px;
   overflow-y: auto;
   display: flex;
@@ -248,19 +248,19 @@
 
 /* An empty log takes no room: the panel must not open with a band of nothing
  * above the facts just because the box can hold four answers. */
-.os_messages:empty {
+.smkit-spec-openspec-messages:empty {
   display: none;
 }
 
 /* Nothing here is squeezed to fit the window — the window scrolls instead. */
-.os_messages > * {
+.smkit-spec-openspec-messages > * {
   flex: none;
 }
 
 /* One answer, in its own shallow box with a two-pixel tone bar up the left.
  * The receipts used to be eight loose lines in the column, where nothing said
  * which of them belonged to the same action. */
-.os_logItem {
+.smkit-spec-openspec-log-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -273,33 +273,33 @@
 
 /* The bar says how the action ended, in the three colours the status dot
  * already resolves from the same tokens. */
-.os_logItem[data-tone='ok'] {
+.smkit-spec-openspec-log-item[data-smkit-tone='ok'] {
   border-left-color: var(--dsw-alias-state-success-primary);
 }
 
-.os_logItem[data-tone='error'] {
+.smkit-spec-openspec-log-item[data-smkit-tone='error'] {
   border-left-color: var(--dsw-alias-state-error-primary);
 }
 
-.os_logItem[data-tone='running'] {
+.smkit-spec-openspec-log-item[data-smkit-tone='running'] {
   border-left-color: var(--dsw-alias-label-tertiary);
 }
 
-.os_note {
+.smkit-spec-openspec-note {
   color: var(--dsw-alias-label-tertiary);
 }
 
-.os_error {
+.smkit-spec-openspec-error {
   color: var(--dsw-alias-state-error-primary);
 }
 
-.os_section {
+.smkit-spec-openspec-section {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.os_sectionTitle {
+.smkit-spec-openspec-section-title {
   display: flex;
   align-items: baseline;
   gap: 6px;
@@ -311,7 +311,7 @@
  * answer an open usually wants, and the twenty generated names under it are not
  * until they are asked for. Content-width, like the settings page's own
  * expanders, so the click target is the words rather than the whole row. */
-.os_toggle {
+.smkit-spec-openspec-toggle {
   align-self: flex-start;
   display: flex;
   align-items: baseline;
@@ -326,29 +326,29 @@
   cursor: pointer;
 }
 
-.os_toggle:hover {
+.smkit-spec-openspec-toggle:hover {
   color: var(--dsw-alias-label-primary);
 }
 
-.os_toggle:focus-visible {
+.smkit-spec-openspec-toggle:focus-visible {
   outline: 1px solid var(--dsw-alias-state-business-primary);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 /* The caret: right while closed, down while open. */
-.os_caret {
+.smkit-spec-openspec-caret {
   align-self: center;
   display: inline-flex;
   transform: rotate(-90deg);
   transition: transform 0.15s;
 }
 
-.os_caret[data-open='true'] {
+.smkit-spec-openspec-caret[data-smkit-open='true'] {
   transform: rotate(0);
 }
 
-.os_count {
+.smkit-spec-openspec-count {
   font-weight: 400;
   color: var(--dsw-alias-label-tertiary);
 }
@@ -356,18 +356,18 @@
 /* The facts: one flat label/value stream laid out as a two-column grid, so rows
  * need no wrapper and the value column absorbs the free width. Labels size to
  * content; values wrap inside themselves because a path has no spaces. */
-.os_grid {
+.smkit-spec-openspec-grid {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 3px 10px;
 }
 
-.os_label {
+.smkit-spec-openspec-label {
   color: var(--dsw-alias-label-tertiary);
   white-space: nowrap;
 }
 
-.os_value {
+.smkit-spec-openspec-value {
   color: var(--dsw-alias-label-primary);
   overflow-wrap: anywhere;
 }
@@ -378,7 +378,7 @@
  * after a connector is the width of the connector above it and not one space.
  * No inner scroll: the body is the one scrolling surface, so a deep store is
  * scrolled with everything else instead of in a box of its own. */
-.os_tree {
+.smkit-spec-openspec-tree {
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -387,17 +387,17 @@
   line-height: 17px;
 }
 
-.os_node {
+.smkit-spec-openspec-node {
   display: flex;
   align-items: baseline;
   gap: 6px;
 }
 
-.os_tree .os_node {
+.smkit-spec-openspec-tree .smkit-spec-openspec-node {
   gap: 0;
 }
 
-.os_branch {
+.smkit-spec-openspec-branch {
   flex: none;
   color: var(--dsw-alias-label-tertiary);
   white-space: pre;
@@ -405,21 +405,21 @@
 
 /* The root line of the tree carries no connector, so it starts the block the
  * way `tree` names the directory it was pointed at. */
-.os_root {
+.smkit-spec-openspec-root {
   color: var(--dsw-alias-label-secondary);
   overflow-wrap: anywhere;
 }
 
-.os_tree .os_name[data-kind='dir'] {
+.smkit-spec-openspec-tree .smkit-spec-openspec-name[data-smkit-kind='dir'] {
   color: var(--dsw-alias-label-primary);
   font-weight: 600;
 }
 
-.os_name {
+.smkit-spec-openspec-name {
   overflow-wrap: anywhere;
 }
 
-.os_size {
+.smkit-spec-openspec-size {
   margin-left: auto;
   color: var(--dsw-alias-label-tertiary);
   white-space: nowrap;
@@ -429,7 +429,7 @@
  * the shell's sidebar viewer. Both wear the row they replace — connector,
  * caret, name, size — and answer a hover the way the sidebar's own file tree
  * does, with the wash rather than with a colour of their own. */
-.os_tree button.os_node {
+.smkit-spec-openspec-tree button.smkit-spec-openspec-node {
   display: flex;
   align-items: baseline;
   width: 100%;
@@ -443,45 +443,45 @@
   cursor: pointer;
 }
 
-.os_tree button.os_node:hover {
+.smkit-spec-openspec-tree button.smkit-spec-openspec-node:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.os_tree button.os_node:focus-visible {
+.smkit-spec-openspec-tree button.smkit-spec-openspec-node:focus-visible {
   outline: 1px solid var(--dsw-alias-state-business-primary);
   outline-offset: -1px;
 }
 
 /* The caret column: every row carries one so both kinds of name start at the
  * same character — a file's is invisible rather than absent. */
-.os_tree .os_caret {
+.smkit-spec-openspec-tree .smkit-spec-openspec-caret {
   flex: none;
   width: 12px;
   margin-right: 3px;
 }
 
-.os_caret[data-leaf='true'] {
+.smkit-spec-openspec-caret[data-smkit-leaf='true'] {
   visibility: hidden;
 }
 
-.os_group {
+.smkit-spec-openspec-group {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.os_groupHead {
+.smkit-spec-openspec-group-head {
   display: flex;
   align-items: baseline;
   gap: 6px;
 }
 
-.os_kind {
+.smkit-spec-openspec-kind {
   color: var(--dsw-alias-label-secondary);
   white-space: nowrap;
 }
 
-.os_path {
+.smkit-spec-openspec-path {
   color: var(--dsw-alias-label-tertiary);
   overflow-wrap: anywhere;
 }
@@ -491,13 +491,13 @@
  * name would give two rows different heights, which is the thing the grid is
  * here to prevent — so a name too long for its column ends in an ellipsis and
  * carries its full path in the `title` the markup already sets. */
-.os_chips {
+.smkit-spec-openspec-chips {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px 8px;
 }
 
-.os_chipItem {
+.smkit-spec-openspec-chip-item {
   box-sizing: border-box;
   min-width: 0;
   padding: 0 6px;
@@ -512,7 +512,7 @@
 /* The one entry that is not a skill or a command: the CLI's ownership marker,
  * outlined and dimmed so a dotfile does not read as one of them — while still
  * counting among what the delete removes, because it is. */
-.os_chipMarker {
+.smkit-spec-openspec-chip-marker {
   border: 1px dashed var(--dsw-alias-border-l2);
   background: 0 0;
   color: var(--dsw-alias-label-tertiary);
@@ -523,7 +523,7 @@
  * a note line and less than deserves a dialog. It stays short enough that the
  * card holding it still fits the log's own window — two scrollbars in one box is
  * the thing to avoid here. */
-.os_output {
+.smkit-spec-openspec-output {
   max-height: 92px;
   overflow: auto;
   padding: 6px 8px;
@@ -539,7 +539,7 @@
 
 /* The confirmation's fact block: the same two-column grid the session-delete
  * dialog uses, declared here because the panel is what filled it. */
-.os_confirm {
+.smkit-spec-openspec-confirm {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 5px 12px;
@@ -551,12 +551,12 @@
   line-height: 18px;
 }
 
-.os_confirmLabel {
+.smkit-spec-openspec-confirm-label {
   color: var(--dsw-alias-label-tertiary);
   white-space: nowrap;
 }
 
-.os_confirmValue {
+.smkit-spec-openspec-confirm-value {
   color: var(--dsw-alias-label-primary);
   overflow-wrap: anywhere;
 }

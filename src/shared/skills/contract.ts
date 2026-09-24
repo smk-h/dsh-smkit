@@ -2,7 +2,7 @@
  * The wire contract of the skills feature.
  *
  * The host reads one skill root at a time and serves these shapes over
- * `/mcp-manager/api/skills*`; the browser half renders exactly these shapes.
+ * `/smkit/api/skills*`; the browser half renders exactly these shapes.
  * They live outside both `src/host` and `src/client` for the same reason the
  * MCP contract does: each half used to declare its own copy of such a shape,
  * and nothing caught the two drifting apart.

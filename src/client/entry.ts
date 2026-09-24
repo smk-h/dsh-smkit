@@ -78,12 +78,12 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
 
   // Styles go in at load time, as they always have: the platform layer's rules
   // first, then each feature's own, so a feature wins wherever the two overlap.
-  // Each sheet is keyed by `data-plugin-css`, so a hot reload cannot stack
+  // Each sheet is keyed by `data-smkit-css`, so a hot reload cannot stack
   // copies.
-  installStylesheet('dsh-mcp-manager/platform', PLATFORM_CSS)
+  installStylesheet('smkit/platform', PLATFORM_CSS)
   for (const feature of FEATURES) {
     for (const sheet of feature.styles) {
-      installStylesheet(`dsh-mcp-manager/${sheet.name}`, sheet.css)
+      installStylesheet(`smkit/${sheet.name}`, sheet.css)
     }
   }
 
@@ -94,7 +94,7 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
       // feature binds its own namespace afterwards.
       ctx.effect(
         () => ctx.locale.register('platform', { zh: PLATFORM_LOCALE_ZH, en: PLATFORM_LOCALE_EN }),
-        'dsh-mcp-manager: platform/dictionaries',
+        'smkit: platform/dictionaries',
       )
       const deps: ClientDeps = {
         react,
@@ -112,7 +112,7 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
               zh: dictionary.zh,
               en: dictionary.en,
             }),
-            `dsh-mcp-manager: ${dictionary.namespace}/dictionaries`,
+            `smkit: ${dictionary.namespace}/dictionaries`,
           )
         }
       }

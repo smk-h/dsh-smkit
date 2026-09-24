@@ -6,7 +6,7 @@ import { describe, it } from 'node:test'
 
 // STATE_PATH is derived from homedir() when the module is evaluated, so point
 // HOME at a scratch directory *before* the dynamic import below.
-const home = mkdtempSync(join(tmpdir(), 'dsh-mcp-manager-home-'))
+const home = mkdtempSync(join(tmpdir(), 'smkit-home-'))
 process.env.HOME = home
 process.env.USERPROFILE = process.env.HOME // Windows: homedir() 读 USERPROFILE 而非 HOME
 mkdirSync(join(home, '.dsh'), { recursive: true })
@@ -93,7 +93,7 @@ describe('apply() over a legacy state file (issue #9 bug 1)', () => {
   })
 
   it('lists every server with its own id instead of a shared undefined key', async () => {
-    const list = await request(handler, 'GET', '/mcp-manager/api/servers')
+    const list = await request(handler, 'GET', '/smkit/api/servers')
     assert.equal(list.code, 200)
     servers = list.json.servers
     assert.equal(servers.length, 3)
@@ -104,14 +104,14 @@ describe('apply() over a legacy state file (issue #9 bug 1)', () => {
 
   it('routes an id-addressed request to the right server instead of 404', async () => {
     const target = servers[2]
-    const removed = await request(handler, 'DELETE', `/mcp-manager/api/servers/${target.id}`)
+    const removed = await request(handler, 'DELETE', `/smkit/api/servers/${target.id}`)
     assert.equal(removed.code, 200)
-    const list = await request(handler, 'GET', '/mcp-manager/api/servers')
+    const list = await request(handler, 'GET', '/smkit/api/servers')
     assert.deepEqual(list.json.servers.map((server) => server.name), ['docker', 'github'])
   })
 
   it('still 404s for an unknown id', async () => {
-    const missing = await request(handler, 'DELETE', '/mcp-manager/api/servers/does-not-exist')
+    const missing = await request(handler, 'DELETE', '/smkit/api/servers/does-not-exist')
     assert.equal(missing.code, 404)
   })
 })

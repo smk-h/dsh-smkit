@@ -2,8 +2,8 @@
  * The server card's own lines: its head row, transport line and action strips
  * (ServerRow, and the same row shape reused by the form's test row).
  *
- * The frame these sit in — `.mm_row`, `.mm_name`, `.mm_cardContent`,
- * `.mm_details`, `.mm_cardTrailing` — moved to the platform layer
+ * The frame these sit in — `.smkit-ui-disclosure-card`, `.smkit-ui-disclosure-card-name`, `.smkit-ui-disclosure-card-content`,
+ * `.smkit-ui-disclosure-card-details`, `.smkit-ui-disclosure-card-trailing` — moved to the platform layer
  * (`platform/style/disclosure-card.css`) when the model-input catalog started
  * drawing the same expandable card; only what the MCP rows alone use stays here.
  *
@@ -13,32 +13,32 @@
  * cascade.
  */
 
-.mm_rowHead {
+.smkit-mcp-card-row-head {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.mm_url {
+.smkit-mcp-card-url {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 18px;
   word-break: break-all;
 }
 
-.mm_actions {
+.smkit-mcp-card-actions {
   margin-left: auto;
   display: flex;
   gap: 6px;
 }
 
-.mm_cardActions {
+.smkit-mcp-card-actions-group {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.mm_actionBtns {
+.smkit-mcp-card-action-btns {
   margin-left: auto;
   display: flex;
   gap: 6px;

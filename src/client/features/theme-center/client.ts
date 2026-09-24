@@ -81,7 +81,7 @@ export const themeCenterFeature: ClientFeature = {
       ctx.slots.register(
         {
           name: SESSION_HEADER_UTILITIES,
-          id: 'mcp-manager-theme-palette',
+          id: 'smkit-theme-palette',
           order: 48,
           locale: 'theme-center',
         },

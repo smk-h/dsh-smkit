@@ -6,7 +6,7 @@ import { describe, it } from 'node:test'
 
 // STATE_PATH is derived from homedir() when the module is evaluated, so point
 // HOME at a scratch directory *before* the dynamic import below.
-const scratchHome = mkdtempSync(join(tmpdir(), 'dsh-mcp-manager-search-'))
+const scratchHome = mkdtempSync(join(tmpdir(), 'smkit-search-'))
 process.env.HOME = scratchHome
 process.env.USERPROFILE = process.env.HOME // Windows: homedir() 读 USERPROFILE 而非 HOME
 process.env.DSH_HOME = scratchHome

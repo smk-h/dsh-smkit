@@ -18,13 +18,13 @@
  * instance sits in an 18px row while the next sits in a 12px head.
  */
 
-.mm_stateDot {
+.smkit-ui-state-dot {
   position: relative;
   display: inline-block;
   flex: none;
 }
 
-.mm_stateDot::before {
+.smkit-ui-state-dot::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -35,7 +35,7 @@
 
 /* 20% off every edge, so a 10px box carries a 6px core and the halo stays a
  * ring rather than turning into a paler circle behind the mark. */
-.mm_stateDot::after {
+.smkit-ui-state-dot::after {
   content: '';
   position: absolute;
   inset: 20%;
@@ -43,21 +43,21 @@
   background: currentColor;
 }
 
-.mm_stateDot[data-state='done'] {
+.smkit-ui-state-dot[data-smkit-state='done'] {
   color: var(--dsw-alias-state-success-primary);
 }
 
-.mm_stateDot[data-state='warning'] {
+.smkit-ui-state-dot[data-smkit-state='warning'] {
   color: var(--dsw-alias-state-warn-primary);
 }
 
-.mm_stateDot[data-state='error'] {
+.smkit-ui-state-dot[data-smkit-state='error'] {
   color: var(--dsw-alias-state-error-primary);
 }
 
 /* Idle is the absence of a state rather than a fourth outcome, so it stays on
  * the tertiary label colour and recedes beside the three that mean something. */
-.mm_stateDot[data-state='idle'] {
+.smkit-ui-state-dot[data-smkit-state='idle'] {
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -66,6 +66,6 @@
  * DSH spends its blue on the animated `ongoing` ring, which this layer does not
  * carry, so the static mark takes the alias the filled controls wear —
  * `state-business-primary`, the step under the 450 that ring pins. */
-.mm_stateDot[data-state='active'] {
+.smkit-ui-state-dot[data-smkit-state='active'] {
   color: var(--dsw-alias-state-business-primary);
 }

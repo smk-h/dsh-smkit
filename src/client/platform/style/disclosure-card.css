@@ -5,11 +5,11 @@
  * Two sections draw this shape — the Settings → MCP server rows and the model
  * input catalog's provider cards — so the frame lives here rather than in one
  * feature's stylesheet, which would make the other one's rows depend on a sheet
- * they do not own. The MCP rows' caret beside it is `.mm_chevron`
- * (`picker.css`), which already rotates on `data-open`.
+ * they do not own. The MCP rows' caret beside it is `.smkit-ui-picker-chevron`
+ * (`picker.css`), which already rotates on `data-smkit-open`.
  */
 
-.mm_row {
+.smkit-ui-disclosure-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -19,7 +19,7 @@
   padding: 12px 14px;
 }
 
-.mm_name {
+.smkit-ui-disclosure-card-name {
   font-weight: 600;
   font-size: 13px;
   line-height: 20px;
@@ -31,7 +31,7 @@
   overflow: hidden;
 }
 
-.mm_cardContent {
+.smkit-ui-disclosure-card-content {
   width: 100%;
   align-items: center;
   gap: 8px;
@@ -45,7 +45,7 @@
   text-align: left;
 }
 
-.mm_details {
+.smkit-ui-disclosure-card-details {
   border-top: 1px solid var(--dsw-alias-border-l2);
   flex-direction: column;
   gap: 8px;
@@ -54,7 +54,7 @@
   display: flex;
 }
 
-.mm_cardTrailing {
+.smkit-ui-disclosure-card-trailing {
   flex: none;
   align-items: center;
   gap: 7px;

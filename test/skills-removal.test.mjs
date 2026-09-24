@@ -434,7 +434,7 @@ async function call(method, path, body) {
   const payload = body === undefined ? [] : [Buffer.from(JSON.stringify(body))]
   const req = {
     method,
-    url: `/mcp-manager/api${path}`,
+    url: `/smkit/api${path}`,
     headers: { host: '127.0.0.1:3080' },
     async*[Symbol.asyncIterator]() { yield* payload },
   }

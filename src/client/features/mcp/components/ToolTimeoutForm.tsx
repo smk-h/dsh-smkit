@@ -67,8 +67,8 @@ export function createToolTimeoutForm(
     }
 
     return (
-      <div className="mm_row mm_add">
-        <div className="mm_form">
+      <div className="smkit-ui-disclosure-card smkit-mcp-form-add">
+        <div className="smkit-mcp-form">
           <label className="wide">
             {t('toolCallTimeout')}
             <input
@@ -78,22 +78,22 @@ export function createToolTimeoutForm(
             />
           </label>
         </div>
-        <div className="mm_meta">{t('toolCallTimeoutHelp')}</div>
-        {error ? <div className="mm_err">{error}</div> : null}
-        <div className="mm_actions">
+        <div className="smkit-mcp-section-meta">{t('toolCallTimeoutHelp')}</div>
+        {error ? <div className="smkit-ui-field-error">{error}</div> : null}
+        <div className="smkit-mcp-card-actions">
           <button
-            className="mm_btn"
+            className="smkit-ui-button"
             onClick={save}
             disabled={busy}
-            data-pending={busy ? 'true' : undefined}
+            data-smkit-pending={busy ? 'true' : undefined}
             aria-busy={busy}
           >
             {t('save')}
           </button>
-          <button className="mm_btn" onClick={() => write(null)} disabled={busy}>
+          <button className="smkit-ui-button" onClick={() => write(null)} disabled={busy}>
             {t('restoreDefault')}
           </button>
-          <button className="mm_btn" onClick={onCancel} disabled={busy}>
+          <button className="smkit-ui-button" onClick={onCancel} disabled={busy}>
             {t('cancel')}
           </button>
         </div>

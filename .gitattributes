@@ -1,0 +1,15 @@
+# Line endings: LF in the repository, LF in every working tree.
+#
+# Learned the hard way. A rename sweep rewrote three files whole and flipped
+# their endings — one of them from CRLF to LF, two of them the other way — which
+# buried 34 lines of real change under ~550 lines of pure noise in review, and
+# left one file disagreeing with the other 190. Nothing declared an ending, so
+# nothing could catch it.
+#
+# `text=auto` lets git decide what is text (so the PNG under docs/ is left
+# alone) and `eol=lf` fixes the answer for everything that is.
+* text=auto eol=lf
+
+# Spelled out rather than left to detection: a binary asset that gets
+# normalised is corrupted, and the failure shows up as a broken image much later.
+*.png binary

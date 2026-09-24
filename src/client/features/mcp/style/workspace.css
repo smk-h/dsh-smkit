@@ -8,7 +8,7 @@
  * cascade.
  */
 
-.mm_ws {
+.smkit-mcp-workspace-ws {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -18,7 +18,7 @@
   padding: 12px 14px;
 }
 
-.mm_wsPath {
+.smkit-mcp-workspace-ws-path {
   font-weight: 600;
   font-size: 13px;
   line-height: 20px;
@@ -26,13 +26,13 @@
   word-break: break-all;
 }
 
-.mm_wsServers {
+.smkit-mcp-workspace-ws-servers {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.mm_wsServer {
+.smkit-mcp-workspace-ws-server {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -41,24 +41,24 @@
   color: var(--dsw-alias-label-secondary);
   flex-wrap: wrap;
 }
-.mm_wsServer .mm_badge {
+.smkit-mcp-workspace-ws-server .smkit-mcp-pill-badge {
   flex: none;
 }
 
-.mm_wsExclude {
+.smkit-mcp-workspace-ws-exclude {
   margin-top: 6px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.mm_wsExcludeTitle {
+.smkit-mcp-workspace-ws-exclude-title {
   font-size: 11px;
   line-height: 16px;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.mm_wsCheck {
+.smkit-mcp-workspace-ws-check {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -67,6 +67,6 @@
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
 }
-.mm_wsCheck input {
+.smkit-mcp-workspace-ws-check input {
   accent-color: var(--dsw-alias-state-business-primary);
 }

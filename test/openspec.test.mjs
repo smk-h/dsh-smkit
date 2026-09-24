@@ -259,7 +259,7 @@ async function call(method, path, body) {
   const payload = body === undefined ? [] : [Buffer.from(JSON.stringify(body))]
   const req = {
     method,
-    url: `/mcp-manager/api${path}`,
+    url: `/smkit/api${path}`,
     headers: { host: '127.0.0.1:3080' },
     async*[Symbol.asyncIterator]() { yield* payload },
   }
@@ -518,12 +518,12 @@ async function handle(method, rest, body, deps) {
   const payload = body === undefined ? [] : [Buffer.from(JSON.stringify(body))]
   const req = {
     method,
-    url: `/mcp-manager/api${rest}`,
+    url: `/smkit/api${rest}`,
     headers: { host: '127.0.0.1:3080' },
     async*[Symbol.asyncIterator]() { yield* payload },
   }
   const facts = {
-    url: new URL(`http://localhost/mcp-manager/api${rest}`),
+    url: new URL(`http://localhost/smkit/api${rest}`),
     rest: rest.split('?')[0],
     origin: 'http://localhost',
     idMatch: null,
@@ -675,12 +675,12 @@ async function streamHandle(method, rest, body, deps) {
   const payload = body === undefined ? [] : [Buffer.from(JSON.stringify(body))]
   const req = {
     method,
-    url: `/mcp-manager/api${rest}`,
+    url: `/smkit/api${rest}`,
     headers: { host: '127.0.0.1:3080' },
     async*[Symbol.asyncIterator]() { yield* payload },
   }
   const facts = {
-    url: new URL(`http://localhost/mcp-manager/api${rest}`),
+    url: new URL(`http://localhost/smkit/api${rest}`),
     rest: rest.split('?')[0],
     origin: 'http://localhost',
     idMatch: null,

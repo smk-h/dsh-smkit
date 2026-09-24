@@ -3,7 +3,7 @@
  *
  * Each entry carries its identity, both language names, a short description,
  * the four colors its card paints with, its measured contrast grades, and its
- * complete stylesheet — every rule scoped on `body[data-dsh-theme="<id>"]`,
+ * complete stylesheet — every rule scoped on `body[data-smkit-theme="<id>"]`,
  * with the dark variant on the same scope plus the shell's own
  * `data-ds-dark-theme`. The CSS travels as data because the browser half is a
  * single script: a theme is painted by swapping its text into the active-style

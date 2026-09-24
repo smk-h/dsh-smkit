@@ -296,7 +296,7 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
     }, [options, selected])
 
     // The picker's bubble slides clear of clip edges; one document-level watch
-    // serves every `.mm_tip` on the page (see `platform/ui/tip`).
+    // serves every `.smkit-ui-tip` on the page (see `platform/ui/tip`).
     react.useEffect(() => watchTipBoundaries(), [])
 
     // A hidden removal stays hidden only while the host still reports that
@@ -356,25 +356,25 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
         : t('emptyRoot', { path: shownRoot !== '' ? shownRoot : catalog.roots.join(' · ') })
 
     return (
-      <div className="sk_section">
+      <div className="smkit-skill-page-section">
         {/* The heading over the toolbar: the page's own title and the count of
             rows below. The identity block (intro line, plugin pill) is the
             merged settings section's, not this panel's. */}
-        <div className="sk_catalogHeading">
+        <div className="smkit-skill-page-catalog-heading">
           <h3>{t('sectionLabel')}</h3>
           <span>{t('count', { count: view.length })}</span>
         </div>
-        <div className="sk_toolbar">
+        <div className="smkit-skill-page-toolbar">
           {options.length > 0 ? (
             <ScopeSelect t={t} value={selected} options={options} onChange={setSelected} />
           ) : null}
-          <span className="sk_toolbarSpacer" aria-hidden="true" />
+          <span className="smkit-skill-page-toolbar-spacer" aria-hidden="true" />
           {/* The search box and the refresh button travel as one cluster — the
               shape the MCP toolbar's search and add button already have — so a
               narrow row moves both to the next line instead of leaving a lone
               28px button behind. */}
-          <div className="sk_toolbarActions">
-            <label className="sk_search">
+          <div className="smkit-skill-page-toolbar-actions">
+            <label className="smkit-skill-page-search">
               <SearchIcon size={14} />
               <input
                 type="search"
@@ -385,7 +385,7 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
               />
               {query ? (
                 <button
-                  className="sk_searchClear"
+                  className="smkit-skill-page-search-clear"
                   type="button"
                   aria-label={t('clearSearch')}
                   title={t('clearSearch')}
@@ -410,14 +410,14 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
             whether or not it exists yet; the empty state below is what says
             when it doesn't. */}
         {catalog.roots.length > 0 ? (
-          <div className="sk_pathHint">{shownRoot !== '' ? shownRoot : catalog.roots.join(' · ')}</div>
+          <div className="smkit-skill-page-path-hint">{shownRoot !== '' ? shownRoot : catalog.roots.join(' · ')}</div>
         ) : null}
-        {catalog.complete ? null : <div className="sk_meta">{t('incomplete')}</div>}
+        {catalog.complete ? null : <div className="smkit-skill-page-meta">{t('incomplete')}</div>}
         {catalog.skipped > 0 ? (
-          <div className="sk_meta">{t('skipped', { count: catalog.skipped })}</div>
+          <div className="smkit-skill-page-meta">{t('skipped', { count: catalog.skipped })}</div>
         ) : null}
         {rows.length > 0 ? (
-          <div className="sk_list">
+          <div className="smkit-skill-row-list">
             {rows.map((skill) => (
               <SkillRow
                 t={t}
@@ -433,7 +433,7 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
           </div>
         ) : null}
         {rows.length === 0 && catalog.root !== '' ? (
-          <div className="sk_meta">{emptyLabel}</div>
+          <div className="smkit-skill-page-meta">{emptyLabel}</div>
         ) : null}
       </div>
     )

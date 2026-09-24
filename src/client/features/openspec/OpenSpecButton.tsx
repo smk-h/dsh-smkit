@@ -170,7 +170,7 @@ const HOVER_GRACE_MS = 240
  */
 const REPLACE_TOLERANCE = 1
 /** The panel's own class, so document-level listeners can tell it from the page. */
-const PANEL_CLASS = 'os_panel'
+const PANEL_CLASS = 'smkit-spec-openspec-panel'
 /**
  * Count one `.gitignore` answer the way its rows are drawn: per outcome, with
  * the refusals kept whole because each one names its own path.
@@ -323,7 +323,7 @@ function panelStyle(box: PanelBox): Record<string, string> {
 /** Whether an event target is part of the panel (or of the control hosting it). */
 function insideOwnSurface(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
-  return target.closest(`.${PANEL_CLASS}`) !== null || target.closest('.os_host') !== null
+  return target.closest(`.${PANEL_CLASS}`) !== null || target.closest('.smkit-spec-openspec-host') !== null
 }
 
 /**
@@ -927,34 +927,34 @@ export function createOpenSpecButton(
         if (node.kind === 'file') {
           return [
             <button
-              className="os_node os_fileRow"
+              className="smkit-spec-openspec-node smkit-spec-openspec-file-row"
               type="button"
               key={node.rel}
               title={t('openSpecOpenFile')}
               onClick={() => openInSidebar(node)}
             >
-              <span className="os_branch">{branch}</span>
-              <span className="os_caret" data-leaf="true" />
-              <span className="os_name" data-kind="file">{node.name}</span>
-              <span className="os_size">{formatBytes(node.bytes)}</span>
+              <span className="smkit-spec-openspec-branch">{branch}</span>
+              <span className="smkit-spec-openspec-caret" data-smkit-leaf="true" />
+              <span className="smkit-spec-openspec-name" data-smkit-kind="file">{node.name}</span>
+              <span className="smkit-spec-openspec-size">{formatBytes(node.bytes)}</span>
             </button>,
           ]
         }
         const open = dirOpen(node.rel)
         return [
           <button
-            className="os_node os_dirRow"
+            className="smkit-spec-openspec-node smkit-spec-openspec-dir-row"
             type="button"
             key={node.rel}
             aria-expanded={open}
             title={open ? t('openSpecCollapse') : t('openSpecExpand')}
             onClick={() => toggleDir(node.rel)}
           >
-            <span className="os_branch">{branch}</span>
-            <span className="os_caret" data-open={open ? 'true' : undefined}>
+            <span className="smkit-spec-openspec-branch">{branch}</span>
+            <span className="smkit-spec-openspec-caret" data-smkit-open={open ? 'true' : undefined}>
               <ChevronDownIcon size={12} />
             </span>
-            <span className="os_name" data-kind="dir">{node.name}</span>
+            <span className="smkit-spec-openspec-name" data-smkit-kind="dir">{node.name}</span>
           </button>,
           ...(open ? treeRows(node.children ?? [], `${prefix}${last ? '    ' : '│   '}`) : []),
         ]
@@ -988,33 +988,33 @@ export function createOpenSpecButton(
       const missing = missingParts(store)
       const open = dirOpen(store.rel)
       return (
-        <div className="os_section">
-          <div className="os_sectionTitle">
+        <div className="smkit-spec-openspec-section">
+          <div className="smkit-spec-openspec-section-title">
             {t('openSpecTree')}
-            <span className="os_count">
+            <span className="smkit-spec-openspec-count">
               {t('openSpecFiles', { count: store.files })}
               {' · '}
               {t('openSpecDirs', { count: store.dirs })}
             </span>
           </div>
-          <div className="os_tree">
+          <div className="smkit-spec-openspec-tree">
             <button
-              className="os_node os_dirRow"
+              className="smkit-spec-openspec-node smkit-spec-openspec-dir-row"
               type="button"
               aria-expanded={open}
               title={open ? t('openSpecCollapse') : t('openSpecExpand')}
               onClick={() => toggleDir(store.rel)}
             >
-              <span className="os_caret" data-open={open ? 'true' : undefined}>
+              <span className="smkit-spec-openspec-caret" data-smkit-open={open ? 'true' : undefined}>
                 <ChevronDownIcon size={12} />
               </span>
-              <span className="os_root">{store.rel}</span>
+              <span className="smkit-spec-openspec-root">{store.rel}</span>
             </button>
             {open ? treeRows(store.tree, '') : []}
           </div>
           {missing.length === 0
             ? null
-            : <div className="os_error">{t('openSpecMissing', { names: missing.join(' · ') })}</div>}
+            : <div className="smkit-spec-openspec-error">{t('openSpecMissing', { names: missing.join(' · ') })}</div>}
         </div>
       )
     }
@@ -1033,36 +1033,36 @@ export function createOpenSpecButton(
     const artifactsSection = (groups: OpenSpecArtifacts[]): JSX.Element => {
       const count = groups.reduce((sum, group) => sum + group.entries.length, 0)
       return (
-        <div className="os_section">
+        <div className="smkit-spec-openspec-section">
           <button
-            className="os_toggle"
+            className="smkit-spec-openspec-toggle"
             type="button"
             aria-expanded={artifactsOpen}
             title={artifactsOpen ? t('openSpecCollapse') : t('openSpecExpand')}
             onClick={() => setArtifactsOpen(!artifactsOpen)}
           >
-            <span className="os_caret" data-open={artifactsOpen ? 'true' : undefined}>
+            <span className="smkit-spec-openspec-caret" data-smkit-open={artifactsOpen ? 'true' : undefined}>
               <ChevronDownIcon size={12} />
             </span>
             {t('openSpecArtifacts')}
-            <span className="os_count">{t('openSpecEntries', { count })}</span>
+            <span className="smkit-spec-openspec-count">{t('openSpecEntries', { count })}</span>
           </button>
           {artifactsOpen ? groups.map(group => (
-            <div className="os_group" key={`${group.kind}:${group.rel}`}>
-              <div className="os_groupHead">
-                <span className="os_kind">{kindLabel(group.kind)}</span>
-                <span className="os_path" title={group.path}>{group.rel}</span>
-                <span className="os_count">{t('openSpecEntries', { count: group.entries.length })}</span>
+            <div className="smkit-spec-openspec-group" key={`${group.kind}:${group.rel}`}>
+              <div className="smkit-spec-openspec-group-head">
+                <span className="smkit-spec-openspec-kind">{kindLabel(group.kind)}</span>
+                <span className="smkit-spec-openspec-path" title={group.path}>{group.rel}</span>
+                <span className="smkit-spec-openspec-count">{t('openSpecEntries', { count: group.entries.length })}</span>
               </div>
               {/* A directory several tools write into is worth naming: it is why
                * one removal here takes the skills of three editors with it. */}
               {group.tools.length > 1
-                ? <div className="os_note">{t('openSpecSharedBy', { tools: group.tools.join(' · ') })}</div>
+                ? <div className="smkit-spec-openspec-note">{t('openSpecSharedBy', { tools: group.tools.join(' · ') })}</div>
                 : null}
-              <div className="os_chips">
+              <div className="smkit-spec-openspec-chips">
                 {group.entries.map(entry => (
                   <span
-                    className={entry.marker ? 'os_chipItem os_chipMarker' : 'os_chipItem'}
+                    className={entry.marker ? 'smkit-spec-openspec-chip-item smkit-spec-openspec-chip-marker' : 'smkit-spec-openspec-chip-item'}
                     key={entry.rel}
                     // The marker is the one entry here that is not a skill or a
                     // command, so hovering it says what it is instead of only
@@ -1082,12 +1082,12 @@ export function createOpenSpecButton(
     const facts = view === undefined
       ? null
       : (
-        <div className="os_section">
-          <div className="os_grid">
-            <span className="os_label">{t('openSpecRoot')}</span>
-            <span className="os_value" title={view.root}>{view.root}</span>
-            <span className="os_label">{t('openSpecStore')}</span>
-            <span className="os_value" title={view.store?.path}>
+        <div className="smkit-spec-openspec-section">
+          <div className="smkit-spec-openspec-grid">
+            <span className="smkit-spec-openspec-label">{t('openSpecRoot')}</span>
+            <span className="smkit-spec-openspec-value" title={view.root}>{view.root}</span>
+            <span className="smkit-spec-openspec-label">{t('openSpecStore')}</span>
+            <span className="smkit-spec-openspec-value" title={view.store?.path}>
               {view.store === undefined ? t('openSpecStatusAbsent') : view.store.rel}
             </span>
           </div>
@@ -1121,13 +1121,13 @@ export function createOpenSpecButton(
     // notice that goes with that printing.
     const updateBlock = !hasUpdate ? null : (
       <div
-        className="os_logItem"
+        className="smkit-spec-openspec-log-item"
         key="update"
-        data-tone={updating ? 'running' : updateFailed ? 'error' : 'ok'}
+        data-smkit-tone={updating ? 'running' : updateFailed ? 'error' : 'ok'}
       >
-        <div className={updateFailed ? 'os_error' : 'os_sectionTitle'}>{updateLabel()}</div>
-        {updateLog === '' ? null : <div className="os_output">{updateLog}</div>}
-        {updateShown ? <div className="os_note">{t('openSpecUpdateExpiryLast')}</div> : null}
+        <div className={updateFailed ? 'smkit-spec-openspec-error' : 'smkit-spec-openspec-section-title'}>{updateLabel()}</div>
+        {updateLog === '' ? null : <div className="smkit-spec-openspec-output">{updateLog}</div>}
+        {updateShown ? <div className="smkit-spec-openspec-note">{t('openSpecUpdateExpiryLast')}</div> : null}
       </div>
     )
     // The `.gitignore` answer, once there is one: outside a repo the whole
@@ -1139,44 +1139,44 @@ export function createOpenSpecButton(
       gitignore !== null && ignoreTally !== null && (ignoreTally.failed.length > 0 || !gitignore.repo)
     const gitignoreBlock = gitignore === null || ignoreTally === null ? null : (
       <div
-        className="os_logItem"
+        className="smkit-spec-openspec-log-item"
         key="ignore"
-        data-tone={ignoreBad ? 'error' : 'ok'}
+        data-smkit-tone={ignoreBad ? 'error' : 'ok'}
       >
-        <div className={ignoreTally.failed.length === 0 ? 'os_sectionTitle' : 'os_error'}>
+        <div className={ignoreTally.failed.length === 0 ? 'smkit-spec-openspec-section-title' : 'smkit-spec-openspec-error'}>
           {t('openSpecGitignore')}
         </div>
         {!gitignore.repo ? (
-          <div className="os_note">
+          <div className="smkit-spec-openspec-note">
             {gitignore.reason === 'no-git' ? t('openSpecGitignoreNoGit') : t('openSpecGitignoreNoRepo')}
           </div>
         ) : [
           ...(ignoreTally.untracked === 0
             ? []
-            : [<div className="os_note" key="untracked">{t('openSpecGitignoreUntracked', { count: ignoreTally.untracked })}</div>]),
+            : [<div className="smkit-spec-openspec-note" key="untracked">{t('openSpecGitignoreUntracked', { count: ignoreTally.untracked })}</div>]),
           ...(ignoreTally.listed === 0
             ? []
-            : [<div className="os_note" key="listed">{t('openSpecGitignoreListed', { count: ignoreTally.listed })}</div>]),
+            : [<div className="smkit-spec-openspec-note" key="listed">{t('openSpecGitignoreListed', { count: ignoreTally.listed })}</div>]),
           ...(ignoreTally.ignored === 0
             ? []
-            : [<div className="os_note" key="ignored">{t('openSpecGitignoreIgnored', { count: ignoreTally.ignored })}</div>]),
+            : [<div className="smkit-spec-openspec-note" key="ignored">{t('openSpecGitignoreIgnored', { count: ignoreTally.ignored })}</div>]),
           ...(ignoreTally.alreadyListed === 0
             ? []
-            : [<div className="os_note" key="listed-before">{t('openSpecGitignoreListedBefore', { count: ignoreTally.alreadyListed })}</div>]),
+            : [<div className="smkit-spec-openspec-note" key="listed-before">{t('openSpecGitignoreListedBefore', { count: ignoreTally.alreadyListed })}</div>]),
           // The conclusion of the counts above it: nothing was written, because
           // nothing needed writing.
           ...(ignoreTally.listed === 0 && ignoreTally.failed.length === 0
-            ? [<div className="os_note" key="nothing">{t('openSpecGitignoreNothing')}</div>]
+            ? [<div className="smkit-spec-openspec-note" key="nothing">{t('openSpecGitignoreNothing')}</div>]
             : []),
           ...(gitignore.files === undefined
             ? []
-            : [<div className="os_note" key="files">{t('openSpecGitignoreFiles', { paths: gitignore.files.join(', ') })}</div>]),
+            : [<div className="smkit-spec-openspec-note" key="files">{t('openSpecGitignoreFiles', { paths: gitignore.files.join(', ') })}</div>]),
           ...(ignoreTally.failed.length === 0
             ? []
             : [
-              <div className="os_error" key="partial">{t('openSpecGitignorePartial')}</div>,
+              <div className="smkit-spec-openspec-error" key="partial">{t('openSpecGitignorePartial')}</div>,
               ...ignoreTally.failed.map(result => (
-                <div className="os_note" key={result.rel} title={result.error}>{result.rel}</div>
+                <div className="smkit-spec-openspec-note" key={result.rel} title={result.error}>{result.rel}</div>
               )),
             ]),
         ]}
@@ -1190,26 +1190,26 @@ export function createOpenSpecButton(
     const untrackBad = untrackTally !== null && untrackTally.failed.length > 0
     const untrackBlock = untrackAnswer === null || untrackTally === null ? null : (
       <div
-        className="os_logItem"
+        className="smkit-spec-openspec-log-item"
         key="untrack"
-        data-tone={untrackBad ? 'error' : 'ok'}
+        data-smkit-tone={untrackBad ? 'error' : 'ok'}
       >
-        <div className={untrackTally.failed.length === 0 ? 'os_sectionTitle' : 'os_error'}>
+        <div className={untrackTally.failed.length === 0 ? 'smkit-spec-openspec-section-title' : 'smkit-spec-openspec-error'}>
           {t('openSpecUntrack')}
         </div>
         {untrackTally.unlisted === 0
           ? []
-          : [<div className="os_note" key="unlisted">{t('openSpecUntrackUnlisted', { count: untrackTally.unlisted })}</div>]}
+          : [<div className="smkit-spec-openspec-note" key="unlisted">{t('openSpecUntrackUnlisted', { count: untrackTally.unlisted })}</div>]}
         {untrackTally.alreadyUnlisted === 0
           ? []
-          : [<div className="os_note" key="clean-before">{t('openSpecUntrackAlreadyUnlisted', { count: untrackTally.alreadyUnlisted })}</div>]}
+          : [<div className="smkit-spec-openspec-note" key="clean-before">{t('openSpecUntrackAlreadyUnlisted', { count: untrackTally.alreadyUnlisted })}</div>]}
         {/* Files are named with the same two sentences the delete's tidy-up
             uses, because it is the same event seen from the other side: a file
             pruned of our lines, or unmade because it held nothing else. */}
         {untrackAnswer.files === undefined
           ? []
           : untrackAnswer.files.map(cleaned => (
-            <div className="os_note" key={cleaned.rel}>
+            <div className="smkit-spec-openspec-note" key={cleaned.rel}>
               {cleaned.deleted
                 ? t('openSpecIgnoreFileDeleted', { path: cleaned.rel })
                 : t('openSpecIgnoreFilePruned', { path: cleaned.rel, count: cleaned.lines })}
@@ -1218,9 +1218,9 @@ export function createOpenSpecButton(
         {untrackTally.failed.length === 0
           ? []
           : [
-            <div className="os_error" key="partial">{t('openSpecUntrackPartial')}</div>,
+            <div className="smkit-spec-openspec-error" key="partial">{t('openSpecUntrackPartial')}</div>,
             ...untrackTally.failed.map(result => (
-              <div className="os_note" key={result.rel} title={result.error}>{result.rel}</div>
+              <div className="smkit-spec-openspec-note" key={result.rel} title={result.error}>{result.rel}</div>
             )),
           ]}
       </div>
@@ -1229,10 +1229,10 @@ export function createOpenSpecButton(
     // request refused to take. The first is a tidy-up notice, the second a
     // failure, and only the second is loud.
     const cleanedBlock = pruned.length === 0 ? null : (
-      <div className="os_logItem" key="cleaned" data-tone="ok">
-        <div className="os_sectionTitle">{t('openSpecIgnoreCleaned')}</div>
+      <div className="smkit-spec-openspec-log-item" key="cleaned" data-smkit-tone="ok">
+        <div className="smkit-spec-openspec-section-title">{t('openSpecIgnoreCleaned')}</div>
         {pruned.map(cleaned => (
-          <div className="os_note" key={cleaned.rel}>
+          <div className="smkit-spec-openspec-note" key={cleaned.rel}>
             {cleaned.deleted
               ? t('openSpecIgnoreFileDeleted', { path: cleaned.rel })
               : t('openSpecIgnoreFilePruned', { path: cleaned.rel, count: cleaned.lines })}
@@ -1241,17 +1241,17 @@ export function createOpenSpecButton(
       </div>
     )
     const removeBlock = failures.length === 0 ? null : (
-      <div className="os_logItem" key="remove" data-tone="error">
-        <div className="os_error">{t('openSpecPartial')}</div>
+      <div className="smkit-spec-openspec-log-item" key="remove" data-smkit-tone="error">
+        <div className="smkit-spec-openspec-error">{t('openSpecPartial')}</div>
         {failures.map(failure => (
-          <div className="os_note" key={failure.rel} title={failure.error}>{failure.rel}</div>
+          <div className="smkit-spec-openspec-note" key={failure.rel} title={failure.error}>{failure.rel}</div>
         ))}
       </div>
     )
     const initBlock = initOutput === '' ? null : (
-      <div className="os_logItem" key="init" data-tone="ok">
-        <div className="os_sectionTitle">{t('openSpecInitDone')}</div>
-        <div className="os_output">{initOutput}</div>
+      <div className="smkit-spec-openspec-log-item" key="init" data-smkit-tone="ok">
+        <div className="smkit-spec-openspec-section-title">{t('openSpecInitDone')}</div>
+        <div className="smkit-spec-openspec-output">{initOutput}</div>
       </div>
     )
     /** The receipt each log key draws, or `null` when that action has no answer. */
@@ -1294,25 +1294,25 @@ export function createOpenSpecButton(
     // receipts to be filed: they are the panel answering "did that work", so
     // they hold the top of the box, above the answers.
     const alerts: JSX.Element[] = []
-    if (error !== '') alerts.push(<div className="os_error" key="error">{error}</div>)
-    if (initError !== '') alerts.push(<div className="os_error" key="init-error">{initError}</div>)
-    if (ignoreError !== '') alerts.push(<div className="os_error" key="ignore-error">{ignoreError}</div>)
-    if (untrackError !== '') alerts.push(<div className="os_error" key="untrack-error">{untrackError}</div>)
-    if (initing) alerts.push(<div className="os_note" key="initing">{t('openSpecInitRunning')}</div>)
-    if (ignoring) alerts.push(<div className="os_note" key="ignoring">{t('openSpecGitignoreRunning')}</div>)
-    if (untracking) alerts.push(<div className="os_note" key="untracking">{t('openSpecUntrackRunning')}</div>)
+    if (error !== '') alerts.push(<div className="smkit-spec-openspec-error" key="error">{error}</div>)
+    if (initError !== '') alerts.push(<div className="smkit-spec-openspec-error" key="init-error">{initError}</div>)
+    if (ignoreError !== '') alerts.push(<div className="smkit-spec-openspec-error" key="ignore-error">{ignoreError}</div>)
+    if (untrackError !== '') alerts.push(<div className="smkit-spec-openspec-error" key="untrack-error">{untrackError}</div>)
+    if (initing) alerts.push(<div className="smkit-spec-openspec-note" key="initing">{t('openSpecInitRunning')}</div>)
+    if (ignoring) alerts.push(<div className="smkit-spec-openspec-note" key="ignoring">{t('openSpecGitignoreRunning')}</div>)
+    if (untracking) alerts.push(<div className="smkit-spec-openspec-note" key="untracking">{t('openSpecUntrackRunning')}</div>)
     if (reading && view === undefined) {
-      alerts.push(<div className="os_note" key="reading">{t('openSpecReading')}</div>)
+      alerts.push(<div className="smkit-spec-openspec-note" key="reading">{t('openSpecReading')}</div>)
     }
     const messages = (
-      <div className="os_messages">
+      <div className="smkit-spec-openspec-messages">
         {alerts}
         {nodesFor(order)}
       </div>
     )
 
     const body = (
-      <div className="os_body">
+      <div className="smkit-spec-openspec-body">
         {/* Mounted even when it has nothing to say. A block that appears and
             disappears is a block that moves the divider under it, and that jump
             is the flicker; the empty log collapses itself in CSS instead. */}
@@ -1327,10 +1327,10 @@ export function createOpenSpecButton(
             ? artifactsSection(view.artifacts)
             : view.initialized
               ? null
-              : <div className="os_note">{t('openSpecEmpty')}</div>}
+              : <div className="smkit-spec-openspec-note">{t('openSpecEmpty')}</div>}
         {view?.store === undefined ? null : treeSection(view.store)}
         {view !== undefined && view.truncated ? (
-          <div className="os_note">{t('openSpecTruncated')}</div>
+          <div className="smkit-spec-openspec-note">{t('openSpecTruncated')}</div>
         ) : null}
       </div>
     )
@@ -1394,20 +1394,20 @@ export function createOpenSpecButton(
          * arrival lands in the slack beside the identity rather than on a seat
          * someone is already aiming at, and the two buttons worth finding
          * without looking are always in the same two places. */}
-        <div className="os_head">
+        <div className="smkit-spec-openspec-head">
           <AtomIcon size={14} />
-          <span className="os_title">{t('manageOpenSpec')}</span>
+          <span className="smkit-spec-openspec-title">{t('manageOpenSpec')}</span>
           {view === undefined ? null : (
             <StateDot
-              className="os_state"
+              className="smkit-spec-openspec-state"
               state={view.initialized ? 'done' : 'idle'}
               label={view.initialized ? t('openSpecStatusReady') : t('openSpecStatusAbsent')}
             />
           )}
-          <span className="os_actions">
+          <span className="smkit-spec-openspec-actions">
             {offersIgnorePair ? (
               <button
-                className="mm_btn os_untrack"
+                className="smkit-ui-button smkit-spec-openspec-untrack"
                 type="button"
                 aria-label={t('openSpecUntrack')}
                 // The undo of the button beside it, said the same way: which
@@ -1417,7 +1417,7 @@ export function createOpenSpecButton(
                 // wears the open eye.
                 title={t('openSpecUntrackCommand')}
                 disabled={!canUntrack || untracking}
-                data-pending={untracking ? 'true' : undefined}
+                data-smkit-pending={untracking ? 'true' : undefined}
                 aria-busy={untracking}
                 onClick={untrack}
               >
@@ -1426,7 +1426,7 @@ export function createOpenSpecButton(
             ) : null}
             {offersIgnorePair ? (
               <button
-                className="mm_btn os_ignore"
+                className="smkit-ui-button smkit-spec-openspec-ignore"
                 type="button"
                 aria-label={t('openSpecGitignore')}
                 // What the click asks git, in the order it asks it — the whole
@@ -1436,7 +1436,7 @@ export function createOpenSpecButton(
                 // git will stop looking at these paths.
                 title={t('openSpecGitignoreCommand')}
                 disabled={!canIgnore || ignoring}
-                data-pending={ignoring ? 'true' : undefined}
+                data-smkit-pending={ignoring ? 'true' : undefined}
                 aria-busy={ignoring}
                 onClick={ignore}
               >
@@ -1445,7 +1445,7 @@ export function createOpenSpecButton(
             ) : null}
             {canRemove ? (
               <button
-                className="mm_btn danger os_remove"
+                className="smkit-ui-button danger smkit-spec-openspec-remove"
                 type="button"
                 // The words the button used to wear are its hover instead: the
                 // glyph says delete, the sentence says what is deleted, and the
@@ -1459,23 +1459,23 @@ export function createOpenSpecButton(
               </button>
             ) : null}
             <button
-              className="mm_btn os_init"
+              className="smkit-ui-button smkit-spec-openspec-init"
               type="button"
-              data-state={initTone}
+              data-smkit-state={initTone}
               aria-label={t('openSpecInit')}
               // The command the click runs while there is a store to create, and
               // the plain answer once there is not: the glyph has stopped being a
               // question by then and only reports.
               title={canInit || view === undefined ? t('openSpecInitCommand') : t('openSpecStatusReady')}
               disabled={!canInit || initing}
-              data-pending={initing ? 'true' : undefined}
+              data-smkit-pending={initing ? 'true' : undefined}
               aria-busy={initing}
               onClick={initialize}
             >
               <TextInitialIcon size={14} />
             </button>
             <button
-              className="mm_btn os_refresh"
+              className="smkit-ui-button smkit-spec-openspec-refresh"
               type="button"
               aria-label={t('openSpecRefresh')}
               title={t('openSpecRefresh')}
@@ -1487,10 +1487,10 @@ export function createOpenSpecButton(
                 void load()
               }}
             >
-              {refreshFace.showing ? <LoaderIcon className="mm_statusSpin" size={13} /> : <RefreshIcon size={13} />}
+              {refreshFace.showing ? <LoaderIcon className="smkit-ui-spin" size={13} /> : <RefreshIcon size={13} />}
             </button>
             <button
-              className="mm_btn primary os_update"
+              className="smkit-ui-button primary smkit-spec-openspec-update"
               type="button"
               aria-label={t('openSpecUpdate')}
               // The two commands the click runs, shown rather than described: a
@@ -1499,7 +1499,7 @@ export function createOpenSpecButton(
               // Dimmed until the read says what is there — the seat is kept
               // either way, so the row does not jump when the answer lands.
               disabled={updating || view === undefined}
-              data-pending={updating ? 'true' : undefined}
+              data-smkit-pending={updating ? 'true' : undefined}
               aria-busy={updating}
               onClick={upgrade}
             >
@@ -1514,10 +1514,10 @@ export function createOpenSpecButton(
     const details = view === undefined
       ? undefined
       : (
-        <div className="os_confirm">
+        <div className="smkit-spec-openspec-confirm">
           {confirmRows(view).flatMap(row => [
-            <span className="os_confirmLabel" key={`${row.label}-${row.hint}-label`}>{row.label}</span>,
-            <span className="os_confirmValue" key={`${row.label}-${row.hint}-value`} title={row.hint}>
+            <span className="smkit-spec-openspec-confirm-label" key={`${row.label}-${row.hint}-label`}>{row.label}</span>,
+            <span className="smkit-spec-openspec-confirm-value" key={`${row.label}-${row.hint}-value`} title={row.hint}>
               {row.value}
             </span>,
           ])}
@@ -1549,7 +1549,7 @@ export function createOpenSpecButton(
 
     return (
       <span
-        className="os_host"
+        className="smkit-spec-openspec-host"
         // The opening gesture: a pointer that *moves* on the control. Not its
         // `enter` — see the note at the top of this file for why that one is
         // ambiguous here, and for why the move always follows it when a hand
@@ -1592,11 +1592,11 @@ export function createOpenSpecButton(
         }}
       >
         <button
-          className="mm_iconBtn os_btn"
+          className="smkit-ui-icon-button smkit-spec-openspec-btn"
           type="button"
           aria-label={t('manageOpenSpec')}
           aria-expanded={open}
-          data-open={open ? 'true' : undefined}
+          data-smkit-open={open ? 'true' : undefined}
           // Opening is idempotent, and closing is deliberately not this
           // button's job: hover has already opened the panel by the time a
           // mouse gets here, so a toggle would make the click that follows a
@@ -1607,7 +1607,7 @@ export function createOpenSpecButton(
           onClick={(event) => show((event as JSX.AnchorEventLike).currentTarget)}
         >
           {reading && view === undefined
-            ? <LoaderIcon className="mm_statusSpin" size={15} />
+            ? <LoaderIcon className="smkit-ui-spin" size={15} />
             : <AtomIcon size={15} />}
         </button>
         {floating}

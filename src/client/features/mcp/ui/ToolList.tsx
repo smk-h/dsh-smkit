@@ -9,14 +9,14 @@
  * (the same disclosure the shell's own MCP panel uses).
  *
  * The card is the section's first element that needs more than a label, so it
- * cannot be a `.mm_tip::after` bubble and is real DOM instead. It is placed from
+ * cannot be a `.smkit-ui-tip::after` bubble and is real DOM instead. It is placed from
  * the chip's viewport rect with `position: fixed`: the settings page scrolls,
  * and a card anchored inside that scroll area would be clipped by it (the
  * shell's own bubbles solve the same problem the same way).
  *
  * What it has to fit inside is that scroll area, not the window — a card
  * clamped to the window at the panel's right edge hangs outside the panel it
- * belongs to. So the bounds come from the same ancestor walk the `.mm_tip`
+ * belongs to. So the bounds come from the same ancestor walk the `.smkit-ui-tip`
  * bubbles clamp to (`tip.ts`'s `clipBounds`): the card is centred on its chip
  * and pulled inside them, opens on the side that has room for it there, and is
  * never taller than that room — it fits by construction, never by measuring
@@ -49,7 +49,7 @@
  *
  * The chips carry a tab stop so the same card answers a keyboard walk. They are
  * plain tags rather than buttons — nothing happens on activation — and the card
- * itself is a visual affordance, like the section's `.mm_tip` bubbles: a server
+ * itself is a visual affordance, like the section's `.smkit-ui-tip` bubbles: a server
  * with 38 tools should not add 38 controls to the page's tab order in any
  * announced role.
  */
@@ -250,7 +250,7 @@ export function createToolList(deps: ClientDeps): (props: ToolListProps) => JSX.
 
     return (
       <div
-        className="mm_tools"
+        className="smkit-mcp-tools"
         onMouseEnter={() => setOver(true)}
         onMouseLeave={(event) => {
           setOver(false)
@@ -271,7 +271,7 @@ export function createToolList(deps: ClientDeps): (props: ToolListProps) => JSX.
         }}
       >
         <button
-          className="mm_toolsToggle"
+          className="smkit-mcp-tools-toggle"
           type="button"
           aria-expanded={open}
           disabled={tools.length === 0}
@@ -280,16 +280,16 @@ export function createToolList(deps: ClientDeps): (props: ToolListProps) => JSX.
             setOpen(!open)
           }}
         >
-          <span className="mm_toolsCaret" data-open={open ? 'true' : undefined}>
+          <span className="smkit-mcp-tools-caret" data-smkit-open={open ? 'true' : undefined}>
             <ChevronDownIcon size={12} />
           </span>
           {t('toolCount', { count: tools.length })}
         </button>
         {open && tools.length > 0 ? (
-          <div className="mm_toolChips">
+          <div className="smkit-mcp-tools-tool-chips">
             {tools.map((tool, index) => (
               <span
-                className="mm_toolChip"
+                className="smkit-mcp-tools-tool-chip"
                 tabIndex={0}
                 // A drag may pass over other chips: it is still one selection.
                 onMouseEnter={(event) => {
@@ -316,7 +316,7 @@ export function createToolList(deps: ClientDeps): (props: ToolListProps) => JSX.
         ) : null}
         {current && anchor ? (
           <div
-            className="mm_toolCard"
+            className="smkit-mcp-tools-tool-card"
             style={cardStyle(cardBox(anchor, anchor.node))}
             // Entering the card keeps the pointer "inside" even when it arrived
             // across the gap, where the block's leave just cleared that.
@@ -328,28 +328,28 @@ export function createToolList(deps: ClientDeps): (props: ToolListProps) => JSX.
             }}
             onMouseDown={() => setSelecting(true)}
           >
-            <div className="mm_toolCardHead">
-              <span className="mm_toolCardName">{current.name}</span>
-              <span className="mm_toolCardKind">{t('toolKind')}</span>
+            <div className="smkit-mcp-tools-tool-card-head">
+              <span className="smkit-mcp-tools-tool-card-name">{current.name}</span>
+              <span className="smkit-mcp-tools-tool-card-kind">{t('toolKind')}</span>
             </div>
-            <div className={current.description ? 'mm_toolCardDesc' : 'mm_toolCardEmpty'}>
+            <div className={current.description ? 'smkit-mcp-tools-tool-card-desc' : 'smkit-mcp-tools-tool-card-empty'}>
               {current.description || t('noDescription')}
             </div>
             {params.length === 0 ? (
-              <div className="mm_toolCardEmpty">{t('noParameters')}</div>
+              <div className="smkit-mcp-tools-tool-card-empty">{t('noParameters')}</div>
             ) : (
-              <div className="mm_toolCardParams">
+              <div className="smkit-mcp-tools-tool-card-params">
                 {params.map((param) => (
-                  <div className="mm_toolParam" key={param.name}>
-                    <div className="mm_toolParamHead">
-                      <span className="mm_toolParamName">{param.name}</span>
-                      <span className="mm_toolParamType">{param.type}</span>
+                  <div className="smkit-mcp-tools-tool-param" key={param.name}>
+                    <div className="smkit-mcp-tools-tool-param-head">
+                      <span className="smkit-mcp-tools-tool-param-name">{param.name}</span>
+                      <span className="smkit-mcp-tools-tool-param-type">{param.type}</span>
                       {param.required ? (
-                        <span className="mm_toolParamRequired">{t('required')}</span>
+                        <span className="smkit-mcp-tools-tool-param-required">{t('required')}</span>
                       ) : null}
                     </div>
                     {param.description ? (
-                      <div className="mm_toolParamDesc">{param.description}</div>
+                      <div className="smkit-mcp-tools-tool-param-desc">{param.description}</div>
                     ) : null}
                   </div>
                 ))}

@@ -11,7 +11,7 @@
  * to hold them: a clipped tab is unreadable, a second row is not.
  */
 
-.mm_tabs {
+.smkit-ui-tabs {
   border-bottom: .5px solid var(--dsw-alias-border-l2);
   align-items: flex-end;
   flex-wrap: wrap;
@@ -19,7 +19,7 @@
   display: flex;
 }
 
-.mm_tab {
+.smkit-ui-tabs-tab {
   color: var(--dsw-alias-label-tertiary);
   font: inherit;
   cursor: pointer;
@@ -36,14 +36,14 @@
 /* A tab's glyph, when the page hands one: inline with the label, in the
  * button's own colour (every icon here strokes in `currentColor`), so hover and
  * the active state darken the pair together. */
-.mm_tab svg {
+.smkit-ui-tabs-tab svg {
   flex: 0 0 auto;
   margin-right: 6px;
 }
-.mm_tab:hover,.mm_tab[data-active=true] {
+.smkit-ui-tabs-tab:hover,.smkit-ui-tabs-tab[data-smkit-active=true] {
   color: var(--dsw-alias-label-primary);
 }
-.mm_tab[data-active=true]:after,.mm_tab:focus-visible:after {
+.smkit-ui-tabs-tab[data-smkit-active=true]:after,.smkit-ui-tabs-tab:focus-visible:after {
   background: var(--dsw-alias-label-primary);
   content: '';
   border-radius: 2px 2px 0 0;
@@ -53,7 +53,7 @@
   left: 0;
   right: 0;
 }
-.mm_tab:focus-visible {
+.smkit-ui-tabs-tab:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: 2px;
   color: var(--dsw-alias-label-primary);

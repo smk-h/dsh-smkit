@@ -1,5 +1,5 @@
 /**
- * `POST /mcp-manager/api/sessions/delete`: the session delete composed from the
+ * `POST /smkit/api/sessions/delete`: the session delete composed from the
  * two lifecycle operations the harness does offer — the workspace registry's
  * archive set (which hides a session everywhere) and removing the session's own
  * artifact directory — plus the `api-session/removed` frame that makes the
@@ -75,7 +75,7 @@ async function request(handler, body) {
   const payload = [Buffer.from(JSON.stringify(body))]
   const req = {
     method: 'POST',
-    url: '/mcp-manager/api/sessions/delete',
+    url: '/smkit/api/sessions/delete',
     headers: { host: '127.0.0.1:3080' },
     async *[Symbol.asyncIterator]() { for (const chunk of payload) yield chunk },
   }
@@ -93,7 +93,7 @@ async function request(handler, body) {
 async function preview(handler, sessionId) {
   const req = {
     method: 'GET',
-    url: `/mcp-manager/api/sessions/preview?sessionId=${encodeURIComponent(sessionId)}`,
+    url: `/smkit/api/sessions/preview?sessionId=${encodeURIComponent(sessionId)}`,
     headers: { host: '127.0.0.1:3080' },
     async *[Symbol.asyncIterator]() {},
   }

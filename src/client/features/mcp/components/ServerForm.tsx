@@ -25,9 +25,9 @@ import type { EditableServer, KeyValueRow } from '../types'
  * through the `position: relative` on the root class below.
  */
 const FIELD_SELECT_CLASSES: IconSelectClasses = {
-  root: 'mm_fieldSelect',
-  trigger: 'mm_fieldSelectTrigger',
-  label: 'mm_fieldSelectLabel',
+  root: 'smkit-mcp-form-field-select',
+  trigger: 'smkit-mcp-form-field-select-trigger',
+  label: 'smkit-mcp-form-field-select-label',
 }
 
 export interface ServerFormProps {
@@ -146,7 +146,7 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
             <label className="wide" key="arguments">
               {t('arguments')}
               {argsList.map((arg, i) => (
-                <div className="mm_kv" key={i}>
+                <div className="smkit-mcp-form-kv" key={i}>
                   <input
                     value={arg}
                     onChange={(e) =>
@@ -155,7 +155,7 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
                     placeholder={t('argumentValue')}
                   />
                   <button
-                    className="mm_btn"
+                    className="smkit-ui-button"
                     onClick={() => setArgsList(argsList.filter((_, index) => index !== i))}
                     disabled={busy}
                   >
@@ -163,7 +163,7 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
                   </button>
                 </div>
               ))}
-              <button className="mm_btn" onClick={() => setArgsList([...argsList, ''])} disabled={busy}>
+              <button className="smkit-ui-button" onClick={() => setArgsList([...argsList, ''])} disabled={busy}>
                 {t('addArgument')}
               </button>
             </label>,
@@ -239,13 +239,13 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
           ]
 
     return (
-      <div className="mm_row mm_add">
-        <div className="mm_form">
+      <div className="smkit-ui-disclosure-card smkit-mcp-form-add">
+        <div className="smkit-mcp-form">
           {/* The two scope pickers are custom dropdowns (not `<label>`-wrapped:
               a label would forward caption clicks into the trigger button) so
               their options can carry the same monitor/folder icons the list
               view's scope picker uses. */}
-          <div className="wide mm_field">
+          <div className="wide smkit-mcp-form-field">
             <span>{t('scope')}</span>
             <IconSelect
               classes={FIELD_SELECT_CLASSES}
@@ -260,7 +260,7 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
             />
           </div>
           {isWorkspace ? (
-            <div className="wide mm_field">
+            <div className="wide smkit-mcp-form-field">
               <span>{t('workspace')}</span>
               <IconSelect
                 classes={FIELD_SELECT_CLASSES}
@@ -299,20 +299,20 @@ export function createServerForm(deps: ClientDeps): (props: ServerFormProps) => 
           </label>
           {transportFields}
         </div>
-        {error ? <div className="mm_err">{error}</div> : null}
-        <div className="mm_actions">
+        {error ? <div className="smkit-ui-field-error">{error}</div> : null}
+        <div className="smkit-mcp-card-actions">
           <button
-            className="mm_btn"
+            className="smkit-ui-button"
             onClick={submit}
             disabled={
               busy || !name || (isWorkspace && !wsPath) || (type === 'stdio' ? !command : !url)
             }
-            data-pending={busy ? 'true' : undefined}
+            data-smkit-pending={busy ? 'true' : undefined}
             aria-busy={busy}
           >
             {t('save')}
           </button>
-          <button className="mm_btn" onClick={onCancel} disabled={busy}>
+          <button className="smkit-ui-button" onClick={onCancel} disabled={busy}>
             {t('cancel')}
           </button>
         </div>

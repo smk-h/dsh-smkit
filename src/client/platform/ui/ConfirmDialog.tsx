@@ -50,24 +50,24 @@ export function createConfirmDialog(deps: ClientDeps): (props: ConfirmDialogProp
     onConfirm,
   }: ConfirmDialogProps): JSX.Element {
     return (
-      <div className="mm_overlay" onClick={onCancel}>
+      <div className="smkit-ui-dialog-overlay" onClick={onCancel}>
         <div
-          className={details === undefined || details === null ? 'mm_dialog' : 'mm_dialog mm_dialogWide'}
+          className={details === undefined || details === null ? 'smkit-ui-dialog' : 'smkit-ui-dialog smkit-ui-dialog-wide'}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="mm_dialogTitle">{title}</div>
-          <div className="mm_dialogBody">{body}</div>
+          <div className="smkit-ui-dialog-title">{title}</div>
+          <div className="smkit-ui-dialog-body">{body}</div>
           {details}
-          {error ? <div className="mm_err">{error}</div> : null}
-          <div className="mm_dialogActions">
-            <button className="mm_btn" onClick={onCancel} disabled={busy}>
+          {error ? <div className="smkit-ui-field-error">{error}</div> : null}
+          <div className="smkit-ui-dialog-actions">
+            <button className="smkit-ui-button" onClick={onCancel} disabled={busy}>
               {platformT('cancel')}
             </button>
             <button
-              className="mm_btn danger"
+              className="smkit-ui-button danger"
               onClick={onConfirm}
               disabled={busy || confirmDisabled === true}
-              data-pending={busy ? 'true' : undefined}
+              data-smkit-pending={busy ? 'true' : undefined}
               aria-busy={busy}
             >
               {platformT('delete')}

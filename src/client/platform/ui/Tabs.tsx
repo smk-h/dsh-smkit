@@ -13,7 +13,7 @@
  * cannot drift in behavior or look, the way `IconSelect` holds the dropdown's.
  *
  * Like `IconSelect`, a caller may name a `classes` family to restyle the strip
- * inside its own stylesheet; the default family (`mm_tabs*`) is this layer's
+ * inside its own stylesheet; the default family (`smkit-ui-tabs*`) is this layer's
  * own rules, which every page inherits.
  */
 
@@ -39,7 +39,7 @@ export interface TabsClasses {
 }
 
 /** The default family, whose rules this layer ships. */
-const DEFAULT_CLASSES: TabsClasses = { root: 'mm_tabs', tab: 'mm_tab' }
+const DEFAULT_CLASSES: TabsClasses = { root: 'smkit-ui-tabs', tab: 'smkit-ui-tabs-tab' }
 
 export interface TabsProps {
   tabs: TabOption[]
@@ -76,7 +76,7 @@ export function createTabs(deps: ClientDeps): (props: TabsProps) => JSX.Element 
               role: 'tab',
               key: tab.id,
               'aria-selected': tab.id === active,
-              'data-active': tab.id === active ? 'true' : undefined,
+              'data-smkit-active': tab.id === active ? 'true' : undefined,
               onClick: () => onChange(tab.id),
             },
             ...(tab.icon === undefined ? [tab.label] : [tab.icon, tab.label]),

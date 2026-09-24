@@ -174,7 +174,7 @@ it('releases a workspace the registry no longer lists', async () => {
     // removed workspace must be released even then, because the user removed it.
     await agents.create({ setup: async () => {} })
     await waitFor(async () => {
-      const current = await request(handler, 'GET', '/mcp-manager/api/workspaces')
+      const current = await request(handler, 'GET', '/smkit/api/workspaces')
       const workspace = current.json.workspaces.find((entry) => entry.path === wsDir)
       return workspace?.servers[0]?.status === 'connected' ? workspace : undefined
     })
@@ -184,11 +184,11 @@ it('releases a workspace the registry no longer lists', async () => {
 
     // The settings page's next poll reconciles: the workspace is gone from the
     // list before the request answers.
-    const listed = await request(handler, 'GET', '/mcp-manager/api/workspaces')
+    const listed = await request(handler, 'GET', '/smkit/api/workspaces')
     assert.deepEqual(listed.json.workspaces, [], 'a removed workspace must not be listed')
 
     // It is no longer a known path, so its routes refuse it...
-    const refused = await request(handler, 'POST', '/mcp-manager/api/workspaces/servers/delete', {
+    const refused = await request(handler, 'POST', '/smkit/api/workspaces/servers/delete', {
       path: wsDir,
       name: 'ws-live',
     })

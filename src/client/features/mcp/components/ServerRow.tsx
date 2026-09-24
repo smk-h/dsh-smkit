@@ -111,40 +111,40 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
       })
 
     return (
-      <div className="mm_row" key={server.id} data-open={open ? 'true' : undefined}>
+      <div className="smkit-ui-disclosure-card" key={server.id} data-smkit-open={open ? 'true' : undefined}>
         <button
-          className="mm_cardContent"
+          className="smkit-ui-disclosure-card-content"
           type="button"
           aria-expanded={open}
           onClick={onToggle}
         >
-          <span className="mm_name">{server.name}</span>
-          <span className="mm_cardTrailing">
+          <span className="smkit-ui-disclosure-card-name">{server.name}</span>
+          <span className="smkit-ui-disclosure-card-trailing">
             <StatusDot status={server.status} />
             <StatusBadge t={t} status={server.status} />
-            <span className="mm_chevron" data-open={open ? 'true' : undefined}>
+            <span className="smkit-ui-picker-chevron" data-smkit-open={open ? 'true' : undefined}>
               <ChevronDownIcon size={12} />
             </span>
           </span>
         </button>
         {open ? (
-          <div className="mm_details">
+          <div className="smkit-ui-disclosure-card-details">
             {serverDetails({ t, server, status: server.status })}
-            {error ? <div className="mm_err">{error}</div> : null}
-            <div className="mm_cardActions">
+            {error ? <div className="smkit-ui-field-error">{error}</div> : null}
+            <div className="smkit-mcp-card-actions-group">
               <Switch
                 on={server.enabled !== false}
                 text={server.enabled !== false ? t('disable') : t('enable')}
                 busy={busy}
                 onToggle={toggleEnabled}
               />
-              <span className="mm_actionBtns">
+              <span className="smkit-mcp-card-action-btns">
                 {server.enabled !== false ? (
                   <button
-                    className="mm_btn"
+                    className="smkit-ui-button"
                     onClick={restart}
                     disabled={busy}
-                    data-pending={pending === 'restart' ? 'true' : undefined}
+                    data-smkit-pending={pending === 'restart' ? 'true' : undefined}
                     aria-busy={pending === 'restart'}
                   >
                     {t('restart')}
@@ -152,10 +152,10 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
                 ) : null}
                 {server.enabled !== false ? (
                   <button
-                    className="mm_btn"
+                    className="smkit-ui-button"
                     onClick={stop}
                     disabled={busy}
-                    data-pending={pending === 'stop' ? 'true' : undefined}
+                    data-smkit-pending={pending === 'stop' ? 'true' : undefined}
                     aria-busy={pending === 'stop'}
                   >
                     {t('stop')}
@@ -163,19 +163,19 @@ export function createServerRow(deps: ClientDeps): (props: ServerRowProps) => JS
                 ) : null}
                 {server.enabled !== false && server.authMode === 'oauth' ? (
                   <button
-                    className="mm_btn"
+                    className="smkit-ui-button"
                     onClick={startAuth}
                     disabled={busy || authorizing}
-                    data-pending={pending === 'auth' || authorizing ? 'true' : undefined}
+                    data-smkit-pending={pending === 'auth' || authorizing ? 'true' : undefined}
                     aria-busy={pending === 'auth' || authorizing}
                   >
                     {server.status === 'connected' ? t('reauth') : t('auth')}
                   </button>
                 ) : null}
-                <button className="mm_btn" onClick={onEdit} disabled={busy}>
+                <button className="smkit-ui-button" onClick={onEdit} disabled={busy}>
                   {t('edit')}
                 </button>
-                <button className="mm_btn danger" onClick={askRemove} disabled={busy}>
+                <button className="smkit-ui-button danger" onClick={askRemove} disabled={busy}>
                   {t('delete')}
                 </button>
               </span>

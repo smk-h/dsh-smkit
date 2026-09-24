@@ -2,7 +2,7 @@
  * The conversation-header control that toggles the palette panel.
  *
  * Mounted into the same right-aligned utilities seat as the session-delete and
- * OpenSpec controls (`mm_iconBtn`, the shell's hover bubble for the label), so
+ * OpenSpec controls (`smkit-ui-icon-button`, the shell's hover bubble for the label), so
  * the toggle sits in the corner the panel drops from. Click — not the hover
  * gesture the neighbours use — because this is a mode switch: the panel stays
  * up while colors are tuned, and a hover-out must not slam it shut.
@@ -33,7 +33,7 @@ export function createPaletteButton(deps: ClientDeps): (props: PaletteButtonProp
 
     const anchor = (
       <button
-        className="mm_iconBtn dsh_palette"
+        className="smkit-ui-icon-button smkit-theme-palette-trigger"
         type="button"
         aria-label={t('paletteOpen')}
         aria-pressed={open}
@@ -45,7 +45,7 @@ export function createPaletteButton(deps: ClientDeps): (props: PaletteButtonProp
     )
 
     return (
-      <span className="dsh_paletteHost">
+      <span className="smkit-theme-palette-host">
         {/* While the panel is open the bubble is dropped entirely: the shell's
          * tooltip sits side="bottom", exactly where the panel floats, and a
          * hover bubble overlapping the panel it names is noise. Toggling the

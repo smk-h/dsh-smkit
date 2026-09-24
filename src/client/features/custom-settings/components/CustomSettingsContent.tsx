@@ -55,7 +55,7 @@ export function createCustomSettingsContent(
     const [selected, setSelected] = react.useState(TABS[0].id)
     const active = TABS.find((tab) => tab.id === selected) ?? TABS[0]
     return (
-      <div className="cs_section">
+      <div className="smkit-cs-page-section">
         {/* The page's areas, in strip order. The identity block — the intro
             line, the plugin pill and the page title — is the merged settings
             section's, not this panel's: the tab that opened this strip already
@@ -66,7 +66,7 @@ export function createCustomSettingsContent(
           onChange={setSelected}
           tabs={TABS.map((tab) => ({ id: tab.id, label: t(tab.label) }))}
         />
-        <div className="cs_panel" role="tabpanel">
+        <div className="smkit-cs-page-panel" role="tabpanel">
           <active.Panel t={t} />
         </div>
       </div>

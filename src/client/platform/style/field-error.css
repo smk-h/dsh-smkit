@@ -6,7 +6,7 @@
  * the MCP section stylesheet while a platform component depended on it.
  */
 
-.mm_err {
+.smkit-ui-field-error {
   color: var(--dsw-alias-state-error-primary);
   font-size: 12px;
   line-height: 18px;

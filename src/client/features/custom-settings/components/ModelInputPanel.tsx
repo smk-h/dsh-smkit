@@ -219,58 +219,58 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
     const seamNotice = unavailableText(t, unavailable)
     const modelCount = providers.reduce((total, provider) => total + provider.models.length, 0)
     return (
-      <div className="mi_panel">
-        <div className="mi_catalogHeading">
+      <div className="smkit-cs-model-input-panel">
+        <div className="smkit-cs-model-input-catalog-heading">
           <h3>{t('heading')}</h3>
           <span>{t('countModels', { count: modelCount })}</span>
         </div>
-        <p className="mi_intro">{t('modelInputIntro')}</p>
-        {seamNotice ? <div className="mm_err">{seamNotice}</div> : null}
-        {loadError ? <div className="mm_err">{loadError}</div> : null}
-        {error ? <div className="mm_err">{error}</div> : null}
+        <p className="smkit-cs-model-input-intro">{t('modelInputIntro')}</p>
+        {seamNotice ? <div className="smkit-ui-field-error">{seamNotice}</div> : null}
+        {loadError ? <div className="smkit-ui-field-error">{loadError}</div> : null}
+        {error ? <div className="smkit-ui-field-error">{error}</div> : null}
         {/* An absent seam already explains an empty list; saying "no routes"
             underneath it would read as a second, contradictory fact. */}
-        {loaded && providers.length === 0 && !seamNotice ? <div className="mi_meta">{t('modelEmpty')}</div> : null}
-        <div className="mi_cards">
+        {loaded && providers.length === 0 && !seamNotice ? <div className="smkit-cs-model-input-meta">{t('modelEmpty')}</div> : null}
+        <div className="smkit-cs-model-input-cards">
           {providers.map((provider) => {
             const expanded = open.includes(provider.provider)
             const declared = provider.models.filter(model => model.overridden).length
             const visual = provider.models.filter(model => model.effective.includes('image')).length
             return (
-              <div className="mm_row" key={provider.provider} data-open={expanded ? 'true' : undefined}>
-                <div className="mi_cardHead">
-                  <button className="mm_cardContent" type="button" aria-expanded={expanded} onClick={() => toggleCard(provider.provider)}>
-                    <span className="mm_name">{provider.displayName}</span>
-                    <span className="mi_route">{provider.provider}</span>
+              <div className="smkit-ui-disclosure-card" key={provider.provider} data-smkit-open={expanded ? 'true' : undefined}>
+                <div className="smkit-cs-model-input-card-head">
+                  <button className="smkit-ui-disclosure-card-content" type="button" aria-expanded={expanded} onClick={() => toggleCard(provider.provider)}>
+                    <span className="smkit-ui-disclosure-card-name">{provider.displayName}</span>
+                    <span className="smkit-cs-model-input-route">{provider.provider}</span>
                     <StateDot
                       state={declared > 0 ? 'active' : 'idle'}
                       label={`${provider.displayName} · ${t(declared > 0 ? 'modelStatusCustom' : 'modelStatusDefault')}`}
                     />
                   </button>
                   <button
-                    className="mi_caretBtn"
+                    className="smkit-cs-model-input-caret-btn"
                     type="button"
                     aria-expanded={expanded}
-                    data-open={expanded ? 'true' : undefined}
+                    data-smkit-open={expanded ? 'true' : undefined}
                     aria-label={`${provider.displayName} · ${t('modelAdvanced')}`}
                     title={t('modelAdvanced')}
                     onClick={() => toggleCard(provider.provider)}
                   >
-                    <ChevronRightIcon className="mi_caret" />
+                    <ChevronRightIcon className="smkit-cs-model-input-caret" />
                   </button>
                 </div>
-                <div className="mi_summary">
+                <div className="smkit-cs-model-input-summary">
                   {t('countModels', { count: provider.models.length })}
                   {' · '}
                   {t('summaryVisual', { count: visual })}
                 </div>
                 {expanded ? (
-                  <div className="mm_details">
-                    {provider.editable ? null : <div className="mi_meta">{refusalText(t, provider)}</div>}
+                  <div className="smkit-ui-disclosure-card-details">
+                    {provider.editable ? null : <div className="smkit-cs-model-input-meta">{refusalText(t, provider)}</div>}
                     {provider.editable && provider.models.length === 0 ? (
-                      <div className="mi_meta">{t('noModels')}</div>
+                      <div className="smkit-cs-model-input-meta">{t('noModels')}</div>
                     ) : null}
-                    {provider.error ? <div className="mm_err">{provider.error}</div> : null}
+                    {provider.error ? <div className="smkit-ui-field-error">{provider.error}</div> : null}
                     {provider.models.map((model) => {
                       const key = `${provider.provider}/${model.id}`
                       // One action, one busy flag: pressing a button dims that
@@ -283,21 +283,21 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                       const rowBusy = pending === key || pending === detectKey
                       const modelExpanded = openModels.includes(key)
                       return (
-                        <div className="mi_modelCard" key={model.id}>
-                          <div className="mi_modelHead">
-                            <span className="mi_modelId">{model.id}</span>
-                            <span className="mi_modelName">{model.name}</span>
-                            <span className="mi_headTail">
+                        <div className="smkit-cs-model-input-model-card" key={model.id}>
+                          <div className="smkit-cs-model-input-model-head">
+                            <span className="smkit-cs-model-input-model-id">{model.id}</span>
+                            <span className="smkit-cs-model-input-model-name">{model.name}</span>
+                            <span className="smkit-cs-model-input-head-tail">
                               <button
-                                className="mi_caretBtn"
+                                className="smkit-cs-model-input-caret-btn"
                                 type="button"
                                 aria-expanded={modelExpanded}
-                                data-open={modelExpanded ? 'true' : undefined}
+                                data-smkit-open={modelExpanded ? 'true' : undefined}
                                 aria-label={`${model.name} · ${t('modelAdvanced')}`}
                                 title={t('modelAdvanced')}
                                 onClick={() => toggleModelCard(key)}
                               >
-                                <ChevronRightIcon className="mi_caret" />
+                                <ChevronRightIcon className="smkit-cs-model-input-caret" />
                               </button>
                               <StateDot
                                 state={model.overridden ? 'active' : 'idle'}
@@ -306,8 +306,8 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                             </span>
                           </div>
                           {modelExpanded ? (
-                            <div className="mi_modelBody">
-                              <div className="mm_chipRow">
+                            <div className="smkit-cs-model-input-model-body">
+                              <div className="smkit-ui-check-chip-chip-row">
                                 <CheckChip of={model.id} label={t('modalityText')} checked locked disabled />
                                 <CheckChip
                                   of={model.id}
@@ -322,9 +322,9 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                 ))}
                               </div>
                               {provider.editable ? (
-                                <span className="mi_bodyTail">
+                                <span className="smkit-cs-model-input-body-tail">
                                   <button
-                                    className="mm_btn mi_bodyBtn"
+                                    className="smkit-ui-button smkit-cs-model-input-body-btn"
                                     aria-label={`${model.id} · ${t('autoFetch')}`}
                                     onClick={() => { void detect(provider, model) }}
                                     disabled={pending === detectKey}
@@ -332,7 +332,7 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                     {pending === detectKey ? t('detecting') : t('autoFetch')}
                                   </button>
                                   <button
-                                    className="mm_btn mi_bodyBtn"
+                                    className="smkit-ui-button smkit-cs-model-input-body-btn"
                                     aria-label={`${model.id} · ${t('choiceInherit')}`}
                                     onClick={() => { void write(provider, model, null) }}
                                     disabled={pending === key}
@@ -342,7 +342,7 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                 </span>
                               ) : null}
                               {detectNote !== null && detectNote.key === key ? (
-                                <div className="mi_detectNote" data-failed={detectNote.failed ? 'true' : undefined}>
+                                <div className="smkit-cs-model-input-detect-note" data-smkit-failed={detectNote.failed ? 'true' : undefined}>
                                   {detectNote.text}
                                 </div>
                               ) : null}
@@ -357,7 +357,7 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
             )
           })}
         </div>
-        <p className="mi_note">{t('modelInputNote')}</p>
+        <p className="smkit-cs-model-input-note">{t('modelInputNote')}</p>
       </div>
     )
   }

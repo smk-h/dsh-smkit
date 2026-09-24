@@ -54,7 +54,7 @@ function button(tree, label) {
 
 /** The confirmation dialog's destructive action. */
 function confirmButton(tree) {
-  const found = nodes(tree).find((node) => node.props?.className === 'mm_btn danger')
+  const found = nodes(tree).find((node) => node.props?.className === 'smkit-ui-button danger')
   assert.ok(found, 'expected the confirmation dialog')
   return found
 }
@@ -127,7 +127,7 @@ function mount({ fetch, session, workspace, create, primitives }) {
     },
   }
   exported.apply(ctx)
-  const SessionDelete = registrations.get('mcp-manager-session-delete')
+  const SessionDelete = registrations.get('smkit-session-delete')
   assert.equal(typeof SessionDelete, 'function', 'the header slot must seat the delete control')
   const props = {
     sessionId: 's1',
@@ -229,7 +229,7 @@ it('shows the session\u2019s identity and disk footprint before confirming', asy
   const shown = await app.ask()
   const text = texts(shown).join(' | ')
 
-  assert.equal(app.calls[0].url, '/mcp-manager/api/sessions/preview?sessionId=s1', 'the dialog opens by asking the host')
+  assert.equal(app.calls[0].url, '/smkit/api/sessions/preview?sessionId=s1', 'the dialog opens by asking the host')
   assert.ok(text.includes('sessionInfoId') && text.includes('s1'), 'the session id is shown')
   assert.ok(text.includes('分析一下'), 'the row\u2019s title is shown')
   assert.ok(text.includes('/ws/app'), 'the working directory is shown')
@@ -247,14 +247,14 @@ it('only renders the dialog once the facts are in, so opening it cannot reflow',
   // dialog that the facts then replace is what made the card grow a frame after
   // it appeared (the "flash").
   button(app.render(), 'deleteSession').props.onClick()
-  const duringRead = nodes(app.render()).filter(node => node.props?.className === 'mm_overlay')
+  const duringRead = nodes(app.render()).filter(node => node.props?.className === 'smkit-ui-dialog-overlay')
   assert.deepEqual(duringRead, [], 'the dialog waits for the host rather than showing a placeholder')
 
   await settle()
   const shown = app.render()
   assert.ok(texts(shown).includes('1.5 MB'), 'its first frame already carries the measured facts')
   assert.equal(
-    nodes(shown).some(node => node.props?.className === 'mm_sessionInfoPending'),
+    nodes(shown).some(node => node.props?.className === 'smkit-del-session-delete-session-info-pending'),
     false,
     'no pending block is ever rendered',
   )
@@ -282,7 +282,7 @@ it('deletes, then starts the next session in the deleted session\u2019s workspac
   const app = mount({ fetch: routing({}), session: sessionState(), workspace: workspaceState() })
   await app.confirm()
 
-  assert.deepEqual(plain(app.calls[1]), { url: '/mcp-manager/api/sessions/delete', body: { sessionId: 's1' } })
+  assert.deepEqual(plain(app.calls[1]), { url: '/smkit/api/sessions/delete', body: { sessionId: 's1' } })
   assert.deepEqual(plain(app.created), [{ workspaceId: 'w1' }], 'the replacement lands in the same workspace')
   assert.deepEqual(app.opened, ['created-1'], 'and becomes the current session')
   assert.deepEqual(app.cleared, [], 'the user never sees the empty workspace-picker state')

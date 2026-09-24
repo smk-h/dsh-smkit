@@ -328,7 +328,7 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
 
   // The default view is the merged user side, answered without the page naming
   // a root: two tabs, the harness home's active.
-  assert.equal(app.calls[0].url, '/mcp-manager/api/skills')
+  assert.equal(app.calls[0].url, '/smkit/api/skills')
   const listed = view()
   assert.match(listed, /demo/)
   assert.match(listed, /A demo bundle/)
@@ -345,7 +345,7 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
     ['~/.dsh', '~/.agents'],
   )
   assert.deepEqual(userTabs().map((node) => node.props['aria-selected']), [true, false])
-  assert.equal(trigger().props['data-tip'], `${USER_ROOT} · ${AGENTS_ROOT}`, 'the user entry is selected')
+  assert.equal(trigger().props['data-smkit-tip'], `${USER_ROOT} · ${AGENTS_ROOT}`, 'the user entry is selected')
   assert.equal(view().includes(USER_ROOT), true, 'and the active directory is named')
 
   // The menu: the user side is one entry carrying both homes, and every project
@@ -353,7 +353,7 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
   trigger().props.onClick()
   again()
   assert.deepEqual(
-    options().map((node) => node.props['data-tip']),
+    options().map((node) => node.props['data-smkit-tip']),
     [`${USER_ROOT} · ${AGENTS_ROOT}`, PROJECT],
   )
   const menu = view()
@@ -382,7 +382,7 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
 
   // Clicking a row opens its dialog from the row's own data — no fetch for it.
   const before = app.calls.length
-  pickAll((node) => node.props?.className === 'sk_open')[1].props.onClick()
+  pickAll((node) => node.props?.className === 'smkit-skill-row-open')[1].props.onClick()
   again()
   const detail = view()
   assert.match(detail, /detailStatus statusDisabled/)
@@ -397,7 +397,7 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
 
   // The invocation line reads both flags: `user-invocable: false` with the model
   // side untouched is the model's alone, not "both".
-  pickAll((node) => node.props?.className === 'sk_open')[2].props.onClick()
+  pickAll((node) => node.props?.className === 'smkit-skill-row-open')[2].props.onClick()
   again()
   assert.match(view(), /detailInvocation invocationModel/)
   pick((node) => node.props?.['aria-label'] === 'close').props.onClick()
@@ -443,7 +443,7 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
   // …and the click answers itself: the button is busy and locked before the host
   // has answered anything, showing the platform's spinner instead of the arrow.
   // A read that comes back in a millisecond would otherwise pass as a flicker.
-  assert.equal(refreshButton().props['data-busy'], 'true')
+  assert.equal(refreshButton().props['data-smkit-busy'], 'true')
   assert.equal(refreshButton().props.disabled, true, 'and it does not take a second click')
   assert.equal(glyphOf(refreshButton()), 1, 'the arrow gives way to the spinner arc')
   await settle()
@@ -459,7 +459,7 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
   const confirm = view()
   assert.match(confirm, /removeSkill/)
   assert.match(confirm, new RegExp(DEMO_PATH.replaceAll('/', '\\/')))
-  pick((node) => node.props?.className === 'mm_btn danger').props.onClick()
+  pick((node) => node.props?.className === 'smkit-ui-button danger').props.onClick()
   await settle()
   const deleted = app.calls.filter((call) => call.method === 'DELETE').pop()
   assert.match(deleted.url, /\/skills\/demo\?/)
@@ -471,7 +471,7 @@ it('lists one scope, opens a row, switches it and removes it by address', async 
   // A project is one entry, and selecting it asks for the project as a whole —
   // one request — and shows its two directories as two tabs, the first active.
   await select(1)
-  assert.equal(trigger().props['data-tip'], PROJECT)
+  assert.equal(trigger().props['data-smkit-tip'], PROJECT)
   assert.equal(app.calls.some((call) => call.url.includes(`project=${encodeURIComponent(PROJECT)}`)), true)
   const tabs = () => app.walk(() => findAll(tree, isPageTab))
   assert.deepEqual(

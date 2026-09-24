@@ -8,7 +8,7 @@
  * cascade.
  */
 
-.mm_btn {
+.smkit-ui-button {
   position: relative;
   cursor: pointer;
   font-size: 12px;
@@ -19,15 +19,15 @@
   background: transparent;
   color: var(--dsw-alias-label-primary);
 }
-.mm_btn:hover:not(:disabled) {
+.smkit-ui-button:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover);
 }
-.mm_btn:disabled {
+.smkit-ui-button:disabled {
   opacity: .5;
   cursor: default;
 }
 
-/* The pending state of a button that is waiting on its request: `data-pending`
+/* The pending state of a button that is waiting on its request: `data-smkit-pending`
  * keeps the label in the box — it is only made transparent — and the ellipsis is
  * painted over it. Keeping the box means the pending state cannot resize the
  * button, which matters because the action buttons are laid out after a flexible
@@ -37,10 +37,10 @@
  *
  * The two colours are spelled out because the overlay would otherwise inherit
  * the transparent `color` above. */
-.mm_btn[data-pending=true] {
+.smkit-ui-button[data-smkit-pending=true] {
   color: transparent;
 }
-.mm_btn[data-pending=true]::after {
+.smkit-ui-button[data-smkit-pending=true]::after {
   content: '…';
   color: var(--dsw-alias-label-primary);
   position: absolute;
@@ -49,10 +49,10 @@
   align-items: center;
   justify-content: center;
 }
-.mm_btn.danger[data-pending=true]::after {
+.smkit-ui-button.danger[data-smkit-pending=true]::after {
   color: var(--dsw-alias-state-error-primary);
 }
-.mm_btn.primary {
+.smkit-ui-button.primary {
   border-color: transparent;
   background: var(--dsw-alias-state-business-primary);
   /* The theme's own "text on a solid fill" colour, not a literal white: it is
@@ -70,7 +70,7 @@
  * No button in this plugin wears this variant today: every action is neutral,
  * so only the rule above is ever exercised. It is fixed here anyway, so the
  * next solid button does not have to rediscover the trap. */
-.mm_btn.primary:hover:not(:disabled) {
+.smkit-ui-button.primary:hover:not(:disabled) {
   background: var(--dsw-static-deepseek-600, color-mix(in srgb, var(--dsw-alias-state-business-primary) 86%, #000));
   color: var(--dsw-alias-label-primary-foreground, #fff);
 }
@@ -81,19 +81,19 @@
  * ink. The attribute is the shell's own theme flag (dsh's ui-theme palette
  * scopes its dark tokens to `body[data-ds-dark-theme]`); a host that spells it
  * differently only loses this step, falling back to the rule above. */
-body[data-ds-dark-theme] .mm_btn.primary:hover:not(:disabled) {
+body[data-ds-dark-theme] .smkit-ui-button.primary:hover:not(:disabled) {
   background: var(--dsw-static-deepseek-300, color-mix(in srgb, var(--dsw-alias-state-business-primary) 86%, #fff));
 }
 
 /* The pending ellipsis is painted over the label, so it needs the same colour
  * the label would have had — the shared rule's ink is for the neutral button. */
-.mm_btn.primary[data-pending=true]::after {
+.smkit-ui-button.primary[data-smkit-pending=true]::after {
   color: var(--dsw-alias-label-primary-foreground, #fff);
 }
-.mm_btn.danger {
+.smkit-ui-button.danger {
   color: var(--dsw-alias-state-error-primary);
   border-color: var(--dsw-alias-state-error-primary);
 }
-.mm_btn.danger:hover:not(:disabled) {
+.smkit-ui-button.danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
 }

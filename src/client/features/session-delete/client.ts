@@ -34,7 +34,7 @@ export const sessionDeleteFeature: ClientFeature = {
       ctx.slots.register(
         {
           name: SESSION_HEADER_UTILITIES,
-          id: 'mcp-manager-session-delete',
+          id: 'smkit-session-delete',
           order: 50,
           locale: 'session-delete',
         },

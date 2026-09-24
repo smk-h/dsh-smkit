@@ -110,12 +110,12 @@ it('connects an authMode:"none" HTTP server without sending Authorization', asyn
   const stub = await startStub()
   const { handler } = makeCtx()
 
-  const created = await request(handler, 'POST', '/mcp-manager/api/servers', { name: 'noauth', type: 'http', url: stub.url, authMode: 'none' })
+  const created = await request(handler, 'POST', '/smkit/api/servers', { name: 'noauth', type: 'http', url: stub.url, authMode: 'none' })
   assert.equal(created.code, 201)
   assert.equal(created.json.server.authMode, 'none')
   assert.notEqual(created.json.server.status, 'needs-auth', 'a no-auth server must not wait for credentials')
 
-  const connected = await request(handler, 'POST', `/mcp-manager/api/servers/${created.json.server.id}/connect`)
+  const connected = await request(handler, 'POST', `/smkit/api/servers/${created.json.server.id}/connect`)
   assert.equal(connected.code, 200)
   assert.equal(connected.json.server.status, 'connected')
   assert.equal(connected.json.server.toolCount, 1)
@@ -126,7 +126,7 @@ it('connects an authMode:"none" HTTP server without sending Authorization', asyn
   const persisted = JSON.parse(readFileSync(statePath, 'utf8'))
   assert.equal(persisted.servers.find((server) => server.name === 'noauth').authMode, 'none')
 
-  const authAttempt = await request(handler, 'POST', `/mcp-manager/api/servers/${created.json.server.id}/auth`)
+  const authAttempt = await request(handler, 'POST', `/smkit/api/servers/${created.json.server.id}/auth`)
   assert.equal(authAttempt.code, 400, 'OAuth must not start for a no-auth server')
 
   await stub.close()
@@ -135,7 +135,7 @@ it('connects an authMode:"none" HTTP server without sending Authorization', asyn
 it('keeps oauth, static, and unknown auth modes gated behind credentials', async () => {
   const { handler } = makeCtx()
   for (const [name, authMode] of [['reg-oauth', 'oauth'], ['reg-static', 'static'], ['reg-bogus', 'bogus']]) {
-    const res = await request(handler, 'POST', '/mcp-manager/api/servers', { name, type: 'http', url: 'http://127.0.0.1:9/mcp', authMode })
+    const res = await request(handler, 'POST', '/smkit/api/servers', { name, type: 'http', url: 'http://127.0.0.1:9/mcp', authMode })
     assert.equal(res.code, 201)
     assert.equal(res.json.server.status, 'needs-auth', name + ' must stay needs-auth')
     assert.equal(res.json.server.authMode, authMode === 'bogus' ? 'oauth' : authMode)
@@ -145,7 +145,7 @@ it('keeps oauth, static, and unknown auth modes gated behind credentials', async
 it('accepts authMode:"none" for a workspace server and writes no tokenEnv', async () => {
   const wsDir = mkdtempSync(join(tmpdir(), 'dsh-smkit-noauth-ws-'))
   const { handler } = makeCtx({ workspacePath: wsDir })
-  const res = await request(handler, 'POST', '/mcp-manager/api/workspaces/servers', { path: wsDir, name: 'ws-noauth', type: 'http', url: 'http://127.0.0.1:9316/mcp', authMode: 'none' })
+  const res = await request(handler, 'POST', '/smkit/api/workspaces/servers', { path: wsDir, name: 'ws-noauth', type: 'http', url: 'http://127.0.0.1:9316/mcp', authMode: 'none' })
   assert.equal(res.code, 200)
   const raw = JSON.parse(readFileSync(join(wsDir, '.dsh', 'dshmm', 'mcp.json'), 'utf8'))
   assert.equal(raw.mcpServers['ws-noauth'].authMode, 'none')

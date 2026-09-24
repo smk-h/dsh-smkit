@@ -8,7 +8,7 @@
  *
  * Both render the status they are handed, transient ones included: a
  * `connecting`/`authorizing` connection draws as a spinning arc in the same
- * colour the settled dot would have (`mm_statusSpin` in `style/pill.css`) —
+ * colour the settled dot would have (`smkit-ui-spin` in `style/pill.css`) —
  * motion carries "working on it" instead of a colour change. Rows keep this
  * honest for user-initiated transitions by previewing the intermediate status
  * at click time (see `McpContent`'s `statusPreviews`), so the spin starts
@@ -43,11 +43,11 @@ export function createStatusDot(deps: ClientDeps): (props: StatusDotProps) => JS
     const transient = isTransientStatus(status)
     return (
       <span
-        className={`mm_statusDot ${status}`}
-        data-spin={transient ? 'true' : undefined}
+        className={`smkit-mcp-pill-status-dot ${status}`}
+        data-smkit-spin={transient ? 'true' : undefined}
         aria-hidden="true"
       >
-        {transient ? <Loader size={9} className="mm_statusSpin" /> : null}
+        {transient ? <Loader size={9} className="smkit-ui-spin" /> : null}
       </span>
     )
   }
@@ -58,7 +58,7 @@ export function createStatusBadge(deps: ClientDeps): (props: StatusBadgeProps) =
 
   return function StatusBadge({ t, status }: StatusBadgeProps): JSX.Element {
     return (
-      <span className={`mm_badge ${status}`}>
+      <span className={`smkit-mcp-pill-badge ${status}`}>
         {t(status)}
       </span>
     )

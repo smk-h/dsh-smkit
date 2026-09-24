@@ -126,54 +126,54 @@ export function createSkillRow(deps: ClientDeps): (props: SkillRowProps) => JSX.
 
     /** The facts the confirmation shows: the root, and exactly what goes. */
     const facts = (
-      <div className="sk_facts">
-        <div className="sk_fact">
-          <span className="sk_factLabel">{t('detailRoot')}</span>
-          <span className="sk_factValue">{root}</span>
+      <div className="smkit-skill-detail-facts">
+        <div className="smkit-skill-detail-fact">
+          <span className="smkit-skill-detail-fact-label">{t('detailRoot')}</span>
+          <span className="smkit-skill-detail-fact-value">{root}</span>
         </div>
-        <div className="sk_fact">
-          <span className="sk_factLabel">{t('detailPath')}</span>
-          <span className="sk_factValue">{skill.path}</span>
+        <div className="smkit-skill-detail-fact">
+          <span className="smkit-skill-detail-fact-label">{t('detailPath')}</span>
+          <span className="smkit-skill-detail-fact-value">{skill.path}</span>
         </div>
         {skill.linked ? (
-          <div className="sk_fact">
-            <span className="sk_factLabel">{t('detailRealPath')}</span>
-            <span className="sk_factValue">{skill.realPath}</span>
+          <div className="smkit-skill-detail-fact">
+            <span className="smkit-skill-detail-fact-label">{t('detailRealPath')}</span>
+            <span className="smkit-skill-detail-fact-value">{skill.realPath}</span>
           </div>
         ) : null}
       </div>
     )
 
     return (
-      <div className="sk_row" data-disabled={enabled ? undefined : 'true'}>
-        <button className="sk_open" type="button" onClick={() => setDialog('detail')} disabled={busy}>
-          <span className="sk_glyph">
+      <div className="smkit-skill-row" data-smkit-disabled={enabled ? undefined : 'true'}>
+        <button className="smkit-skill-row-open" type="button" onClick={() => setDialog('detail')} disabled={busy}>
+          <span className="smkit-skill-row-glyph">
             <WandSparklesIcon size={14} />
           </span>
-          <span className="sk_text">
-            <span className="sk_name" title={skill.name}>
+          <span className="smkit-skill-row-text">
+            <span className="smkit-skill-row-name" title={skill.name}>
               {skill.name}
             </span>
-            {skill.description ? <span className="sk_desc">{skill.description}</span> : null}
+            {skill.description ? <span className="smkit-skill-row-desc">{skill.description}</span> : null}
           </span>
         </button>
-        {skill.rel ? <span className="sk_chip">{skill.rel}</span> : null}
-        {skill.linked ? <span className="sk_chip">{t('linked')}</span> : null}
-        {enabled ? null : <span className="sk_chip sk_chipOff">{t('disabled')}</span>}
+        {skill.rel ? <span className="smkit-skill-row-chip">{skill.rel}</span> : null}
+        {skill.linked ? <span className="smkit-skill-row-chip">{t('linked')}</span> : null}
+        {enabled ? null : <span className="smkit-skill-row-chip smkit-skill-row-chip-off">{t('disabled')}</span>}
         <button
-          className="sk_switch"
+          className="smkit-skill-row-switch"
           type="button"
           role="switch"
           aria-checked={enabled}
-          data-on={enabled ? 'true' : 'false'}
+          data-smkit-on={enabled ? 'true' : 'false'}
           aria-label={enabled ? t('disable') : t('enable')}
           onClick={toggle}
           disabled={busy}
         >
-          <span className="sk_switchThumb" />
+          <span className="smkit-skill-row-switch-thumb" />
         </button>
         <button
-          className="mm_iconBtn sk_trash"
+          className="smkit-ui-icon-button smkit-skill-row-trash"
           type="button"
           aria-label={t('remove')}
           onClick={() => setDialog('remove')}
@@ -195,7 +195,7 @@ export function createSkillRow(deps: ClientDeps): (props: SkillRowProps) => JSX.
             onConfirm={remove}
           />
         ) : null}
-        {dialog === 'none' && error ? <div className="mm_err">{error}</div> : null}
+        {dialog === 'none' && error ? <div className="smkit-ui-field-error">{error}</div> : null}
       </div>
     )
   }

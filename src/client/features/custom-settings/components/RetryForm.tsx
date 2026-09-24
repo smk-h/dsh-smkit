@@ -138,8 +138,8 @@ export function createRetryForm(deps: ClientDeps): (props: RetryFormProps) => JS
     }
 
     return (
-      <div className="lr_row">
-        <div className="lr_form">
+      <div className="smkit-cs-retry-row">
+        <div className="smkit-cs-retry-form">
           <label>
             {t('mode')}
             <select
@@ -185,24 +185,24 @@ export function createRetryForm(deps: ClientDeps): (props: RetryFormProps) => JS
             />
           </label>
         </div>
-        <div className="lr_help">{mode === 'normal' ? t('maxRetriesHelp') : t('unlimitedHelp')}</div>
-        <div className="lr_help">{t('backoffHelp')}</div>
-        <div className="lr_help">{t('resetHint')}</div>
-        {error ? <div className="mm_err">{error}</div> : null}
-        <div className="lr_actions">
+        <div className="smkit-cs-retry-help">{mode === 'normal' ? t('maxRetriesHelp') : t('unlimitedHelp')}</div>
+        <div className="smkit-cs-retry-help">{t('backoffHelp')}</div>
+        <div className="smkit-cs-retry-help">{t('resetHint')}</div>
+        {error ? <div className="smkit-ui-field-error">{error}</div> : null}
+        <div className="smkit-cs-retry-actions">
           <button
-            className="mm_btn"
+            className="smkit-ui-button"
             onClick={save}
             disabled={busy}
-            data-pending={busy ? 'true' : undefined}
+            data-smkit-pending={busy ? 'true' : undefined}
             aria-busy={busy}
           >
             {t('save')}
           </button>
-          <button className="mm_btn" onClick={() => { void write(null) }} disabled={busy}>
+          <button className="smkit-ui-button" onClick={() => { void write(null) }} disabled={busy}>
             {t('reset')}
           </button>
-          <button className="mm_btn" onClick={onCancel} disabled={busy}>
+          <button className="smkit-ui-button" onClick={onCancel} disabled={busy}>
             {t('cancel')}
           </button>
         </div>
