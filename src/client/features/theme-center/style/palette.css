@@ -1,6 +1,8 @@
 /**
  * The palette panel: the header toggle's card and the floating panel it drops
- * from the viewport's top-right corner.
+ * from the conversation column's top-right corner — the window's corner only
+ * when the host gives it no header to hang off, which is also what the inline
+ * `right` the script writes (`../panelAnchor`) replaces.
  *
  * The panel paints itself from the same alias tokens it edits — so the panel
  * re-skins along with whatever it is tuning, and its own readability tracks the
@@ -38,6 +40,12 @@
 .smkit-theme-palette-panel {
   position: fixed;
   top: 56px;
+  /* The corner the panel actually hangs in is measured by the script
+   * (`../panelAnchor`), which writes an inline `right` while the toggle's own
+   * header is there: the column's edge, not the window's, so an opened Sidebar
+   * takes the panel left with its toggle. This declaration is that rule's
+   * fallback — and the inset it reuses, so the two cases read alike: change one
+   * and change `CORNER_INSET` too. */
   right: 12px;
   z-index: 10000;
   display: flex;

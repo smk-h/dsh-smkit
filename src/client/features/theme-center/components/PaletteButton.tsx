@@ -20,10 +20,15 @@
  * `data-smkit-palette-panel` marker the panel puts on its own root (the same
  * convention the icon picker's menu uses). Reaching for either by class name
  * instead would tie dismissal to the stylesheet, which is free to rename them.
+ *
+ * The panel's corner is hung off the header this toggle sits in rather than off
+ * the window, so opening the shell's right Sidebar takes the panel left with
+ * its own toggle instead of leaving it over the Sidebar (`../panelAnchor`).
  */
 
 import type { ClientDeps, Translator } from '../../../platform/types'
 import { createPaletteIcon } from '../icons/PaletteIcon'
+import { watchPanelAnchor } from '../panelAnchor'
 import { createPalettePanel } from './PalettePanel'
 
 export interface PaletteButtonProps {
@@ -65,6 +70,26 @@ export function createPaletteButton(deps: ClientDeps): (props: PaletteButtonProp
       }
       document.addEventListener('mousedown', onDown)
       return () => document.removeEventListener('mousedown', onDown)
+    }, [open])
+
+    /** Hang the panel in its column's corner, and keep it there.
+     *
+     * Both halves are asked for by marker, as the dismissal above does — the
+     * panel's own, and the toggle's, whose column is the nearest `header`
+     * ancestor. Nothing is remembered between them: the panel is this toggle's
+     * child, so the two come and go together, and a header the shell swaps out
+     * from under them takes the panel with it.
+     *
+     * A host without a header around this seat — a shell that seats the toggle
+     * somewhere else, or has none at all — keeps the stylesheet's own corner,
+     * so the panel is misplaced at worst and never unpinned. */
+    react.useEffect(() => {
+      if (!open || typeof document === 'undefined') return undefined
+      const panel = document.querySelector<HTMLElement>('[data-smkit-palette-panel]')
+      // The panel's column, which is the header both seats live in.
+      const column = document.querySelector('[data-smkit-palette-trigger]')?.closest('header') ?? null
+      if (!panel || column === null) return undefined
+      return watchPanelAnchor(panel, column)
     }, [open])
 
     const anchor = (
