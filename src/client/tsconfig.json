@@ -16,6 +16,9 @@
     "moduleResolution": "bundler",
     "jsx": "react",
     "jsxFactory": "h",
+    // The theme pack ships its 30 stylesheets as one generated JSON data
+    // file; the browser half imports it directly (tsdown inlines it).
+    "resolveJsonModule": true,
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": [],
     "noEmit": true,

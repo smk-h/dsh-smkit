@@ -20,6 +20,7 @@
 
 import { openSpecFeature } from './features/openspec/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
+import { themeCenterFeature } from './features/theme-center/client'
 import { settingsFeature } from './settings'
 import { createApi, createStream } from './platform/api'
 import { PLATFORM_LOCALE_EN } from './platform/i18n/en'
@@ -43,6 +44,7 @@ const FEATURES: ClientFeature[] = [
   sessionDeleteFeature,
   settingsFeature,
   openSpecFeature,
+  themeCenterFeature,
 ]
 
 export function createPlugin(): { apply(ctx: ClientContext): void; inject: string[] } {

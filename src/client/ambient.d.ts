@@ -171,6 +171,10 @@ declare namespace JSX {
 
   interface ParagraphProps extends CommonProps {}
 
+  /** The italic run — today only the theme card's palette chips, which the
+   * row's stylesheet sizes by tag (`... .chips i`). */
+  interface ItalicProps extends CommonProps {}
+
   interface SvgProps extends CommonProps {
     width?: string | number
     height?: string | number
@@ -192,6 +196,7 @@ declare namespace JSX {
     h2: CommonProps
     h3: CommonProps
     p: ParagraphProps
+    i: ItalicProps
     a: AnchorProps
     input: InputProps
     select: SelectProps

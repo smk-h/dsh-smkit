@@ -125,6 +125,15 @@ export interface ClientContext {
    * gesture, not the bundle.
    */
   reflect?: { get(name: string): unknown }
+  /**
+   * Cordis's service publication: the mirror image of `inject`, handing a
+   * named service to whoever declares it. The theme center publishes its
+   * programmatic API through it (`dshTheme`) so a sibling plugin can drive
+   * themes without reaching into `window`. Optional because the harnesses
+   * that mount the client half in Node provide reflection reads, not
+   * publication.
+   */
+  provide?: (name: string, value: unknown) => void
 }
 
 /**
