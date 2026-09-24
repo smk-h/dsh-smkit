@@ -11,11 +11,14 @@
  *
  * `state` picks the colour and nothing else. `done` is the outcome that needs
  * no explanation, `warning` the one that needs the user, `error` the one that
- * went wrong, and `idle` the absence of all three. `active` is the palette's own
- * blue — the ink a switched-on control wears — for a subject that carries a
- * setting of its own instead of the default. (DSH adds an animated `ongoing`
- * `ongoing` for a live process; here a process in flight already has the
- * platform spinner, and a dot that turns is two answers to one question.)
+ * went wrong, and `idle` the absence of all three. `active` is blue — a fixed
+ * blue rather than the palette's — for a subject that carries a setting of its
+ * own instead of the default. That ink is written out in `state-dot.css`
+ * because a monochrome theme repaints the palette's accent to a grey this mark
+ * would then share with `idle`, which is the one colour it must not share.
+ * (DSH adds an animated `ongoing` for a live process; here a process in flight
+ * already has the platform spinner, and a dot that turns is two answers to one
+ * question.)
  *
  * **The name is this component's business only when there is no text beside
  * it.** DSH pairs its dot with a word or a row label and hides the mark from

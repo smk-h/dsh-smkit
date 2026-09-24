@@ -61,11 +61,33 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* The palette's own blue, on a dot that says nothing went wrong and something is
- * switched on: a subject wearing a setting of its own instead of the default.
- * DSH spends its blue on the animated `ongoing` ring, which this layer does not
- * carry, so the static mark takes the alias the filled controls wear —
- * `state-business-primary`, the step under the 450 that ring pins. */
+/* The blue that says nothing went wrong and something is switched on — a
+ * subject wearing a setting of its own instead of the default. It is the one
+ * mark in this sheet no theme may repaint, and that is the point.
+ *
+ * It used to wear `--dsw-alias-state-business-primary`, the alias the filled
+ * controls wear. That is the right ink for a control, whose colour is the
+ * theme's own accent showing through, but the wrong one for this dot, whose
+ * blue is not decoration: it is the answer to "overridden or default". Four of
+ * the shipped themes — graphite, ink, charcoal, mono — are monochrome on
+ * purpose, and each repaints that alias to a grey of its own; charcoal paints
+ * it `#333333` against an `idle` of `#7d7d7d`. The mark then lands a shade away
+ * from the very colour it has to be told apart from, and the one thing it
+ * exists to report stops being readable.
+ *
+ * So the ink comes from the static ramp instead: the brand's fixed blue scale,
+ * which the built-in themes leave alone. The ported themes do remap it, to
+ * their own hue — and there the mark still lands on a colour rather than a
+ * grey, which is all this rule asks for. The literal answers a host that
+ * publishes no static ramp at all. */
 .smkit-ui-state-dot[data-smkit-state='active'] {
-  color: var(--dsw-alias-state-business-primary);
+  color: var(--dsw-static-deepseek-500, #4d6bfe);
+}
+
+/* On a dark canvas the mark steps up the same scale rather than down: the dark
+ * palette's business blue is itself a *light* step (see `button.css`), so a
+ * fixed ink has to follow it toward the light end — deepening here would sink
+ * the dot toward the surface it sits on. */
+body[data-ds-dark-theme] .smkit-ui-state-dot[data-smkit-state='active'] {
+  color: var(--dsw-static-deepseek-300, #7d93ff);
 }
