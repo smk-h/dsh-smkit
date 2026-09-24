@@ -1,6 +1,6 @@
 /**
  * The conversation header's OpenSpec control, driven through the real client
- * bundle in a hook harness: hover opens the panel, the panel shows what the
+ * bundle in a hook harness: a click opens the panel, the panel shows what the
  * host answered, and the delete asks first and then reports what it did.
  *
  * Four things are worth testing beyond "the paths are rendered":
@@ -8,11 +8,11 @@
  * - the panel is placed from measured coordinates — right-aligned under the
  *   control, and on the side with room — which is the one piece of geometry
  *   this control computes rather than reads;
- * - hovering is what reads the workspace, so a control that has not been
- *   hovered must have requested nothing;
- * - the hover that counts is a pointer *moving* on the control: the header can
- *   slide the control under a still pointer, and that arrival must open
- *   nothing;
+ * - opening is what reads the workspace, so a control that has not been opened
+ *   must have requested nothing;
+ * - the panel follows its control rather than the viewport: it is re-placed
+ *   when the control moves, when the column it sits in changes width, and it
+ *   gives up when the control leaves the viewport or the document;
  * - the delete is one action over the whole footprint, and a partial failure is
  *   reported inside the panel rather than read as a success.
  *
@@ -121,6 +121,17 @@ const branchesOf = (tree) =>
  */
 function anchorNode() {
   const rect = { left: 1000, top: 20, right: 1028, bottom: 48, width: 28, height: 28 }
+  // The column the control sits in: what the width watch observes (`closest`),
+  // and what the panel's right edge is measured against. Its right edge is the
+  // pane's — the window's, with no sidebar — while the control's own right edge
+  // is well inside it, because the header's utilities carry on past this seat.
+  // One shared object, so the observer's target is the same element from render
+  // to render the way a real header is.
+  const headerRect = { left: 0, top: 0, right: 1280, bottom: 56 }
+  const header = {
+    tagName: 'HEADER',
+    getBoundingClientRect: () => ({ ...headerRect }),
+  }
   return {
     node: {
       parentElement: null,
@@ -128,28 +139,35 @@ function anchorNode() {
       // A live node in a live document: what the re-measure asks before it
       // trusts the box it is about to follow.
       isConnected: true,
+      // The bundle asks for the header by tag name and for nothing else.
+      closest: (selector) => (selector === 'header' ? header : null),
       // A fresh object every call, the way a real rect is: the panel keeps the
       // box it measured as its comparison baseline, and a shared object would
       // let a moved control silently move its own baseline with it.
       getBoundingClientRect: () => ({ ...rect }),
     },
+    header,
+    headerRect,
     rect,
   }
 }
 
 /**
- * The box the placement below produces for the panel: right edges aligned with
- * the control, hanging under it. The harness's own hit-test reads it, so the
- * leave guards can tell a real leave from a right-press's report.
+ * The shell's `Tooltip` as the bundle sees it: a component the bundle *renders*
+ * rather than calls, so this only has to pass its children through — the
+ * harness's tree walk expands a function component by calling it, and the
+ * control inside the bubble has to stay reachable.
  */
-const panelRect = { left: 668, top: 54, right: 1028, bottom: 400 }
+function HostTooltip(props) {
+  return { type: 'span', props: {}, children: props.children }
+}
 
 /**
  * A stand-in for one DOM element, shared into the bundle's scope as `Element`.
  *
- * The panel's dismissal rules ask two questions of an event target — is it
- * inside the panel, and where did focus go — and both are answered with
- * `closest` and an identity. A class (rather than a plain object) is what makes
+ * The panel's dismissal rule asks one question of an event target — is it
+ * inside the panel, or on the control — and the answer is `closest` plus an
+ * identity. A class (rather than a plain object) is what makes
  * `target instanceof Element` true the way it is in a browser.
  */
 class SandboxElement {
@@ -252,8 +270,9 @@ const workspaceState = (items = []) => ({ items, archivedSessionIds: [], state: 
 /**
  * Mount the real client bundle with a hook harness and mount the header slot.
  * @param options - the URL-routed fetch stub, the store state the selectors
- *   read, and the control's stand-in geometry.
- * @returns the render, hover and click helpers plus the recorded calls.
+ *   read, the control's stand-in geometry, and whether the host resolved the
+ *   shell's hover bubble.
+ * @returns the render, open and click helpers plus the recorded calls.
  */
 function mount({
   fetch,
@@ -261,6 +280,7 @@ function mount({
   workspace = workspaceState(),
   anchor = anchorNode(),
   sidebar = false,
+  tooltip = true,
 }) {
   const node = anchor.node
   const calls = []
@@ -327,20 +347,22 @@ function mount({
   const frames = new Map()
   let nextFrame = 1
   const body = new SandboxElement('BODY', () => null)
-  // The leave guards ask the browser's own question — what is under this
-  // point — so the stub document answers it. Both surfaces are rounded for
-  // real (a 28px circle for the control, 10px corners for the panel), and
-  // that rounding is exactly what a slow walk-out reports from: a point
-  // inside the bounding rectangle but outside the drawn surface, which the
-  // old box test read as "still on it" and swallowed a genuine leave.
-  const panelTarget = { getBoundingClientRect: () => panelRect }
-  const onAnchor = (x, y) => (x - 1014) ** 2 + (y - 34) ** 2 <= 14 ** 2
-  const onPanel = (x, y) => {
-    if (x < panelRect.left || x > panelRect.right || y < panelRect.top || y > panelRect.bottom) return false
-    const rx = x < panelRect.left + 10 ? panelRect.left + 10 : x > panelRect.right - 10 ? panelRect.right - 10 : null
-    const ry = y < panelRect.top + 10 ? panelRect.top + 10 : y > panelRect.bottom - 10 ? panelRect.bottom - 10 : null
-    if (rx === null || ry === null) return true
-    return (x - rx) ** 2 + (y - ry) ** 2 <= 10 ** 2
+  // The column watch, as the platform's `ResizeObserver`: the control observes
+  // the header it sits in, so a test can report the observation a grid track
+  // transition makes — the one layout change no scroll or resize event
+  // announces.
+  const observers = []
+  class SandboxResizeObserver {
+    constructor(callback) {
+      this.callback = callback
+      this.targets = []
+      this.disconnected = false
+      observers.push(this)
+    }
+
+    observe(target) { this.targets.push(target) }
+
+    disconnect() { this.disconnected = true }
   }
   // `installStylesheet` runs at bundle load and needs a document that can take
   // a <style>; nothing else here is a real DOM, only what the bundle asks for.
@@ -349,13 +371,23 @@ function mount({
     body,
     querySelector: () => null,
     createElement: () => ({ dataset: {} }),
-    elementFromPoint: (x, y) => (onAnchor(x, y) ? node : onPanel(x, y) ? panelTarget : null),
     addEventListener: onDocument.add,
     removeEventListener: onDocument.remove,
   }
   runInNewContext(source, {
     window: {
-      __ModuleLoader__: { load: ({ factory }) => { exported = factory((id) => (id === 'react' ? react : undefined)) } },
+      __ModuleLoader__: {
+        load: ({ factory }) => {
+          exported = factory((id) => {
+            if (id === 'react') return react
+            // The shell's hover bubble is resolved from the platform module
+            // table; `tooltip: false` is the host whose table has no such
+            // module, where the control falls back to the browser's own title.
+            if (id === '@deepseek-ai/dsh-client-ui-primitives' && tooltip) return { Tooltip: HostTooltip }
+            return undefined
+          })
+        },
+      },
       // What `clipBounds` narrows the placement to.
       innerWidth: 1280,
       innerHeight: 800,
@@ -364,6 +396,7 @@ function mount({
     },
     document: fakeDocument,
     Element: SandboxElement,
+    ResizeObserver: SandboxResizeObserver,
     // The streaming reader decodes the SSE bytes as they arrive; the harness
     // hands it the platform's own decoder so the update path runs unchanged.
     TextDecoder: globalThis.TextDecoder,
@@ -404,8 +437,9 @@ function mount({
   return {
     calls,
     opened,
-    document: fakeDocument,
     node,
+    header: anchor.header,
+    headerRect: anchor.headerRect,
     render() {
       cursor = 0
       effectCursor = 0
@@ -429,7 +463,7 @@ function mount({
     /** A target inside the panel, and one outside everything the panel owns. */
     inside: () => new SandboxElement('DIV', (selector) => (selector === '.smkit-spec-openspec-panel' ? 'panel' : null)),
     outside: () => new SandboxElement('DIV', () => null),
-    /** Let the grace period elapse, then render what it did. */
+    /** Let the timers the platform's busy face runs elapse, then render. */
     runTimers() {
       const pending = [...timers.values()]
       timers.clear()
@@ -444,12 +478,15 @@ function mount({
       return this.render()
     },
     /**
-     * Slide the control's box vertically, the way a reflow or a scrolling page
-     * moves it under an open panel.
+     * Slide the control's box, the way a reflow or a scrolling page moves it
+     * under an open panel. Vertically for a page, horizontally for the header's
+     * own run travelling when the frame beside it changes width.
      */
-    moveNode({ top, bottom }) {
-      anchor.rect.top = top
-      anchor.rect.bottom = bottom
+    moveNode({ top, bottom, left, right }) {
+      if (top !== undefined) anchor.rect.top = top
+      if (bottom !== undefined) anchor.rect.bottom = bottom
+      if (left !== undefined) anchor.rect.left = left
+      if (right !== undefined) anchor.rect.right = right
       return { ...anchor.rect }
     },
     /** Take the control out of the document, as an unmount would. */
@@ -457,60 +494,51 @@ function mount({
       anchor.node.isConnected = false
     },
     /**
-     * Hover the control the way a browser reports a hand doing it: the pointer
-     * enters the control and then moves within it, both dispatched from one
-     * pointer sample, enter first. Both halves are delivered because which one
-     * the control opens on is the point of the reflow test below.
+     * The bubble the control wears while the panel is down, if the host
+     * resolved one: the shell's own component, found by the label it was handed.
      */
-    async hover() {
-      const host = withClass(this.render(), 'smkit-spec-openspec-host')
-      assert.ok(host, 'the control must render a host element')
-      if (typeof host.props.onMouseEnter === 'function') host.props.onMouseEnter({ currentTarget: node })
-      this.move()
+    bubble(tree = this.render()) {
+      return nodes(tree).find((entry) => entry.props?.label === 'manageOpenSpec')
+    },
+    /**
+     * Open the panel the way a user does, with a click on the control.
+     *
+     * Idempotent on purpose: the click is a toggle, and nearly every test below
+     * is about what happens once the panel is up rather than about the gesture
+     * that raised it.
+     */
+    async open() {
+      if (token(this.render(), 'smkit-spec-openspec-panel') === undefined) this.clickControl()
       await flush()
       return this.render()
     },
-    /** Move the pointer on the control: the gesture the panel opens on. */
-    move() {
-      const host = withClass(this.render(), 'smkit-spec-openspec-host')
-      assert.ok(host, 'the control must render a host element')
-      host.props.onMouseMove({ currentTarget: node, clientX: 1010, clientY: 30 })
+    /** The control's own click, exactly as the bundle declares it. */
+    clickControl() {
+      const control = token(this.render(), 'smkit-spec-openspec-btn')
+      assert.ok(control, 'the control must render its button')
+      control.props.onClick({ currentTarget: node })
+      return this.render()
+    },
+    /** The cross at the head's end, pressed. */
+    clickCross() {
+      const cross = token(this.render(), 'smkit-spec-openspec-close')
+      assert.ok(cross, 'the panel must render its cross')
+      cross.props.onClick()
       return this.render()
     },
     /**
-     * The enter alone: what the browser reports when the header reflows and
-     * the control arrives under a pointer that never moved. Delivered to
-     * whatever handler the control declares for it, if any — an implementation
-     * that opens on this is the bug, not this harness.
+     * The column changed width under the control — the sidebar opened or
+     * closed, or a divider was dragged. No scroll and no resize announces it;
+     * the observation is the whole of the news.
      */
-    arrive() {
-      const host = withClass(this.render(), 'smkit-spec-openspec-host')
-      assert.ok(host, 'the control must render a host element')
-      if (typeof host.props.onMouseEnter === 'function') host.props.onMouseEnter({ currentTarget: node })
+    resizeColumn() {
+      for (const observer of observers) {
+        if (observer.disconnected) continue
+        for (const target of observer.targets) observer.callback([{ target }])
+      }
       return this.render()
     },
-    /**
-     * Move the pointer off the control, away from the panel.
-     * @param at - where the event reports the pointer was. A point inside the
-     *   control's box is what a right-press reports, and is not a leave.
-     */
-    leave(at = { x: 0, y: 0 }) {
-      const host = withClass(this.render(), 'smkit-spec-openspec-host')
-      host.props.onMouseLeave({ clientX: at.x, clientY: at.y, currentTarget: node })
-      return this.render()
-    },
-    /** Move the pointer off the panel; `at` as in `leave`. */
-    leavePanel(at = { x: 0, y: 0 }) {
-      const panel = withClass(this.render(), 'smkit-spec-openspec-panel')
-      // The one shared object, so the guard's identity check against the
-      // hit-test's answer sees the same surface the event was delivered to.
-      panel.props.onMouseLeave({
-        clientX: at.x,
-        clientY: at.y,
-        currentTarget: panelTarget,
-      })
-      return this.render()
-    },
+    observers,
   }
 }
 
@@ -529,29 +557,32 @@ const updateRouting = (events, view = VIEW) => (url) =>
 const orderOf = (tree, name) =>
   nodes(tree).findIndex((node) => String(node.props?.className ?? '').split(' ').includes(name))
 
-it('reads nothing until it is hovered, and opens closed', () => {
+it('reads nothing until it is opened, and opens closed', () => {
   const app = mount({ fetch: routing() })
   const tree = app.render()
   const control = nodes(tree).find((node) => node.props?.['aria-label'] === 'manageOpenSpec')
 
   assert.ok(control, 'the control names itself for a screen reader')
   assert.equal(control.props['aria-expanded'], false)
-  assert.equal(withClass(tree, 'smkit-spec-openspec-panel'), undefined, 'the panel is not rendered before a hover')
+  assert.equal(withClass(tree, 'smkit-spec-openspec-panel'), undefined, 'the panel is not rendered before a click')
   assert.deepEqual(app.calls, [], 'and nothing has been asked of the host')
 })
 
-it('opens on hover, right-aligned under the control, and shows the footprint', async () => {
+it('opens on a click, in its column\u2019s corner, and shows the footprint', async () => {
   const app = mount({ fetch: routing(), sidebar: true })
-  const shown = await app.hover()
+  const shown = await app.open()
 
   assert.equal(app.calls[0].url, '/smkit/api/openspec?cwd=%2Fwork%2Fapp')
   const panel = nodes(shown).find((node) => node.props?.className === 'smkit-spec-openspec-panel')
-  assert.ok(panel, 'the hover opens the panel')
+  assert.ok(panel, 'the click opens the panel')
 
-  // Placed from the control's own rect: right edges aligned, hanging below it.
+  // Placed from the column's own rect, hanging below the control. The right
+  // edge is the pane's — the window's minus the gutter — and *not* the
+  // control's 1028: the header's utilities carry on past this seat, so aligning
+  // to the button would leave the rest of that run outside the panel.
   const style = panel.props.style
-  assert.equal(Number.parseFloat(style.left) + Number.parseFloat(style.width), 1028)
-  assert.equal(style.top, '54px')
+  assert.equal(Number.parseFloat(style.left) + Number.parseFloat(style.width), 1274)
+  assert.equal(style.top, '54px', 'hanging below the control it dropped from')
 
   const text = texts(shown).join(' | ')
   assert.equal(
@@ -623,7 +654,7 @@ it('opens on hover, right-aligned under the control, and shows the footprint', a
 
 it('leaves a file click alone on a host without the sidebar column', async () => {
   const app = mount({ fetch: routing() })
-  const shown = await app.hover()
+  const shown = await app.open()
 
   rowFor(shown, 'smkit-spec-openspec-dir-row', 'changes').props.onClick()
   const unfolded = app.render()
@@ -635,7 +666,7 @@ it('leaves a file click alone on a host without the sidebar column', async () =>
 
 it('keeps the generated entries behind a toggle, and the tree at the bottom', async () => {
   const app = mount({ fetch: routing() })
-  const shown = await app.hover()
+  const shown = await app.open()
 
   // Closed by default: the count is what an open usually wants, the list of
   // generated names is not.
@@ -686,7 +717,7 @@ it('keeps the generated entries behind a toggle, and the tree at the bottom', as
 
 it('asks before removing, and names everything the question covers', async () => {
   const app = mount({ fetch: routing() })
-  const shown = await app.hover()
+  const shown = await app.open()
   const remove = nodes(shown).find((node) => node.props?.className === 'smkit-ui-button danger smkit-spec-openspec-remove')
   assert.equal(remove.props.disabled, false)
 
@@ -705,15 +736,19 @@ it('posts the workspace, keeps the panel through the question, and reports what 
   const app = mount({
     fetch: routing(VIEW, { removed: ['.agents/skills/openspec-propose'], failed: [{ rel: 'openspec', error: 'EBUSY' }], bytes: 300 }),
   })
-  await app.hover()
+  await app.open()
   nodes(app.render()).find((node) => node.props?.className === 'smkit-ui-button danger smkit-spec-openspec-remove').props.onClick()
+  // The click flips `asking`, and the listeners are installed by an effect that
+  // re-runs with it: the press below has to meet the state the dialog is
+  // actually in, not the one before it opened.
+  app.render()
 
-  // Reaching the confirmation is a leave — the pointer is on the dialog now —
-  // and it is the one leave the panel has to survive: the answer to the
-  // question is what it is there to show.
-  app.leavePanel()
+  // The confirmation is a step *inside* the panel's own flow — the panel has to
+  // survive it to show what the delete left behind — and the dialog is a
+  // portaled overlay the panel's own surface check cannot see, so `asking` is
+  // what answers for a press that lands on it.
+  app.dispatch('pointerdown', { target: app.outside() })
   assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'the panel outlives the confirmation')
-  assert.ok(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), 'and the pending leave is refused while the question is up')
 
   nodes(app.render()).find((node) => node.props?.className === 'smkit-ui-button danger').props.onClick()
   await flush()
@@ -744,7 +779,7 @@ it('flags the part the layout expects and the disk does not have', async () => {
       },
     }),
   })
-  const text = texts(await app.hover()).join(' | ')
+  const text = texts(await app.open()).join(' | ')
 
   assert.ok(
     text.includes('openSpecMissing({"names":"changes"})'),
@@ -755,7 +790,7 @@ it('flags the part the layout expects and the disk does not have', async () => {
 
 it('offers the initialise where there is nothing to delete', async () => {
   const app = mount({ fetch: routing(EMPTY) })
-  const shown = await app.hover()
+  const shown = await app.open()
 
   const text = texts(shown).join(' | ')
   assert.ok(text.includes('openSpecStatusAbsent'), 'the body says what is missing in words')
@@ -782,7 +817,7 @@ it('runs openspec init for the workspace, then reads the store back', async () =
       return response(initialized ? VIEW : EMPTY)
     },
   })
-  const shown = await app.hover()
+  const shown = await app.open()
   token(shown, 'smkit-spec-openspec-init').props.onClick()
   await flush()
 
@@ -820,7 +855,7 @@ it('reports a refused init as an instruction, and offers it again', async () => 
       ? response({ error: 'the openspec command was not found on PATH', code: 'openspec/not-installed', output: '' }, false, 503)
       : response(EMPTY),
   })
-  const shown = await app.hover()
+  const shown = await app.open()
   token(shown, 'smkit-spec-openspec-init').props.onClick()
   await flush()
 
@@ -833,7 +868,7 @@ it('reports a refused init as an instruction, and offers it again', async () => 
 
 it('offers both actions when the store is gone but its skills are not', async () => {
   const app = mount({ fetch: routing({ ...EMPTY, artifacts: VIEW.artifacts, totalEntries: 2 }) })
-  const shown = await app.hover()
+  const shown = await app.open()
 
   assert.ok(token(shown, 'smkit-spec-openspec-init'), 'the store can be created again')
   assert.ok(token(shown, 'smkit-spec-openspec-remove'), 'and what is left can still be removed')
@@ -841,7 +876,7 @@ it('offers both actions when the store is gone but its skills are not', async ()
 
 it('says so when the session has no workspace at all', async () => {
   const app = mount({ fetch: routing(), session: sessionState({}), workspace: workspaceState([]) })
-  const shown = await app.hover()
+  const shown = await app.open()
 
   assert.deepEqual(app.calls, [], 'a session without a directory is not asked about')
   assert.ok(texts(shown).join(' | ').includes('openSpecNoWorkspace'))
@@ -856,7 +891,7 @@ it('says so when the session has no workspace at all', async () => {
 
 it('reports a failed read inside the panel rather than as an empty workspace', async () => {
   const app = mount({ fetch: async () => { throw new Error('network down') } })
-  const shown = await app.hover()
+  const shown = await app.open()
 
   assert.ok(texts(shown).join(' | ').includes('openSpecLoadFailed'))
   assert.equal(token(shown, 'smkit-ui-state-dot'), undefined, 'and claims no status it could not read')
@@ -864,8 +899,8 @@ it('reports a failed read inside the panel rather than as an empty workspace', a
 
 it('survives the page scrolling under it, and follows the control instead', async () => {
   const app = mount({ fetch: routing() })
-  await app.hover()
-  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'the hover opened it')
+  await app.open()
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'the click opened it')
 
   // Reading past the fold scrolls the panel's own body: a re-measure finds the
   // control exactly where it was, and the panel keeps its placement.
@@ -878,12 +913,12 @@ it('survives the page scrolling under it, and follows the control instead', asyn
   // that never left. The control has not moved, so the answer is still no.
   app.dispatch('scroll', { type: 'scroll', target: app.outside() })
   app.flushFrames()
-  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'a page scroll that leaves the header alone is not a leave')
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'a page scroll that leaves the header alone is not a dismissal')
 })
 
 it('re-places itself when the control moves, and goes when the control leaves the viewport', async () => {
   const app = mount({ fetch: routing() })
-  const before = await app.hover()
+  const before = await app.open()
   const panelBefore = withClass(before, 'smkit-spec-openspec-panel')
   assert.ok(panelBefore)
 
@@ -913,7 +948,7 @@ it('re-places itself when the control moves, and goes when the control leaves th
 
 it('closes when its control leaves the document', async () => {
   const app = mount({ fetch: routing() })
-  await app.hover()
+  await app.open()
   assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'))
 
   // The header re-rendering away the seat: the measured node is gone, and a
@@ -927,31 +962,72 @@ it('closes when its control leaves the document', async () => {
   )
 })
 
-it('stays open when the press lands on a part of it that cannot be focused', async () => {
+it('wears the shell\u2019s bubble until the panel is up, and then suppresses it', async () => {
   const app = mount({ fetch: routing() })
-  await app.hover()
-  const host = withClass(app.render(), 'smkit-spec-openspec-host')
 
-  // A press on the panel's own text, tree or chips focuses nothing, which puts
-  // focus on the body: that is not the user walking away.
-  host.props.onBlur({ relatedTarget: app.document.body, currentTarget: app.node })
-  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'focus landing on the body is not a walk away')
+  const bubble = app.bubble()
+  assert.ok(bubble, 'the control names itself on hover, the way its neighbours do')
+  assert.equal(bubble.props.label, 'manageOpenSpec')
+  assert.equal(bubble.props.side, 'bottom', 'in the seat the header\u2019s controls use')
+  assert.equal(bubble.props.disabled, false, 'live while the panel is down')
 
-  host.props.onBlur({ relatedTarget: null, currentTarget: app.node })
-  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'and neither is focus landing nowhere')
+  await app.open()
+  assert.equal(
+    app.bubble().props.disabled,
+    true,
+    'a bubble that repeats the panel\u2019s own name, over the panel it just opened, is noise',
+  )
+})
 
-  // The panel's own controls live in a portaled subtree this host does not
-  // contain, so `contains` cannot answer for them: the panel class is what does.
-  host.props.onBlur({ relatedTarget: app.inside(), currentTarget: app.node })
-  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'focus moving to the panel\u2019s own toggle is not a walk away')
+it('falls back to the browser\u2019s own title where the host has no bubble', () => {
+  const app = mount({ fetch: routing(), tooltip: false })
 
-  host.props.onBlur({ relatedTarget: app.outside(), currentTarget: app.node })
-  assert.equal(withClass(app.render(), 'smkit-spec-openspec-panel'), undefined, 'a Tab onto another control still closes it')
+  assert.equal(app.bubble(), undefined, 'no shell module, no shell bubble')
+  assert.equal(
+    token(app.render(), 'smkit-spec-openspec-btn').props.title,
+    'manageOpenSpec',
+    'and the control is still named on hover',
+  )
+
+  // The bubble is the reason the wrapper is there at all, so a host without one
+  // renders the control bare rather than inside a component that does nothing.
+  assert.equal(withClass(app.render(), 'smkit-spec-openspec-host') !== undefined, true)
+})
+
+it('closes on its own cross, which holds the head\u2019s end, and on the control again', async () => {
+  const app = mount({ fetch: routing() })
+  const shown = await app.open()
+
+  // The cross is outside the actions group on purpose — that group's members
+  // come and go with what the read found, while the cross is always there — and
+  // it is the last thing in the head, past every action.
+  const head = withClass(shown, 'smkit-spec-openspec-head')
+  const classes = head.children.map((child) => String(child?.props?.className ?? ''))
+  const seatOf = (name) => classes.findIndex((entry) => entry.split(' ').includes(name))
+  assert.ok(
+    seatOf('smkit-spec-openspec-close') > seatOf('smkit-spec-openspec-actions'),
+    'the cross sits past the actions',
+  )
+  assert.equal(classes[classes.length - 1], 'smkit-ui-button smkit-spec-openspec-close', 'at the head\u2019s very end')
+
+  app.clickCross()
+  assert.equal(withClass(app.render(), 'smkit-spec-openspec-panel'), undefined, 'the cross dismisses the panel')
+
+  // The control is the other way out: opening is a click here, so the next
+  // click here has to close what it opened.
+  await app.open()
+  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'and the panel opens again')
+  app.clickControl()
+  assert.equal(
+    withClass(app.render(), 'smkit-spec-openspec-panel'),
+    undefined,
+    'the control closes the panel it opened',
+  )
 })
 
 it('closes on a press outside it, and only there', async () => {
   const app = mount({ fetch: routing() })
-  await app.hover()
+  await app.open()
 
   app.dispatch('pointerdown', { target: app.inside() })
   assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'a press on the panel is not a dismissal')
@@ -959,102 +1035,55 @@ it('closes on a press outside it, and only there', async () => {
   app.dispatch('keydown', { key: 'Escape' })
   assert.equal(withClass(app.render(), 'smkit-spec-openspec-panel'), undefined, 'Escape is')
 
-  await app.hover()
+  await app.open()
   app.dispatch('pointerdown', { target: app.outside() })
   assert.equal(withClass(app.render(), 'smkit-spec-openspec-panel'), undefined, 'and so is a press on the page behind it')
 })
 
-it('keeps the panel through a right-press, which reports a leave it never made', async () => {
+it('follows the column it sits in when that column changes width', async () => {
   const app = mount({ fetch: routing() })
-  await app.hover()
+  const before = await app.open()
+  const panelBefore = withClass(before, 'smkit-spec-openspec-panel')
+  assert.ok(panelBefore)
 
-  // The control: the browser's own menu opens under the pointer and the element
-  // under it is reported as losing the pointer. The tell is that the point
-  // still lands on the control's own surface.
-  app.leave({ x: 1010, y: 30 })
-  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'a leave reported from the control itself is not a leave')
+  // One watch, and it is on the column rather than on the control: a control
+  // that slides sideways keeps its own width, so a `ResizeObserver` on it would
+  // report nothing at all — which is exactly how the panel used to get left
+  // behind by an opening sidebar.
+  assert.equal(app.observers.length, 1, 'one watch, for the panel\u2019s lifetime')
+  assert.equal(app.observers[0].targets.length, 1)
+  assert.equal(app.observers[0].targets[0], app.header, 'the header the control sits in')
 
-  // The panel itself: the same report, from a point still on its surface.
-  app.leavePanel({ x: 700, y: 100 })
-  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'and neither is one from inside the panel')
-
-  // A leave the pointer did make is still a leave.
-  app.leavePanel({ x: 4, y: 4 })
-  assert.equal(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), undefined)
-})
-
-it('closes on a slow leave through a rounded corner, which the box test swallowed', async () => {
-  const app = mount({ fetch: routing() })
-  await app.hover()
-  // The panel has been entered, so no host-side timer is pending: the panel's
-  // own leave is the only thing that can dismiss the panel from here — exactly
-  // the state a real slow walk-out leaves behind.
-  withClass(app.render(), 'smkit-spec-openspec-panel').props.onMouseEnter()
-
-  // A point a couple of pixels into the top-right corner square is inside the
-  // panel's bounding rectangle but outside its drawn, rounded surface: the
-  // coordinates a `mouseleave` really reports when the pointer slides off
-  // along the arc. The old guard read them as "still on the panel" and the
-  // panel stayed open forever.
-  app.leavePanel({ x: panelRect.right - 2, y: panelRect.top + 2 })
-  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'the leave is a leave, but dismissal is still on the grace timer')
-  assert.equal(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), undefined, 'and the timer finds nothing to cancel: the panel closes')
-})
-
-it('gives the pointer time to cross to the panel', async () => {
-  const app = mount({ fetch: routing() })
-  await app.hover()
-  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'the hover opened it')
-
-  // A diagonal move toward the panel's far half leaves the control's 28px box
-  // through its *side*, at a height no geometric test can tell apart from
-  // walking away — so the leave starts a timer rather than closing.
-  app.leave({ x: 990, y: 30 })
-  assert.ok(withClass(app.render(), 'smkit-spec-openspec-panel'), 'the panel is still there the moment the pointer leaves')
-
-  // Reaching the panel is what the grace period is for.
-  withClass(app.render(), 'smkit-spec-openspec-panel').props.onMouseEnter()
-  assert.ok(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), 'and stays once the pointer got there')
-
-  // Walking away instead lets the timer have it.
-  app.leave({ x: 990, y: 30 })
-  assert.equal(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), undefined, 'a leave nothing cancels closes it')
-})
-
-it('lets the pointer come back before the grace period is up', async () => {
-  const app = mount({ fetch: routing() })
-  await app.hover()
-
-  app.leave({ x: 990, y: 30 })
-  // Coming back is a move onto the control: there is no other way back onto it.
-  app.move()
-  assert.ok(withClass(app.runTimers(), 'smkit-spec-openspec-panel'), 'returning to the control cancels the leave too')
-})
-
-it('does not open for a control that reflowed under a still pointer', () => {
-  const app = mount({ fetch: routing() })
-
-  // Closing the sidebar's last tab collapses it, the conversation grows, and
-  // the header's utilities — this control among them — slide sideways under a
-  // pointer that is still where its last click left it. The browser reports
-  // that arrival as an enter, and no move follows it.
-  assert.equal(
-    withClass(app.arrive(), 'smkit-spec-openspec-panel'),
-    undefined,
-    'a control that came to the pointer is not a hover',
+  // The sidebar opens: the conversation column narrows, the header\u2019s utilities
+  // — this control among them — travel left with it, and no scroll and no resize
+  // announces any of it. Both boxes move, because both really do.
+  app.moveNode({ top: 20, bottom: 48, left: 700, right: 728 })
+  app.headerRect.right = 960
+  app.resizeColumn()
+  const panelMoved = withClass(app.flushFrames(), 'smkit-spec-openspec-panel')
+  assert.ok(panelMoved, 'a column that changed width takes the panel with it')
+  assert.notEqual(
+    panelMoved.props.style.left,
+    panelBefore.props.style.left,
+    'and the placement is the new one',
   )
-  assert.deepEqual(app.calls, [], 'and a gesture nobody made reads nothing from the host')
+  assert.equal(
+    Number.parseFloat(panelMoved.props.style.left) + Number.parseFloat(panelMoved.props.style.width),
+    954,
+    'right-aligned to the narrowed column, not to where the control happens to sit',
+  )
 
-  // The smallest move on the control is a hand, and opens it.
-  assert.ok(withClass(app.move(), 'smkit-spec-openspec-panel'), 'moving on the control is what opens the panel')
-  assert.equal(app.calls.length, 1, 'and the arrival reads the workspace once, as it always did')
+  // Closing the panel takes the watch with it, the way it takes the keys and
+  // the pointer listener.
+  app.clickCross()
+  assert.equal(app.observers[0].disconnected, true, 'a closed panel stops watching its column')
 })
 
 // --- the head's refresh button -----------------------------------------------
 
 it('holds the refresh face for the floor, not just for the read', async () => {
   const app = mount({ fetch: routing() })
-  const shown = await app.hover()
+  const shown = await app.open()
   const refresh = token(shown, 'smkit-spec-openspec-refresh')
   assert.equal(refresh.props.disabled, false, 'an arrival leaves nothing pending')
 
@@ -1083,7 +1112,7 @@ it('holds the refresh face for the floor, not just for the read', async () => {
 
 it('holds the row\u2019s right end, wearing a glyph and naming the commands it runs', async () => {
   const app = mount({ fetch: routing() })
-  const shown = await app.hover()
+  const shown = await app.open()
 
   const dot = token(shown, 'smkit-ui-state-dot')
   const update = token(shown, 'smkit-spec-openspec-update')
@@ -1103,7 +1132,7 @@ it('holds the row\u2019s right end, wearing a glyph and naming the commands it r
 
 it('marks the button busy and the panel running while the stream is open', async () => {
   const app = mount({ fetch: updateRouting([{ type: 'line', stream: 'out', text: 'working' }]) })
-  const shown = await app.hover()
+  const shown = await app.open()
   token(shown, 'smkit-spec-openspec-update').props.onClick()
 
   // The click flips `updating` synchronously, before the first awaited read; a
@@ -1122,7 +1151,7 @@ it('streams the upgrade into the panel, then reads the footprint back', async ()
       { type: 'done', status: 'ok', exitCode: 0 },
     ]),
   })
-  const shown = await app.hover()
+  const shown = await app.open()
   token(shown, 'smkit-spec-openspec-update').props.onClick()
   await flush(20)
 
@@ -1149,7 +1178,7 @@ it('turns a failed upgrade into its localized reason, in the error style', async
       { type: 'done', status: 'failed', exitCode: 1 },
     ]),
   })
-  const shown = await app.hover()
+  const shown = await app.open()
   token(shown, 'smkit-spec-openspec-update').props.onClick()
   await flush(20)
 
@@ -1169,7 +1198,7 @@ it('phrases a missing npm as an instruction, not a stack', async () => {
       { type: 'done', status: 'npm-missing', exitCode: null },
     ]),
   })
-  const shown = await app.hover()
+  const shown = await app.open()
   token(shown, 'smkit-spec-openspec-update').props.onClick()
   await flush(20)
 
@@ -1183,18 +1212,17 @@ it('prints a finished upgrade on the next opening, then drops it', async () => {
       { type: 'done', status: 'ok', exitCode: 0 },
     ]),
   })
-  const shown = await app.hover()
+  const shown = await app.open()
   token(shown, 'smkit-spec-openspec-update').props.onClick()
   await flush(20)
   const done = texts(app.render()).join(' | ')
   assert.ok(done.includes('openSpecUpdateDone'), 'the opening the run finished on shows the record')
   assert.ok(!done.includes('openSpecUpdateExpiryLast'), 'and does not call itself the last viewing yet')
 
-  /** Walk the pointer out, let the grace period close the panel, hover back in. */
+  /** Close the panel, then open it again: what a new visit sees. */
   const reopen = async () => {
-    app.leave()
-    app.runTimers()
-    return await app.hover()
+    app.clickCross()
+    return await app.open()
   }
   const once = await reopen()
   const first = texts(once).join(' | ')
@@ -1234,14 +1262,13 @@ it('does not count openings while the upgrade is still running', async () => {
     }
   }
   const app = mount({ fetch: live })
-  const shown = await app.hover()
+  const shown = await app.open()
   token(shown, 'smkit-spec-openspec-update').props.onClick()
   await flush(20)
 
   for (const view of [1, 2, 3, 4]) {
-    app.leave()
-    app.runTimers()
-    const again = await app.hover()
+    app.clickCross()
+    const again = await app.open()
     const text = texts(again).join(' | ')
     assert.ok(text.includes('openSpecUpdateRunning'), `reopen ${view} still says the run is going`)
     assert.ok(text.includes('working'), `and the running log survives it`)
@@ -1266,13 +1293,13 @@ async function withIgnore(body, fetch = routing()) {
   const app = mount({
     fetch: (url) => (url.includes('/openspec/gitignore') ? response(body) : fetch(url)),
   })
-  const shown = await app.hover()
+  const shown = await app.open()
   return { app, shown }
 }
 
 it('offers the ignore action on a footprint, and not on an empty workspace', async () => {
   const app = mount({ fetch: routing() })
-  const shown = await app.hover()
+  const shown = await app.open()
 
   const ignore = token(shown, 'smkit-spec-openspec-ignore')
   assert.ok(ignore, 'a workspace with a footprint can be handed to git')
@@ -1284,11 +1311,11 @@ it('offers the ignore action on a footprint, and not on an empty workspace', asy
   assert.ok(orderOf(shown, 'smkit-spec-openspec-ignore') < orderOf(shown, 'smkit-spec-openspec-remove'), 'the reversible action sits before the destructive one')
 
   const emptyApp = mount({ fetch: routing(EMPTY) })
-  const empty = await emptyApp.hover()
+  const empty = await emptyApp.open()
   assert.equal(token(empty, 'smkit-spec-openspec-ignore'), undefined, 'a workspace with nothing in it has nothing to hide')
 
   const outsideApp = mount({ fetch: routing({ ...VIEW, repo: false }) })
-  const outside = await outsideApp.hover()
+  const outside = await outsideApp.open()
   assert.equal(
     token(outside, 'smkit-spec-openspec-ignore'),
     undefined,
@@ -1330,7 +1357,7 @@ it('re-reads the store after writing an ignore file into it', async () => {
       return response(reads === 1 ? VIEW : grown)
     },
   })
-  const shown = await app.hover()
+  const shown = await app.open()
   assert.equal(texts(shown).includes('.gitignore'), false, 'the store has no ignore file on disk yet')
 
   token(shown, 'smkit-spec-openspec-ignore').props.onClick()
@@ -1407,7 +1434,7 @@ it('marks itself busy while git is being asked, and localises a refused call', a
       return response(VIEW)
     },
   })
-  token(await app.hover(), 'smkit-spec-openspec-ignore').props.onClick()
+  token(await app.open(), 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
 
   const busy = app.render()
@@ -1426,7 +1453,7 @@ it('marks itself busy while git is being asked, and localises a refused call', a
       ? response({ error: '' }, false, 500)
       : response(VIEW)),
   })
-  token(await failed.hover(), 'smkit-spec-openspec-ignore').props.onClick()
+  token(await failed.open(), 'smkit-spec-openspec-ignore').props.onClick()
   await flush()
   assert.ok(
     texts(failed.render()).join(' | ').includes('openSpecGitignoreFailed({"status":500})'),
@@ -1440,9 +1467,8 @@ it('clears its answer when the panel opens again', async () => {
   await flush()
   assert.ok(texts(app.render()).join(' | ').includes('openSpecGitignore'), 'the receipt is showing')
 
-  app.leave()
-  app.runTimers()
-  const again = await app.hover()
+  app.clickCross()
+  const again = await app.open()
   assert.equal(
     texts(again).join(' | ').includes('openSpecGitignoreUntracked'),
     false,
@@ -1462,7 +1488,7 @@ it('says what the delete took back out of the ignore files', async () => {
       ],
     }),
   })
-  await app.hover()
+  await app.open()
   nodes(app.render()).find((node) => node.props?.className === 'smkit-ui-button danger smkit-spec-openspec-remove').props.onClick()
   nodes(app.render()).find((node) => node.props?.className === 'smkit-ui-button danger').props.onClick()
   await flush()
@@ -1479,9 +1505,8 @@ it('says what the delete took back out of the ignore files', async () => {
   )
   assert.equal(text.includes('openSpecPartial'), false, 'a delete that finished says nothing survived')
 
-  app.leave()
-  app.runTimers()
-  const again = await app.hover()
+  app.clickCross()
+  const again = await app.open()
   assert.equal(
     texts(again).join(' | ').includes('openSpecIgnoreCleaned'),
     false,
@@ -1508,13 +1533,13 @@ async function withUntrack(body) {
   const app = mount({
     fetch: (url) => (url.includes('/openspec/untrack') ? response(body) : route(url)),
   })
-  const shown = await app.hover()
+  const shown = await app.open()
   return { app, shown }
 }
 
 it('offers the un-ignore action beside the one it reverses, and not on an empty workspace', async () => {
   const app = mount({ fetch: routing() })
-  const shown = await app.hover()
+  const shown = await app.open()
 
   const untrack = token(shown, 'smkit-spec-openspec-untrack')
   assert.ok(untrack, 'what the ignore button handed to git, this one takes back')
@@ -1525,11 +1550,11 @@ it('offers the un-ignore action beside the one it reverses, and not on an empty 
   assert.ok(orderOf(shown, 'smkit-spec-openspec-ignore') < orderOf(shown, 'smkit-spec-openspec-remove'), 'and both reversible actions precede the destructive one')
 
   const emptyApp = mount({ fetch: routing(EMPTY) })
-  const empty = await emptyApp.hover()
+  const empty = await emptyApp.open()
   assert.equal(token(empty, 'smkit-spec-openspec-untrack'), undefined, 'a workspace with nothing in it has nothing to take back')
 
   const quietApp = mount({ fetch: routing({ ...VIEW, hasIgnoreRules: false }) })
-  const quiet = await quietApp.hover()
+  const quiet = await quietApp.open()
   assert.ok(token(quiet, 'smkit-spec-openspec-ignore'), 'hiding stays on offer while the store stands')
   const quietUntrack = token(quiet, 'smkit-spec-openspec-untrack')
   assert.ok(quietUntrack, 'and its twin keeps its seat rather than vanishing out of the row')
@@ -1540,7 +1565,7 @@ it('offers the un-ignore action beside the one it reverses, and not on an empty 
   )
 
   const outsideApp = mount({ fetch: routing({ ...VIEW, repo: false }) })
-  const outside = await outsideApp.hover()
+  const outside = await outsideApp.open()
   assert.equal(
     token(outside, 'smkit-spec-openspec-untrack'),
     undefined,
@@ -1577,7 +1602,7 @@ it('marks itself busy while the host works, and localises a refused call', async
   const app = mount({
     fetch: (url) => (url.includes('/openspec/untrack') ? held.promise : response(VIEW)),
   })
-  token(await app.hover(), 'smkit-spec-openspec-untrack').props.onClick()
+  token(await app.open(), 'smkit-spec-openspec-untrack').props.onClick()
   await flush()
 
   const busy = app.render()
@@ -1594,7 +1619,7 @@ it('marks itself busy while the host works, and localises a refused call', async
       ? response({ error: '' }, false, 500)
       : response(VIEW)),
   })
-  token(await failed.hover(), 'smkit-spec-openspec-untrack').props.onClick()
+  token(await failed.open(), 'smkit-spec-openspec-untrack').props.onClick()
   await flush()
   assert.ok(
     texts(failed.render()).join(' | ').includes('openSpecUntrackFailed({"status":500})'),
@@ -1621,9 +1646,8 @@ it('clears its answer when the panel opens again', async () => {
   await flush()
   assert.ok(texts(app.render()).join(' | ').includes('openSpecUntrackUnlisted'), 'the receipt is showing')
 
-  app.leave()
-  app.runTimers()
-  const again = await app.hover()
+  app.clickCross()
+  const again = await app.open()
   assert.equal(
     texts(again).join(' | ').includes('openSpecUntrackUnlisted'),
     false,
@@ -1651,13 +1675,13 @@ async function withTwoAnswers(ignore, untrack) {
           ? response(untrack)
           : route(url),
   })
-  const shown = await app.hover()
+  const shown = await app.open()
   return { app, shown }
 }
 
 it('mounts the log before there is anything in it', async () => {
   const app = mount({ fetch: routing() })
-  const shown = await app.hover()
+  const shown = await app.open()
   const messages = withClass(shown, 'smkit-spec-openspec-messages')
   assert.ok(messages, 'the block is on the panel with no receipt to report')
   assert.equal(nodes(messages).length, 1, 'and nothing hangs off it, so it takes no room')
@@ -1705,7 +1729,7 @@ it('keeps a receipt that failed above the one that came after it', async () => {
 
 it('puts every action in the head, so no click waits on the panel\u2019s bottom edge', async () => {
   const app = mount({ fetch: routing() })
-  const shown = await app.hover()
+  const shown = await app.open()
 
   assert.deepEqual(
     toolbarOf(shown),

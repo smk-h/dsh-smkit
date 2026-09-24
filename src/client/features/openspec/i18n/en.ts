@@ -7,9 +7,11 @@
 import type { LocaleDict } from '../../../platform/types'
 
 export const OPENSPEC_LOCALE_EN: LocaleDict = {
-  // The head's visible name, and the accessible name of the two surfaces that
-  // wear no words: the panel itself and the icon that opens it.
+  // The head's visible name, and the accessible name of the surfaces that wear
+  // no words: the panel itself, the icon that opens it (its hover bubble too,
+  // which names the same thing), and the cross that closes it.
   "manageOpenSpec": "Manage OpenSpec",
+  "openSpecClose": "Close",
   "openSpecStatusReady": "Initialised",
   "openSpecStatusAbsent": "Not initialised",
   "openSpecRefresh": "Read again",

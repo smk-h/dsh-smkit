@@ -7,37 +7,26 @@
  * runs in — the session row's `cwd`, else the workspace that accounts for the
  * session — and asks the host for that workspace's OpenSpec footprint.
  *
- * **Hover, not click, is the primary gesture**, which is why this control wears
- * no tooltip: the shell's bubble and the panel would be two answers to the same
- * hover, and the panel's own head names the control. The panel stays open while
- * the pointer travels from the button to it, and what keeps it open is a grace
- * period (`HOVER_GRACE_MS`) rather than a geometric test — the pointer has to
- * cross the gap, and for the panel's far half it does so diagonally, leaving the
- * control's small box through its side at a height no geometry can tell apart
- * from walking away. It closes on Escape, on a press outside it, and of course
- * once the grace period runs out with the pointer on neither surface. A scroll
- * or a resize is not: the panel is placed from coordinates measured when it
- * opened, so instead of going away it is re-placed from a fresh measurement of
- * the control — which is what keeps it alive over a chat that auto-scrolls
- * under a streaming reply, and only closes it once the control itself has
- * scrolled out of the viewport and there is nothing left to point at.
+ * **Click is the gesture**, the way the palette control beside it works: the
+ * hover raises the shell's bubble naming the control, and the click that follows
+ * drops the bubble and opens the panel. The panel is a mode the user stays in —
+ * a tree to read, a question to answer — so it cannot be pinned to where a
+ * pointer happens to be. A hover-opened panel had to survive the pointer leaving
+ * the control's 28px box through its *side* on the way to the panel's far half,
+ * which is a move no geometric test can tell apart from walking away; the honest
+ * answer to "the pointer left" is for the gesture that opened it not to have
+ * been a hover at all. It closes on its own cross, on Escape, on a press outside
+ * it, and on the control again.
  *
- * **A hover is movement, not position.** The gesture listened for is the pointer
- * moving *on* the control, never the control arriving under a pointer that has
- * not moved — and out here the second really happens: this seat is part of the
- * conversation header's right-aligned utilities, and that run travels whenever
- * the frame beside it changes width. Collapsing the sidebar (closing its last
- * tab does it) widens the conversation, and the whole run slides sideways under
- * a pointer that is still where its last click left it; the browser reports the
- * slide as an `enter`, because it is one. Opening there would answer a gesture
- * nobody made, and hang the panel off a control the user never reached for. A
- * hand-made `enter`, though, is always followed by a move *inside* the control
- * — the browser dispatches both from one pointer sample, enter first, in the
- * same task — so opening on the move costs nothing and cannot be fooled by a
- * reflow. Which is also why no `enter` handler is registered at all: it cannot
- * tell the two cases apart, and cancelling the pending dismissal on it would let
- * a control that slid back under an idle pointer keep a panel the pointer had
- * already left.
+ * A scroll or a resize does not close it: the panel is placed from coordinates
+ * measured when it opened, so instead of going away it is re-placed from a fresh
+ * measurement of the control — which is what keeps it alive over a chat that
+ * auto-scrolls under a streaming reply, and only closes it once the control
+ * itself has scrolled out of the viewport and there is nothing left to point at.
+ * The control's column is watched as well, because this seat is part of the
+ * header's right-aligned utilities and that run travels whenever the frame
+ * beside it changes width: a panel left behind by an opening Sidebar would be
+ * pointing at where the control used to be.
  *
  * **The host decides everything shown here.** The panel renders what
  * `GET /openspec` answered: whether `openspec/` exists, its layout parts and
@@ -67,11 +56,11 @@
  * @fission-ai/openspec`, then `openspec update` to rewrite this workspace's
  * files — and reads back its event stream, painting each line as it arrives.
  * The progress lives on the control rather than the panel because a global
- * install outlasts a hover: the pointer may leave while npm still works, and
- * the next hover should find the output already there rather than a box that
- * forgot the run. It is kept only as long as it is news, though — a finished
- * record is shown for three more panel openings and then dropped, so last
- * week's npm output does not haunt the panel forever.
+ * install outlasts the panel: the panel can be dismissed while npm still works,
+ * and opening it again should find the output already there rather than a box
+ * that forgot the run. It is kept only as long as it is news, though — a
+ * finished record is shown for three more panel openings and then dropped, so
+ * last week's npm output does not haunt the panel forever.
  *
  * After an action the panel reads again: the store it draws is on disk, and the
  * delete, the initialise, the ignore and its undo can each have just changed it.
@@ -86,6 +75,7 @@ import { createChevronDownIcon } from '../../platform/icons/ChevronDownIcon'
 import { createLoaderIcon } from '../../platform/icons/LoaderIcon'
 import { createRefreshIcon } from '../../platform/icons/RefreshIcon'
 import { createTrashIcon } from '../../platform/icons/TrashIcon'
+import { createXIcon } from '../../platform/icons/XIcon'
 import { createConfirmDialog } from '../../platform/ui/ConfirmDialog'
 import { createStateDot } from '../../platform/ui/StateDot'
 import { useBusyFace } from '../../platform/ui/useBusyFace'
@@ -150,18 +140,6 @@ const PANEL_GAP = 6
 const PANEL_GUTTER = 6
 /** The shortest panel worth showing: below this the other side is tried instead. */
 const PANEL_MIN_ROOM = 180
-/**
- * How long a leave is given before it is believed.
- *
- * The pointer has to cross the gap between the control and the panel, and a
- * user heading for the panel's far half moves diagonally — leaving the
- * control's 28px box through its *side*, at a height where no geometric test can
- * tell that move apart from walking away. So a leave starts a timer instead of
- * closing, and reaching either surface cancels it; the panel only goes once the
- * pointer has genuinely gone. Comfortably longer than any real crossing, short
- * enough that a real departure still feels immediate.
- */
-const HOVER_GRACE_MS = 240
 /**
  * How far the control may drift before its panel is re-placed.
  *
@@ -244,10 +222,10 @@ interface AnchorRect {
 }
 
 /**
- * Where the panel goes: pinned to the control's right edge (the header's
- * utilities hug the right edge of the window, so a centred panel would hang off
- * it), pulled inside the panel that clips the header, and opened on the side
- * with room for it.
+ * Where the panel goes: pinned to the right edge of the column the control sits
+ * in (the header's utilities hug that edge, so a panel aligned to the control
+ * instead would sit in the middle of the pane), pulled inside whatever clips
+ * the header, and opened on the side with room for it.
  */
 interface PanelBox {
   left: number
@@ -277,18 +255,28 @@ interface ConfirmRow {
  * Place the panel for one anchor.
  *
  * @param rect - the control's viewport rect.
- * @param node - the control itself; its ancestors are what `clipBounds` walks.
+ * @param node - the control itself; its ancestors are what `clipBounds` walks,
+ *   and its column is what the right edge is measured from.
  */
 function panelBox(rect: AnchorRect, node: HTMLElement): PanelBox {
   const bounds = clipBounds(node, PANEL_GUTTER)
   const width = Math.min(PANEL_WIDTH, Math.max(bounds.right - bounds.left, 0))
-  // Right-aligned to the control, then clamped: `bounds.right - width` is the
-  // rightmost left edge that still fits, and `bounds.left` the leftmost, so a
-  // narrowed bound (a panel narrower than 360px) keeps the panel whole.
-  const left = Math.min(
-    Math.max(rect.right - width, bounds.left),
-    Math.max(bounds.right - width, bounds.left),
-  )
+  // Right-aligned to the column, not to the control. This seat is one of a run
+  // of header utilities that carries on to its right — the session delete is the
+  // last of them — so a panel stopping at this button's own right edge leaves
+  // the rest of that run sticking out past the panel it just opened, and the
+  // panel itself floating in the middle of the pane with nothing to line up
+  // with. The pane's own corner is where it belongs, which is the boundary the
+  // palette panel uses for exactly this reason: taken from the header the
+  // control is seated in, and from the clip boundary — where the panel would
+  // have to stop anyway — on a host that gives this control no header.
+  const column = node.closest('header')
+  const edge = column === null
+    ? bounds.right
+    : Math.min(bounds.right, column.getBoundingClientRect().right - PANEL_GUTTER)
+  // Then clamped: `edge - width` is the rightmost left edge that still fits and
+  // `bounds.left` the leftmost, so a narrowed bound keeps the panel whole.
+  const left = Math.max(edge - width, bounds.left)
   const roomBelow = bounds.bottom - PANEL_GAP - rect.bottom
   const roomAbove = rect.top - PANEL_GAP - bounds.top
   // Below when there is room there, or when it is the roomier side — and
@@ -327,30 +315,6 @@ function insideOwnSurface(target: EventTarget | null): boolean {
 }
 
 /**
- * Whether the pointer, at the position a leave reports, is still on the
- * surface it left.
- *
- * A reported `mouseleave` is not always a leave. A right-press opens the
- * browser's own menu under the pointer, and the browser then reports the
- * element under it losing the pointer even though the pointer never moved;
- * skipping the spurious ones is what keeps a right-click inside the panel —
- * which is how a path gets copied out of it — from dismissing the thing being
- * read.
- *
- * The test has to be the browser's own hit-test, not box arithmetic, because
- * both surfaces are rounded: the panel has 10px corners, and a pointer that
- * walks out through one of them — slowly, so a sample lands inside the
- * bounding box but outside the arc — reports a real leave from coordinates
- * the bounding box still claims. Trusting the box there swallows the leave
- * with no timer pending behind it, and the panel never closes.
- */
-function stillOnSurface(node: Element, x: number, y: number): boolean {
-  if (typeof document === 'undefined') return false
-  const hit = document.elementFromPoint(x, y)
-  return hit !== null && (hit === node || node.contains(hit))
-}
-
-/**
  * Format a byte count for one row: whole bytes below 1 KiB, then one decimal up
  * to 10 units and whole units above, so a column of figures stays scannable.
  * Not localized on purpose — the units read the same in both dictionaries, and
@@ -386,7 +350,7 @@ export function createOpenSpecButton(
   deps: ClientDeps,
   hooks: OpenSpecHooks = {},
 ): (props: OpenSpecProps) => JSX.Element {
-  const { h, react, api, stream, createPortal } = deps
+  const { h, react, api, stream, createPortal, Tooltip } = deps
   const ConfirmDialog = createConfirmDialog(deps)
   const StateDot = createStateDot(deps)
   const AtomIcon = createAtomIcon(deps)
@@ -398,26 +362,7 @@ export function createOpenSpecButton(
   const RefreshIcon = createRefreshIcon(deps)
   const TrashIcon = createTrashIcon(deps)
   const LoaderIcon = createLoaderIcon(deps)
-  /**
-   * The pending "the pointer left" dismissal, if any.
-   *
-   * It lives here rather than in a state cell on purpose: it is a scalar written
-   * by one event handler and read by the next one, and those two events
-   * routinely straddle a re-render, so a state cell would be read stale.
-   */
-  let closeTimer: number | undefined
-  /** Believe the last leave no longer: the pointer came back. */
-  const cancelClose = (): void => {
-    if (closeTimer !== undefined) {
-      clearTimeout(closeTimer)
-      closeTimer = undefined
-    }
-  }
-  /** Start believing it: close unless the pointer reaches a surface first. */
-  const scheduleClose = (close: () => void): void => {
-    cancelClose()
-    closeTimer = setTimeout(close, HOVER_GRACE_MS)
-  }
+  const XIcon = createXIcon(deps)
 
   return function OpenSpecButton({
     sessionId,
@@ -465,15 +410,15 @@ export function createOpenSpecButton(
     /**
      * The live output of a running upgrade, and how it ended.
      *
-     * These live on the control, not the panel: the panel is a hover surface
-     * that unmounts the moment the pointer leaves, while the upgrade keeps
-     * running on the host. Keeping the progress here means a run that outlives
-     * the hover it started on is still there to be read on the next one, rather
-     * than a blank box that forgot everything in between.
+     * These live on the control, not the panel: the panel is dismissed and
+     * unmounted whenever the user is done looking at it, while the upgrade
+     * keeps running on the host. Keeping the progress here means a run that
+     * outlives the opening it started on is still there to be read on the next
+     * one, rather than a blank box that forgot everything in between.
      *
      * How long the record survives is a two-part rule. While the run is in
-     * flight it shows on every arrival, because it is still happening. Once it
-     * has ended it is a receipt: the next arrival prints it, and the arrival
+     * flight it shows on every opening, because it is still happening. Once it
+     * has ended it is a receipt: the next opening prints it, and the opening
      * after that drops it, so a daily-opened workspace is not carrying last
      * week's `npm` output forever.
      */
@@ -534,9 +479,6 @@ export function createOpenSpecButton(
       const onKey = (event: KeyboardEvent): void => {
         if (event.key === 'Escape') setOpen(false)
       }
-      // A pending leave belongs to the panel being open: closing it — or
-      // unmounting the control — takes the timer with it.
-      const cancel = cancelClose
 
       const onDown = (event: PointerEvent): void => {
         // A press inside the panel (its own buttons, or the text between them)
@@ -598,12 +540,32 @@ export function createOpenSpecButton(
       // by event target was the guess that closed a reading panel the moment
       // the chat began to stream.
       const onMove = (): void => remeasure()
+      /**
+       * The column the control sits in, watched for its width.
+       *
+       * This seat is part of the header's right-aligned utilities, and that run
+       * travels whenever the frame beside it changes width — but that travel
+       * reaches no listener: a grid track transition is neither a scroll nor a
+       * window resize, so a panel placed before the Sidebar opened stayed behind
+       * where the control used to be. The header's own box is the resolved
+       * answer (its width is what the conversation column has left once the
+       * Sidebar's tracks are taken out), and a `ResizeObserver` reports it once
+       * per frame of the transition, feeding the same `remeasure` that `scroll`
+       * and `resize` do. Absent outside a browser, where there is no layout to
+       * read either: the one placement stands and nothing follows it.
+       */
+      const column = node === null ? null : node.closest('header')
+      let observer: ResizeObserver | null = null
+      if (column !== null && typeof ResizeObserver !== 'undefined') {
+        observer = new ResizeObserver(onMove)
+        observer.observe(column)
+      }
       document.addEventListener('keydown', onKey)
       document.addEventListener('pointerdown', onDown)
       window.addEventListener('scroll', onMove, true)
       window.addEventListener('resize', onMove)
       return () => {
-        cancel()
+        observer?.disconnect()
         if (frame !== undefined) cancelAnimationFrame(frame)
         document.removeEventListener('keydown', onKey)
         document.removeEventListener('pointerdown', onDown)
@@ -657,11 +619,9 @@ export function createOpenSpecButton(
     }
 
     const show = (node: HTMLElement): void => {
-      // Whatever the pointer crossed on its way here, it is back: the last leave
-      // is not to be believed after all.
-      cancelClose()
-      // Re-entering the control from the panel (the pointer crossed the gap
-      // back) must not throw the reading away and start another one.
+      // Only ever called to open, so a control already holding the panel is a
+      // re-entry rather than a reopen — and throwing the reading away to start
+      // another one is the one thing it must not do.
       if (open && anchor !== null && anchor.node === node) return
       const rect = node.getBoundingClientRect()
       const box = panelBox(rect, node)
@@ -675,10 +635,10 @@ export function createOpenSpecButton(
       // The log is one visit's memory: what the panel reports is what the user
       // did in *this* opening, and an arrival starts that story again.
       setLogOrder([])
-      // A finished upgrade's record gets one printing past the hover it ran on,
-      // then drops. Only arrivals count: the refresh button re-reads in place,
-      // and a panel staying open is not a viewing. A run still in flight is
-      // never part of the rule — it is not a receipt yet.
+      // A finished upgrade's record gets one printing past the opening it ran
+      // on, then drops. Only openings count: the refresh button re-reads in
+      // place, and a panel staying open is not a viewing. A run still in flight
+      // is never part of the rule — it is not a receipt yet.
       if (!updating && (updateLog !== '' || updateStatus !== '')) {
         if (updateShown) {
           setUpdateLog('')
@@ -696,16 +656,6 @@ export function createOpenSpecButton(
     const close = (): void => {
       setOpen(false)
       setAnchor(null)
-    }
-
-    /**
-     * Dismiss unless the confirmation is up. Clicking the panel's delete moves
-     * the pointer to the dialog, which is a leave — and the one leave the panel
-     * must survive, because the answer to the question is what it is there to
-     * show.
-     */
-    const dismiss = (): void => {
-      if (!asking) close()
     }
 
     const confirm = (): void => {
@@ -1115,10 +1065,10 @@ export function createOpenSpecButton(
     /** A finished upgrade that ended badly is an error; a running or good one is not. */
     const updateFailed =
       !updating && (updateStatus === 'failed' || updateStatus === 'npm-missing' || updateStatus === 'timeout')
-    // The upgrade's own receipt. It is the one answer that outlives the hover it
-    // ran on, because the run does: while it streams the panel keeps showing it,
-    // and once it has ended the next arrival prints it, with the last-looking
-    // notice that goes with that printing.
+    // The upgrade's own receipt. It is the one answer that outlives the opening
+    // it ran on, because the run does: while it streams the panel keeps showing
+    // it, and once it has ended the next opening prints it, with the
+    // last-looking notice that goes with that printing.
     const updateBlock = !hasUpdate ? null : (
       <div
         className="smkit-spec-openspec-log-item"
@@ -1274,8 +1224,8 @@ export function createOpenSpecButton(
       init: false,
     }
     // An arrival empties the visit-log, so the upgrade record carried over from a
-    // run that outlived its hover is not in it; it joins the tail, as the oldest
-    // answer still standing.
+    // run that outlived the opening it started on is not in it; it joins the
+    // tail, as the oldest answer still standing.
     const queue: LogKey[] = logOrder.includes('update') || updateBlock === null
       ? logOrder
       : [...logOrder, 'update']
@@ -1367,25 +1317,13 @@ export function createOpenSpecButton(
         style={anchor === null ? undefined : panelStyle(anchor.box)}
         role="dialog"
         aria-label={t('manageOpenSpec')}
-        // Reaching the panel is the whole point of the grace period: it is what
-        // cancels the leave that started on the control.
-        onMouseEnter={cancelClose}
-        // Leaving the panel — including for a control inside it, which is a
-        // leave only in the sense that the pointer moved — starts the same
-        // timer, except while the confirmation is what the pointer went to, and
-        // except for a leave the pointer did not actually make (a right-press
-        // and its menu).
-        onMouseLeave={(event) => {
-          if (stillOnSurface(event.currentTarget, event.clientX, event.clientY)) return
-          scheduleClose(dismiss)
-        }}
       >
         {/* One row: what the panel is, then what it can do. The actions used to
-         * sit at the bottom, which put the pointer exactly on the edge a
-         * shrinking body lifts — a click answered, the panel got shorter under
-         * the hand that had just clicked, and the hover was over a panel that
-         * was no longer there. Here the pointer lands a body's height above that
-         * edge.
+         * sit at the bottom, which put them exactly on the edge a shrinking
+         * body lifts — a click answered, the panel got shorter under the hand
+         * that had just clicked, and the control the pointer was resting on had
+         * moved out from under it. Here the pointer lands a body's height above
+         * that edge.
          *
          * The group is ordered by how permanent a button is rather than by how
          * it reads: the two actions this panel offers whatever the workspace
@@ -1393,7 +1331,10 @@ export function createOpenSpecButton(
          * further-left half. Since the group is pinned to that right end, an
          * arrival lands in the slack beside the identity rather than on a seat
          * someone is already aiming at, and the two buttons worth finding
-         * without looking are always in the same two places. */}
+         * without looking are always in the same two places. The cross is the
+         * one thing outside the group: it is not an act on this store but the
+         * way out of the panel, so it holds the head's very end, past the
+         * actions, where a dismissal belongs. */}
         <div className="smkit-spec-openspec-head">
           <AtomIcon size={14} />
           <span className="smkit-spec-openspec-title">{t('manageOpenSpec')}</span>
@@ -1506,6 +1447,21 @@ export function createOpenSpecButton(
               <DownloadIcon size={14} />
             </button>
           </span>
+          {/* The way out, at the very end of the head. Outside the actions group
+           * on purpose: that group is the seats worth finding without looking,
+           * and its members come and go with what the read found, while this one
+           * is always here. It lands where the pointer that opened the panel
+           * left it — the control sits at this same right edge — so closing is a
+           * click away rather than a hunt. */}
+          <button
+            className="smkit-ui-button smkit-spec-openspec-close"
+            type="button"
+            aria-label={t('openSpecClose')}
+            title={t('openSpecClose')}
+            onClick={close}
+          >
+            <XIcon size={14} />
+          </button>
         </div>
         {body}
       </div>
@@ -1547,69 +1503,53 @@ export function createOpenSpecButton(
     const floating = open && anchor !== null ? portal(panel) : null
     const overlay = dialog === null ? null : portal(dialog)
 
-    return (
-      <span
-        className="smkit-spec-openspec-host"
-        // The opening gesture: a pointer that *moves* on the control. Not its
-        // `enter` — see the note at the top of this file for why that one is
-        // ambiguous here, and for why the move always follows it when a hand
-        // did the entering. The pointer stays inside while the panel is open,
-        // so this fires again and again; `show` answers every call after the
-        // first with an early return, so each arrival still reads once.
-        onMouseMove={(event) => show(event.currentTarget)}
-        // Keyboard focus opens it too: a control whose only affordance is a
-        // hover would be unusable from the keyboard.
-        onFocus={(event) => show(event.currentTarget)}
-        onBlur={(event) => {
-          // Keyboard focus moving to another control is a walk away.
-          //
-          // Focus landing on nothing in particular is not: a press on a part of
-          // the panel that cannot be focused — its text, the tree, a chip —
-          // moves focus to `null` or to the document body, because that is where
-          // a press on a non-focusable area puts it, and reading the panel is
-          // the last thing that should dismiss it. The press is what decides
-          // instead: the document's own `pointerdown` closes the panel for a
-          // press outside it, and leaves a press inside it alone. Focus moving
-          // into the panel's own buttons is not a walk away either, since they
-          // live in a portaled subtree this host does not contain.
-          const next = event.relatedTarget as Element | null
-          if (next === null || (typeof document !== 'undefined' && next === document.body)) return
-          if (next.closest(`.${PANEL_CLASS}`) !== null || event.currentTarget.contains(next)) return
-          close()
-        }}
-        onMouseLeave={(event) => {
-          if (anchor === null) return
-          // A right-press on the control itself: the menu is the browser's, the
-          // pointer never moved, and the point still lands on the button.
-          if (stillOnSurface(event.currentTarget, event.clientX, event.clientY)) return
-          // The gap between the control and the panel is not part of the host,
-          // so crossing it fires this leave as well. Whether this is a crossing
-          // or a departure is not decided here — no geometry can tell the two
-          // apart for a diagonal move — but by the grace period: reaching the
-          // panel (or coming back) cancels it, and nothing cancels it otherwise.
-          if (!open) return
-          scheduleClose(close)
+    // The control, and the anchor both gestures are about. It is rendered the
+    // same shape whether the panel is open or not — only the bubble around it
+    // changes — because `show` captures this very node as the panel's anchor,
+    // and a wrapper that arrived with the panel would swap the node out from
+    // under a placement already measured from it.
+    const control = (
+      <button
+        className="smkit-ui-icon-button smkit-spec-openspec-btn"
+        type="button"
+        aria-label={t('manageOpenSpec')}
+        title={!open && Tooltip === undefined ? t('manageOpenSpec') : undefined}
+        aria-expanded={open}
+        data-smkit-open={open ? 'true' : undefined}
+        // A toggle, the way the palette control beside it works: the click that
+        // opens the panel closes it again. Closing is this button's job now
+        // precisely because opening is — the pointer has to have come here to
+        // make either happen — and a control that can only ever open would
+        // leave the cross as the sole way back. Keyboard arrives at the same
+        // place, since Enter and Space on a button are a click.
+        onClick={(event) => {
+          if (open) close()
+          else show((event as JSX.AnchorEventLike).currentTarget)
         }}
       >
-        <button
-          className="smkit-ui-icon-button smkit-spec-openspec-btn"
-          type="button"
-          aria-label={t('manageOpenSpec')}
-          aria-expanded={open}
-          data-smkit-open={open ? 'true' : undefined}
-          // Opening is idempotent, and closing is deliberately not this
-          // button's job: hover has already opened the panel by the time a
-          // mouse gets here, so a toggle would make the click that follows a
-          // hover dismiss what the user is looking at — and on a touch screen,
-          // where focus and click both arrive, it would open and immediately
-          // close. Dismissal is the pointer leaving, Escape, or a press
-          // anywhere else.
-          onClick={(event) => show((event as JSX.AnchorEventLike).currentTarget)}
-        >
-          {reading && view === undefined
-            ? <LoaderIcon className="smkit-ui-spin" size={15} />
-            : <AtomIcon size={15} />}
-        </button>
+        {reading && view === undefined
+          ? <LoaderIcon className="smkit-ui-spin" size={15} />
+          : <AtomIcon size={15} />}
+      </button>
+    )
+
+    return (
+      // The host stays as the marker of "the control's own surface" for the
+      // outside-press rule below; it carries no gesture of its own any more.
+      <span className="smkit-spec-openspec-host">
+        {Tooltip === undefined ? control : (
+          <Tooltip
+            label={t('manageOpenSpec')}
+            side="bottom"
+            delayMs={500}
+            // Suppressed once the panel is up rather than unmounted: the bubble
+            // sits side="bottom" exactly where the panel floats, and a bubble
+            // repeating the name of the thing it just opened is noise.
+            disabled={open}
+          >
+            {control}
+          </Tooltip>
+        )}
         {floating}
         {overlay}
       </span>

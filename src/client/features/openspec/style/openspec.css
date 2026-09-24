@@ -128,16 +128,19 @@
   flex: none;
 }
 
-/* One box for every action the head carries: the same 26px square throughout,
+/* One box for every control the head carries: the same 26px square throughout,
  * the glyph the only thing in it, the words each one dropped riding its
  * tooltip. A row of controls at four sizes reads as four different kinds of
- * thing; these are one kind — a thing you can press on this store. */
+ * thing; these are one kind — a seat in this row. The cross is in the list
+ * although it acts on nothing on the store: it is the row's way out, and a
+ * dismissal at a different size would read as a different kind of thing. */
 .smkit-spec-openspec-update,
 .smkit-spec-openspec-refresh,
 .smkit-spec-openspec-init,
 .smkit-spec-openspec-ignore,
 .smkit-spec-openspec-untrack,
-.smkit-spec-openspec-remove {
+.smkit-spec-openspec-remove,
+.smkit-spec-openspec-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -146,6 +149,14 @@
   width: 26px;
   height: 26px;
   padding: 0;
+}
+
+/* The one seat in the row that acts on the panel rather than on the store, so
+ * it is inked as a dismissal rather than as an action: the secondary colour the
+ * palette panel's own cross wears (`theme-center/style/palette.css`), keeping
+ * the row's primary ink for the buttons that change something on disk. */
+.smkit-spec-openspec-close {
+  color: var(--dsw-alias-label-secondary);
 }
 
 /* Both ends of the refresh's busy face are a dimming — in when the click lands,
