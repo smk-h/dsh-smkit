@@ -196,6 +196,9 @@
   align-items: center;
   gap: 8px;
   cursor: default;
+  /* The whole row is a double-click target (back to the theme's own value), and
+     a double-click would otherwise leave the labels and the readout selected. */
+  user-select: none;
 }
 
 .tp_sliderLabel {

@@ -65,6 +65,7 @@ export const THEME_CENTER_LOCALE_EN: LocaleDict = {
   sliderHue: "Hue",
   sliderSat: "Sat",
   sliderLight: "Light",
+  sliderResetHint: "Double-click to put this channel back on the active theme's own value",
   groupTheme: "Theme accents",
   groupLeftSidebar: "Left sidebar",
   groupConversation: "Conversation",

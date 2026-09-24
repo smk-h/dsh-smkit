@@ -119,6 +119,10 @@ declare namespace JSX {
     tabIndex?: number
     children?: unknown
     onClick?: (event: EventLike) => void
+    /** The second click of a pair. The palette panel's sliders are the one
+     * place that needs it: the whole slider row is the target, and a
+     * double-click there puts that one channel back on the theme's own value. */
+    onDoubleClick?: (event: EventLike) => void
     onChange?: (event: EventLike) => void
     onMouseEnter?: (event: PointerEventLike) => void
     /** The arrival a hand made, for controls that must not read it off an

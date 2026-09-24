@@ -31,11 +31,29 @@
  * clicked — eighteen colors times three sliders would be a wall — and the
  * alpha channel a color arrived with rides along untouched: the sliders tune
  * the RGB, translucent borders stay translucent.
+ *
+ * Double-clicking anywhere on a slider row puts *that one channel* back on the
+ * value the active theme gives it, leaving its two neighbours where they were
+ * — a way to undo a single slider without hunting for the color it started on.
+ * The theme's own value is read by taking the token's override off the body
+ * first, because the probe resolves custom properties by inheritance and would
+ * otherwise answer with the override itself. A reset that happens to land the
+ * whole color back on the theme's own drops the override outright: there is
+ * nothing left for it to say, and the token stops being written out on the
+ * next Save. Like every other edit here it is live-only until Save, so a
+ * double-click is undone by reloading exactly the way a drag is.
  */
 
 import type { ClientDeps, Translator } from '../../../platform/types'
 import { subscribe } from '../apply'
-import { PALETTE_GROUPS, hslToCss, parseColor, readTokenColor, type Hsl } from '../palette'
+import {
+  PALETTE_GROUPS,
+  hslToCss,
+  parseColor,
+  readTokenColor,
+  type Hsl,
+  type PaletteItem,
+} from '../palette'
 import {
   clearColorOverrides,
   loadColorOverrides,
@@ -128,6 +146,19 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
       }
     }, [])
 
+    /** The color the active theme paints for a token, read with the token's own
+     * override off the body — custom properties inherit, so an override still
+     * set there would be what the probe answers with. Nothing is put back: the
+     * caller writes the token's next value in the same synchronous block, and
+     * when that next value *is* the theme's, leaving the property off is the
+     * whole point. No repaint slips in between, so the removal is invisible. */
+    const themeOwn = (item: PaletteItem): Hsl => {
+      document.body.style.removeProperty(item.token)
+      return (
+        parseColor(readTokenColor(item.token, item.fallback)) ?? { h: 0, s: 0, l: 100, a: 1 }
+      )
+    }
+
     /** Apply one edit: paint the body inline, remember it, move the sliders. */
     const edit = (token: string, next: Hsl): void => {
       const value = hslToCss(next.h, next.s, next.l, next.a)
@@ -135,6 +166,31 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
       setColors((prev) => ({ ...prev, [token]: next }))
       setEdits((prev) => ({ ...prev, [token]: value }))
       setSaved(false)
+    }
+
+    /** Double-click on a slider row: put this one channel back on the theme's
+     * own value and leave the other two alone. When the move happens to restore
+     * the token's color whole — the common case, a reader who only moved that
+     * one slider — the override has no work left and is dropped from the body
+     * and from the saved map alike, so the next Save no longer carries a token
+     * that has nothing to say. Anything short of that stays an ordinary edit:
+     * live on the body now, written to storage only by Save. */
+    const resetChannel = (item: PaletteItem, channel: 'h' | 's' | 'l'): void => {
+      const color = colors[item.token] ?? { h: 0, s: 0, l: 100, a: 1 }
+      const own = themeOwn(item)
+      const next = { ...color, [channel]: own[channel] }
+      if (next.h === own.h && next.s === own.s && next.l === own.l && next.a === own.a) {
+        document.body.style.removeProperty(item.token)
+        setColors((prev) => ({ ...prev, [item.token]: next }))
+        setEdits((prev) => {
+          const remaining = { ...prev }
+          delete remaining[item.token]
+          return remaining
+        })
+        setSaved(false)
+        return
+      }
+      edit(item.token, next)
     }
 
     const onSave = (): void => {
@@ -194,7 +250,12 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
                             ['l', t('sliderLight'), 100, lightTrack(color)],
                           ] as const
                         ).map(([channel, label, max, track]) => (
-                          <label key={channel} className="tp_slider">
+                          <label
+                            key={channel}
+                            className="tp_slider"
+                            title={t('sliderResetHint')}
+                            onDoubleClick={() => resetChannel(item, channel)}
+                          >
                             <span className="tp_sliderLabel">{label}</span>
                             <input
                               type="range"

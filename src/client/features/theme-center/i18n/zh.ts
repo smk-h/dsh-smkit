@@ -78,6 +78,7 @@ export const THEME_CENTER_LOCALE_ZH: LocaleDict = {
   sliderHue: "色相",
   sliderSat: "饱和",
   sliderLight: "明度",
+  sliderResetHint: "双击把这一根拨回当前主题的原值",
   groupTheme: "主题主色",
   groupLeftSidebar: "左侧边栏",
   groupConversation: "会话区域",
