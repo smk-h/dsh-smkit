@@ -13,7 +13,7 @@
  * are this feature's own.
  */
 
-import { createClearIcon } from '../../../platform/icons/ClearIcon'
+import { createXIcon } from '../../../platform/icons/XIcon'
 import type { ClientDeps, Translator } from '../../../platform/types'
 import type { SkillView } from '../types'
 
@@ -29,7 +29,7 @@ export function createSkillDetailDialog(
   deps: ClientDeps,
 ): (props: SkillDetailDialogProps) => JSX.Element {
   const { h } = deps
-  const ClearIcon = createClearIcon(deps)
+  const XIcon = createXIcon(deps)
 
   /** One labelled field of the dialog. */
   const field = (label: string, value: string, className?: string): JSX.Element => (
@@ -66,7 +66,7 @@ export function createSkillDetailDialog(
               aria-label={t('close')}
               onClick={onClose}
             >
-              <ClearIcon size={14} />
+              <XIcon size={14} />
             </button>
           </div>
           {field(t('detailDescription'), skill.description)}

@@ -45,6 +45,7 @@
  */
 
 import type { ClientDeps, Translator } from '../../../platform/types'
+import { createXIcon } from '../../../platform/icons/XIcon'
 import { DARK_ATTR, subscribe, THEME_ATTR } from '../apply'
 import {
   PALETTE_GROUPS,
@@ -89,6 +90,7 @@ function lightTrack(color: { h: number; s: number; l: number; a: number }): stri
 
 export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps) => JSX.Element {
   const { h, react } = deps
+  const XIcon = createXIcon(deps)
 
   return function PalettePanel({ t, onClose }: PalettePanelProps): JSX.Element {
     /** The colors the body paints right now: one HSL per token, resolved
@@ -213,13 +215,15 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
       <div className="smkit-theme-palette-panel" role="dialog" aria-label={t('paletteTitle')}>
         <div className="smkit-theme-palette-head">
           <span className="smkit-theme-palette-title">{t('paletteTitle')}</span>
+          {/* The shared cross, at 14 px rather than the filter boxes' 12: this
+           * button is 22 px square, and the glyph is the whole of it. */}
           <button
             type="button"
             className="smkit-theme-palette-close"
             aria-label={t('paletteClose')}
             onClick={onClose}
           >
-            ×
+            <XIcon size={14} />
           </button>
         </div>
         <div className="smkit-theme-palette-groups">

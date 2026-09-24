@@ -30,7 +30,7 @@
  * the delete, and stays hidden while a poll may still carry it — see `removed`.
  */
 
-import { createClearIcon } from '../../../platform/icons/ClearIcon'
+import { createXIcon } from '../../../platform/icons/XIcon'
 import { createSearchIcon } from '../../../platform/icons/SearchIcon'
 import { createRefreshButton } from '../../../platform/ui/RefreshButton'
 import { createTabs } from '../../../platform/ui/Tabs'
@@ -187,7 +187,7 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
   const ScopeSelect = createScopeSelect(deps)
   const Tabs = createTabs(deps)
   const SearchIcon = createSearchIcon(deps)
-  const ClearIcon = createClearIcon(deps)
+  const XIcon = createXIcon(deps)
   // The platform layer's own refresh control: same glyph, bubble and pending
   // turn as any page that later reads something re-readable.
   const RefreshButton = createRefreshButton(deps)
@@ -391,7 +391,7 @@ export function createSkillsContent(deps: ClientDeps): (props: SectionProps) => 
                   title={t('clearSearch')}
                   onClick={() => setQuery('')}
                 >
-                  <ClearIcon size={12} />
+                  <XIcon size={12} />
                 </button>
               ) : null}
             </label>

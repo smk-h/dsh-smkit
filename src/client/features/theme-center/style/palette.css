@@ -79,8 +79,6 @@
   height: 22px;
   padding: 0;
   cursor: pointer;
-  font-size: 15px;
-  line-height: 1;
   color: var(--dsw-alias-label-secondary);
   background: transparent;
   border: none;

@@ -31,7 +31,7 @@
  */
 
 import { createGlobalMaskRow } from './GlobalMaskRow'
-import { createClearIcon } from '../../../platform/icons/ClearIcon'
+import { createXIcon } from '../../../platform/icons/XIcon'
 import { createPlusIcon } from '../icons/PlusIcon'
 import { createSearchIcon } from '../../../platform/icons/SearchIcon'
 import { createSettings2Icon } from '../../../platform/icons/Settings2Icon'
@@ -95,7 +95,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
   const Switch = createSwitch(deps)
   const PlusIcon = createPlusIcon(deps)
   const SearchIcon = createSearchIcon(deps)
-  const ClearIcon = createClearIcon(deps)
+  const XIcon = createXIcon(deps)
   const Settings2Icon = createSettings2Icon(deps)
   const ToolTimeoutForm = createToolTimeoutForm(deps)
   const ReconnectForm = createReconnectForm(deps)
@@ -608,7 +608,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
                   title={t('clearSearch')}
                   onClick={() => setQuery('')}
                 >
-                  <ClearIcon size={12} />
+                  <XIcon size={12} />
                 </button>
               ) : null}
             </label>
