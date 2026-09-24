@@ -18,7 +18,7 @@
 
 ### 2. 项目介绍
 
-dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供五个功能：MCP 管理、技能管理、会话删除、自定义配置与 OpenSpec 管理。
+dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供六个功能：MCP 管理、技能管理、会话删除、自定义配置、OpenSpec 管理与主题中心。
 
 #### 2.1 MCP 管理
 
@@ -120,6 +120,18 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 - **只动 OpenSpec 自己的东西**：`.agents/skills`、`.claude/commands` 这类目录是共享的——前者装着机器上所有技能，后者装着使用者自己写的所有命令——所以删除的单位始终是一个条目（技能目录以 `openspec-` 开头，命令以 `opsx` 开头），**共享目录本身永远不是删除目标**。CLI 自己的归属标记 `.openspec-target` 也在删除范围内：它既不是技能也不是命令，但留着它，下次 `openspec update` 就会把刚删掉的技能装回来。真正确认时，确认框会写明这些目录里还有多少条目不属于 OpenSpec、会被保留；宿主端在删除前还会按前缀再校验一次目标，名字对不上就不删。
 
 面板只呈现宿主端读到的结果，浏览器不自己拼路径：删除时宿主会用同一张工具表重新推导一遍目标，逐个校验「落在项目根内 + 位于该组目录的直接子级 + 仍带着 `openspec-` / `opsx` 前缀」，符号链接与 Windows junction 都只摘掉链接本身。
+
+#### 2.6 主题中心
+
+「设置 → 通用」页里的「主题中心」行内置 13 款主题配色：海洋、午夜、极光、森林、石墨、墨黑、薄荷、煤灰、终端、钢铁、秋日、抹茶、极简：
+
+- **点卡片即生效**：一款主题就是一段以 `body[data-dsh-theme="<id>"]` 限定作用域的 CSS，换肤只动两处——整段替换专用 `<style id="dsh-theme-active-style">` 的文本、给 body 挂上属性。主题元素与其他设置页的样式各自独立，换任何一款都冲不掉设置界面自己。
+- **昼夜三态**：自动 / 浅色 / 深色。「自动」把决定权交回宿主内置的外观设置；浅色与深色直接驱动宿主自己的 `data-ds-dark-theme` 属性，每款主题都带昼、夜两套配色，卡片预览跟随的是实际夜态而不是这里的偏好。
+- **选择只存在浏览器里**：记在 localStorage 的 `dsh-theme:theme` / `dsh-theme:mode` 两个键上，刷新或重开页面即恢复；不写 dsh 的 `settings.yaml`，不落任何服务端文件，也不随工作区走。
+- **编程接口**：插件挂载时把同一套状态暴露为 `window.dshTheme`（`list` / `get` / `set` / `reset` / `cycle` / `setMode` / `getMode`），控制台里就能换肤、轮播，效果与点卡片完全等价。
+
+> [!NOTE]
+> 主题 CSS 与卡片预览数据取自 [mux9056-bot/dsh-theme](https://github.com/mux9056-bot/dsh-theme)（Apache-2.0），本仓库只取其 30 款主题包并裁剪为上述 13 款；作者的这些主题都是纯色主题，很简约，但是颜色可能不是我想要的，所以参考了原作者的主题风格，后面自定义成自己喜欢的。
 
 ### 3. 图标来源
 
