@@ -212,7 +212,16 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
     }
 
     return (
-      <div className="smkit-theme-palette-panel" role="dialog" aria-label={t('paletteTitle')}>
+      <div
+        className="smkit-theme-palette-panel"
+        /* The marker the toggle's outside-press rule reads to ask "is this
+         * press inside the panel?". Declared here, on the panel's own root,
+         * so the rule does not have to reach for a class name that belongs to
+         * the stylesheet. */
+        data-smkit-palette-panel="true"
+        role="dialog"
+        aria-label={t('paletteTitle')}
+      >
         <div className="smkit-theme-palette-head">
           <span className="smkit-theme-palette-title">{t('paletteTitle')}</span>
           {/* The shared cross, at 14 px rather than the filter boxes' 12: this
