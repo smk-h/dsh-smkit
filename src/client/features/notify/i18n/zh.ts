@@ -19,7 +19,9 @@ export const NOTIFY_LOCALE_ZH: LocaleDict = {
   soundHelp: '弹通知时附带一声提示音，音色与 ZCode 相同；关闭则静音弹出。',
   durationTitle: '常驻时长',
   durationHelp:
-    '通知在屏幕右下角停留多久，之后进通知中心；「常驻」会一直显示，直到手动关闭。仅 Windows 系统通知生效，浏览器通知的时长由浏览器决定。',
+    '通知在屏幕右下角停留多久，之后进通知中心；「常驻」会一直显示，直到手动关闭。只在页面未开启、由 dsh 进程弹系统通知时生效。',
+  durationHelpToastOnly:
+    '本页已授权，通知改由浏览器弹出，时长由浏览器决定，上面的选择不生效；关闭页面后由 dsh 进程弹系统通知时才按此停留。',
   durationShort: '标准（约 5 秒）',
   durationLong: '加长（约 25 秒）',
   durationReminder: '常驻，直到手动关闭',

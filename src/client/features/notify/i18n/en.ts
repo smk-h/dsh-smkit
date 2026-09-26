@@ -14,7 +14,9 @@ export const NOTIFY_LOCALE_EN: LocaleDict = {
   soundHelp: 'Plays a chime with each toast — the same sound ZCode uses; off keeps toasts silent.',
   durationTitle: 'Display duration',
   durationHelp:
-    'How long the toast stays in the bottom-right corner before it moves into the notification center; "persistent" keeps it on screen until you dismiss it. Only the Windows system toast honors it; the browser controls its own timing.',
+    'How long the toast stays in the bottom-right corner before it moves into the notification center; "persistent" keeps it on screen until you dismiss it. It only applies when no page is open and the dsh process raises the system toast.',
+  durationHelpToastOnly:
+    'This page is authorized, so the browser delivers the notification and decides the timing — the choice above has no effect until the page is closed and the dsh process raises the system toast.',
   durationShort: 'Standard (about 5 s)',
   durationLong: 'Long (about 25 s)',
   durationReminder: 'Persistent, until dismissed',

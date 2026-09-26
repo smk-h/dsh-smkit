@@ -12,6 +12,13 @@
  * The test button bypasses nothing on the host except suppression and the
  * master toggle — it is an explicit gesture — but the sound still follows the
  * sound toggle, so the user can hear exactly what their current settings buy.
+ *
+ * The duration picker only renders on a Windows host: the setting reaches the
+ * native toast alone, so everywhere else it would be a control that cannot do
+ * anything. The row's help text carries the other half of that caveat — even
+ * on Windows it is inert while a page is open, because delivery then prefers
+ * the browser. `platform` arrives with the settings read; before it lands the
+ * row is absent rather than briefly wrong.
  */
 
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
@@ -30,8 +37,8 @@ export interface NotifySettingsBody {
   enabled?: boolean
   soundEnabled?: boolean
   duration?: string
-  /** Where the host runs; informational only — an open page delivers the
-   * notification itself on every platform now. */
+  /** Where the host runs. Decides whether the duration row renders at all:
+   * only a Windows host can raise the native toast that setting drives. */
   platform?: string
 }
 
@@ -166,25 +173,30 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
               ariaLabel={t('soundTitle')}
             />
           </div>
-          <div className="smkit-notify-page-row smkit-notify-page-row-stacked">
-            <div className="smkit-notify-page-row-head">
-              <div className="smkit-notify-page-row-title">{t('durationTitle')}</div>
-              <select
-                className="smkit-notify-page-select"
-                value={duration}
-                disabled={pending === 'duration'}
-                aria-label={t('durationTitle')}
-                onChange={(e) => void pickDuration(e.target.value)}
-              >
-                {NOTIFY_DURATIONS.map((value) => (
-                  <option key={value} value={value}>
-                    {t(DURATION_KEYS[value])}
-                  </option>
-                ))}
-              </select>
+          {settings?.platform === 'win32' ? (
+            <div className="smkit-notify-page-row smkit-notify-page-row-stacked">
+              <div className="smkit-notify-page-row-head">
+                <div className="smkit-notify-page-row-title">{t('durationTitle')}</div>
+                <select
+                  className="smkit-notify-page-select"
+                  value={duration}
+                  disabled={pending === 'duration'}
+                  aria-label={t('durationTitle')}
+                  onChange={(e) => void pickDuration(e.target.value)}
+                >
+                  {NOTIFY_DURATIONS.map((value) => (
+                    <option key={value} value={value}>
+                      {t(DURATION_KEYS[value])}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="smkit-notify-page-row-help">
+                {t('durationHelp')}
+                {webPerm === 'granted' ? ` ${t('durationHelpToastOnly')}` : ''}
+              </div>
             </div>
-            <div className="smkit-notify-page-row-help">{t('durationHelp')}</div>
-          </div>
+          ) : null}
           {webPerm !== null ? (
             <div className="smkit-notify-page-row smkit-notify-page-row-stacked">
               <div className="smkit-notify-page-row-head">
