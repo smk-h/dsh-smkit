@@ -21,6 +21,7 @@
 import { openSpecFeature } from './features/openspec/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
 import { themeCenterFeature } from './features/theme-center/client'
+import { notifyFeature } from './features/notify/client'
 import { settingsFeature } from './settings'
 import { createApi, createStream } from './platform/api'
 import { PLATFORM_LOCALE_EN } from './platform/i18n/en'
@@ -42,6 +43,7 @@ export const inject = ['slots', 'locale', 'sessions']
 /** The features this plugin ships; the order here is the order they register. */
 const FEATURES: ClientFeature[] = [
   sessionDeleteFeature,
+  notifyFeature,
   settingsFeature,
   openSpecFeature,
   themeCenterFeature,

@@ -1,5 +1,5 @@
 /**
- * The merged settings section: one seat in the settings dialog for the four
+ * The merged settings section: one seat in the settings dialog for the five
  * pages this plugin used to seat on its own.
  *
  * The feature directories stay what they were — each owns its panel, its
@@ -30,6 +30,7 @@ import { MCP_CSS } from './features/mcp/styles'
 import { SKILLS_CSS } from './features/skills/styles'
 import { CUSTOM_SETTINGS_CSS } from './features/custom-settings/styles'
 import { LOCAL_CACHE_CSS } from './features/local-cache/styles'
+import { NOTIFY_CSS } from './features/notify/styles'
 import { SETTINGS_NAV_ATTRIBUTE, markSettingsNavRow } from './platform/ui/settings-nav'
 import { iconMaskDataUri } from './platform/icons/Icon'
 import { SETTINGS2_SPEC } from './platform/icons/Settings2Icon'
@@ -51,7 +52,7 @@ const NAV_GLYPH_RULE = `[${SETTINGS_NAV_ATTRIBUTE}='smkit']{--smkit-shell-nav-gl
 /**
  * The section component, built once for the life of the module: it closes over
  * `deps`, and building it again would hand the slot a different component
- * identity than the one already mounted (the same reason the four pages this
+ * identity than the one already mounted (the same reason the five pages this
  * replaces were each built once).
  */
 let section: unknown
@@ -59,9 +60,10 @@ let section: unknown
 export const settingsFeature: ClientFeature = {
   id: 'smkit',
   locale: { namespace: 'smkit', zh: SMKIT_LOCALE_ZH, en: SMKIT_LOCALE_EN },
-  // The four pages' own dictionaries: their panels still read their copy
-  // through their own namespace, so this section registers what the four
-  // descriptors used to. Theme is not among them — it seats no panel here, and
+  // The five pages' own dictionaries — except the notify page's, which the
+  // notify feature itself registers on mount: their panels still read their
+  // copy through their own namespace, so this section only binds what it
+  // seats. Theme is not among them — it seats no panel here, and
   // the row and the palette control that carry it register their own namespace
   // from the theme-center feature itself.
   extraLocales: [
@@ -75,6 +77,7 @@ export const settingsFeature: ClientFeature = {
     { name: 'skills', css: SKILLS_CSS },
     { name: 'custom-settings', css: CUSTOM_SETTINGS_CSS },
     { name: 'local-cache', css: LOCAL_CACHE_CSS },
+    { name: 'notify', css: NOTIFY_CSS },
     { name: 'smkit/page', css: pageCss },
     { name: 'smkit/nav-icon', css: NAV_GLYPH_RULE },
   ],
@@ -101,6 +104,7 @@ export const settingsFeature: ClientFeature = {
       skills: ctx.locale.bind('skills'),
       customSettings: ctx.locale.bind('custom-settings'),
       localCache: ctx.locale.bind('local-cache'),
+      notify: ctx.locale.bind('notify'),
     })
     ctx.slots.inject('settings.section', () =>
       ctx.slots.register(

@@ -1,0 +1,160 @@
+/**
+ * The notify tab: the intro pair, the two toggle rows, the test fire.
+ *
+ * Classes are namespaced `smkit-notify-page-*` per the namespace scheme
+ * (`smkit-<scope>-<sheet>[-<block>[-<part>]]`): scope `notify`, sheet `page`.
+ * The switch rules are the MCP switch's, ported under this feature's own
+ * namespace — the component comment in `ui/Switch.tsx` explains why the copy
+ * instead of a shared control.
+ *
+ * Reads the same design tokens every other page paints from, so the panel
+ * follows the shell's theme (including dark) without rules of its own.
+ */
+
+.smkit-notify-page-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.smkit-notify-page-intro {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.smkit-notify-page-toggles {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.smkit-notify-page-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+}
+
+.smkit-notify-page-row + .smkit-notify-page-row {
+  border-top: 1px solid var(--dsw-alias-border-l1);
+}
+
+.smkit-notify-page-row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.smkit-notify-page-row-title {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.smkit-notify-page-row-help {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.smkit-notify-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.smkit-notify-page-test-done {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.smkit-notify-page-note {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* --- the switch (ported from the MCP page, renamed) --- */
+
+.smkit-notify-page-switch-row {
+  align-items: center;
+  gap: 8px;
+  display: inline-flex;
+}
+
+.smkit-notify-page-switch {
+  box-sizing: border-box;
+  width: 36px;
+  height: 20px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-3);
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  flex: none;
+  transition: background-color .2s ease,border-color .2s ease;
+}
+
+.smkit-notify-page-switch:disabled {
+  cursor: default;
+  opacity: .6;
+}
+
+.smkit-notify-page-switch[data-smkit-on=true] {
+  border-color: transparent;
+  background: var(--dsw-alias-brand-primary);
+}
+
+.smkit-notify-page-switch-thumb {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--dsw-alias-label-secondary);
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform .22s cubic-bezier(.34,1.56,.64,1),background-color .18s ease;
+}
+
+.smkit-notify-page-switch[data-smkit-on=true] .smkit-notify-page-switch-thumb {
+  transform: translateX(18px);
+  background: var(--dsw-alias-label-primary-foreground);
+}
+
+.smkit-notify-page-switch-text {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.smkit-notify-page-select {
+  flex: none;
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+
+.smkit-notify-page-select option {
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+}
+
+body[data-ds-dark-theme] .smkit-notify-page-switch:not([data-smkit-on=true]) .smkit-notify-page-switch-thumb {
+  background: #fff;
+}

@@ -209,7 +209,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'openspec', 'theme-center']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -245,6 +245,10 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
   assert.deepEqual(app.effectLabels, [
     'smkit: platform/dictionaries',
     'smkit: session-delete/dictionaries',
+    // The notify feature: its dictionary (it sits before the merged settings
+    // in the feature list) and its focus heartbeat, the one effect that runs
+    // outside the settings dialog.
+    'smkit: notify/dictionaries',
     'smkit: smkit/dictionaries',
     'smkit: mcp/dictionaries',
     'smkit: skills/dictionaries',
@@ -252,6 +256,7 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'smkit: local-cache/dictionaries',
     'smkit: openspec/dictionaries',
     'smkit: theme-center/dictionaries',
+    'smkit: notify/heartbeat',
     'smkit: merged settings nav row',
     // The theme center's mount-time half: the swap element, the saved mode and
     // theme, and the programmatic API — all before the settings row renders.

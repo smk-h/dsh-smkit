@@ -18,7 +18,7 @@
 
 ### 2. 项目介绍
 
-dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供六个功能：MCP 管理、技能管理、会话删除、自定义配置、OpenSpec 管理与主题中心。
+dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供七个功能：MCP 管理、技能管理、会话删除、自定义配置、OpenSpec 管理、主题中心与完成通知。
 
 #### 2.1 MCP 管理
 
@@ -132,6 +132,20 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 
 > [!NOTE]
 > 主题 CSS 与卡片预览数据取自 [mux9056-bot/dsh-theme](https://github.com/mux9056-bot/dsh-theme)（Apache-2.0），本仓库只取其 30 款主题包并裁剪为上述 13 款；作者的这些主题都是纯色主题，很简约，但是颜色可能不是我想要的，所以参考了原作者的主题风格，后面自定义成自己喜欢的。
+
+#### 2.7 完成通知
+
+「设置 → smkit 配置 → 通知」页提供桌面通知：dsh 的任务完成、出错，或需要确认工具调用（`approval/request`）、回答提问（`user-questions/request`）时，由 **dsh 所在机器的进程**直接弹 Windows 系统通知并播放提示音——不经过网页，所以浏览器没开、页面已关也照常提醒；点击通知会用默认浏览器打开 dsh 页面（地址取自页面心跳上报的来源）。
+
+- **触发时机**：监听宿主事件总线上的 `api-session/status`（`running` 由 `true` 变 `false` 即完成）、`api-session/error`（任务出错）、`approval/request` 与 `user-questions/request`（需要你确认 / 需要你回复），文案与 ZCode 相同：「任务已完成 / 任务出错 / 需要你的确认 / 需要你的回复 / 计划等待确认」。子代理会话的完成与出错不打扰（它们是父任务的内部机器），但子代理要确认时仍会提醒。
+- **只在离开时打扰**：唯一的静默条件是「dsh 页面正被聚焦」——网页端每 5 秒上报一次聚焦心跳，失去焦点立即上报；心跳停止（页面关闭、浏览器退出）8 秒后恢复提醒。这就是 ZCode 的同一条规则：窗口聚焦时什么都不发，没有别的「离开检测」。
+- **多任务并发**：不做聚合，几个会话同时结束就各弹一条；同一 `kind:目标` 在 3 秒窗口内只弹一次（确认与提问按交互对象去重），与 ZCode 的去重窗口一致。出错后紧跟的 `status → false` 不再补一条「任务已完成」。
+- **提示音**：一段 mp3 由宿主解码到临时目录后经 MCI 播放，toast 本身静音——即声音只在通知真正弹出时响一次，不会双重响。资源与播放选择（`WinRT ToastNotificationManager` + `winmm` MCI，脚本经 `-EncodedCommand` 传输以保中文无损）见 [`src/host/features/notify/toast.ts`](src/host/features/notify/toast.ts)。
+- **两个开关与常驻时长**：通知总开关、提示音子开关（默认都开）与「常驻时长」三档——标准（约 5 秒，默认）、加长（约 25 秒，`duration="long"`）、常驻（`scenario="reminder"`，一直显示直到手动关闭；该模式要求通知至少带一个按钮，所以常驻通知总是附带「知道了」关闭钮，已知 dsh 地址时再加「打开 dsh」）。设置落在 `~/.dsh/smkit-notify.json`，保存即生效；「发送测试通知」按钮无视聚焦抑制直接弹一条，方便确认链路。
+- **限制**：仅 Windows 生效（其余平台挂载后静默跳过）；系统专注助手 / 勿扰模式可能在系统层拦截通知；toast 的通知来源显示为「Windows PowerShell」——dsh-smkit 没有自己的开始菜单快捷方式（AUMID），只能借用 PowerShell 的，这是 WinRT toast 的身份要求，无碍使用。
+
+> [!NOTE]
+> 提示音取自 [ZCode](https://github.com/zcode-ai/zcode)（Apache-2.0）自带的任务通知音效 `task-notification-pop.mp3`，逐字节未改动地随插件分发（[`src/host/features/notify/assets/`](src/host/features/notify/assets/)，构建为 base64 内联的 [`sound-data.ts`](src/host/features/notify/sound-data.ts)，可由 [`scripts/generate-sound-data.mjs`](scripts/generate-sound-data.mjs) 重新生成），故 dsh 的通知听感与 ZCode 完全一致。
 
 ### 3. 图标来源
 

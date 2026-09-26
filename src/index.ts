@@ -15,6 +15,7 @@ import { API_PREFIX, ROUTE_PATH } from './host/platform/constants.js'
 import { createPrefixRoute } from './host/platform/routes.js'
 import { customSettingsFeature } from './host/features/custom-settings/host.js'
 import { mcpFeature } from './host/features/mcp/host.js'
+import { notifyFeature } from './host/features/notify/host.js'
 import { openSpecFeature } from './host/features/openspec/host.js'
 import { sessionDeleteFeature } from './host/features/session-delete/host.js'
 import { skillsFeature } from './host/features/skills/host.js'
@@ -37,6 +38,7 @@ const FEATURES: HostFeature[] = [
   customSettingsFeature,
   skillsFeature,
   openSpecFeature,
+  notifyFeature,
 ]
 
 export function apply(ctx: PluginContext): void {
@@ -86,6 +88,18 @@ export {
   saveState,
 } from './host/features/mcp/state.js'
 export { createSessionDeleter, createSessionPreviewer } from './host/features/session-delete/delete.js'
+export { createNotifyOrchestrator } from './host/features/notify/orchestrator.js'
+export type { NotifyOrchestrator } from './host/features/notify/orchestrator.js'
+export {
+  DEFAULT_NOTIFY_SETTINGS,
+  loadNotifySettings,
+  normalizeDuration,
+  normalizeToggle,
+  saveNotifySettings,
+} from './host/features/notify/settings.js'
+export { nextSettings } from './host/features/notify/api.js'
+export { buildToastScript } from './host/features/notify/toast.js'
+export type { NotifyDecision, NotifyDuration, NotifyKind, NotifySettings } from './host/features/notify/types.js'
 export type {
   SessionDeleteOutcome,
   SessionDeleter,
