@@ -52,6 +52,22 @@
   min-width: 0;
 }
 
+/* The stacked variant: title and control share the first line, the help
+ * text spans the full row below — a long explanation no longer squeezes
+ * the control into a narrow corner. */
+.smkit-notify-page-row-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.smkit-notify-page-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .smkit-notify-page-row-title {
   font-size: 13px;
   line-height: 20px;
@@ -155,13 +171,30 @@
   color: var(--dsw-alias-label-primary);
 }
 
-.smkit-notify-page-status {
+/* The browser-permission answer as a pill — the same vocabulary the MCP
+ * status badges speak: granted reads as success, denied as error, and
+ * anything else stays neutral. */
+.smkit-notify-page-badge {
   flex: none;
-  max-width: 220px;
-  font-size: 12px;
-  line-height: 18px;
-  text-align: right;
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 1px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  line-height: 16px;
+  background: var(--dsw-alias-bg-layer-3);
   color: var(--dsw-alias-label-secondary);
+}
+
+.smkit-notify-page-badge[data-smkit-state=granted] {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.smkit-notify-page-badge[data-smkit-state=denied] {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
+  color: var(--dsw-alias-state-error-primary);
 }
 
 body[data-ds-dark-theme] .smkit-notify-page-switch:not([data-smkit-on=true]) .smkit-notify-page-switch-thumb {

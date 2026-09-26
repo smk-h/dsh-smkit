@@ -166,50 +166,57 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
               ariaLabel={t('soundTitle')}
             />
           </div>
-          <div className="smkit-notify-page-row">
-            <div className="smkit-notify-page-row-copy">
+          <div className="smkit-notify-page-row smkit-notify-page-row-stacked">
+            <div className="smkit-notify-page-row-head">
               <div className="smkit-notify-page-row-title">{t('durationTitle')}</div>
-              <div className="smkit-notify-page-row-help">{t('durationHelp')}</div>
+              <select
+                className="smkit-notify-page-select"
+                value={duration}
+                disabled={pending === 'duration'}
+                aria-label={t('durationTitle')}
+                onChange={(e) => void pickDuration(e.target.value)}
+              >
+                {NOTIFY_DURATIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {t(DURATION_KEYS[value])}
+                  </option>
+                ))}
+              </select>
             </div>
-            <select
-              className="smkit-notify-page-select"
-              value={duration}
-              disabled={pending === 'duration'}
-              aria-label={t('durationTitle')}
-              onChange={(e) => void pickDuration(e.target.value)}
-            >
-              {NOTIFY_DURATIONS.map((value) => (
-                <option key={value} value={value}>
-                  {t(DURATION_KEYS[value])}
-                </option>
-              ))}
-            </select>
+            <div className="smkit-notify-page-row-help">{t('durationHelp')}</div>
           </div>
           {webPerm !== null ? (
-            <div className="smkit-notify-page-row">
-              <div className="smkit-notify-page-row-copy">
+            <div className="smkit-notify-page-row smkit-notify-page-row-stacked">
+              <div className="smkit-notify-page-row-head">
                 <div className="smkit-notify-page-row-title">{t('webNotifTitle')}</div>
-                <div className="smkit-notify-page-row-help">{t('webNotifHelp')}</div>
+                {webPerm === 'default' ? (
+                  <button
+                    className="smkit-ui-button"
+                    onClick={() => void authorize()}
+                    disabled={pending === 'webperm'}
+                    data-smkit-pending={pending === 'webperm' ? 'true' : undefined}
+                    aria-busy={pending === 'webperm'}
+                  >
+                    {t('webNotifEnable')}
+                  </button>
+                ) : (
+                  <span className="smkit-notify-page-badge" data-smkit-state={webPerm}>
+                    {webPerm === 'granted'
+                      ? t('webNotifGranted')
+                      : webPerm === 'denied'
+                        ? t('webNotifDenied')
+                        : t('webNotifUnsupported')}
+                  </span>
+                )}
               </div>
-              {webPerm === 'default' ? (
-                <button
-                  className="smkit-ui-button"
-                  onClick={() => void authorize()}
-                  disabled={pending === 'webperm'}
-                  data-smkit-pending={pending === 'webperm' ? 'true' : undefined}
-                  aria-busy={pending === 'webperm'}
-                >
-                  {t('webNotifEnable')}
-                </button>
-              ) : (
-                <span className="smkit-notify-page-status">
-                  {webPerm === 'granted'
-                    ? t('webNotifGranted')
-                    : webPerm === 'denied'
-                      ? t('webNotifDenied')
-                      : t('webNotifUnsupported')}
-                </span>
-              )}
+              <div className="smkit-notify-page-row-help">
+                {t('webNotifHelp')}
+                {webPerm === 'denied'
+                  ? ` ${t('webNotifDeniedHint')}`
+                  : webPerm === 'unsupported'
+                    ? ` ${t('webNotifUnsupportedHint')}`
+                    : ''}
+              </div>
             </div>
           ) : null}
         </div>
