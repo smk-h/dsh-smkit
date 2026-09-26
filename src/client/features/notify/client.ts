@@ -130,12 +130,18 @@ export const notifyFeature: ClientFeature = {
       }
 
       /** Show one pushed decision: toast it (tag = dedupeKey collapses the
-       * copies other tabs would render), then play the sound if asked. A
-       * forced frame also renotifies: the test fire's tag is always the
-       * same, and a same-tag replacement is silent by default — without
-       * `renotify` a second test click would play the sound but never pop.
-       * (`renotify` requires a tag; the test decision always carries its
-       * dedupeKey, so the guard below keeps the pair together.) */
+       * copies other tabs would render), then play the sound if asked.
+       *
+       * Every tagged frame renotifies, and that is not about the test fire:
+       * a tag that is still live makes the browser *replace* instead of pop,
+       * and replacement is silent by default (`renotify` defaults to false) —
+       * the page's own mp3 would be the only sign of the new decision. The
+       * tags are per-decision, but not per-*event*: a session's completions
+       * all key on `completed:<sessionId>`, so without `renotify` the second
+       * task a session finishes only rings. `renotify` turns the replacement
+       * back into an alert, keeping one live notification per decision while
+       * every arrival still announces itself. It requires a tag, hence the
+       * pair below. */
       async function deliver(event: NotifyEvent): Promise<void> {
         try {
           // The host suppresses on the heartbeat already; this repeat check
@@ -145,10 +151,11 @@ export const notifyFeature: ClientFeature = {
           if (event.force !== true && document.hasFocus()) return
           if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
           if (typeof event.title !== 'string' || event.title === '') return
+          const tag = typeof event.dedupeKey === 'string' && event.dedupeKey !== '' ? event.dedupeKey : undefined
           const notification = new Notification(event.title, {
             body: typeof event.body === 'string' ? event.body : '',
-            tag: typeof event.dedupeKey === 'string' ? event.dedupeKey : undefined,
-            ...(event.force === true && typeof event.dedupeKey === 'string' ? { renotify: true } : {}),
+            tag,
+            ...(tag === undefined ? {} : { renotify: true }),
           })
           notification.onclick = () => {
             try {
