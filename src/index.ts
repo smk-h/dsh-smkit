@@ -90,6 +90,8 @@ export {
 export { createSessionDeleter, createSessionPreviewer } from './host/features/session-delete/delete.js'
 export { createNotifyOrchestrator } from './host/features/notify/orchestrator.js'
 export type { NotifyOrchestrator } from './host/features/notify/orchestrator.js'
+export { createNotifyBroadcaster } from './host/features/notify/broadcaster.js'
+export type { NotifyBroadcaster, NotifyEventFrame, StreamClientLike } from './host/features/notify/broadcaster.js'
 export {
   DEFAULT_NOTIFY_SETTINGS,
   loadNotifySettings,

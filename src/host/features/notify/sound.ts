@@ -20,6 +20,27 @@ const LOG_PREFIX = 'smkit notify:'
 /** The decoded file's path, resolved once per process. */
 let resolved: string | null | undefined
 
+/** The decoded bytes, cached once per process — what the `/notify/sound`
+ * route serves to pages that deliver their own notifications. */
+let bytesCache: Buffer | null | undefined
+
+/**
+ * Resolve the sound to its bytes, decoding the embedded payload on first
+ * call. `null` means "no sound available" — not an error.
+ */
+export function soundBytes(logger: LoggerLike): Buffer | null {
+  if (bytesCache !== undefined) return bytesCache
+  try {
+    const bytes = Buffer.from(TASK_NOTIFICATION_SOUND_BASE64.replace(/\s+/g, ''), 'base64')
+    if (bytes.length === 0) throw new Error('embedded sound decoded to zero bytes')
+    bytesCache = bytes
+  } catch (error) {
+    logger.warn?.(`${LOG_PREFIX} sound unavailable, toasts will be silent: ${String(error)}`)
+    bytesCache = null
+  }
+  return bytesCache
+}
+
 /**
  * Resolve the sound to a playable file path, decoding the embedded bytes on
  * first call. `null` means "no sound this time" — not an error.
@@ -27,8 +48,8 @@ let resolved: string | null | undefined
 export function resolveSoundFile(logger: LoggerLike): string | null {
   if (resolved !== undefined) return resolved
   try {
-    const bytes = Buffer.from(TASK_NOTIFICATION_SOUND_BASE64.replace(/\s+/g, ''), 'base64')
-    if (bytes.length === 0) throw new Error('embedded sound decoded to zero bytes')
+    const bytes = soundBytes(logger)
+    if (bytes === null) throw new Error('embedded sound unavailable')
     // A content-hash name: a swapped asset rewrites the temp file instead of
     // playing whatever an older process left behind under the old name.
     const digest = createHash('sha256').update(bytes).digest('hex').slice(0, 16)

@@ -34,6 +34,7 @@ const notifyStatePath = join(scratchHome, '.dsh', 'smkit-notify.json')
 
 const {
   createNotifyOrchestrator,
+  createNotifyBroadcaster,
   loadNotifySettings,
   saveNotifySettings,
   normalizeToggle,
@@ -43,6 +44,8 @@ const {
   DEFAULT_NOTIFY_SETTINGS,
 } = await import('../lib/index.js')
 after(() => rmSync(scratchHome, { recursive: true, force: true }))
+
+const quietLogger = { info() {}, warn() {}, error() {} }
 
 /** A clock the tests move: `t` is milliseconds since an arbitrary zero. */
 function makeClock(start = 10_000) {
@@ -228,6 +231,86 @@ describe('notify settings', () => {
     assert.equal(nextSettings({ duration: null }, current).duration, 'short')
     assert.equal(nextSettings({ duration: 'forever' }, current).duration, 'short')
     assert.equal(nextSettings({ duration: 25 }, current).duration, 'short')
+  })
+})
+
+describe('notify broadcaster', () => {
+  /** A minimal ServerResponse double: records writes, remembers listeners. */
+  function makeRes() {
+    const res = {
+      code: 0,
+      headers: {},
+      written: [],
+      listeners: {},
+      writeHead(code, headers) {
+        res.code = code
+        res.headers = headers
+      },
+      write(chunk) {
+        res.written.push(chunk)
+        return true
+      },
+      end() {},
+      on(event, listener) {
+        ;(res.listeners[event] ??= []).push(listener)
+        return res
+      },
+      emitClose() {
+        for (const listener of res.listeners.close ?? []) listener()
+      },
+    }
+    return res
+  }
+
+  const DECISION = { kind: 'completed', title: '任务已完成', body: '工作区：x', dedupeKey: 'completed:s1' }
+
+  it('adopts a stream with SSE headers and a hello, and pushes identical frames to every client', () => {
+    const o = createNotifyBroadcaster(quietLogger)
+    const a = makeRes()
+    o.connect(a)
+    assert.equal(a.code, 200)
+    assert.equal(a.headers['Content-Type'], 'text/event-stream; charset=utf-8')
+    assert.match(a.written[0], /^retry: 3000/)
+    assert.match(a.written[1], /"type":"hello"/)
+
+    const b = makeRes()
+    o.connect(b)
+    assert.equal(o.size(), 2)
+    o.broadcast(DECISION, true)
+    const frameA = a.written.at(-1)
+    assert.match(frameA, /^data: /)
+    assert.deepEqual(JSON.parse(frameA.replace(/^data: /, '').trim()), {
+      type: 'notify',
+      kind: 'completed',
+      title: '任务已完成',
+      body: '工作区：x',
+      dedupeKey: 'completed:s1',
+      sound: true,
+    })
+    assert.equal(b.written.at(-1), frameA, 'every connected page sees the same frame')
+  })
+
+  it('drops a client on close and stops writing to it', () => {
+    const o = createNotifyBroadcaster(quietLogger)
+    const a = makeRes()
+    const b = makeRes()
+    o.connect(a)
+    o.connect(b)
+    a.emitClose()
+    assert.equal(o.size(), 1)
+    o.broadcast(DECISION, false)
+    assert.equal(a.written.length, 2, 'the closed connection receives nothing more')
+    assert.equal(b.written.length, 3)
+    assert.equal(JSON.parse(b.written.at(-1).replace(/^data: /, '').trim()).sound, false)
+  })
+
+  it('a frame without a body omits the key entirely', () => {
+    const o = createNotifyBroadcaster(quietLogger)
+    const a = makeRes()
+    o.connect(a)
+    o.broadcast({ kind: 'failed', title: '任务出错', dedupeKey: 'failed:s1' }, true)
+    const parsed = JSON.parse(a.written.at(-1).replace(/^data: /, '').trim())
+    assert.equal('body' in parsed, false)
   })
 })
 

@@ -257,6 +257,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'smkit: openspec/dictionaries',
     'smkit: theme-center/dictionaries',
     'smkit: notify/heartbeat',
+    // The web-delivery subscriber: the second notification path for remote
+    // hosts, holding one event-stream open for the host's pushed decisions.
+    'smkit: notify/web-delivery',
     'smkit: merged settings nav row',
     // The theme center's mount-time half: the swap element, the saved mode and
     // theme, and the programmatic API — all before the settings row renders.

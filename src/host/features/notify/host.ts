@@ -23,6 +23,7 @@ import { createNotifyOrchestrator } from './orchestrator.js'
 import { loadNotifySettings, saveNotifySettings } from './settings.js'
 import { resolveSoundFile } from './sound.js'
 import { showToast } from './toast.js'
+import { createNotifyBroadcaster } from './broadcaster.js'
 import { createNotifyHandlers } from './api.js'
 import type { HostFeature, HostPlatform } from '../../platform/context.js'
 import type { NotifyDecision, NotifySettings } from './types.js'
@@ -45,20 +46,35 @@ export const notifyFeature: HostFeature = {
 
     let settings: NotifySettings = loadNotifySettings()
     const orchestrator = createNotifyOrchestrator()
+    // The second delivery path: pages that show the notification themselves,
+    // for hosts whose machine has no screen to toast on (dsh on a remote
+    // server, the page opened over an SSH tunnel).
+    const broadcaster = createNotifyBroadcaster(logger)
     // The page's origin, updated on every heartbeat; the toast's click opens
     // it. Nothing is launched until a heartbeat has reported one.
     let launchOrigin: string | undefined
 
-    /** Show one decision, unless a toggle or the focus heartbeat says not to. */
+    /**
+     * Show one decision, unless a toggle or the focus heartbeat says not to.
+     * Delivery branches on where the user's screen can be: a Windows host
+     * toasts natively — which covers the browser-closed case the web cannot —
+     * and every other host pushes the decision to its open pages, which show
+     * it as a Web Notification. The two never fire together, so there is no
+     * double toast to dedupe.
+     */
     function dispatch(decision: NotifyDecision, options: { force?: boolean } = {}): void {
       if (!options.force && !settings.enabled) return
       if (!options.force && orchestrator.isSuppressed()) return
-      const soundFile = settings.soundEnabled ? resolveSoundFile(logger) : null
       logger.info?.(`${LOG_PREFIX} ${decision.kind}: ${decision.title}${decision.body ? ` — ${decision.body}` : ''}`)
-      showToast(
-        { title: decision.title, body: decision.body, soundFile, launchUrl: launchOrigin, duration: settings.duration },
-        logger,
-      )
+      if (process.platform === 'win32') {
+        const soundFile = settings.soundEnabled ? resolveSoundFile(logger) : null
+        showToast(
+          { title: decision.title, body: decision.body, soundFile, launchUrl: launchOrigin, duration: settings.duration },
+          logger,
+        )
+      } else {
+        broadcaster.broadcast(decision, settings.soundEnabled)
+      }
     }
 
     /** Run one observer and dispatch what it returns, swallowing everything. */
@@ -141,6 +157,8 @@ export const notifyFeature: HostFeature = {
         onOrigin: (origin: string) => {
           launchOrigin = origin
         },
+        broadcaster,
+        logger,
       }),
     )
   },

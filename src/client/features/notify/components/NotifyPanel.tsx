@@ -29,7 +29,13 @@ export interface NotifySettingsBody {
   enabled?: boolean
   soundEnabled?: boolean
   duration?: string
+  /** Where the host runs: `win32` delivers natively; anything else asks the
+   * page to show the notification itself. */
+  platform?: string
 }
+
+/** The browser's Notification permission, plus a stand-in for "no API here". */
+type WebPermission = 'default' | 'granted' | 'denied' | 'unsupported'
 
 /** Read one toggle out of a host answer, keeping the fallback on garbage. */
 function readToggle(value: unknown, fallback: boolean): boolean {
@@ -51,12 +57,17 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
   return function NotifyPanel({ t }: NotifyPanelProps): JSX.Element {
     const [settings, setSettings] = react.useState<NotifySettingsBody | null>(null)
     const [testDone, setTestDone] = react.useState(false)
+    const [webPerm, setWebPerm] = react.useState<WebPermission | null>(null)
     const { busy, pending, error, run } = useAsyncAction(react)
 
     react.useEffect(() => {
       let cancelled = false
       void api('/notify/settings').then((r: ApiResult) => {
-        if (!cancelled && r.ok) setSettings(r.body as NotifySettingsBody)
+        if (cancelled || !r.ok) return
+        setSettings(r.body as NotifySettingsBody)
+        if (typeof r.body.platform === 'string' && r.body.platform !== 'win32') {
+          setWebPerm(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
+        }
       }).catch(() => {})
       return () => {
         cancelled = true
@@ -95,6 +106,18 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
         }
         return r.body.error || t('saveFailed', { status: r.status })
       }, 'duration')
+
+    /** Ask the browser for notification permission; the answer lands in the
+     * row's status. Browsers refuse to even ask without a user gesture, so
+     * this only ever runs from the button. */
+    const authorize = (): Promise<void> =>
+      run(async () => {
+        try {
+          setWebPerm(await Notification.requestPermission())
+        } catch {
+          return t('webNotifFailed')
+        }
+      }, 'webperm')
 
     const fireTest = (): Promise<void> =>
       run(async () => {
@@ -155,6 +178,33 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
               ))}
             </select>
           </div>
+          {webPerm !== null ? (
+            <div className="smkit-notify-page-row">
+              <div className="smkit-notify-page-row-copy">
+                <div className="smkit-notify-page-row-title">{t('webNotifTitle')}</div>
+                <div className="smkit-notify-page-row-help">{t('webNotifHelp')}</div>
+              </div>
+              {webPerm === 'default' ? (
+                <button
+                  className="smkit-ui-button"
+                  onClick={() => void authorize()}
+                  disabled={pending === 'webperm'}
+                  data-smkit-pending={pending === 'webperm' ? 'true' : undefined}
+                  aria-busy={pending === 'webperm'}
+                >
+                  {t('webNotifEnable')}
+                </button>
+              ) : (
+                <span className="smkit-notify-page-status">
+                  {webPerm === 'granted'
+                    ? t('webNotifGranted')
+                    : webPerm === 'denied'
+                      ? t('webNotifDenied')
+                      : t('webNotifUnsupported')}
+                </span>
+              )}
+            </div>
+          ) : null}
         </div>
         <div className="smkit-notify-page-actions">
           <button

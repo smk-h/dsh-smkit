@@ -11,8 +11,11 @@
 
 import { readBody, sendJson } from '../../platform/util/http.js'
 import type { ApiHandler } from '../../platform/routes.js'
+import type { LoggerLike } from '../../platform/types.js'
 import type { NotifyOrchestrator } from './orchestrator.js'
 import { normalizeDuration } from './settings.js'
+import { soundBytes } from './sound.js'
+import type { NotifyBroadcaster } from './broadcaster.js'
 import type { NotifySettings } from './types.js'
 
 /** What the routes need: the toggles, the orchestrator, and the test fire. */
@@ -23,6 +26,9 @@ export interface NotifyApiDeps {
   fireTest(): void
   /** Recorded on every heartbeat: the origin the page is served from. */
   onOrigin(origin: string): void
+  /** The event-stream registry the web-delivery route hands connections to. */
+  broadcaster: NotifyBroadcaster
+  logger: LoggerLike
 }
 
 /** Fold one POST /settings body into the next settings value. */
@@ -44,12 +50,22 @@ export function nextSettings(
   }
 }
 
+/**
+ * The settings answer, as the panel reads it: the three saved values plus
+ * where the host runs, which decides the panel's own advice — a Windows host
+ * delivers natively and needs nothing from the browser; any other host asks
+ * the page to show the notification itself.
+ */
+function settingsView(settings: NotifySettings): Record<string, unknown> {
+  return { ...settings, platform: process.platform }
+}
+
 /** The feature's handlers, in matching order. */
 export function createNotifyHandlers(deps: NotifyApiDeps): ApiHandler[] {
   return [
     async (req, res, facts) => {
       if (facts.rest === '/notify/settings' && req.method === 'GET') {
-        sendJson(res, 200, deps.getSettings())
+        sendJson(res, 200, settingsView(deps.getSettings()))
         return true
       }
 
@@ -57,7 +73,7 @@ export function createNotifyHandlers(deps: NotifyApiDeps): ApiHandler[] {
         const body = await readBody(req)
         const next = nextSettings(body, deps.getSettings())
         deps.saveSettings(next)
-        sendJson(res, 200, next)
+        sendJson(res, 200, settingsView(next))
         return true
       }
 
@@ -72,6 +88,29 @@ export function createNotifyHandlers(deps: NotifyApiDeps): ApiHandler[] {
       if (facts.rest === '/notify/test' && req.method === 'POST') {
         deps.fireTest()
         sendJson(res, 200, { ok: true })
+        return true
+      }
+
+      if (facts.rest === '/notify/events' && req.method === 'GET') {
+        // Takes ownership of the response: headers, pings, and the close
+        // listener that drops it again. The handler returns immediately; the
+        // connection stays open in the broadcaster's hands.
+        deps.broadcaster.connect(res)
+        return true
+      }
+
+      if (facts.rest === '/notify/sound' && req.method === 'GET') {
+        const bytes = soundBytes(deps.logger)
+        if (bytes === null) {
+          sendJson(res, 404, { error: 'sound unavailable' })
+          return true
+        }
+        res.writeHead(200, {
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': String(bytes.length),
+          'Cache-Control': 'no-store',
+        })
+        res.end(bytes)
         return true
       }
 

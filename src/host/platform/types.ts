@@ -163,7 +163,13 @@ export interface ResponseLike {
    * be.
    */
   write(chunk: string): boolean
-  end(chunk?: string): void
+  end(chunk?: string | Uint8Array): void
+  /**
+   * Subscribe to connection lifecycle, optional because only the streaming
+   * routes need it: the notify event stream watches `close` to drop the
+   * client it is pushing to. A real `http.ServerResponse` satisfies this.
+   */
+  on?(event: string, listener: () => void): unknown
 }
 
 export interface RouteDefinition {

@@ -155,6 +155,15 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.smkit-notify-page-status {
+  flex: none;
+  max-width: 220px;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
+  color: var(--dsw-alias-label-secondary);
+}
+
 body[data-ds-dark-theme] .smkit-notify-page-switch:not([data-smkit-on=true]) .smkit-notify-page-switch-thumb {
   background: #fff;
 }

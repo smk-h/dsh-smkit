@@ -142,6 +142,7 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 - **多任务并发**：不做聚合，几个会话同时结束就各弹一条；同一 `kind:目标` 在 3 秒窗口内只弹一次（确认与提问按交互对象去重），与 ZCode 的去重窗口一致。出错后紧跟的 `status → false` 不再补一条「任务已完成」。
 - **提示音**：一段 mp3 由宿主解码到临时目录后经 MCI 播放，toast 本身静音——即声音只在通知真正弹出时响一次，不会双重响。资源与播放选择（`WinRT ToastNotificationManager` + `winmm` MCI，脚本经 `-EncodedCommand` 传输以保中文无损）见 [`src/host/features/notify/toast.ts`](src/host/features/notify/toast.ts)。
 - **两个开关与常驻时长**：通知总开关、提示音子开关（默认都开）与「常驻时长」三档——标准（约 5 秒，默认）、加长（约 25 秒，`duration="long"`）、常驻（`scenario="reminder"`，一直显示直到手动关闭；该模式要求通知至少带一个按钮，所以常驻通知总是附带「知道了」关闭钮，已知 dsh 地址时再加「打开 dsh」）。设置落在 `~/.dsh/smkit-notify.json`，保存即生效；「发送测试通知」按钮无视聚焦抑制直接弹一条，方便确认链路。
+- **远程部署的第二条投递路**：dsh 跑在远程主机上、页面经 SSH 隧道在本地浏览器打开时，宿主机器上没有屏幕可弹——此时面板多出「浏览器通知」一行，授权后由**浏览器代发**：宿主把决策经 `GET /smkit/api/notify/events` 事件流推给每个打开的页面，页面用 Web Notification API 弹出（`tag` 即去重键，多个标签页同收一帧也只显示一条），声音从 `/smkit/api/notify/sound` 拉取同一段 mp3 播放。隧道场景恰好满足 Web Notification 的安全上下文要求（页面地址是 `localhost`；用局域网 IP 访问则不支持）。去重、边缘触发与聚焦抑制仍全部在宿主侧完成，浏览器只负责显示。局限要说清：这条路要求标签页开着（后台标签、最小化浏览器都行），页面关了就收不到——要覆盖它得 Service Worker + Web Push，对本地工具过重，不做。Windows 宿主不走这条路（原生 toast 已覆盖包括页面关闭在内的一切情况），两条路按宿主平台二选一，不会双重弹。
 - **限制**：仅 Windows 生效（其余平台挂载后静默跳过）；系统专注助手 / 勿扰模式可能在系统层拦截通知；toast 的通知来源显示为「Windows PowerShell」——dsh-smkit 没有自己的开始菜单快捷方式（AUMID），只能借用 PowerShell 的，这是 WinRT toast 的身份要求，无碍使用。
 
 > [!NOTE]
