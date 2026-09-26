@@ -61,7 +61,7 @@ export const THEME_CENTER_LOCALE_EN: LocaleDict = {
   paletteClose: "Close",
   paletteSave: "Save",
   paletteReset: "Reset",
-  paletteSavedHint: "✓ Saved, overrides the active palette",
+  paletteSavedHint: "✓ Saved",
   sliderHue: "Hue",
   sliderSat: "Sat",
   sliderLight: "Light",

@@ -90,6 +90,11 @@ function lightTrack(color: { h: number; s: number; l: number; a: number }): stri
   return `linear-gradient(to right, #000, ${pure}, #fff)`
 }
 
+/** How long the "saved" answer stays on the button before the button goes
+ * back to saying Save: long enough to read, short enough that the panel is
+ * never left sitting on a label that no longer names its action. */
+const SAVED_HINT_MS = 1600
+
 export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps) => JSX.Element {
   const { h, react } = deps
   const XIcon = createXIcon(deps)
@@ -121,8 +126,14 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
     const [edits, setEdits] = react.useState<Record<string, string>>(() => loadColorOverrides())
     /** The row whose sliders are unfolded; one at a time keeps the panel short. */
     const [expanded, setExpanded] = react.useState<string | null>(null)
-    /** Set for a beat after Save, so the button's answer is visible. */
+    /** Set for a beat after Save, so the button's answer is visible — then
+     * the timer puts the button back on its own label, and the next edit or
+     * reset cancels whatever flash is still pending. The timer id rides in
+     * state because the platform react slice has no ref; the effect below is
+     * the teardown that clears the pending one on unmount. */
     const [saved, setSaved] = react.useState(false)
+    const [savedTimer, setSavedTimer] = react.useState<number | undefined>(undefined)
+    react.useEffect(() => () => window.clearTimeout(savedTimer), [savedTimer])
 
     /** Keep the start values the body's own. The two triggers are the ones that
      * can repaint a token under an open panel: the theme center's state (a card
@@ -200,6 +211,8 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
     const onSave = (): void => {
       saveColorOverrides(edits)
       setSaved(true)
+      window.clearTimeout(savedTimer)
+      setSavedTimer(window.setTimeout(() => setSaved(false), SAVED_HINT_MS))
     }
 
     const onReset = (): void => {
@@ -208,6 +221,7 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
       setEdits({})
       setExpanded(null)
       setSaved(false)
+      window.clearTimeout(savedTimer)
       // re-read one frame later: the inline properties must be off the body
       // before the probe resolves the tokens again.
       window.setTimeout(() => setColors(readAll()), 50)

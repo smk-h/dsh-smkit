@@ -74,7 +74,7 @@ export const THEME_CENTER_LOCALE_ZH: LocaleDict = {
   paletteClose: "关闭",
   paletteSave: "保存",
   paletteReset: "重置",
-  paletteSavedHint: "✓ 已保存，覆盖当前配色",
+  paletteSavedHint: "✓ 已保存",
   sliderHue: "色相",
   sliderSat: "饱和",
   sliderLight: "明度",
