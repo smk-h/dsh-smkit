@@ -12,5 +12,5 @@
 # `id` is the row identity users target to override or disable the row from
 # their own profile patch layer.
 - insert:
-    - id: mcp-manager
+    - id: smkit
       name: '@smai-kit/dsh-smkit'
