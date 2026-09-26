@@ -3,11 +3,22 @@
  * lets a slider drive them.
  *
  * The registry is a flat list of CSS custom properties grouped by the surface
- * they paint — the theme's accents, the left sidebar, the conversation area,
- * tool-call cards, and the right panel's layer stack. Each item names its
- * token, a dictionary key for its label, and a fallback used only when the
- * token cannot be resolved (the tool-card variables are the case: themes other
- * than zcode do not define them, so this fallback answers).
+ * they paint, and the grouping is correspondence with the center itself: every
+ * color-bearing `--dsw-alias-*`, `--dsw-specific-*` and `--dsw-zcode-*` token
+ * any theme of the center defines is on the list (the two families are the
+ * shell design system's part vocabulary, so token coverage here is part
+ * coverage of what the center repaints). Three things are deliberately absent,
+ * all for the same reason — the panel edits *colors*: `--dsw-font-family` is a
+ * font stack, the two `--dsw-linear-*` tokens are gradient strings a color
+ * slider cannot express, and the `--dsw-static-*` palettes are each theme's
+ * private pigment shelf, not a part. A theme that does not define some token
+ * here (zcode skips six) leaves the host's own default standing, which the
+ * override still beats; a token only one theme consumes (zcode's tool-card
+ * pair) only shows its effect under that theme — under the others the slider
+ * writes an override nothing reads. Each item names its token, a dictionary
+ * key for its label, and a fallback used only when the token cannot be
+ * resolved (the tool-card variables are the case: themes other than zcode do
+ * not define them, so this fallback answers).
  *
  * Every value is read *resolved*: a probe element is attached to the body with
  * `color: var(--the-token)` and the computed color is read back, so var()
@@ -34,15 +45,59 @@ export interface PaletteGroup {
   items: PaletteItem[]
 }
 
-/** The surfaces the panel can repaint, in panel order. */
+/** The surfaces the panel can repaint, in panel order: the theme's accents,
+ * its text hierarchy, its borders, the left sidebar, the conversation area,
+ * markdown rendering, tool-call cards, status colors, scrollbars, interaction
+ * washes, overlays and tips, the remaining surfaces, and the right panel's
+ * layer stack. */
 export const PALETTE_GROUPS: readonly PaletteGroup[] = [
   {
     labelKey: 'groupTheme',
     items: [
       { token: '--dsw-alias-button-primary-fill', labelKey: 'itemPrimaryFill', fallback: '#000000' },
+      { token: '--dsw-alias-button-primary-hover', labelKey: 'itemPrimaryHover', fallback: '#262626' },
+      { token: '--dsw-alias-button-primary-dimmed', labelKey: 'itemPrimaryDimmed', fallback: '#f0f0f0' },
       { token: '--dsw-alias-button-info-fill', labelKey: 'itemSendFill', fallback: '#000000' },
+      { token: '--dsw-alias-button-info-hover', labelKey: 'itemSendHover', fallback: '#262626' },
+      { token: '--dsw-alias-button-contrast-fill', labelKey: 'itemContrastFill', fallback: '#000000' },
+      { token: '--dsw-alias-button-elevated-fill', labelKey: 'itemElevatedFill', fallback: '#ffffff' },
+      { token: '--dsw-alias-button-floating-fill', labelKey: 'itemFloatingFill', fallback: '#ffffff' },
+      { token: '--dsw-alias-button-floating-hover', labelKey: 'itemFloatingHover', fallback: '#fafafa' },
+      { token: '--dsw-alias-button-ghost-active-fill', labelKey: 'itemGhostFill', fallback: '#ededed' },
+      { token: '--dsw-alias-button-ghost-active-hover', labelKey: 'itemGhostHover', fallback: '#e6e6e6' },
+      { token: '--dsw-alias-button-ghost-active-border', labelKey: 'itemGhostBorder', fallback: '#dcdcdc' },
+      { token: '--dsw-alias-button-tool-bar-fill', labelKey: 'itemToolBarFill', fallback: 'rgba(13, 13, 13, 0.1)' },
+      { token: '--dsw-alias-button-tool-bar-fill-invisible', labelKey: 'itemToolBarInvisible', fallback: 'rgba(13, 13, 13, 0.06)' },
+      { token: '--dsw-alias-button-tool-bar-hover', labelKey: 'itemToolBarHover', fallback: 'rgba(13, 13, 13, 0.15)' },
       { token: '--dsw-alias-brand-primary', labelKey: 'itemBrand', fallback: '#000000' },
+      { token: '--dsw-alias-brand-primary-invert', labelKey: 'itemBrandInvert', fallback: '#0f2440' },
+      { token: '--dsw-alias-brand-text', labelKey: 'itemBrandText', fallback: '#0f2440' },
+    ],
+  },
+  {
+    labelKey: 'groupText',
+    items: [
       { token: '--dsw-alias-label-primary', labelKey: 'itemInk', fallback: '#262626' },
+      { token: '--dsw-alias-label-secondary', labelKey: 'itemLabelSecondary', fallback: '#3e5c78' },
+      { token: '--dsw-alias-label-tertiary', labelKey: 'itemLabelTertiary', fallback: '#6e8aa3' },
+      { token: '--dsw-alias-label-caption', labelKey: 'itemLabelCaption', fallback: '#6e8aa3' },
+      { token: '--dsw-alias-label-dimmed', labelKey: 'itemLabelDimmed', fallback: 'rgba(15, 36, 64, 0.45)' },
+      { token: '--dsw-alias-label-primary-dimmed', labelKey: 'itemLabelPrimaryDimmed', fallback: '#0f2440' },
+      { token: '--dsw-alias-label-primary-bluish', labelKey: 'itemLabelBluish', fallback: '#0f2440' },
+      { token: '--dsw-alias-label-primary-foreground', labelKey: 'itemLabelForeground', fallback: '#ffffff' },
+      { token: '--dsw-alias-label-primary-inverted', labelKey: 'itemLabelInverted', fallback: '#ffffff' },
+    ],
+  },
+  {
+    labelKey: 'groupBorders',
+    items: [
+      { token: '--dsw-alias-border-l1', labelKey: 'itemBorderL1', fallback: 'rgba(15, 36, 64, 0.055)' },
+      { token: '--dsw-alias-border-l2', labelKey: 'itemBorderL2', fallback: 'rgba(15, 36, 64, 0.1)' },
+      { token: '--dsw-alias-border-l3', labelKey: 'itemBorderL3', fallback: 'rgba(15, 36, 64, 0.16)' },
+      { token: '--dsw-alias-border-l4', labelKey: 'itemBorderL4', fallback: 'rgba(15, 36, 64, 0.22)' },
+      { token: '--dsw-alias-border-l2-darkmode-thin', labelKey: 'itemBorderThinDark', fallback: 'rgba(15, 36, 64, 0.1)' },
+      { token: '--dsw-alias-border-inverted', labelKey: 'itemBorderInverted', fallback: 'rgba(15, 36, 64, 0.08)' },
+      { token: '--dsw-alias-border-inverted2', labelKey: 'itemBorderInverted2', fallback: 'rgba(15, 36, 64, 0.08)' },
     ],
   },
   {
@@ -64,11 +119,78 @@ export const PALETTE_GROUPS: readonly PaletteGroup[] = [
     ],
   },
   {
+    labelKey: 'groupMarkdown',
+    items: [
+      { token: '--dsw-alias-markdown-code-block', labelKey: 'itemCodeBlock', fallback: '#f0f0f0' },
+      { token: '--dsw-alias-markdown-inline-code', labelKey: 'itemInlineCode', fallback: '#d8e8f1' },
+      { token: '--dsw-alias-markdown-citation', labelKey: 'itemCitation', fallback: '#c5dde8' },
+      { token: '--dsw-alias-markdown-tag', labelKey: 'itemTag', fallback: '#c5dde8' },
+      { token: '--dsw-alias-markdown-placeholder', labelKey: 'itemPlaceholder', fallback: '#c5dde8' },
+      { token: '--dsw-alias-markdown-code-block-banner', labelKey: 'itemCodeBanner', fallback: '#c9dfeb' },
+      { token: '--dsw-alias-markdown-code-segment-selected', labelKey: 'itemCodeSelected', fallback: '#c9dfeb' },
+      { token: '--dsw-alias-markdown-code-segment-unselected', labelKey: 'itemCodeUnselected', fallback: '#d8e8f1' },
+    ],
+  },
+  {
     labelKey: 'groupToolCalls',
     items: [
       { token: '--dsw-zcode-tool-card-bg', labelKey: 'itemToolCardBg', fallback: '#ffffff' },
       { token: '--dsw-zcode-tool-card-border', labelKey: 'itemToolCardBorder', fallback: '#e0e0e0' },
-      { token: '--dsw-alias-markdown-code-block', labelKey: 'itemCodeBlock', fallback: '#f0f0f0' },
+    ],
+  },
+  {
+    labelKey: 'groupStates',
+    items: [
+      { token: '--dsw-alias-state-success-primary', labelKey: 'itemSuccessPrimary', fallback: '#15803d' },
+      { token: '--dsw-alias-state-success-secondary', labelKey: 'itemSuccessSecondary', fallback: '#15803d' },
+      { token: '--dsw-alias-state-success-tertiary', labelKey: 'itemSuccessTertiary', fallback: 'rgba(21, 128, 61, 0.14)' },
+      { token: '--dsw-alias-state-warn-primary', labelKey: 'itemWarnPrimary', fallback: '#b45309' },
+      { token: '--dsw-alias-state-warn-secondary', labelKey: 'itemWarnSecondary', fallback: '#b45309' },
+      { token: '--dsw-alias-state-warn-tertiary', labelKey: 'itemWarnTertiary', fallback: 'rgba(180, 83, 9, 0.16)' },
+      { token: '--dsw-alias-state-warn-label', labelKey: 'itemWarnLabel', fallback: '#b45309' },
+      { token: '--dsw-alias-state-error-primary', labelKey: 'itemErrorPrimary', fallback: '#dc2626' },
+      { token: '--dsw-alias-state-error-secondary', labelKey: 'itemErrorSecondary', fallback: 'rgba(220, 38, 38, 0.75)' },
+      { token: '--dsw-alias-state-business-primary', labelKey: 'itemBusinessPrimary', fallback: '#0e7490' },
+      { token: '--dsw-alias-state-business-tertiary', labelKey: 'itemBusinessTertiary', fallback: 'rgba(14, 116, 144, 0.14)' },
+    ],
+  },
+  {
+    labelKey: 'groupScrollbars',
+    items: [
+      { token: '--dsw-alias-scrollbar-bg-l1', labelKey: 'itemScrollbarL1', fallback: 'rgba(15, 36, 64, 0.12)' },
+      { token: '--dsw-alias-scrollbar-hover-l1', labelKey: 'itemScrollbarHoverL1', fallback: 'rgba(15, 36, 64, 0.22)' },
+      { token: '--dsw-alias-scrollbar-bg-l2', labelKey: 'itemScrollbarL2', fallback: 'rgba(15, 36, 64, 0.12)' },
+      { token: '--dsw-alias-scrollbar-hover-l2', labelKey: 'itemScrollbarHoverL2', fallback: 'rgba(15, 36, 64, 0.22)' },
+    ],
+  },
+  {
+    labelKey: 'groupInteractive',
+    items: [
+      { token: '--dsw-alias-interactive-bg-hover', labelKey: 'itemHoverWash', fallback: 'rgba(15, 36, 64, 0.06)' },
+      { token: '--dsw-alias-interactive-bg-active', labelKey: 'itemActiveWash', fallback: 'rgba(15, 36, 64, 0.1)' },
+      { token: '--dsw-alias-interactive-bg-hover-accent', labelKey: 'itemHoverAccent', fallback: 'rgba(14, 116, 144, 0.12)' },
+      { token: '--dsw-alias-interactive-bg-hover-danger', labelKey: 'itemHoverDanger', fallback: 'rgba(220, 38, 38, 0.08)' },
+      { token: '--dsw-alias-interactive-bg-hover-solid', labelKey: 'itemHoverSolid', fallback: '#c5dde8' },
+    ],
+  },
+  {
+    labelKey: 'groupOverlays',
+    items: [
+      { token: '--dsw-alias-bg-overlay', labelKey: 'itemOverlay', fallback: '#c5dde8' },
+      { token: '--dsw-specific-menu', labelKey: 'itemMenu', fallback: '#f0f7f8' },
+      { token: '--dsw-specific-selector', labelKey: 'itemSelector', fallback: '#c5dde8' },
+      { token: '--dsw-specific-tip', labelKey: 'itemTip', fallback: '#c5dde8' },
+      { token: '--dsw-alias-toast-bg', labelKey: 'itemToast', fallback: '#0f2440' },
+      { token: '--dsw-alias-tooltip-bg', labelKey: 'itemTooltip', fallback: '#0f2440' },
+      { token: '--dsw-specific-login-input', labelKey: 'itemLoginInput', fallback: '#ffffff' },
+    ],
+  },
+  {
+    labelKey: 'groupSurfaces',
+    items: [
+      { token: '--dsw-alias-bg-module-platform', labelKey: 'itemModulePlatform', fallback: '#c5dde8' },
+      { token: '--dsw-alias-bg-multi-select', labelKey: 'itemMultiSelect', fallback: '#c5dde8' },
+      { token: '--dsw-alias-bg-skeleton', labelKey: 'itemSkeleton', fallback: 'rgba(15, 36, 64, 0.06)' },
     ],
   },
   {

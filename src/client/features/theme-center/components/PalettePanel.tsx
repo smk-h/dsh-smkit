@@ -27,8 +27,10 @@
  * Reset throws away both layers and re-reads the resolved colors, which lands
  * the panel back on whatever the active theme paints.
  *
- * Each row folds its three sliders (hue, saturation, lightness) away until
- * clicked — eighteen colors times three sliders would be a wall — and the
+ * Each group folds away until its header is clicked — the full registry is
+ * eighty-five colors across thirteen surfaces, and thirteen open sections
+ * would be a wall — so only the first opens with the panel. Each row folds
+ * its three sliders (hue, saturation, lightness) away until clicked, and the
  * alpha channel a color arrived with rides along untouched: the sliders tune
  * the RGB, translucent borders stay translucent.
  *
@@ -236,8 +238,8 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
           </button>
         </div>
         <div className="smkit-theme-palette-groups">
-          {PALETTE_GROUPS.map((group) => (
-            <details key={group.labelKey} className="smkit-theme-palette-group" open>
+          {PALETTE_GROUPS.map((group, index) => (
+            <details key={group.labelKey} className="smkit-theme-palette-group" open={index === 0}>
               <summary className="smkit-theme-palette-group-head">{t(group.labelKey)}</summary>
               {group.items.map((item) => {
                 const color = colors[item.token] ?? { h: 0, s: 0, l: 100, a: 1 }
