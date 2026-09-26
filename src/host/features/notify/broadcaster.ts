@@ -36,6 +36,8 @@ export interface NotifyEventFrame {
   body?: string
   dedupeKey: string
   sound: boolean
+  /** Set on the panel's test fire: the page shows it even while focused. */
+  force?: boolean
 }
 
 const SSE_HEADERS = {
@@ -50,8 +52,9 @@ const PING_INTERVAL_MS = 20_000
 export interface NotifyBroadcaster {
   /** Adopt a response as a live stream; takes ownership of its lifetime. */
   connect(res: StreamClientLike): void
-  /** Push one decision to every connected page. */
-  broadcast(decision: NotifyDecision, sound: boolean): void
+  /** Push one decision to every connected page. `force` marks a test fire:
+   * the page shows it even while focused. */
+  broadcast(decision: NotifyDecision, sound: boolean, force?: boolean): void
   /** Connected pages right now (diagnostics). */
   size(): number
 }
@@ -83,7 +86,7 @@ export function createNotifyBroadcaster(logger: LoggerLike): NotifyBroadcaster {
       })
     },
 
-    broadcast(decision: NotifyDecision, sound: boolean): void {
+    broadcast(decision: NotifyDecision, sound: boolean, force?: boolean): void {
       if (clients.size === 0) return
       const frame: NotifyEventFrame = {
         type: 'notify',
@@ -92,6 +95,7 @@ export function createNotifyBroadcaster(logger: LoggerLike): NotifyBroadcaster {
         ...(decision.body === undefined ? {} : { body: decision.body }),
         dedupeKey: decision.dedupeKey,
         sound,
+        ...(force === true ? { force: true } : {}),
       }
       const chunk = `data: ${JSON.stringify(frame)}\n\n`
       for (const res of clients) {

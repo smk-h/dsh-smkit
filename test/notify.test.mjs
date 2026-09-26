@@ -304,6 +304,16 @@ describe('notify broadcaster', () => {
     assert.equal(JSON.parse(b.written.at(-1).replace(/^data: /, '').trim()).sound, false)
   })
 
+  it('a forced frame carries the flag; a normal one omits it', () => {
+    const o = createNotifyBroadcaster(quietLogger)
+    const a = makeRes()
+    o.connect(a)
+    o.broadcast(DECISION, true, true)
+    assert.equal(JSON.parse(a.written.at(-1).replace(/^data: /, '').trim()).force, true)
+    o.broadcast(DECISION, true)
+    assert.equal('force' in JSON.parse(a.written.at(-1).replace(/^data: /, '').trim()), false)
+  })
+
   it('a frame without a body omits the key entirely', () => {
     const o = createNotifyBroadcaster(quietLogger)
     const a = makeRes()

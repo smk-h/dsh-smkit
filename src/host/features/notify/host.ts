@@ -73,7 +73,7 @@ export const notifyFeature: HostFeature = {
           logger,
         )
       } else {
-        broadcaster.broadcast(decision, settings.soundEnabled)
+        broadcaster.broadcast(decision, settings.soundEnabled, options.force === true)
       }
     }
 

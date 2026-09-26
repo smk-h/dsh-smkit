@@ -16,6 +16,7 @@
 
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
 import { NOTIFY_DURATIONS } from '../../../../shared/notify/contract'
+import { NOTIFY_PERMISSION_EVENT } from '../client'
 import { createSwitch } from '../ui/Switch'
 import type { ApiResult, ClientDeps, Translator } from '../../../platform/types'
 import type { NotifyDuration } from '../../../../shared/notify/contract'
@@ -109,11 +110,16 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
 
     /** Ask the browser for notification permission; the answer lands in the
      * row's status. Browsers refuse to even ask without a user gesture, so
-     * this only ever runs from the button. */
+     * this only ever runs from the button. A grant also reaches the feature's
+     * stream subscriber, which mounted before the answer existed. */
     const authorize = (): Promise<void> =>
       run(async () => {
         try {
-          setWebPerm(await Notification.requestPermission())
+          const next = await Notification.requestPermission()
+          setWebPerm(next)
+          if (next === 'granted' && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new Event(NOTIFY_PERMISSION_EVENT))
+          }
         } catch {
           return t('webNotifFailed')
         }

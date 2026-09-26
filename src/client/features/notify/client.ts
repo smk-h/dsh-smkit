@@ -37,6 +37,11 @@ import type { ClientContext, ClientDeps, ClientFeature, Translator } from '../..
  * host's freshness window (8s) has to cover one missed beat plus slop. */
 const HEARTBEAT_INTERVAL_MS = 5_000
 
+/** The window event the settings panel dispatches once the browser answers
+ * its notification-permission prompt: the stream subscriber mounted before
+ * the answer existed, so a grant must reach it without a page reload. */
+export const NOTIFY_PERMISSION_EVENT = 'smkit:notify-permission'
+
 /** How long to wait before reconnecting a dropped event stream. */
 const RESUBSCRIBE_DELAY_MS = 3_000
 
@@ -47,6 +52,8 @@ interface NotifyEvent {
   body?: string
   dedupeKey?: string
   sound?: boolean
+  /** The panel's test fire: show even while the page is focused. */
+  force?: boolean
 }
 
 export const notifyFeature: ClientFeature = {
@@ -102,13 +109,9 @@ export const notifyFeature: ClientFeature = {
       // browsers, non-secure origins like a LAN address) there is nothing
       // worth connecting for. Audio failing merely silences the toast.
       if (typeof Notification === 'undefined') return () => {}
-      // Unauthorized pages must not hold a stream open for nothing; the
-      // panel's authorize button grants it, and this effect's registration
-      // happened at mount — so a later grant is picked up on the next page
-      // load (the shell re-mounts every visit, which is soon enough).
-      if (Notification.permission !== 'granted') return () => {}
 
       let disposed = false
+      let streaming = false
       let controller: AbortController | undefined
       let audio: HTMLAudioElement | null = null
       let soundUrl: string | null | undefined
@@ -132,8 +135,9 @@ export const notifyFeature: ClientFeature = {
         try {
           // The host suppresses on the heartbeat already; this repeat check
           // closes the race where the user came back between the host's
-          // decision and this frame.
-          if (document.hasFocus()) return
+          // decision and this frame. A forced frame (the panel's test fire)
+          // skips it — an explicit gesture must show even while focused.
+          if (event.force !== true && document.hasFocus()) return
           if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
           if (typeof event.title !== 'string' || event.title === '') return
           const notification = new Notification(event.title, {
@@ -186,10 +190,32 @@ export const notifyFeature: ClientFeature = {
           await new Promise((resolve) => setTimeout(resolve, RESUBSCRIBE_DELAY_MS))
         }
       }
-      void run()
+
+      /** Start the stream once permission is (or becomes) granted. The
+       * panel's authorize button grants after this effect mounted, so the
+       * watchers below call this again — a late grant must not need a page
+       * reload to start receiving. */
+      function maybeStart(): void {
+        if (disposed || streaming) return
+        // Unauthorized pages must not hold a stream open for nothing.
+        if (Notification.permission !== 'granted') return
+        streaming = true
+        void run()
+      }
+
+      maybeStart()
+
+      // A grant lands through the panel's event, and is otherwise noticed
+      // the next time the page gets focus. Both merely re-check; only
+      // `granted` starts the stream.
+      const recheck = (): void => maybeStart()
+      window.addEventListener(NOTIFY_PERMISSION_EVENT, recheck)
+      window.addEventListener('focus', recheck)
 
       return () => {
         disposed = true
+        window.removeEventListener(NOTIFY_PERMISSION_EVENT, recheck)
+        window.removeEventListener('focus', recheck)
         try {
           controller?.abort()
         } catch {
