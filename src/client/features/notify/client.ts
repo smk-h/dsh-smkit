@@ -20,6 +20,11 @@
  * still decides *whether* — suppression, dedupe and the toggles all happen
  * upstream, so the page only ever receives decisions worth showing.
  *
+ * Shown also means taken down: the moments after a decision arrives are
+ * exactly the ones the user is away for, so the page closes what it pushed the
+ * instant it is focused again — the return itself is the acknowledgement, no
+ * click required.
+ *
  * Both degrade silently outside a browser: the bundle is also mounted in
  * Node test harnesses where `document` may be absent entirely or carry only
  * the parts their own effects touch. (`typeof document === 'undefined'` is
@@ -115,6 +120,25 @@ export const notifyFeature: ClientFeature = {
       let controller: AbortController | undefined
       let audio: HTMLAudioElement | null = null
       let soundUrl: string | null | undefined
+      /** The notifications still showing from this page. Coming back to the
+       * page is the user having seen them — however they came back — so they
+       * are closed then and there, the same end the click path gives them,
+       * instead of being left in the notification center for a task the user
+       * has already returned to. */
+      const live = new Set<Notification>()
+
+      /** Close everything still showing (a return, a teardown). */
+      function dismissLive(): void {
+        for (const notification of live) {
+          try {
+            notification.close()
+          } catch {
+            // A close the browser refuses costs nothing: the set is cleared
+            // either way, and a stale entry would only be closed again.
+          }
+        }
+        live.clear()
+      }
 
       /** The notification sound, fetched once as a blob URL. `null` after a
        * failed fetch means "stay silent", like the host's own fallback. */
@@ -157,6 +181,11 @@ export const notifyFeature: ClientFeature = {
             tag,
             ...(tag === undefined ? {} : { renotify: true }),
           })
+          live.add(notification)
+          // Every close lands here — the click below, the focus sweep, the OS
+          // timing it out, a same-tag replacement — so the set never holds a
+          // notification the browser has already taken down.
+          notification.onclose = () => live.delete(notification)
           notification.onclick = () => {
             try {
               window.focus()
@@ -222,13 +251,24 @@ export const notifyFeature: ClientFeature = {
       // the next time the page gets focus. Both merely re-check; only
       // `granted` starts the stream.
       const recheck = (): void => maybeStart()
+      // The other half of the focus heartbeat, in-page: the host has already
+      // stopped deciding while this page is focused, so anything this page
+      // pushed while it was away is shown-out by now. Clicking the
+      // notification gets the same result through the click handler; this
+      // covers the return that never went through it.
+      const onFocus = (): void => dismissLive()
       window.addEventListener(NOTIFY_PERMISSION_EVENT, recheck)
       window.addEventListener('focus', recheck)
+      window.addEventListener('focus', onFocus)
 
       return () => {
         disposed = true
         window.removeEventListener(NOTIFY_PERMISSION_EVENT, recheck)
         window.removeEventListener('focus', recheck)
+        window.removeEventListener('focus', onFocus)
+        // The handlers die with the subscriber, so a notification left over
+        // from before would be a popup nothing can act on.
+        dismissLive()
         try {
           controller?.abort()
         } catch {
