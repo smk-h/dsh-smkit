@@ -20,6 +20,7 @@
  */
 
 import { createNotifyOrchestrator } from './orchestrator.js'
+import { createSessionTitleLookup } from './title.js'
 import { loadNotifySettings, saveNotifySettings } from './settings.js'
 import { resolveSoundFile } from './sound.js'
 import { showToast } from './toast.js'
@@ -45,7 +46,12 @@ export const notifyFeature: HostFeature = {
     const logger = platform.logger
 
     let settings: NotifySettings = loadNotifySettings()
-    const orchestrator = createNotifyOrchestrator()
+    // The task a session is named by, read from the host's own title service
+    // and projection cache at decision time (see `./title.js`): the title is
+    // generated after the first prompt, so nothing cached at session creation
+    // could name a run that just ended.
+    const titleOf = createSessionTitleLookup(platform.services, logger)
+    const orchestrator = createNotifyOrchestrator({ titleOf })
     // The second delivery path: pages that show the notification themselves,
     // for hosts whose machine has no screen to toast on (dsh on a remote
     // server, the page opened over an SSH tunnel).

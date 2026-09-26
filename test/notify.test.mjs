@@ -13,6 +13,9 @@
  * 3. **The focus heartbeat** — a fresh `focused` ping suppresses, a `blurred`
  *    ping un-suppresses immediately, and a heartbeat that stopped (browser
  *    closed, page crashed) expires back into notifying.
+ * 4. **The body names the task** — the session title when the host can read
+ *    one (title service first, projection cache second), the workspace name
+ *    when it cannot, and a failure keeps its own message either way.
  *
  * The settings file and the toast script are asserted at their seams too:
  * the toggles' save/restore folding, and the PowerShell the dispatcher
@@ -20,7 +23,7 @@
  * launch blocks).
  */
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, describe, it } from 'node:test'
@@ -34,6 +37,7 @@ const notifyStatePath = join(scratchHome, '.dsh', 'smkit-notify.json')
 
 const {
   createNotifyOrchestrator,
+  createSessionTitleLookup,
   createNotifyBroadcaster,
   loadNotifySettings,
   saveNotifySettings,
@@ -128,6 +132,124 @@ describe('notify orchestrator: status edges', () => {
     o.observeSessionRemoved('s1')
     clock.advance(4_000)
     assert.equal(o.observeStatus('s1', false), null, 'an unknown session re-baselines')
+  })
+})
+
+describe('notify orchestrator: the body names the task', () => {
+  it('a completion is named by the session title', () => {
+    const clock = makeClock()
+    const o = createNotifyOrchestrator({ now: clock.now, titleOf: () => '输出长征全文' })
+    o.observeSessionAdded({ sessionId: 's1', cwd: '/work/app' })
+    assert.equal(o.observeStatus('s1', true), null)
+    clock.advance(4_000)
+    assert.equal(o.observeStatus('s1', false)?.body, '任务：输出长征全文')
+  })
+
+  it('the workspace name stands in without a title, and nothing stands in without either', () => {
+    const clock = makeClock()
+    const o = createNotifyOrchestrator({ now: clock.now, titleOf: () => undefined })
+    o.observeSessionAdded({ sessionId: 's1', cwd: 'E:\\AI\\dsh-smkit' })
+    assert.equal(o.observeStatus('s1', true), null)
+    clock.advance(4_000)
+    assert.equal(o.observeStatus('s1', false)?.body, '工作区：dsh-smkit')
+    assert.equal(o.observeStatus('s2', true), null)
+    clock.advance(4_000)
+    const bare = o.observeStatus('s2', false)
+    assert.equal(bare?.kind, 'completed')
+    assert.equal(bare?.body, undefined, 'no title and no cwd leaves the title line alone')
+  })
+
+  it('a title lookup that throws still announces the run', () => {
+    const clock = makeClock()
+    const o = createNotifyOrchestrator({
+      now: clock.now,
+      titleOf: () => {
+        throw new Error('cache unreadable')
+      },
+    })
+    assert.equal(o.observeStatus('s1', true), null)
+    clock.advance(4_000)
+    assert.equal(o.observeStatus('s1', false)?.kind, 'completed')
+  })
+
+  it('a failure keeps its own message even when a title is known', () => {
+    const clock = makeClock()
+    const o = createNotifyOrchestrator({ now: clock.now, titleOf: () => '输出长征全文' })
+    assert.equal(o.observeError('s1', 'boom: provider 500')?.body, 'boom: provider 500')
+  })
+
+  it('a failure with no message falls back to the task body', () => {
+    const clock = makeClock()
+    const o = createNotifyOrchestrator({ now: clock.now, titleOf: () => '输出长征全文' })
+    assert.equal(o.observeError('s1', '   ')?.body, '任务：输出长征全文')
+  })
+})
+
+describe('notify session title lookup', () => {
+  const titleHome = join(scratchHome, 'title-home')
+
+  /** The projection-cache document dsh writes for one session. */
+  function writeCacheDoc(sessionId, rows, root = join(titleHome, 'storages')) {
+    const dir = join(root, 'session_projcache', 'sessions')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, `${sessionId}.json`), JSON.stringify({ version: 7, record: { rows } }))
+  }
+
+  it('reads a live session title from the title service', () => {
+    const services = {
+      get: (name) => name === 'sessions'
+        ? { get: (id) => (id === 's1' ? { header: { id: 's1' } } : undefined) }
+        : name === 'sessionTitle'
+          ? { get: () => ({ title: '输出长征全文', eventSeq: 9 }) }
+          : undefined,
+    }
+    const titleOf = createSessionTitleLookup(services, quietLogger)
+    assert.equal(titleOf('s1'), '输出长征全文')
+    assert.equal(titleOf('s2'), undefined, 'nothing can name that session')
+  })
+
+  it('falls back to the projection-cache document when no service answers', () => {
+    process.env.DSH_HOME = titleHome
+    writeCacheDoc('session-9730257b', { title: { ver: 1, seq: 54, val: '满江红全文输出' } })
+    const titleOf = createSessionTitleLookup(undefined, quietLogger)
+    assert.equal(titleOf('session-9730257b'), '满江红全文输出')
+  })
+
+  it('reads the same row from a backend that reports its own root', () => {
+    const root = join(titleHome, 'backend-storages')
+    writeCacheDoc('session-backend', { title: { ver: 1, seq: 3, val: '后端根目录的标题' } }, root)
+    const services = { get: (name) => (name === 'storage.backend.json' ? { root } : undefined) }
+    const titleOf = createSessionTitleLookup(services, quietLogger)
+    assert.equal(titleOf('session-backend'), '后端根目录的标题')
+  })
+
+  it('tolerates the snapshot-object value shape', () => {
+    process.env.DSH_HOME = titleHome
+    writeCacheDoc('session-snapshot', { title: { ver: 1, seq: 7, val: { title: '对象形状的标题' } } })
+    const titleOf = createSessionTitleLookup(undefined, quietLogger)
+    assert.equal(titleOf('session-snapshot'), '对象形状的标题')
+  })
+
+  it('an absent, malformed or unrelated document costs only the title', () => {
+    process.env.DSH_HOME = titleHome
+    const titleOf = createSessionTitleLookup(undefined, quietLogger)
+    assert.equal(titleOf('session-never-written'), undefined, 'no document at all')
+    writeCacheDoc('session-junk', { title: { val: 42 } })
+    assert.equal(titleOf('session-junk'), undefined, 'a row that is not text')
+    assert.equal(titleOf('../../etc/passwd'), undefined, 'an id outside the backend alphabet never becomes a path')
+    assert.equal(titleOf(''), undefined)
+  })
+
+  it('a service that throws is logged, and the cache still answers', () => {
+    process.env.DSH_HOME = titleHome
+    writeCacheDoc('session-throwing', { title: { val: '缓存里的标题' } })
+    const services = {
+      get: () => {
+        throw new Error('service exploded')
+      },
+    }
+    const titleOf = createSessionTitleLookup(services, quietLogger)
+    assert.equal(titleOf('session-throwing'), '缓存里的标题')
   })
 })
 

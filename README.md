@@ -137,7 +137,7 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 
 「设置 → smkit 配置 → 通知」页提供桌面通知：dsh 的任务完成、出错，或需要确认工具调用（`approval/request`）、回答提问（`user-questions/request`）时，由 **dsh 所在机器的进程**直接弹 Windows 系统通知并播放提示音——不经过网页，所以浏览器没开、页面已关也照常提醒；点击通知会用默认浏览器打开 dsh 页面（地址取自页面心跳上报的来源）。
 
-- **触发时机**：监听宿主事件总线上的 `api-session/status`（`running` 由 `true` 变 `false` 即完成）、`api-session/error`（任务出错）、`approval/request` 与 `user-questions/request`（需要你确认 / 需要你回复），文案与 ZCode 相同：「任务已完成 / 任务出错 / 需要你的确认 / 需要你的回复 / 计划等待确认」。子代理会话的完成与出错不打扰（它们是父任务的内部机器），但子代理要确认时仍会提醒。
+- **触发时机**：监听宿主事件总线上的 `api-session/status`（`running` 由 `true` 变 `false` 即完成）、`api-session/error`（任务出错）、`approval/request` 与 `user-questions/request`（需要你确认 / 需要你回复），文案为：「任务已完成 / 任务出错 / 需要你的确认 / 需要你的回复 / 计划等待确认」。正文里点名任务：完成通知显示 `任务：<会话标题>`，读不到标题（会话还没发过消息、缓存被清过、宿主拿不到）时退回 `工作区：<目录名>`；标题取自宿主的标题服务 `ctx.sessionTitle`，读不到再读投影缓存文档 `<storages>/session_projcache/sessions/<id>.json` 的 `title` 行（即面板会话列表标题的来源），全程失败只损失一行文案。出错通知保留自己的错误信息，比标题更有用。子代理会话的完成与出错不打扰（它们是父任务的内部机器），但子代理要确认时仍会提醒。
 - **只在离开时打扰**：唯一的静默条件是「dsh 页面正被聚焦」——网页端每 5 秒上报一次聚焦心跳，失去焦点立即上报；心跳停止（页面关闭、浏览器退出）8 秒后恢复提醒。这就是 ZCode 的同一条规则：窗口聚焦时什么都不发，没有别的「离开检测」。
 - **多任务并发**：不做聚合，几个会话同时结束就各弹一条；同一 `kind:目标` 在 3 秒窗口内只弹一次（确认与提问按交互对象去重），与 ZCode 的去重窗口一致。出错后紧跟的 `status → false` 不再补一条「任务已完成」。
 - **提示音**：一段 mp3 由宿主解码到临时目录后经 MCI 播放，toast 本身静音——即声音只在通知真正弹出时响一次，不会双重响。资源与播放选择（`WinRT ToastNotificationManager` + `winmm` MCI，脚本经 `-EncodedCommand` 传输以保中文无损）见 [`src/host/features/notify/toast.ts`](src/host/features/notify/toast.ts)。

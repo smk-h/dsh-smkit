@@ -17,6 +17,9 @@
  *   toast each — the property ZCode's requestId keying buys.
  * - **No aggregation.** Five sessions finishing together toast five times,
  *   once each. There is no counter toast to wait for.
+ * - **The body names the task.** A completion reads `任务：<title>` when the
+ *   session has one, falling back to `工作区：<name>`; a failure keeps its own
+ *   error message, which says more than any name.
  * - **Focus suppression** is the only quiet condition: the web page's
  *   heartbeat says "focused" and the heartbeat is fresh. There is no other
  *   notion of "user is away" — a browser that is open-but-blurred, minimised
@@ -63,6 +66,12 @@ export interface UserQuestionsRequestLike {
 export interface NotifyOrchestratorOptions {
   /** Clock, overridable in tests. Defaults to `Date.now`. */
   now?: () => number
+  /**
+   * The session's title, when something can name it. Injected rather than read
+   * here on purpose: the decision stays pure and the host owns the I/O (see
+   * `./title.js`). A lookup that throws or answers blank only costs the title.
+   */
+  titleOf?: (sessionId: string) => string | undefined
 }
 
 /** What a session's tracking row carries. */
@@ -113,10 +122,28 @@ const PLAN_REVIEW_BODY = '请确认计划后继续执行'
 
 export function createNotifyOrchestrator(options: NotifyOrchestratorOptions = {}): NotifyOrchestrator {
   const now = options.now ?? Date.now
+  const titleOf = options.titleOf
   const sessions = new Map<string, SessionMeta>()
   const lastNotified = new Map<string, number>()
   let focusState: HeartbeatState | null = null
   let focusAt = 0
+
+  /**
+   * The line under a terminal toast: the session's title first — the task the
+   * user actually asked for — with the workspace name standing in for a
+   * session that has no title yet (no prompt sent, a pruned cache, a host that
+   * cannot name it). A lookup that throws costs the title, never the toast.
+   */
+  function taskBody(sessionId: string, cwd: string | undefined): string | undefined {
+    let title: unknown
+    try {
+      title = titleOf?.(sessionId)
+    } catch {
+      title = undefined
+    }
+    if (typeof title === 'string' && title.trim() !== '') return clamp(`任务：${title.trim()}`)
+    return cwd === undefined ? undefined : `工作区：${workspaceNameOf(cwd)}`
+  }
 
   /** Evict the oldest session row past the cap: maps stay bounded, and an
    * evicted session re-baselines on its next event, like a first sighting. */
@@ -183,8 +210,7 @@ export function createNotifyOrchestrator(options: NotifyOrchestratorOptions = {}
       row.erroredAt = undefined
       if (erroredAt !== undefined && now() - erroredAt < ERROR_COMPLETED_GAP_MS) return null
       if (row.subagent) return null
-      const body = row.cwd === undefined ? undefined : `工作区：${workspaceNameOf(row.cwd)}`
-      return decisionOf(`completed:${sessionId}`, 'completed', body)
+      return decisionOf(`completed:${sessionId}`, 'completed', taskBody(sessionId, row.cwd))
     },
 
     observeError(sessionId: string, message: string): NotifyDecision | null {
@@ -192,8 +218,11 @@ export function createNotifyOrchestrator(options: NotifyOrchestratorOptions = {}
       const row = rowOf(sessionId)
       row.erroredAt = now()
       if (row.subagent) return null
-      const body = typeof message === 'string' && message.trim() !== '' ? clamp(message) : undefined
-      return decisionOf(`failed:${sessionId}`, 'failed', body)
+      // The failure's own line says more than any name — what broke is the
+      // fact the user needs — so the task body only fills in when the event
+      // brought no message.
+      const reported = typeof message === 'string' && message.trim() !== '' ? clamp(message) : undefined
+      return decisionOf(`failed:${sessionId}`, 'failed', reported ?? taskBody(sessionId, row.cwd))
     },
 
     observeApproval(request: ApprovalRequestLike): NotifyDecision | null {
