@@ -1,11 +1,16 @@
 /**
- * The local-cache tab: the intro pair and the one action row.
+ * The local-cache tab: the intro pair, the category cards, and the one action
+ * row.
  *
- * The page reads as one sentence and one button, so the rhythm is the
- * custom-settings page's "Other" tab shortened: the same 12px/18px secondary
- * intro, then a row that seats the button and the answer it produces side by
- * side. The answer belongs to the button's line on purpose — a report about a
- * click should sit where the click was, not float at the top of the panel.
+ * The page reads as two sentences, a stack of expandable cards, and a button:
+ * the same 12px/18px secondary intro as the custom-settings page's "Other"
+ * tab, then one card per kind of data the origin holds — its summary names
+ * and counts the kind and tags it with the cleanup scope, its body is the
+ * key/value table — then a row that seats the button and the answer it
+ * produces side by side. Card bodies scroll under a sticky head, so a long
+ * session list cannot push the button out of reach; the answer still belongs
+ * to the button's line on purpose — a report about a click should sit where
+ * the click was, not float at the top of the panel.
  *
  * The button itself is the platform layer's `smkit-ui-button`: this tab borrows the
  * shared neutral button exactly like every other page does, and declares no
@@ -32,6 +37,147 @@
   color: var(--dsw-alias-label-secondary);
 }
 .smkit-cache-page-scope {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The category cards, drawn after the shell's own expandable cards: the
+ * surface recipe is the palette panel's (layer-1 fill, level-2 hairline,
+ * 12px corners), the heading is a title-over-description pair, and the
+ * shared caret sits collapsed pointing right and turns a clockwise quarter
+ * into pointing down when the card opens — the same motion the MCP page's
+ * disclosure carets make. Clean cards start open — they are the reason the
+ * page exists; kept ones start closed. */
+.smkit-cache-page-card {
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+}
+.smkit-cache-page-card-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.smkit-cache-page-card-summary::-webkit-details-marker {
+  display: none;
+}
+.smkit-cache-page-card-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.smkit-cache-page-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+}
+.smkit-cache-page-card-desc {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+.smkit-cache-page-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.smkit-cache-page-card-count {
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+}
+.smkit-cache-page-card-tag {
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 14px;
+}
+.smkit-cache-page-card-tag-clean {
+  color: var(--dsw-alias-state-error-primary);
+}
+.smkit-cache-page-card-tag-keep {
+  color: var(--dsw-alias-state-success-primary);
+}
+.smkit-cache-page-card-chevron {
+  display: inline-flex;
+  color: var(--dsw-alias-label-tertiary);
+  /* Collapsed the caret points right; open it has turned a clockwise
+   * quarter into pointing down — the MCP page's disclosure motion. */
+  transform: rotate(-90deg);
+  transition: transform 0.16s ease;
+}
+.smkit-cache-page-card[open] > .smkit-cache-page-card-summary .smkit-cache-page-card-chevron {
+  transform: rotate(0deg);
+}
+
+.smkit-cache-page-table {
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 0 4px 4px;
+}
+.smkit-cache-page-table-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-secondary);
+}
+.smkit-cache-page-table-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+.smkit-cache-page-table-row + .smkit-cache-page-table-row {
+  border-top: 1px solid var(--dsw-alias-border-l1);
+}
+.smkit-cache-page-cell {
+  min-width: 0;
+}
+.smkit-cache-page-key {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-primary);
+  word-break: break-all;
+}
+.smkit-cache-page-value {
+  margin-top: 2px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.smkit-cache-page-desc {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The table's empty and unavailable answers, in its place. */
+.smkit-cache-page-note {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
 
