@@ -130,7 +130,12 @@ export const notifyFeature: ClientFeature = {
       }
 
       /** Show one pushed decision: toast it (tag = dedupeKey collapses the
-       * copies other tabs would render), then play the sound if asked. */
+       * copies other tabs would render), then play the sound if asked. A
+       * forced frame also renotifies: the test fire's tag is always the
+       * same, and a same-tag replacement is silent by default — without
+       * `renotify` a second test click would play the sound but never pop.
+       * (`renotify` requires a tag; the test decision always carries its
+       * dedupeKey, so the guard below keeps the pair together.) */
       async function deliver(event: NotifyEvent): Promise<void> {
         try {
           // The host suppresses on the heartbeat already; this repeat check
@@ -143,6 +148,7 @@ export const notifyFeature: ClientFeature = {
           const notification = new Notification(event.title, {
             body: typeof event.body === 'string' ? event.body : '',
             tag: typeof event.dedupeKey === 'string' ? event.dedupeKey : undefined,
+            ...(event.force === true && typeof event.dedupeKey === 'string' ? { renotify: true } : {}),
           })
           notification.onclick = () => {
             try {
