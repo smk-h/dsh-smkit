@@ -30,8 +30,8 @@ export interface NotifySettingsBody {
   enabled?: boolean
   soundEnabled?: boolean
   duration?: string
-  /** Where the host runs: `win32` delivers natively; anything else asks the
-   * page to show the notification itself. */
+  /** Where the host runs; informational only — an open page delivers the
+   * notification itself on every platform now. */
   platform?: string
 }
 
@@ -66,9 +66,10 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
       void api('/notify/settings').then((r: ApiResult) => {
         if (cancelled || !r.ok) return
         setSettings(r.body as NotifySettingsBody)
-        if (typeof r.body.platform === 'string' && r.body.platform !== 'win32') {
-          setWebPerm(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
-        }
+        // An open page delivers the notification itself on every platform —
+        // on Windows it is the preferred path, elsewhere the only one — so
+        // the permission row always shows.
+        setWebPerm(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
       }).catch(() => {})
       return () => {
         cancelled = true

@@ -7,20 +7,20 @@ import type { LocaleDict } from '../../../platform/types'
 
 export const NOTIFY_LOCALE_EN: LocaleDict = {
   intro:
-    'When a dsh task finishes, fails, or needs your confirmation or an answer, a Windows toast pops from the machine dsh runs on, with a sound. A focused page is never interrupted; a closed browser or page is not a gap — the toast comes from the dsh process itself, not from the web page.',
+    'When a dsh task finishes, fails, or needs your confirmation or an answer, a notification pops with a sound; a focused page is never interrupted.',
   enabledTitle: 'Desktop notifications',
   enabledHelp: 'When off, no toast pops and no sound plays.',
   soundTitle: 'Notification sound',
   soundHelp: 'Plays a chime with each toast — the same sound ZCode uses; off keeps toasts silent.',
   durationTitle: 'Display duration',
   durationHelp:
-    'How long the toast stays in the bottom-right corner before it moves into the notification center; "persistent" keeps it on screen until you dismiss it.',
+    'How long the toast stays in the bottom-right corner before it moves into the notification center; "persistent" keeps it on screen until you dismiss it. Only the Windows system toast honors it; the browser controls its own timing.',
   durationShort: 'Standard (about 5 s)',
   durationLong: 'Long (about 25 s)',
   durationReminder: 'Persistent, until dismissed',
   webNotifTitle: 'Browser notifications',
   webNotifHelp:
-    'When dsh runs on a remote host the browser delivers the toast: keep this page open and grant permission. A closed page receives nothing.',
+    'Keep this page open and grant permission: the browser shows the notification and a click focuses this tab instead of opening a new one. With dsh on a remote host this is the only delivery path — a closed page receives nothing.',
   webNotifEnable: 'Grant permission',
   webNotifGranted: 'Granted',
   webNotifDenied: 'Denied — re-allow notifications in the browser site settings',
@@ -33,5 +33,5 @@ export const NOTIFY_LOCALE_EN: LocaleDict = {
   testFailed: 'Test notification failed ({status}).',
   saveFailed: 'Save failed ({status}).',
   note:
-    'Windows only; clicking a toast opens the dsh page. Focus Assist or Do Not Disturb can swallow toasts at the system level.',
+    'On Windows, when no page is open the dsh process raises a system toast as a fallback, and clicking it opens a new dsh tab; Focus Assist or Do Not Disturb can swallow system toasts.',
 }

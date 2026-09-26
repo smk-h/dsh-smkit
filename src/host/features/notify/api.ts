@@ -52,9 +52,9 @@ export function nextSettings(
 
 /**
  * The settings answer, as the panel reads it: the three saved values plus
- * where the host runs, which decides the panel's own advice — a Windows host
- * delivers natively and needs nothing from the browser; any other host asks
- * the page to show the notification itself.
+ * where the host runs. The platform is informational — delivery prefers an
+ * open page on every platform now, with the native toast as the Windows
+ * no-page fallback.
  */
 function settingsView(settings: NotifySettings): Record<string, unknown> {
   return { ...settings, platform: process.platform }

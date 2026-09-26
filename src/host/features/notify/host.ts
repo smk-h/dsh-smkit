@@ -56,17 +56,19 @@ export const notifyFeature: HostFeature = {
 
     /**
      * Show one decision, unless a toggle or the focus heartbeat says not to.
-     * Delivery branches on where the user's screen can be: a Windows host
-     * toasts natively — which covers the browser-closed case the web cannot —
-     * and every other host pushes the decision to its open pages, which show
-     * it as a Web Notification. The two never fire together, so there is no
-     * double toast to dedupe.
+     * Delivery prefers the page wherever one is connected: its Web
+     * Notification focuses the existing tab on click, while the native
+     * toast's protocol launch always spawns a new one. The native toast is
+     * the Windows fallback for exactly the case the web cannot cover — no
+     * page anywhere (browser closed), where opening a fresh tab is the only
+     * click behavior left. The two paths are mutually exclusive by
+     * construction, so there is no double toast to dedupe.
      */
     function dispatch(decision: NotifyDecision, options: { force?: boolean } = {}): void {
       if (!options.force && !settings.enabled) return
       if (!options.force && orchestrator.isSuppressed()) return
       logger.info?.(`${LOG_PREFIX} ${decision.kind}: ${decision.title}${decision.body ? ` — ${decision.body}` : ''}`)
-      if (process.platform === 'win32') {
+      if (process.platform === 'win32' && broadcaster.size() === 0) {
         const soundFile = settings.soundEnabled ? resolveSoundFile(logger) : null
         showToast(
           { title: decision.title, body: decision.body, soundFile, launchUrl: launchOrigin, duration: settings.duration },
