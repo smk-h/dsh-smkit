@@ -62,6 +62,41 @@ export const PROPERTY_ROOT = `--${ROOT}`
 export const HOST_PROPERTY_ROOT = '--dsw'
 
 /**
+ * The one kind of stylesheet the scheme does not apply to.
+ *
+ * A theme of the theme center is a skin over the host's document, not chrome of
+ * this plugin. It **declares** the shell's own design tokens (`--dsw-alias-*`,
+ * `--dsw-specific-*`), because repainting them is what a skin is; it **selects**
+ * host classes (`.markdown-body`, `.arco-btn-*`), because those are the surfaces
+ * it repaints; and it may **read** host data attributes
+ * (`data-chat-flow-kind`) for the same reason. None of that is a name this
+ * plugin owns, so none of it can be held to the root the scheme enforces — the
+ * guard stops at the skins.
+ *
+ * Everything else is checked as before, the theme *cards* and the settings row
+ * around them included: those are this plugin's own chrome and stay `smkit-*`.
+ */
+export const THEME_SHEETS = /(?:^|\/)client\/features\/theme-center\/themes\/[^/]+\.css$/
+
+/**
+ * Whether one stylesheet is a theme skin, which the scheme exempts.
+ * @param {string} relPath - `client/features/theme-center/themes/ocean.css`
+ * @returns {boolean}
+ */
+export function isThemeSheet(relPath) {
+  return THEME_SHEETS.test(relPath)
+}
+
+/**
+ * The stylesheets the scheme applies to: every one of them but the skins.
+ * @param {string[]} relPaths
+ * @returns {string[]}
+ */
+export function guardableSheets(relPaths) {
+  return relPaths.filter((relPath) => !isThemeSheet(relPath))
+}
+
+/**
  * `data-*` names that are deliberately not ours, and are not to be prefixed.
  * Both are read, never written: the shell owns the element and the name.
  */

@@ -30,6 +30,8 @@ import {
   dataAttributes,
   definedProperties,
   findStylesheets,
+  guardableSheets,
+  isThemeSheet,
   prefixesOf,
   referencedClasses,
   sheetViolations,
@@ -129,12 +131,16 @@ it('keeps the platform layer from importing any feature', () => {
  * at length and name the very things they must not carry.
  */
 const CLIENT_DIR = `${SRC_DIR}/client`
-const SHEETS = findStylesheets(CLIENT_DIR, SRC_DIR)
+// Theme skins are exempt (`THEME_SHEETS` says why): they declare the host's
+// tokens, select the host's classes and read the host's attributes, so neither
+// the class rule nor the attribute/property pair has anything of ours to check
+// in them. They own no classes either, which is why they contribute no prefix.
+const SHEETS = guardableSheets(findStylesheets(CLIENT_DIR, SRC_DIR))
 const PREFIXES = prefixesOf(SHEETS)
 
 /** Every file the attribute and property guards read. */
 const nameBearingFiles = () => [
-  ...walk(CLIENT_DIR, (path) => path.endsWith('.css')),
+  ...walk(CLIENT_DIR, (path) => path.endsWith('.css') && !isThemeSheet(rel(path))),
   ...walk(CLIENT_DIR, isTypeScript),
 ]
 

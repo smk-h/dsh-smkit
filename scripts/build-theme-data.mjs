@@ -1,28 +1,34 @@
 /**
  * The theme center's data file, built and measured.
  *
- * Two jobs, both over `src/client/features/theme-center/themes.data.json`:
+ * Three jobs, over `src/client/features/theme-center/`:
  *
  * 1. **The retired skins fold in.** The plugin used to ship two theme surfaces
- *    with two apply mechanisms: the `theme` feature's three ported dsh-themes
- *    skins (one `body[data-dsh-<dataset>]` attribute each, its stylesheet
- *    always in the bundle) and the theme center's themes (one
- *    `body[data-dsh-theme="<id>"]` attribute, its stylesheet swapped into the
- *    active `<style>` element). The two never met, so they could not share a
- *    card, a selection or a storage key. Folding the skins in costs exactly one
- *    rewrite: every `body[data-dsh-nord]` selector becomes
+ *    with two apply mechanisms: the `theme` feature's ported dsh-themes skins
+ *    (one `body[data-dsh-<dataset>]` attribute each) and the theme center's
+ *    themes (one `body[data-smkit-theme="<id>"]` attribute). Folding them in
+ *    costs exactly one rewrite: every `body[data-dsh-nord]` selector becomes
  *    `body[data-smkit-theme="nord"]`, verbatim otherwise — same rules, same
- *    order, same specificity. The job runs only while the skin stylesheets are
- *    still reachable (the working tree before the merge, the pre-merge revision
- *    after it) and reports when it has nothing to fold, so a re-run on a merged
- *    tree is a no-op rather than an error.
+ *    order, same specificity — and the result is written to
+ *    `themes/<id>.css`, where every theme's stylesheet lives. The job runs only
+ *    while the skin stylesheets are still reachable (the pre-merge revision)
+ *    and reports when it has nothing to fold, so a re-run on a merged tree is a
+ *    no-op rather than an error.
  *
  * 2. **Every entry's grade is measured.** The badge on a card reports a fact
  *    about the palette, so it is computed here from the same two hex values the
  *    card paints — the base background and the body ink — rather than quoted
- *    from anywhere. It is written into the data because the browser half must
- *    not re-derive it per render, and because a hand-edited stylesheet then
- *    still shows the ratio of the palette it actually paints.
+ *    from anywhere. It is written into the metadata because the browser half
+ *    must not re-derive it per render, and because a hand-edited stylesheet
+ *    then still shows the ratio of the palette it actually paints.
+ *
+ * 3. **Every entry is checked against its sheet.** The rules live in
+ *    `themes/<id>.css` and the metadata in `themes.data.json`, so the two can
+ *    drift: this run fails when an entry has no sheet, when a sheet is not
+ *    scoped on `body[data-smkit-theme="<id>"]` (an entry that still carries the
+ *    old `data-dsh-theme` scope would otherwise paint nothing), or when a sheet
+ *    has no entry. A JSON still carrying a `css` field from the old in-line
+ *    layout loses it here; the sheet is the one source of rules.
  *
  * The palettes are NOT re-derived: the three skins' are transcribed from the
  * retired `theme/skins.ts` (which took them from the stylesheets in the first
@@ -37,11 +43,13 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
-const DATA_PATH = `${ROOT}/src/client/features/theme-center/themes.data.json`
+const CENTER_DIR = `${ROOT}/src/client/features/theme-center`
+const DATA_PATH = `${CENTER_DIR}/themes.data.json`
+const THEMES_DIR = `${CENTER_DIR}/themes`
 const SKIN_DIR = `${ROOT}/src/client/features/theme/style`
 
 /**
@@ -208,7 +216,12 @@ function gradesOf(tuple) {
   }
 }
 
-/** One entry rewritten into the file's canonical key order, grades included. */
+/**
+ * One entry's metadata rewritten into the file's canonical key order, grades
+ * included. The stylesheet is deliberately absent: it lives in
+ * `themes/<id>.css`, and a `css` key from the old in-line layout is dropped
+ * here rather than carried forward.
+ */
 function canonical(entry) {
   const tuple = { light: [...entry.swatch.light], dark: [...entry.swatch.dark] }
   return {
@@ -219,7 +232,6 @@ function canonical(entry) {
     descZh: entry.descZh,
     tags: [...entry.tags],
     swatch: { light: tuple.light, dark: tuple.dark },
-    css: entry.css,
     ...gradesOf(tuple),
   }
 }
@@ -239,6 +251,7 @@ function rescope(css, skin) {
   return rewritten
 }
 
+/** One folded skin: its metadata, and the sheet to write beside the others. */
 function buildEntry(skin, css) {
   const light = blockOf(css, skin.dataset, false)
   const dark = blockOf(css, skin.dataset, true)
@@ -270,45 +283,51 @@ function buildEntry(skin, css) {
     }
   }
   const pick = (mode) => [mode.bg, mode.surface, mode.accent, mode.text]
-  return canonical({
-    id: skin.id,
-    name: skin.name,
-    nameZh: skin.nameZh,
-    desc: skin.desc,
-    descZh: skin.descZh,
-    tags: skin.tags,
-    swatch: { light: pick(skin.swatch.light), dark: pick(skin.swatch.dark) },
-    css: rescope(css, skin),
-  })
+  return {
+    meta: {
+      id: skin.id,
+      name: skin.name,
+      nameZh: skin.nameZh,
+      desc: skin.desc,
+      descZh: skin.descZh,
+      tags: skin.tags,
+      swatch: { light: pick(skin.swatch.light), dark: pick(skin.swatch.dark) },
+    },
+    sheet: rescope(css, skin),
+  }
 }
 
-/**
- * Put every theme's rules back on the attribute the runtime actually sets.
- *
- * Themes used to be scoped on `data-dsh-theme`, a name this plugin shared with
- * the separate `dsh-theme` it grew out of; both wrote `body[data-dsh-theme="<id>"]`
- * from their own rows, which is how one ended up driving the other's choices.
- * The scope is now ours alone (`data-smkit-theme`, matching `THEME_ATTR` in
- * `features/theme-center/apply.ts`) — but this file is checked in, and nothing
- * in the fold-in path below revisits entries that are already in it. Without
- * this pass a rebuild would keep whatever attribute it found, including the old
- * one, and there would be no reason to look twice.
- */
-function rescopecheck(css) {
-  return css.replaceAll('data-dsh-theme', SCOPE_ATTR)
-}
-
-const existing = JSON.parse(readFileSync(DATA_PATH, 'utf8')).map((entry) => ({
-  ...entry,
-  css: rescopecheck(entry.css),
-}))
+const existing = JSON.parse(readFileSync(DATA_PATH, 'utf8'))
 const foldable = SKINS.map((skin) => ({ skin, css: readSkinCss(skin) })).filter(
   (candidate) => candidate.css !== null,
 )
 const migrated = foldable.map(({ skin, css }) => buildEntry(skin, css))
 const known = new Set(existing.map((entry) => entry.id))
-const merged = [...existing.map(canonical), ...migrated.filter((entry) => !known.has(entry.id))]
+const fresh = migrated.filter((entry) => !known.has(entry.meta.id))
+for (const entry of fresh) {
+  writeFileSync(`${THEMES_DIR}/${entry.meta.id}.css`, `${entry.sheet.replace(/\s*$/, '')}\n`)
+}
+
+const merged = [...existing.map(canonical), ...fresh.map((entry) => canonical(entry.meta))]
 writeFileSync(DATA_PATH, `${JSON.stringify(merged, null, 2)}\n`)
+
+// The metadata list and the sheets are two files that have to agree: an entry
+// without its sheet paints nothing, and a sheet nothing selects is dead weight.
+// The scope check is what `rescopecheck` used to rewrite silently.
+for (const entry of merged) {
+  const path = `${THEMES_DIR}/${entry.id}.css`
+  if (!existsSync(path)) throw new Error(`${entry.id}: no themes/${entry.id}.css`)
+  const scope = `body[${SCOPE_ATTR}="${entry.id}"]`
+  if (!readFileSync(path, 'utf8').includes(scope)) {
+    throw new Error(`themes/${entry.id}.css is not scoped on ${scope}`)
+  }
+}
+const ids = new Set(merged.map((entry) => entry.id))
+for (const file of readdirSync(THEMES_DIR)) {
+  if (!file.endsWith('.css')) continue
+  const id = file.slice(0, -'.css'.length)
+  if (!ids.has(id)) throw new Error(`themes/${file} has no entry in themes.data.json`)
+}
 
 for (const entry of merged) {
   console.log(
@@ -317,10 +336,12 @@ for (const entry of merged) {
 }
 console.log(
   migrated.length > 0
-    ? `folded in ${migrated.length} retired skins: ${migrated.map((entry) => entry.id).join(', ')}`
+    ? `folded in ${migrated.length} retired skins: ${migrated.map((entry) => entry.meta.id).join(', ')}`
     : 'no skin stylesheets left to fold in — graded the entries already in the data',
 )
-console.log(`themes.data.json: ${merged.length} entries, ${readFileSync(DATA_PATH).length} bytes`)
+console.log(
+  `themes.data.json: ${merged.length} entries, ${readFileSync(DATA_PATH).length} bytes (+ ${merged.length} sheets under themes/)`,
+)
 
 if (process.argv.includes('--check')) {
   if (migrated.length === 0) {
@@ -328,7 +349,7 @@ if (process.argv.includes('--check')) {
   } else {
     console.log('\ngrade oracle (retired skins.ts vs this measurement):')
     for (const skin of SKINS) {
-      const entry = migrated.find((candidate) => candidate.id === skin.id)
+      const entry = merged.find((candidate) => candidate.id === skin.id)
       if (entry === undefined) continue
       const day = entry.gradeDay === skin.previous.day ? 'ok' : `DIFFERS (was ${skin.previous.day})`
       const night =

@@ -13,7 +13,7 @@
  *    file. What a screenshot shows is what the row draws, at the widths the
  *    settings column gives it.
  * 2. **The rescope.** The migrated skins' stylesheets are injected verbatim from
- *    `themes.data.json`, which is to say scoped on `body[data-smkit-theme="<id>"]`
+ *    `themes/<id>.css`, which is to say scoped on `body[data-smkit-theme="<id>"]`
  *    rather than on the `body[data-dsh-<dataset>]` they shipped with. The shell
  *    demo applies them the way `apply.ts` does — the attribute on the body, the
  *    sheet swapped into one `<style>` element — and prints the computed colors
@@ -44,7 +44,12 @@ const read = (relative) => readFileSync(`${CENTER}/${relative}`, 'utf8')
 
 const ROW_CSS = read('style/row.css')
 const PALETTE_CSS = read('style/palette.css')
-const THEMES = JSON.parse(read('themes.data.json'))
+/** The metadata list joined with each theme's own sheet, the way
+ * `themes.data.ts` joins them: the rules live in `themes/<id>.css`. */
+const THEMES = JSON.parse(read('themes.data.json')).map((theme) => ({
+  ...theme,
+  css: read(`themes/${theme.id}.css`),
+}))
 
 const OUT = join(tmpdir(), 'dsh-smkit-theme-center.html')
 

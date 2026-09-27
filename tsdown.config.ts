@@ -38,7 +38,13 @@ import { readFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { TsdownPlugin, UserConfig } from 'tsdown'
-import { findStylesheets, prefixesOf, sheetViolations } from './scripts/namespace-guard.mjs'
+import {
+  findStylesheets,
+  guardableSheets,
+  isThemeSheet,
+  prefixesOf,
+  sheetViolations,
+} from './scripts/namespace-guard.mjs'
 
 /**
  * Module specifiers the web shell resolves at runtime through the factory's
@@ -107,7 +113,8 @@ const SRC_DIR = resolve(fileURLToPath(new URL('.', import.meta.url)), 'src')
  *
  * `load` also runs the namespace guard, over `namespace-guard.mjs` — the same
  * module `test/architecture.test.mjs` reads, so the two cannot disagree about
- * what the scheme is. A stylesheet that slipped out of it stops the build here,
+ * what the scheme is. (Theme skins are exempt from it; `THEME_SHEETS` in that
+ * module says why.) A stylesheet that slipped out of it stops the build here,
  * where the author still has the file open, instead of shipping rules whose
  * selectors nothing will ever match. The prefix set is taken once per build
  * (`buildStart`) rather than once per process, so adding a stylesheet under
@@ -128,11 +135,11 @@ const SRC_DIR = resolve(fileURLToPath(new URL('.', import.meta.url)), 'src')
  */
 function cssTextPlugin(): TsdownPlugin {
   /** Every prefix a stylesheet owns, for the duration of one build. */
-  let prefixes = prefixesOf(findStylesheets(resolve(SRC_DIR, 'client'), SRC_DIR))
+  let prefixes = prefixesOf(guardableSheets(findStylesheets(resolve(SRC_DIR, 'client'), SRC_DIR)))
   return {
     name: 'dsh-smkit:css-text',
     buildStart() {
-      prefixes = prefixesOf(findStylesheets(resolve(SRC_DIR, 'client'), SRC_DIR))
+      prefixes = prefixesOf(guardableSheets(findStylesheets(resolve(SRC_DIR, 'client'), SRC_DIR)))
     },
     resolveId(source: string, importer: string | undefined) {
       // Relative only, and by design: the build has exactly one stylesheet. A
@@ -148,7 +155,11 @@ function cssTextPlugin(): TsdownPlugin {
       const file = virtualId.slice(CSS_VIRTUAL_PREFIX.length, -CSS_VIRTUAL_SUFFIX.length)
       this.addWatchFile(file)
       const css = readFileSync(file, 'utf8')
-      const messages = sheetViolations(relative(SRC_DIR, file).replaceAll('\\', '/'), css, prefixes)
+      const rel = relative(SRC_DIR, file).replaceAll('\\', '/')
+      // Theme skins are exempt: they repaint the host, so their selectors and
+      // tokens are the host's names rather than this plugin's (`THEME_SHEETS`).
+      if (isThemeSheet(rel)) return `export default ${JSON.stringify(css)}`
+      const messages = sheetViolations(rel, css, prefixes)
       if (messages.length > 0) {
         this.error(`namespace guard:\n${messages.join('\n')}`)
       }
