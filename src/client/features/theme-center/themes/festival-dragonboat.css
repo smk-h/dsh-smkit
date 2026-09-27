@@ -9,8 +9,8 @@ body[data-smkit-theme="festival-dragonboat"] {
 }
 
 body[data-smkit-theme="festival-dragonboat"][data-ds-dark-theme] {
-  color: #e6f0e9;
-  background-color: #0a120d;
+  color: #e2e9e4;
+  background-color: #121613;
 }
 
 /* --- source palette (scoped): light --- */
@@ -95,13 +95,13 @@ body[data-smkit-theme="festival-dragonboat"][data-ds-dark-theme] {
   --color-primary-light-3: #bce5cf;
   --color-primary-dark-1: #3f9168;
   --brand: #58b386;
-  --brand-light: #15281e;
+  --brand-light: #1c2620;
   --brand-hover: #74c39a;
   --color-brand-fill: #58b386;
-  --color-brand-bg: #15281e;
-  --aou-1: #10241a;
-  --aou-2: #163625;
-  --aou-3: #1f4c33;
+  --color-brand-bg: #1c2620;
+  --aou-1: #15221c;
+  --aou-2: #1c2f27;
+  --aou-3: #254736;
   --aou-4: #2a6644;
   --aou-5: #388258;
   --aou-6: #4ba272;
@@ -109,51 +109,51 @@ body[data-smkit-theme="festival-dragonboat"][data-ds-dark-theme] {
   --aou-8: #7fc7a2;
   --aou-9: #abdfc4;
   --aou-10: #dcf3e6;
-  --bg-base: #0a120d;
-  --bg-1: #101a14;
-  --bg-2: #16231b;
-  --bg-3: #1d2d23;
-  --bg-4: #26392d;
-  --bg-5: #314739;
+  --bg-base: #121613;
+  --bg-1: #181f1a;
+  --bg-2: #1f2823;
+  --bg-3: #27322c;
+  --bg-4: #2f3c35;
+  --bg-5: #3a473f;
   --bg-6: #405949;
   --bg-8: #5f7a67;
   --bg-9: #8ba390;
   --bg-10: #c2d3c6;
-  --color-bg-1: #101a14;
-  --color-bg-2: #16231b;
-  --color-bg-3: #1d2d23;
-  --color-bg-4: #26392d;
-  --bg-hover: #1b2a21;
-  --bg-active: #24382c;
-  --text-primary: #e6f0e9;
-  --text-secondary: #a3b8a9;
+  --color-bg-1: #181f1a;
+  --color-bg-2: #1f2823;
+  --color-bg-3: #27322c;
+  --color-bg-4: #2f3c35;
+  --bg-hover: #222b26;
+  --bg-active: #2b362f;
+  --text-primary: #e2e9e4;
+  --text-secondary: #a6b3aa;
   --text-disabled: #526358;
-  --text-0: #f4faf6;
+  --text-0: #eef3ef;
   --text-white: #ffffff;
-  --color-text-1: #e6f0e9;
-  --color-text-2: #a3b8a9;
+  --color-text-1: #e2e9e4;
+  --color-text-2: #a6b3aa;
   --color-text-3: #7b8f81;
   --color-text-4: #526358;
-  --border-base: #2b3d31;
-  --border-light: #203027;
+  --border-base: #2e3a33;
+  --border-light: #242d28;
   --border-special: #6e342c;
-  --color-border: #2b3d31;
-  --color-border-1: #2b3d31;
-  --color-border-2: #203027;
-  --fill: #16231b;
-  --color-fill: #16231b;
-  --fill-0: #101a14;
-  --fill-white-to-black: #0a120d;
-  --dialog-fill-0: #131f17;
-  --inverse: #e6f0e9;
+  --color-border: #2e3a33;
+  --color-border-1: #2e3a33;
+  --color-border-2: #242d28;
+  --fill: #1f2823;
+  --color-fill: #1f2823;
+  --fill-0: #181f1a;
+  --fill-white-to-black: #121613;
+  --dialog-fill-0: #1a221d;
+  --inverse: #e2e9e4;
   --success: #58b386;
   --warning: #e0a92e;
   --danger: #e05244;
   --info: #6f9be0;
   --message-user-bg: #3a1f1a;
-  --message-tips-bg: #1a2a20;
-  --workspace-btn-bg: #15281e;
-  --color-guid-agent-bar: #131f17;
+  --message-tips-bg: #202923;
+  --workspace-btn-bg: #1c2620;
+  --color-guid-agent-bar: #1a221d;
   --db-lacquer-hi: #f0715f;
 }
 
@@ -250,16 +250,16 @@ body[data-smkit-theme="festival-dragonboat"] {
 
 /* --- static palette: dark --- */
 body[data-smkit-theme="festival-dragonboat"][data-ds-dark-theme] {
-  --dsw-static-deepseek-50: #10241a;
-  --dsw-static-blue-50: #10241a;
-  --dsw-static-deepseek-50p: #163625;
-  --dsw-static-blue-50p: #163625;
-  --dsw-static-deepseek-75: #163625;
-  --dsw-static-blue-75: #163625;
-  --dsw-static-deepseek-100: #163625;
-  --dsw-static-blue-100: #163625;
-  --dsw-static-deepseek-200: #1f4c33;
-  --dsw-static-blue-200: #1f4c33;
+  --dsw-static-deepseek-50: #15221c;
+  --dsw-static-blue-50: #15221c;
+  --dsw-static-deepseek-50p: #1c2f27;
+  --dsw-static-blue-50p: #1c2f27;
+  --dsw-static-deepseek-75: #1c2f27;
+  --dsw-static-blue-75: #1c2f27;
+  --dsw-static-deepseek-100: #1c2f27;
+  --dsw-static-blue-100: #1c2f27;
+  --dsw-static-deepseek-200: #254736;
+  --dsw-static-blue-200: #254736;
   --dsw-static-deepseek-300: #2a6644;
   --dsw-static-blue-300: #2a6644;
   --dsw-static-deepseek-400: #388258;
@@ -337,28 +337,28 @@ body[data-smkit-theme="festival-dragonboat"] {
 body[data-smkit-theme="festival-dragonboat"][data-ds-dark-theme] {
   --dsw-alias-button-primary-fill: #58b386;
   --dsw-alias-button-primary-hover: #74c39a;
-  --dsw-alias-button-primary-dimmed: #163625;
+  --dsw-alias-button-primary-dimmed: #1c2f27;
   --dsw-alias-button-info-fill: #58b386;
   --dsw-alias-button-info-hover: #74c39a;
   --dsw-alias-button-contrast-fill: #58b386;
-  --dsw-alias-button-ghost-active-fill: #15281e;
-  --dsw-alias-button-ghost-active-hover: #163625;
+  --dsw-alias-button-ghost-active-fill: #1c2620;
+  --dsw-alias-button-ghost-active-hover: #1c2f27;
   --dsw-alias-button-ghost-active-border: #2a6644;
-  --dsw-alias-button-elevated-fill: #101a14;
-  --dsw-alias-button-floating-fill: #101a14;
-  --dsw-alias-button-floating-hover: #1b2a21;
+  --dsw-alias-button-elevated-fill: #181f1a;
+  --dsw-alias-button-floating-fill: #181f1a;
+  --dsw-alias-button-floating-hover: #222b26;
   --dsw-alias-button-tool-bar-fill-invisible: rgba(88, 179, 134, 0.36);
   --dsw-alias-button-tool-bar-fill: rgba(88, 179, 134, 0.5);
   --dsw-alias-button-tool-bar-hover: rgba(88, 179, 134, 0.6);
   --dsw-specific-bubble: #3a1f1a;
-  --dsw-specific-bubble-highlight: #1f4c33;
-  --dsw-specific-input-major: #101a14;
-  --dsw-specific-login-input: #101a14;
+  --dsw-specific-bubble-highlight: #254736;
+  --dsw-specific-input-major: #181f1a;
+  --dsw-specific-login-input: #181f1a;
   /* Same preview mismatch on the dark side: #58b386 would be a bright rail on
      a dark theme; the preview's dark sidebar is --bg-1. */
-  --dsw-specific-sidebar-fill: #101a14;
-  --dsw-specific-sidebar-nav-item-active: #163625;
-  --dsw-specific-sidebar-nav-item-hover: #1b2a21;
+  --dsw-specific-sidebar-fill: #181f1a;
+  --dsw-specific-sidebar-nav-item-active: #1c2f27;
+  --dsw-specific-sidebar-nav-item-hover: #222b26;
   --dsw-specific-sidebar-nav-item-active-accent: #2a6644;
   /* The converter wrote the dark neutral scale inverted (00 darkest → 1000
      lightest); DSH's dark canvas aliases read the ramp's deep slots, so they
@@ -366,9 +366,9 @@ body[data-smkit-theme="festival-dragonboat"][data-ds-dark-theme] {
      longer redeclares the neutrals — the light block's ramp carries both
      modes — and these anchors pin the canvas to the theme's own deep greens
      (the light ramp's 850–950 slots are mid-olive, darker than the preview). */
-  --dsw-alias-bg-layer-1: #101a14;
-  --dsw-alias-bg-layer-2: #16231b;
-  --dsw-alias-bg-layer-3: #1d2d23;
+  --dsw-alias-bg-layer-1: #181f1a;
+  --dsw-alias-bg-layer-2: #1f2823;
+  --dsw-alias-bg-layer-3: #27322c;
 }
 
 /* --- signature decor: light --- */
@@ -563,7 +563,7 @@ body[data-smkit-theme="festival-dragonboat"][data-ds-dark-theme] button[class*='
 
 body[data-smkit-theme="festival-dragonboat"][data-ds-dark-theme] pre,
 body[data-smkit-theme="festival-dragonboat"][data-ds-dark-theme] .markdown-body pre {
-  background: linear-gradient(180deg, #0c1811 0%, #081209 100%) !important;
+  background: linear-gradient(180deg, #131c17 0%, #0e1511 100%) !important;
     border: 1px solid var(--border-base) !important;
     border-left: 3px solid var(--db-lacquer) !important;
     border-radius: 8px;

@@ -57,7 +57,7 @@ export const THEME_CENTER_LOCALE_ZH: LocaleDict = {
   "name_parchment": "暖阳羊皮纸",
   "name_peak-blue": "远峰蓝灰",
   desc_ocean: "海雾般的浅青落在静谧的灰上，柔和不刺眼。",
-  desc_midnight: "深夜藏蓝，缀以电光蓝。",
+  desc_midnight: "深夜藏蓝，缀以柔光蓝。",
   desc_aurora: "低饱和的紫罗兰落在静谧的灰上，如极光微光。",
   desc_forest: "低饱和的松绿落在静谧的灰上，如林间微光。",
   desc_graphite: "柔和的暖灰，护眼耐看。",

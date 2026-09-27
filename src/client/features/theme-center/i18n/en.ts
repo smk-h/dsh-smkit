@@ -44,7 +44,7 @@ export const THEME_CENTER_LOCALE_EN: LocaleDict = {
   "name_parchment": "Parchment",
   "name_peak-blue": "Peak Blue",
   desc_ocean: "Soft sea-mist blue on quiet neutrals, easy on the eyes.",
-  desc_midnight: "Deep navy with electric blue accents.",
+  desc_midnight: "Deep navy with a soft blue glow.",
   desc_aurora: "Soft violet on quiet neutrals, like a faint aurora.",
   desc_forest: "Soft pine green on quiet neutrals, like light through leaves.",
   desc_graphite: "Soft neutral gray, easy on the eyes.",

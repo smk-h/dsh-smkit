@@ -31,8 +31,8 @@
     "id": "midnight",
     "name": "Midnight",
     "nameZh": "午夜",
-    "desc": "Deep navy with electric blue accents.",
-    "descZh": "深夜藏蓝，缀以电光蓝。",
+    "desc": "Deep navy with a soft blue glow.",
+    "descZh": "深夜藏蓝，缀以柔光蓝。",
     "tags": [
       "dark",
       "cool",
@@ -46,14 +46,14 @@
         "#0b1c33"
       ],
       "dark": [
-        "#070d1a",
-        "#0d1526",
-        "#3b82f6",
-        "#dbe7fb"
+        "#12151d",
+        "#1a1e28",
+        "#4e80d8",
+        "#dcdfe8"
       ]
     },
     "gradeDay": "AAA · 14.3:1",
-    "gradeNight": "15.6:1"
+    "gradeNight": "13.7:1"
   },
   {
     "id": "aurora",
@@ -101,8 +101,8 @@
         "#2a332c"
       ],
       "dark": [
-        "#131714",
-        "#1a201c",
+        "#141715",
+        "#1a1d1b",
         "#4cbd7d",
         "#e6eae7"
       ]
@@ -212,14 +212,14 @@
         "#152117"
       ],
       "dark": [
-        "#060d08",
-        "#0b150d",
-        "#22c55e",
-        "#d3f5dc"
+        "#121613",
+        "#1a1e1b",
+        "#3fb96f",
+        "#dde5df"
       ]
     },
     "gradeDay": "AAA · 14.4:1",
-    "gradeNight": "16.7:1"
+    "gradeNight": "14.2:1"
   },
   {
     "id": "steel",
@@ -240,14 +240,14 @@
         "#16202b"
       ],
       "dark": [
-        "#11161c",
-        "#181f27",
-        "#38bdf8",
-        "#e3eaf1"
+        "#13161b",
+        "#1a1f26",
+        "#5b9bd9",
+        "#e2e6ec"
       ]
     },
     "gradeDay": "AAA · 14.0:1",
-    "gradeNight": "15.0:1"
+    "gradeNight": "14.5:1"
   },
   {
     "id": "autumn",
@@ -268,14 +268,14 @@
         "#33240f"
       ],
       "dark": [
-        "#181105",
-        "#211806",
-        "#f59e0b",
-        "#f9eed3"
+        "#171410",
+        "#1f1b15",
+        "#dd9f45",
+        "#eae4d6"
       ]
     },
     "gradeDay": "AAA · 12.8:1",
-    "gradeNight": "16.2:1"
+    "gradeNight": "14.5:1"
   },
   {
     "id": "matcha",
@@ -296,14 +296,14 @@
         "#232b12"
       ],
       "dark": [
-        "#131606",
-        "#1a1e09",
-        "#a3e635",
-        "#f1f5dc"
+        "#151611",
+        "#1c1f17",
+        "#9fc458",
+        "#e6e8d8"
       ]
     },
     "gradeDay": "AAA · 12.5:1",
-    "gradeNight": "16.4:1"
+    "gradeNight": "14.6:1"
   },
   {
     "id": "charcoal",
@@ -380,14 +380,14 @@
         "#1a2b21"
       ],
       "dark": [
-        "#0a120d",
-        "#101a14",
+        "#121613",
+        "#181f1a",
         "#58b386",
-        "#e6f0e9"
+        "#e2e9e4"
       ]
     },
     "gradeDay": "AAA · 13.6:1",
-    "gradeNight": "16.3:1"
+    "gradeNight": "14.8:1"
   },
   {
     "id": "zcode",
@@ -436,14 +436,14 @@
         "#2c3a2c"
       ],
       "dark": [
-        "#1c231c",
-        "#222b22",
+        "#1b1e1b",
+        "#222624",
         "#7cc98a",
-        "#d9e4d3"
+        "#dfe3dc"
       ]
     },
     "gradeDay": "AAA · 10.7:1",
-    "gradeNight": "12.2:1"
+    "gradeNight": "12.9:1"
   },
   {
     "id": "soft-bean-green",
@@ -464,14 +464,14 @@
         "#1b3323"
       ],
       "dark": [
-        "#131c16",
-        "#1b261f",
-        "#4ade80",
-        "#d6e8dc"
+        "#141814",
+        "#1c211d",
+        "#58c180",
+        "#dde4de"
       ]
     },
     "gradeDay": "AAA · 12.0:1",
-    "gradeNight": "13.6:1"
+    "gradeNight": "13.9:1"
   },
   {
     "id": "parchment",
@@ -492,14 +492,14 @@
         "#2e261d"
       ],
       "dark": [
-        "#1c1815",
-        "#25201c",
-        "#f59e0b",
-        "#e6ded5"
+        "#1a1713",
+        "#232019",
+        "#e0a34a",
+        "#e5e0d7"
       ]
     },
     "gradeDay": "AAA · 13.2:1",
-    "gradeNight": "13.2:1"
+    "gradeNight": "13.6:1"
   },
   {
     "id": "peak-blue",
@@ -520,13 +520,13 @@
         "#192736"
       ],
       "dark": [
-        "#111822",
-        "#17222f",
-        "#60a5fa",
-        "#dbe6f2"
+        "#131720",
+        "#1a202b",
+        "#6898dd",
+        "#dee3ec"
       ]
     },
     "gradeDay": "AAA · 13.6:1",
-    "gradeNight": "14.1:1"
+    "gradeNight": "13.9:1"
   }
 ]
