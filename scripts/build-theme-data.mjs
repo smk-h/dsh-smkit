@@ -24,11 +24,14 @@
  *
  * 3. **Every entry is checked against its sheet.** The rules live in
  *    `themes/<id>.css` and the metadata in `themes.data.json`, so the two can
- *    drift: this run fails when an entry has no sheet, when a sheet is not
- *    scoped on `body[data-smkit-theme="<id>"]` (an entry that still carries the
- *    old `data-dsh-theme` scope would otherwise paint nothing), or when a sheet
- *    has no entry. A JSON still carrying a `css` field from the old in-line
- *    layout loses it here; the sheet is the one source of rules.
+ *    drift: this run fails when an entry has no sheet, when a sheet has no
+ *    entry, and on everything `themeSheetViolations` reports about the pair —
+ *    the block a sheet opens on its scope, and whether the palette a card paints
+ *    is the one the sheet actually wears. That rule lives in
+ *    `scripts/theme-sheet-guard.mjs` rather than here, because
+ *    `test/theme-center-data.test.mjs` applies the very same one. A JSON still
+ *    carrying a `css` field from the old in-line layout loses it here; the sheet
+ *    is the one source of rules.
  *
  * The palettes are NOT re-derived: the three skins' are transcribed from the
  * retired `theme/skins.ts` (which took them from the stylesheets in the first
@@ -45,20 +48,19 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import {
+  SCOPE_ATTR,
+  blocksOf,
+  plainOf,
+  themeSheetViolations,
+  tokenOf,
+} from './theme-sheet-guard.mjs'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const CENTER_DIR = `${ROOT}/src/client/features/theme-center`
 const DATA_PATH = `${CENTER_DIR}/themes.data.json`
 const THEMES_DIR = `${CENTER_DIR}/themes`
 const SKIN_DIR = `${ROOT}/src/client/features/theme/style`
-
-/**
- * The body attribute every theme's rules are scoped on. Kept in step with
- * `THEME_ATTR` in `src/client/features/theme-center/apply.ts` — they are two
- * halves of the same contract, the data side and the runtime side, and if they
- * disagree every rule in this file silently stops applying.
- */
-const SCOPE_ATTR = 'data-smkit-theme'
 
 /** The three skins, as `theme/skins.ts` shipped them plus the center's surface.
  * `previous` carries the grades that file published, as the oracle for
@@ -137,37 +139,14 @@ function readSkinCss(skin) {
   return null
 }
 
-/** The declarations of one `body[<scope>]` block, in source order. The dark
- * scope prefixes the light one, so the light pattern needs a negative
- * lookahead to keep the two blocks apart. */
+/** One retired skin's `body[data-<dataset>]` blocks, which must exist. The
+ * reader itself lives with the theme rule (`theme-sheet-guard.mjs`); this is
+ * that same shape applied to the attribute the skins shipped with. */
 function blockOf(css, dataset, dark) {
   const scope = dark ? `body[data-${dataset}][data-ds-dark-theme]` : `body[data-${dataset}]`
-  const escaped = scope.replace(/[[\]\\]/g, '\\$&')
-  const pattern = new RegExp(
-    dark ? `${escaped}\\s*\\{([^}]*)\\}` : `${escaped}(?!\\[)\\s*\\{([^}]*)\\}`,
-    'g',
-  )
-  const blocks = [...css.matchAll(pattern)].map((match) => match[1])
+  const blocks = blocksOf(css, scope, dark)
   if (blocks.length === 0) throw new Error(`${dataset}: no ${dark ? 'dark' : 'light'} block found`)
   return blocks
-}
-
-/** `--token: value;` as declared anywhere in the given block list. */
-function tokenOf(blocks, token) {
-  for (const block of blocks) {
-    const found = new RegExp(`${token}\\s*:\\s*([^;]+);`).exec(block)
-    if (found) return found[1].trim().toLowerCase()
-  }
-  return null
-}
-
-/** The value of the `color` / `background-color` declaration a block sets. */
-function plainOf(blocks, property) {
-  for (const block of blocks) {
-    const found = new RegExp(`(?:^|;|\\s)${property}\\s*:\\s*([^;]+);`).exec(block)
-    if (found) return found[1].trim().toLowerCase()
-  }
-  return null
 }
 
 /* ------------------------------------------------------------- WCAG 2.1 */
@@ -309,18 +288,17 @@ for (const entry of fresh) {
 }
 
 const merged = [...existing.map(canonical), ...fresh.map((entry) => canonical(entry.meta))]
-writeFileSync(DATA_PATH, `${JSON.stringify(merged, null, 2)}\n`)
 
 // The metadata list and the sheets are two files that have to agree: an entry
 // without its sheet paints nothing, and a sheet nothing selects is dead weight.
-// The scope check is what `rescopecheck` used to rewrite silently.
+// The scope check is what `rescopecheck` used to rewrite silently. Every check
+// runs before the JSON is written, so a failing run leaves the tree as it found
+// it rather than half-migrated.
 for (const entry of merged) {
   const path = `${THEMES_DIR}/${entry.id}.css`
   if (!existsSync(path)) throw new Error(`${entry.id}: no themes/${entry.id}.css`)
-  const scope = `body[${SCOPE_ATTR}="${entry.id}"]`
-  if (!readFileSync(path, 'utf8').includes(scope)) {
-    throw new Error(`themes/${entry.id}.css is not scoped on ${scope}`)
-  }
+  const violations = themeSheetViolations(entry, readFileSync(path, 'utf8'))
+  if (violations.length > 0) throw new Error(violations.join('\n'))
 }
 const ids = new Set(merged.map((entry) => entry.id))
 for (const file of readdirSync(THEMES_DIR)) {
@@ -328,6 +306,8 @@ for (const file of readdirSync(THEMES_DIR)) {
   const id = file.slice(0, -'.css'.length)
   if (!ids.has(id)) throw new Error(`themes/${file} has no entry in themes.data.json`)
 }
+
+writeFileSync(DATA_PATH, `${JSON.stringify(merged, null, 2)}\n`)
 
 for (const entry of merged) {
   console.log(
