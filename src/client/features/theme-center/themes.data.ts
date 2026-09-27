@@ -9,7 +9,7 @@
  * single script: a theme is painted by swapping its text into the active-style
  * element (see `apply.ts`), never by fetching a file.
  *
- * The three skins the plugin used to ship as a separate feature are entries
+ * The skins the plugin used to ship as a separate feature are entries
  * here too, their ported selectors rewritten from `body[data-dsh-<dataset>]`
  * onto this one scope — that rewrite is the whole of what merging them cost,
  * and `scripts/build-theme-data.mjs` is the record of it.

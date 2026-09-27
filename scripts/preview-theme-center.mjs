@@ -1,8 +1,8 @@
 /**
  * Visual smoke test for the merged theme center: one page carrying the REAL
- * shipped `row.css` and `palette.css` (read verbatim from `src/`), the 16 cards
+ * shipped `row.css` and `palette.css` (read verbatim from `src/`), the 19 cards
  * rendered exactly as `ThemeCenterRow` renders them, the palette panel rendered
- * exactly as `PalettePanel` renders it, and a mock shell that proves the three
+ * exactly as `PalettePanel` renders it, and a mock shell that proves the
  * migrated skins still paint.
  *
  * Three things it exists to make visible, because none is provable by a unit
@@ -12,7 +12,7 @@
  *    night strip, contrast badge, palette strip — and the CSS is the shipped
  *    file. What a screenshot shows is what the row draws, at the widths the
  *    settings column gives it.
- * 2. **The rescope.** The three skins' stylesheets are injected verbatim from
+ * 2. **The rescope.** The migrated skins' stylesheets are injected verbatim from
  *    `themes.data.json`, which is to say scoped on `body[data-smkit-theme="<id>"]`
  *    rather than on the `body[data-dsh-<dataset>]` they shipped with. The shell
  *    demo applies them the way `apply.ts` does — the attribute on the body, the
@@ -171,10 +171,10 @@ function card(theme, active) {
   </button>`
 }
 
-const MIGRATED = ['festival-dragonboat', 'nord', 'zcode']
+const MIGRATED = ['festival-dragonboat', 'zcode']
 /** One card per theme, with a migrated one — the ones whose stylesheets had to
  * be rewritten — wearing the applied ring. */
-const GRID = THEMES.map((theme) => card(theme, theme.id === 'nord')).join('')
+const GRID = THEMES.map((theme) => card(theme, theme.id === 'zcode')).join('')
 
 /** Every theme's sheet, injected verbatim: all scoped on an attribute, so only
  * the active one can match. */
@@ -182,7 +182,7 @@ const THEME_CSS = THEMES.map((theme) => `/* ${theme.id} */\n${theme.css}`).join(
 
 const shellOptions = THEMES.map(
   (theme) =>
-    `<option value="${theme.id}"${theme.id === 'nord' ? ' selected' : ''}>${theme.id}${MIGRATED.includes(theme.id) ? '  ← migrated' : ''}</option>`,
+    `<option value="${theme.id}"${theme.id === 'zcode' ? ' selected' : ''}>${theme.id}${MIGRATED.includes(theme.id) ? '  ← migrated' : ''}</option>`,
 ).join('')
 
 /** The panel's markup, with the first row's sliders unfolded so a slider is on
@@ -251,11 +251,11 @@ const html = `<!doctype html>
         <button type="button" class="smkit-theme-row-reset">恢复默认</button>
       </div>
     </div>
-    <p class="note">第 14 张（Nord）带选中环 —— 选中状态沿用主题中心原有的样式。每张卡片上半是昼间预览、右上角是实测对比度徽章，下半夜间条，再往下是名称、描述与三色板。</p>
+    <p class="note">ZCode 那张带选中环 —— 选中状态沿用主题中心原有的样式。每张卡片上半是昼间预览、右上角是实测对比度徽章，下半夜间条，再往下是名称、描述与三色板。</p>
   </div>
 
   <div class="panel">
-    <h2>二 · 三款迁移皮肤的作用域验证（真实换肤路径）</h2>
+    <h2>二 · 迁移皮肤的作用域验证（真实换肤路径）</h2>
     <div class="bar">
       <select id="pick">${shellOptions}</select>
       <button type="button" id="mode">切换夜间</button>
