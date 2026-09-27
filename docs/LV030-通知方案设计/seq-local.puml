@@ -1,0 +1,80 @@
+@startuml 序列图-场景一-Windows本机
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam ArrowColor #5A5A5A
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 12
+skinparam SequenceParticipantBorderColor #7A93BE
+skinparam SequenceParticipantBackgroundColor #DCE9FB
+skinparam SequenceParticipantFontColor #1F2933
+skinparam SequenceLifeLineBorderColor #7A93BE
+skinparam SequenceGroupBackgroundColor #F7F9FC
+skinparam SequenceGroupBorderColor #7A93BE
+skinparam NoteBackgroundColor #FFFBE6
+skinparam NoteBorderColor #E0B400
+skinparam NoteFontColor #5C4A00
+
+title 场景一：dsh 运行在 Windows 本机 —— 浏览器优先，原生 toast 兜底
+
+actor "用户" as U
+participant "浏览器页面\n(client 半区)" as P
+participant "宿主事件总线" as B
+participant "notify 特性\n(决策 + 派发)" as N
+participant "PowerShell 子进程\n(WinRT toast / MCI)" as W
+
+== 心跳：页面聚焦状态上报 ==
+
+P -> N : POST /notify/heartbeat {state:"focused"}\n（聚焦期间每 5 秒续报）
+P -> N : POST /notify/heartbeat {state:"blurred"}\n（失焦瞬间立即上报）
+
+note over N
+  发送方是页面、接收方是宿主路由。
+  浏览器关闭后心跳停止，超过 8 秒即视为“人不在屏幕前”。
+  心跳顺带把页面 origin 交给宿主，供“打开 dsh”按钮使用。
+end note
+
+== 事件：有页面在线 → 浏览器通知（优先路径） ==
+
+B -> N : api-session/status · error\napproval/request · user-questions/request
+N -> N : 决策器：边缘触发（首见=基线）\n3 秒去重 · 心跳抑制判定
+N -> P : SSE 帧 {kind, title, body,\ndedupeKey, sound}
+P -> P : document.hasFocus() 二次校验（force 帧除外）
+P -> P : new Notification({tag: dedupeKey,\nrenotify: true})
+P -> P : GET /notify/sound → Audio 播放提示音
+P -> U : 系统级通知横幅（点击聚焦回本页）
+U -> P : 切回页面
+P -> P : focus → 收起本页仍在显示的通知
+
+note over P
+  同 tag 再到达时靠 renotify 重新提醒：
+  否则同一会话的第二次“任务已完成”会被静默替换，只剩提示音
+end note
+
+== 事件：无任何页面连接 → 原生 toast 兜底 ==
+
+N -> N : 派发检查：win32 且 size() == 0
+N -> W : showToast(标题, 正文, duration)
+W -> U : 右下角系统弹窗（toast 本身静音）+ MCI 提示音
+
+note over W
+  duration 三档：short 约 5 秒 / long 约 25 秒 /
+  reminder 常驻（附「知道了」，已知 dsh 地址时再加「打开 dsh」）。
+  兜底只在没有任何页面连接时触发——注意 VSCode 内嵌浏览器等
+  “看不见的页面”也算在线，会阻止兜底。
+end note
+
+== 测试按钮 ==
+
+P -> N : POST /notify/test（force）
+N -> P : 跳过宿主心跳抑制，帧带 force 跳过页面聚焦校验
+
+note over P,U
+  force 不改变路由：本页已订阅时测到的是浏览器通知这条路，
+  本页未订阅（如未授权）时 Windows 宿主会直接弹原生 toast；
+  且页面聚焦时 Edge 可能只把横幅送进通知中心不弹出——
+  横幅展示策略属于浏览器，链路本身不受影响
+end note
+
+@enduml

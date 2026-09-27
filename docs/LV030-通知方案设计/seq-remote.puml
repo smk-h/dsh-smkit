@@ -1,0 +1,76 @@
+@startuml 序列图-场景二-远程主机
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam ArrowColor #5A5A5A
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 12
+skinparam SequenceParticipantBorderColor #7A93BE
+skinparam SequenceParticipantBackgroundColor #DCE9FB
+skinparam SequenceParticipantFontColor #1F2933
+skinparam SequenceLifeLineBorderColor #7A93BE
+skinparam SequenceGroupBackgroundColor #F7F9FC
+skinparam SequenceGroupBorderColor #7A93BE
+skinparam NoteBackgroundColor #FFFBE6
+skinparam NoteBorderColor #E0B400
+skinparam NoteFontColor #5C4A00
+
+title 场景二：dsh 运行在远程主机（SSH 隧道）—— 浏览器是唯一投递路
+
+actor "用户" as U
+participant "浏览器页面\n(client 半区)" as P
+participant "SSH 隧道\n(本地端口转发)" as T
+participant "notify 特性\n(远程 Linux 宿主)" as N
+participant "宿主事件总线" as B
+
+== 准备：发现平台、授权、订阅 ==
+
+P -> T : GET /notify/settings
+T -> N : 转发请求
+N --> P : { platform:"linux", enabled, soundEnabled, duration }
+P -> P : 授权行全平台显示；platform 非 win32 时不渲染「常驻时长」行\n（该设置只喂给原生 toast，远程宿主弹不了）
+P -> P : Notification.requestPermission() → granted 后惰性启动订阅
+
+note over P
+  授权结果保存在浏览器侧；授权按钮会派发
+  smkit:notify-permission 事件，订阅无需刷新页面即启动
+end note
+
+P -> T : GET /notify/events（SSE 长连接）
+T -> N : 转发订阅
+N --> P : retry:3000 + hello 帧
+
+note over P,T
+  之后所有请求与推送都沿这条隧道转发，图中不再重复画出。
+  宿主每 20 秒沿每条连接发一行 ": ping" 注释防止隧道/代理掐断静默流。
+end note
+
+== 心跳：与场景一完全相同 ==
+
+P -> N : POST /notify/heartbeat focused / blurred
+N -> N : 记录 focusedAt（源头抑制依据）
+
+== 事件：宿主决策后经 SSE 推送 ==
+
+B -> N : 任务状态 / error / 审批 / 提问
+N -> N : 决策器：边缘触发 + 3 秒去重\n心跳 focused 8 秒内 → 源头静默（不推帧）
+N -> P : SSE 帧 {kind, title, body, dedupeKey, sound}
+P -> P : document.hasFocus() 二次校验（聚焦则丢弃，force 帧除外）
+P -> P : new Notification({tag: dedupeKey, renotify: true})
+P -> P : GET /notify/sound → Audio 播放提示音
+P -> U : 系统级通知横幅（点击聚焦回本页）
+U -> P : 切回页面
+P -> P : focus → 收起本页仍在显示的通知
+
+== 断线自愈 ==
+
+P -> P : 连接断开（网络抖动 / 宿主重启）
+P -> N : 3 秒后重新订阅 /notify/events
+
+note over P
+  重连期间漏掉的决策不补发——决策器是边缘触发的，
+  补发的“已完成”没有意义，下一个状态变化会正常通知
+end note
+
+@enduml
