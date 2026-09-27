@@ -3,8 +3,8 @@
     "id": "ocean",
     "name": "Ocean",
     "nameZh": "海洋",
-    "desc": "Cool blue seas and quiet depth.",
-    "descZh": "清凉的蓝，安静而深邃。",
+    "desc": "Soft sea-mist blue on quiet neutrals, easy on the eyes.",
+    "descZh": "海雾般的浅青落在静谧的灰上，柔和不刺眼。",
     "tags": [
       "light",
       "cool",
@@ -12,20 +12,20 @@
     ],
     "swatch": {
       "light": [
-        "#d5e7ef",
-        "#f0f7f8",
+        "#e3e9ec",
+        "#f5f7f8",
         "#0e7490",
-        "#0f2440"
+        "#26313b"
       ],
       "dark": [
-        "#0b1722",
-        "#0f1f2d",
-        "#22d3ee",
-        "#e6f1f9"
+        "#13171c",
+        "#1a2027",
+        "#4ab6c8",
+        "#e6eaee"
       ]
     },
-    "gradeDay": "AAA · 12.3:1",
-    "gradeNight": "15.8:1"
+    "gradeDay": "AAA · 10.8:1",
+    "gradeNight": "14.9:1"
   },
   {
     "id": "midnight",
@@ -59,8 +59,8 @@
     "id": "aurora",
     "name": "Aurora",
     "nameZh": "极光",
-    "desc": "Violet skies melting into teal.",
-    "descZh": "紫罗兰与青碧交融的夜空。",
+    "desc": "Soft violet on quiet neutrals, like a faint aurora.",
+    "descZh": "低饱和的紫罗兰落在静谧的灰上，如极光微光。",
     "tags": [
       "dark",
       "purple",
@@ -68,47 +68,47 @@
     ],
     "swatch": {
       "light": [
-        "#e6e1fa",
-        "#f8f4fe",
-        "#7c3aed",
-        "#221a3e"
+        "#e6e4f0",
+        "#f5f4fa",
+        "#7347d4",
+        "#2f2c40"
       ],
       "dark": [
-        "#0e0a1f",
-        "#151031",
-        "#a78bfa",
-        "#ece7ff"
+        "#15141c",
+        "#1d1b26",
+        "#9989d6",
+        "#e9e7ef"
       ]
     },
-    "gradeDay": "AAA · 12.8:1",
-    "gradeNight": "16.1:1"
+    "gradeDay": "AAA · 10.8:1",
+    "gradeNight": "14.9:1"
   },
   {
     "id": "forest",
     "name": "Forest",
     "nameZh": "森林",
-    "desc": "Pine greens and soft moss.",
-    "descZh": "松绿与柔软的苔藓。",
+    "desc": "Soft pine green on quiet neutrals, like light through leaves.",
+    "descZh": "低饱和的松绿落在静谧的灰上，如林间微光。",
     "tags": [
       "light",
       "green"
     ],
     "swatch": {
       "light": [
-        "#daeade",
-        "#f2f8f4",
+        "#e5eae6",
+        "#f5f7f6",
         "#15803d",
-        "#14261a"
+        "#2a332c"
       ],
       "dark": [
-        "#0c150f",
-        "#122017",
-        "#4ade80",
-        "#e2f2e7"
+        "#131714",
+        "#1a201c",
+        "#4cbd7d",
+        "#e6eae7"
       ]
     },
-    "gradeDay": "AAA · 12.7:1",
-    "gradeNight": "16.0:1"
+    "gradeDay": "AAA · 10.7:1",
+    "gradeNight": "14.9:1"
   },
   {
     "id": "graphite",
@@ -169,8 +169,8 @@
     "id": "mint",
     "name": "Mint",
     "nameZh": "薄荷",
-    "desc": "Fresh green-teal, crisp and cool.",
-    "descZh": "清新的青绿，脆爽清凉。",
+    "desc": "Soft mint on quiet neutrals, fresh and calm.",
+    "descZh": "低饱和的薄荷绿落在静谧的灰上，清爽不腻。",
     "tags": [
       "light",
       "green",
@@ -178,20 +178,20 @@
     ],
     "swatch": {
       "light": [
-        "#d3ece2",
-        "#eef8f5",
+        "#e4eae7",
+        "#f5f7f6",
         "#059669",
-        "#0e2b1d"
+        "#28322c"
       ],
       "dark": [
-        "#0a1611",
-        "#10221a",
-        "#34d399",
-        "#def3e8"
+        "#131715",
+        "#1a201d",
+        "#49b790",
+        "#e6eae8"
       ]
     },
-    "gradeDay": "AAA · 12.2:1",
-    "gradeNight": "15.9:1"
+    "gradeDay": "AAA · 10.9:1",
+    "gradeNight": "14.9:1"
   },
   {
     "id": "terminal",
