@@ -362,34 +362,6 @@
     "gradeNight": "21.0:1"
   },
   {
-    "id": "festival-dragonboat",
-    "name": "Dragon Boat Festival",
-    "nameZh": "端午",
-    "desc": "Mugwort green and zongzi fragrance; dragon boats race in lacquer red",
-    "descZh": "艾草绿粽叶香，龙舟红漆竞渡忙",
-    "tags": [
-      "light",
-      "green",
-      "festival"
-    ],
-    "swatch": {
-      "light": [
-        "#f2f6ef",
-        "#fafcf8",
-        "#2e7d4f",
-        "#1a2b21"
-      ],
-      "dark": [
-        "#121613",
-        "#181f1a",
-        "#58b386",
-        "#e2e9e4"
-      ]
-    },
-    "gradeDay": "AAA · 13.6:1",
-    "gradeNight": "14.8:1"
-  },
-  {
     "id": "zcode",
     "name": "ZCode",
     "nameZh": "ZCode",

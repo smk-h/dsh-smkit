@@ -1,6 +1,6 @@
 /**
  * Visual smoke test for the merged theme center: one page carrying the REAL
- * shipped `row.css` and `palette.css` (read verbatim from `src/`), the 19 cards
+ * shipped `row.css` and `palette.css` (read verbatim from `src/`), the 18 cards
  * rendered exactly as `ThemeCenterRow` renders them, the palette panel rendered
  * exactly as `PalettePanel` renders it, and a mock shell that proves the
  * migrated skins still paint.
@@ -176,7 +176,7 @@ function card(theme, active) {
   </button>`
 }
 
-const MIGRATED = ['festival-dragonboat', 'zcode']
+const MIGRATED = ['zcode']
 /** One card per theme, with a migrated one — the ones whose stylesheets had to
  * be rewritten — wearing the applied ring. */
 const GRID = THEMES.map((theme) => card(theme, theme.id === 'zcode')).join('')

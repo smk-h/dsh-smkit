@@ -8,7 +8,7 @@
  * palette strip with its hex values. That page and this row used to describe
  * two different theme systems; the three skins it shipped are entries in this
  * grid now, so its card — which previews a palette in both modes at once — is
- * the one that can describe all nineteen. Merging the styles cost nothing but
+ * the one that can describe all eighteen. Merging the styles cost nothing but
  * the class prefix: the card was always painted from the *theme's* colors, so
  * it never knew which applier stood behind them.
  *

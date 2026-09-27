@@ -38,7 +38,6 @@ import auroraCss from './themes/aurora.css'
 import autumnCss from './themes/autumn.css'
 import beanGreenCss from './themes/bean-green.css'
 import charcoalCss from './themes/charcoal.css'
-import festivalDragonboatCss from './themes/festival-dragonboat.css'
 import forestCss from './themes/forest.css'
 import graphiteCss from './themes/graphite.css'
 import inkCss from './themes/ink.css'
@@ -97,7 +96,6 @@ const SHEETS: Readonly<Record<string, string>> = {
   autumn: autumnCss,
   'bean-green': beanGreenCss,
   charcoal: charcoalCss,
-  'festival-dragonboat': festivalDragonboatCss,
   forest: forestCss,
   graphite: graphiteCss,
   ink: inkCss,
