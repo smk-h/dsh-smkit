@@ -32,6 +32,11 @@ export const NOTIFY_LOCALE_ZH: LocaleDict = {
   webNotifGranted: '已授权',
   webNotifDenied: '已被拒绝',
   webNotifDeniedHint: '可在浏览器的站点设置中重新允许。',
+  webNotifSettingsHint:
+    '浏览器不允许网页直接打开它自己的设置页，复制下面的地址粘到地址栏回车即可。',
+  webNotifSettingsCopy: '复制地址',
+  webNotifSettingsCopied: '已复制',
+  webNotifSettingsCopyFailed: '复制失败，请手动选中地址',
   webNotifUnsupported: '不支持',
   webNotifUnsupportedHint: '需通过 localhost 或 https 访问。',
   webNotifFailed: '授权请求失败。',

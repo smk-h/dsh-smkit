@@ -74,6 +74,15 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The head's right-hand seat, when it holds more than one control: today the
+ * permission badge and the copy button of the browser-settings hand-off. */
+.smkit-notify-page-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
 .smkit-notify-page-row-help {
   font-size: 12px;
   line-height: 18px;
@@ -169,6 +178,38 @@
 .smkit-notify-page-select option {
   background: var(--dsw-alias-bg-layer-3);
   color: var(--dsw-alias-label-primary);
+}
+
+/* --- the browser-settings hand-off (a denied permission) ---
+ * A privileged scheme cannot be navigated to from a page, so the panel names
+ * the address and copies it instead; the copy button sits beside the row's
+ * badge (`.smkit-notify-page-row-controls`). `user-select: all` is the manual
+ * path's whole affordance: one click selects the entire address. */
+
+.smkit-notify-page-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.smkit-notify-page-settings-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.smkit-notify-page-settings-address {
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 18px;
+  user-select: all;
+  word-break: break-all;
 }
 
 /* The browser-permission answer as a pill — the same vocabulary the MCP

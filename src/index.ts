@@ -100,7 +100,8 @@ export {
   normalizeToggle,
   saveNotifySettings,
 } from './host/features/notify/settings.js'
-export { nextSettings } from './host/features/notify/api.js'
+export { nextSettings, notifySettingsView } from './host/features/notify/api.js'
+export { notifySettingsUrl } from './shared/notify/browser.js'
 export { buildToastScript } from './host/features/notify/toast.js'
 export type { NotifyDecision, NotifyDuration, NotifyKind, NotifySettings } from './host/features/notify/types.js'
 export type {

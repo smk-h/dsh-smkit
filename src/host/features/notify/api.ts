@@ -10,6 +10,8 @@
  */
 
 import { readBody, sendJson } from '../../platform/util/http.js'
+import { headerValue } from '../../platform/routes.js'
+import { notifySettingsUrl } from '../../../shared/notify/browser.js'
 import type { ApiHandler } from '../../platform/routes.js'
 import type { LoggerLike } from '../../platform/types.js'
 import type { NotifyOrchestrator } from './orchestrator.js'
@@ -51,13 +53,24 @@ export function nextSettings(
 }
 
 /**
- * The settings answer, as the panel reads it: the three saved values plus
- * where the host runs. The platform is informational — delivery prefers an
- * open page on every platform now, with the native toast as the Windows
- * no-page fallback.
+ * The settings answer, as the panel reads it: the three saved values, where the
+ * host runs, and the address of the asking browser's own notification settings.
+ *
+ * The address is derived here, from the user agent of this very request, for
+ * one reason: the client half reads no user agent of its own, and the request
+ * already carries the answer to "which browser is this". `null` — a browser
+ * the mapping does not know — is a legitimate answer, and the panel keeps its
+ * own wording then.
  */
-function settingsView(settings: NotifySettings): Record<string, unknown> {
-  return { ...settings, platform: process.platform }
+export function notifySettingsView(
+  settings: NotifySettings,
+  userAgent: string | undefined,
+): Record<string, unknown> {
+  return {
+    ...settings,
+    platform: process.platform,
+    webSettingsUrl: notifySettingsUrl(userAgent ?? ''),
+  }
 }
 
 /** The feature's handlers, in matching order. */
@@ -65,7 +78,7 @@ export function createNotifyHandlers(deps: NotifyApiDeps): ApiHandler[] {
   return [
     async (req, res, facts) => {
       if (facts.rest === '/notify/settings' && req.method === 'GET') {
-        sendJson(res, 200, settingsView(deps.getSettings()))
+        sendJson(res, 200, notifySettingsView(deps.getSettings(), headerValue(req, 'user-agent')))
         return true
       }
 
@@ -73,7 +86,9 @@ export function createNotifyHandlers(deps: NotifyApiDeps): ApiHandler[] {
         const body = await readBody(req)
         const next = nextSettings(body, deps.getSettings())
         deps.saveSettings(next)
-        sendJson(res, 200, settingsView(next))
+        // The POST answer becomes the panel's next state, so it has to carry
+        // the same browser address the GET does.
+        sendJson(res, 200, notifySettingsView(next, headerValue(req, 'user-agent')))
         return true
       }
 

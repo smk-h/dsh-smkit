@@ -19,6 +19,12 @@
  * on Windows it is inert while a page is open, because delivery then prefers
  * the browser. `platform` arrives with the settings read; before it lands the
  * row is absent rather than briefly wrong.
+ *
+ * The browser-permission row owns the one dead end this panel can reach: a
+ * site the browser has already denied. The page may not ask again, and it may
+ * not open a privileged scheme either, so the row hands the address over —
+ * named by the host from the request's user agent — with a copy button and the
+ * address itself, selected whole by one click.
  */
 
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
@@ -40,6 +46,13 @@ export interface NotifySettingsBody {
   /** Where the host runs. Decides whether the duration row renders at all:
    * only a Windows host can raise the native toast that setting drives. */
   platform?: string
+  /**
+   * The address of this browser's own notification settings, or `null` when
+   * the host could not name one. The host derives it from the user agent of
+   * the request this panel made, so it always describes the browser the page
+   * is in — the client half carries no user-agent reading of its own.
+   */
+  webSettingsUrl?: string | null
 }
 
 /** The browser's Notification permission, plus a stand-in for "no API here". */
@@ -48,6 +61,24 @@ type WebPermission = 'default' | 'granted' | 'denied' | 'unsupported'
 /** Read one toggle out of a host answer, keeping the fallback on garbage. */
 function readToggle(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback
+}
+
+/**
+ * Put the settings address on the clipboard, from the click that asked for it.
+ *
+ * Only the modern Clipboard API, with no `document.execCommand('copy')`
+ * fallback: a refused copy is not a dead end, because the address stays on
+ * screen as a `user-select: all` chip — one click selects it whole — and the
+ * panel says the copy failed instead of pretending it worked.
+ */
+async function copyAddress(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator === 'undefined' || typeof navigator.clipboard?.writeText !== 'function') return false
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** The dictionary key per duration option, spelled out rather than templated
@@ -66,6 +97,7 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
     const [settings, setSettings] = react.useState<NotifySettingsBody | null>(null)
     const [testDone, setTestDone] = react.useState(false)
     const [webPerm, setWebPerm] = react.useState<WebPermission | null>(null)
+    const [copyState, setCopyState] = react.useState<'idle' | 'done' | 'failed'>('idle')
     const { busy, pending, error, run } = useAsyncAction(react)
 
     react.useEffect(() => {
@@ -86,6 +118,12 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
     const enabled = readToggle(settings?.enabled, true)
     const soundEnabled = readToggle(settings?.soundEnabled, true)
     const duration = (settings?.duration as NotifyDuration | undefined) ?? 'short'
+    // The address only matters for the denied case: that is the one where the
+    // page may not ask again, so the user has to go and allow the site
+    // themselves — and a page cannot navigate to a privileged scheme on its
+    // own. The host names it per browser, and `null` means it could not.
+    const settingsUrl =
+      webPerm === 'denied' && typeof settings?.webSettingsUrl === 'string' ? settings.webSettingsUrl : null
 
     /** Flip one toggle and take the host's answer as the truth. */
     const flip = (field: 'enabled' | 'soundEnabled', next: boolean): Promise<void> =>
@@ -132,6 +170,12 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
           return t('webNotifFailed')
         }
       }, 'webperm')
+
+    /** Hand the settings address over for pasting: the page cannot open it. */
+    const copySettingsUrl = async (): Promise<void> => {
+      if (settingsUrl === null) return
+      setCopyState((await copyAddress(settingsUrl)) ? 'done' : 'failed')
+    }
 
     const fireTest = (): Promise<void> =>
       run(async () => {
@@ -201,25 +245,32 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
             <div className="smkit-notify-page-row smkit-notify-page-row-stacked">
               <div className="smkit-notify-page-row-head">
                 <div className="smkit-notify-page-row-title">{t('webNotifTitle')}</div>
-                {webPerm === 'default' ? (
-                  <button
-                    className="smkit-ui-button"
-                    onClick={() => void authorize()}
-                    disabled={pending === 'webperm'}
-                    data-smkit-pending={pending === 'webperm' ? 'true' : undefined}
-                    aria-busy={pending === 'webperm'}
-                  >
-                    {t('webNotifEnable')}
-                  </button>
-                ) : (
-                  <span className="smkit-notify-page-badge" data-smkit-state={webPerm}>
-                    {webPerm === 'granted'
-                      ? t('webNotifGranted')
-                      : webPerm === 'denied'
-                        ? t('webNotifDenied')
-                        : t('webNotifUnsupported')}
-                  </span>
-                )}
+                <div className="smkit-notify-page-row-controls">
+                  {webPerm === 'default' ? (
+                    <button
+                      className="smkit-ui-button"
+                      onClick={() => void authorize()}
+                      disabled={pending === 'webperm'}
+                      data-smkit-pending={pending === 'webperm' ? 'true' : undefined}
+                      aria-busy={pending === 'webperm'}
+                    >
+                      {t('webNotifEnable')}
+                    </button>
+                  ) : (
+                    <span className="smkit-notify-page-badge" data-smkit-state={webPerm}>
+                      {webPerm === 'granted'
+                        ? t('webNotifGranted')
+                        : webPerm === 'denied'
+                          ? t('webNotifDenied')
+                          : t('webNotifUnsupported')}
+                    </span>
+                  )}
+                  {settingsUrl === null ? null : (
+                    <button className="smkit-ui-button" onClick={() => void copySettingsUrl()}>
+                      {t('webNotifSettingsCopy')}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="smkit-notify-page-row-help">
                 {t('webNotifHelp')}
@@ -229,6 +280,19 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
                     ? ` ${t('webNotifUnsupportedHint')}`
                     : ''}
               </div>
+              {settingsUrl !== null ? (
+                <div className="smkit-notify-page-settings">
+                  <div className="smkit-notify-page-row-help">{t('webNotifSettingsHint')}</div>
+                  <div className="smkit-notify-page-settings-line">
+                    <span className="smkit-notify-page-settings-address">{settingsUrl}</span>
+                    {copyState === 'idle' ? null : (
+                      <span className="smkit-notify-page-row-help">
+                        {copyState === 'done' ? t('webNotifSettingsCopied') : t('webNotifSettingsCopyFailed')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

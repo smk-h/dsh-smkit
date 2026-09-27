@@ -27,6 +27,11 @@ export const NOTIFY_LOCALE_EN: LocaleDict = {
   webNotifGranted: 'Granted',
   webNotifDenied: 'Denied',
   webNotifDeniedHint: 'Re-allow notifications in the browser site settings.',
+  webNotifSettingsHint:
+    'A page cannot open the browser\'s own settings, so copy the address below and paste it into the address bar.',
+  webNotifSettingsCopy: 'Copy address',
+  webNotifSettingsCopied: 'Copied',
+  webNotifSettingsCopyFailed: 'Copy failed — select the address manually',
   webNotifUnsupported: 'Unsupported',
   webNotifUnsupportedHint: 'Open dsh via localhost or https.',
   webNotifFailed: 'Permission request failed.',

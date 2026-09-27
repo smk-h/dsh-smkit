@@ -286,7 +286,15 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     if (!/\.tsx?$/.test(file.pathname) || I18N_MODULE.test(file.pathname)) continue
     assert.doesNotMatch(readFileSync(file, 'utf8'), /\p{Script=Han}/u, file.pathname)
   }
-  assert.doesNotMatch(source, /STRINGS|translator|systemLanguage|navigator|settings\/language|mm_language/)
+  // The client reads no locale and no user agent: both are the host's business
+  // (language comes from the shell, the notify panel's browser address from
+  // the request's own user agent). The guard names those banned reads rather
+  // than the whole `navigator` object, because one member is legitimate here —
+  // the Clipboard API the notify panel copies a settings address with.
+  assert.doesNotMatch(
+    source,
+    /STRINGS|translator|systemLanguage|navigator\.(language|languages|userLanguage|userAgent|platform)|settings\/language|mm_language/,
+  )
   app.dispose()
 })
 

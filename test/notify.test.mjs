@@ -44,12 +44,18 @@ const {
   normalizeToggle,
   normalizeDuration,
   nextSettings,
+  notifySettingsView,
   buildToastScript,
+  notifySettingsUrl,
   DEFAULT_NOTIFY_SETTINGS,
 } = await import('../lib/index.js')
 after(() => rmSync(scratchHome, { recursive: true, force: true }))
 
 const quietLogger = { info() {}, warn() {}, error() {} }
+
+/** A Chromium user agent: what the settings answer's browser address comes from. */
+const CHROME_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
 
 /** A clock the tests move: `t` is milliseconds since an arbitrary zero. */
 function makeClock(start = 10_000) {
@@ -253,6 +259,33 @@ describe('notify session title lookup', () => {
   })
 })
 
+describe('notify browser settings address', () => {
+  it('names the address each browser opens, forks before the generic Chromium one', () => {
+    assert.equal(notifySettingsUrl(CHROME_UA), 'chrome://settings/content/notifications')
+    assert.equal(notifySettingsUrl(`${CHROME_UA} Edg/140.0.0.0`), 'edge://settings/content/notifications')
+    assert.equal(notifySettingsUrl(`${CHROME_UA} OPR/110.0.0.0`), 'opera://settings/content/notifications')
+    assert.equal(
+      notifySettingsUrl(`${CHROME_UA} Vivaldi/6.9.3447.51`),
+      'vivaldi://settings/content/notifications',
+    )
+    assert.equal(
+      notifySettingsUrl('Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0'),
+      'about:preferences#privacy',
+    )
+  })
+
+  it('answers nothing for a browser it cannot name, so the panel keeps its own hint', () => {
+    assert.equal(
+      notifySettingsUrl(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
+      ),
+      null,
+    )
+    assert.equal(notifySettingsUrl(''), null)
+    assert.equal(notifySettingsUrl(undefined), null)
+  })
+})
+
 describe('notify orchestrator: the dedupe window', () => {
   it('one notification per kind:target inside the window, fresh ones after', () => {
     const clock = makeClock()
@@ -332,6 +365,16 @@ describe('notify settings', () => {
     assert.equal(normalizeDuration(null, 'reminder'), 'short')
     assert.equal(normalizeDuration('forever', 'short'), 'short')
     assert.equal(normalizeDuration(25, 'short'), 'short')
+  })
+
+  it('the settings answer names the asking browser its own notification settings', () => {
+    const settings = { enabled: true, soundEnabled: true, duration: 'short' }
+    const chromium = notifySettingsView(settings, CHROME_UA)
+    assert.equal(chromium.webSettingsUrl, 'chrome://settings/content/notifications')
+    assert.equal(chromium.platform, process.platform, 'the host still says where it runs')
+    assert.equal(chromium.soundEnabled, true, 'and the saved values ride along')
+    assert.equal(notifySettingsView(settings, 'Mozilla/5.0 (Macintosh) Version/18.0 Safari/605.1.15').webSettingsUrl, null)
+    assert.equal(notifySettingsView(settings, undefined).webSettingsUrl, null, 'no user agent, no address')
   })
 
   it('nextSettings folds a PATCH-shaped body onto the current values', () => {
