@@ -254,6 +254,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'smkit: skills/dictionaries',
     'smkit: custom-settings/dictionaries',
     'smkit: local-cache/dictionaries',
+    // The session-manager page's own dictionary, seated by the merged section
+    // like the pages above it.
+    'smkit: session-manager/dictionaries',
     'smkit: openspec/dictionaries',
     'smkit: theme-center/dictionaries',
     'smkit: notify/heartbeat',

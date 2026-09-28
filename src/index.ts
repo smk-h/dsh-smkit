@@ -90,6 +90,15 @@ export {
   saveState,
 } from './host/features/mcp/state.js'
 export { createSessionDeleter, createSessionPreviewer } from './host/features/session-delete/delete.js'
+export { createSessionLister } from './host/features/session-delete/list.js'
+export type { SessionLister, SessionListerDeps } from './host/features/session-delete/list.js'
+export type {
+  ManagedSessionView,
+  ManagedWorkspaceView,
+  SessionManagerList,
+  SessionBatchDeleteOutcome,
+  SessionBatchDeleteReceipt,
+} from './shared/session-delete/contract.js'
 export { createNotifyOrchestrator } from './host/features/notify/orchestrator.js'
 export type { NotifyOrchestrator } from './host/features/notify/orchestrator.js'
 export { createSessionTitleLookup } from './host/features/notify/title.js'

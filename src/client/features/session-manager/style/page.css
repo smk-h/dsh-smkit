@@ -1,0 +1,273 @@
+/**
+ * The session-manager tab: the sub-tab strip is the platform's `Tabs`
+ * (`smkit-ui-tabs`, nothing to declare here), and everything below is this
+ * page's own — the toolbar (select-all, selected summary, the shared refresh
+ * button and the destructive action), the workspace groups and their session
+ * rows, and the batch result lines.
+ *
+ * Classes are namespaced `smkit-sess-page-*` per the namespace scheme
+ * (`smkit-<scope>-<sheet>[-<block>[-<part>]]`): scope `sess`, sheet `page`.
+ *
+ * Reads the same design tokens every other page paints from, so the panel
+ * follows the shell's theme (including dark) without rules of its own.
+ * The one borrowed control with no local rule is the refresh button
+ * (`platform/ui/RefreshButton`); the delete button is the platform's
+ * `smkit-ui-button danger`.
+ */
+
+.smkit-sess-page-panel {
+  width: 100%;
+  max-width: 760px;
+  color: var(--dsw-alias-label-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.smkit-sess-page-intro {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* --------------------------------------------------------------- toolbar */
+
+.smkit-sess-page-toolbar {
+  align-items: center;
+  gap: 12px;
+  padding: 0 2px;
+  display: flex;
+}
+
+.smkit-sess-page-toolbar-spacer {
+  flex: 1 1 0;
+}
+
+/* The bare checkbox the select-all and every row wear: the native control
+ * stays in the tree under a drawn box (the CheckChip pattern, minus the
+ * pill — a list of rows has its words beside the box, not inside it). */
+.smkit-sess-page-check {
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  display: inline-flex;
+  cursor: pointer;
+  flex: none;
+}
+.smkit-sess-page-check input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.smkit-sess-page-check-box {
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-layer-1);
+  align-items: center;
+  justify-content: center;
+  display: inline-flex;
+  color: var(--dsw-alias-label-primary-foreground);
+  pointer-events: none;
+}
+.smkit-sess-page-check:hover input:not(:disabled) + .smkit-sess-page-check-box {
+  border-color: var(--dsw-alias-border-l4);
+}
+.smkit-sess-page-check input:focus-visible + .smkit-sess-page-check-box {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 1px;
+}
+.smkit-sess-page-check[data-smkit-on='true'] .smkit-sess-page-check-box,
+.smkit-sess-page-check[data-smkit-on='partial'] .smkit-sess-page-check-box {
+  background: var(--dsw-alias-brand-primary);
+  border-color: var(--dsw-alias-brand-primary);
+}
+/* The partial mark: a dash, drawn rather than an icon, so the tri-state read
+ * ("some of them") never looks like the settled one ("all of them"). */
+.smkit-sess-page-check[data-smkit-on='partial'] .smkit-sess-page-check-box::after {
+  content: '';
+  width: 7px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.smkit-sess-page-selected {
+  font-size: 12.5px;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.smkit-sess-page-selected b {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------- groups */
+
+.smkit-sess-page-group {
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.smkit-sess-page-group-head {
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--dsw-alias-bg-layer-2);
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  display: flex;
+}
+.smkit-sess-page-group-head > svg {
+  color: var(--dsw-alias-label-secondary);
+  flex: none;
+}
+.smkit-sess-page-group-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.smkit-sess-page-group-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--dsw-alias-label-tertiary);
+}
+.smkit-sess-page-group-count {
+  margin-left: auto;
+  flex: none;
+  font-size: 11.5px;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Session rows indent past the group head — the checkbox lands under the
+ * workspace's title text, not its icon, so "sessions hang under their
+ * workspace" reads the way the sidebar's own nesting does. */
+.smkit-sess-page-row {
+  align-items: center;
+  gap: 11px;
+  padding: 8px 12px 8px 40px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  display: flex;
+}
+.smkit-sess-page-row:last-child {
+  border-bottom: none;
+}
+.smkit-sess-page-row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.smkit-sess-page-row[data-smkit-selected='true'] {
+  background: var(--dsw-alias-bg-layer-3);
+  box-shadow: inset 2px 0 0 var(--dsw-alias-brand-primary);
+}
+
+.smkit-sess-page-row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.8px;
+}
+.smkit-sess-page-row-meta {
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  display: flex;
+  font-size: 11.5px;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.smkit-sess-page-row-end {
+  flex: none;
+  min-width: 52px;
+  justify-content: flex-end;
+  align-items: center;
+  display: flex;
+}
+
+.smkit-sess-page-badge {
+  align-items: center;
+  gap: 5px;
+  display: inline-flex;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  line-height: 16px;
+  color: var(--dsw-alias-state-business-primary);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+/* --------------------------------------------------------------- notes */
+
+.smkit-sess-page-note {
+  margin: 0;
+  padding: 18px 2px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-sess-page-result {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12.5px;
+  line-height: 19px;
+  color: var(--dsw-alias-label-secondary);
+}
+.smkit-sess-page-result[data-smkit-kind='error'] {
+  color: var(--dsw-alias-state-error-primary);
+}
+.smkit-sess-page-result-list {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 19px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* --------------------------------------------------------------- confirm */
+
+/* The batch dialog's fact rows: what is about to go, one row each, title
+ * against size. Portaled to the body with the dialog, so the classes travel
+ * anywhere the dialog does. */
+.smkit-sess-page-confirm-list {
+  margin-top: 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.smkit-sess-page-confirm-row {
+  justify-content: space-between;
+  gap: 14px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  display: flex;
+}
+.smkit-sess-page-confirm-row:last-child {
+  border-bottom: none;
+}
+.smkit-sess-page-confirm-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--dsw-alias-label-primary);
+}
+.smkit-sess-page-confirm-size {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}

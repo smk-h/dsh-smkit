@@ -78,3 +78,77 @@ export interface SessionPreview {
   /** Sum of the footprints above, in bytes. */
   totalBytes: number
 }
+
+/* ------------------------------------------------------------------ */
+/* The session manager: one listing of everything deletable, and the   */
+/* batch form of the delete above. Same domain, one more transport     */
+/* shape each.                                                         */
+
+/** One workspace row of the manager list, in the registry's own order. */
+export interface ManagedWorkspaceView {
+  workspaceId: string
+  /** Absolute directory the workspace owns. */
+  path: string
+  /** The display title the harness stores for the workspace. */
+  title: string
+}
+
+/**
+ * One session row of the manager list. The same population the sidebar's
+ * workspace groups show — attached and persisted sessions minus subagent
+ * children and blank placeholders — split by the archive set on the client.
+ */
+export interface ManagedSessionView {
+  sessionId: string
+  /** The projection cache's title, when the session earned one. */
+  title?: string
+  /** The session's project directory, when the header carries one. */
+  cwd?: string
+  /**
+   * The workspace whose accounting holds this session. Absent for the
+   * ungrouped population: sessions no workspace claims.
+   */
+  workspaceId?: string
+  /** Whether the harness currently holds this session in memory. */
+  live: boolean
+  /** Whether the session's agent is mid-turn (the delete refuses these). */
+  running: boolean
+  /** Session creation instant, epoch milliseconds. */
+  createdAt?: number
+  /** Last user prompt instant, epoch milliseconds, when the projection cache knows one. */
+  lastPromptAt?: number
+  /**
+   * The current generation's log bytes, as the persistence snapshot reports
+   * them. One file, not the whole session directory — the preview dialog
+   * remains the precise tool; this number only ranks and roughly sums rows.
+   */
+  sizeBytes?: number
+}
+
+/** Response of `GET /sessions/manager`. */
+export interface SessionManagerList {
+  /** Registered workspaces, in registry order. */
+  workspaces: ManagedWorkspaceView[]
+  /** Every visible session, active and archived alike. */
+  sessions: ManagedSessionView[]
+  /** The registry-global archive set, as the sidebar hides by it. */
+  archivedSessionIds: string[]
+}
+
+/** Per-session outcome inside a batch delete. */
+export interface SessionBatchDeleteOutcome {
+  sessionId: string
+  ok: boolean
+  /** Stable refusal code, when the delete refused this session. */
+  code?: SessionDeleteRefusal
+  /** The host's message for a refusal or failure; absent on success. */
+  message?: string
+}
+
+/** Response of `POST /sessions/delete-batch`. HTTP 200 even when some deletes
+ * refused: each session's outcome travels in `results`. */
+export interface SessionBatchDeleteReceipt {
+  results: SessionBatchDeleteOutcome[]
+  deleted: number
+  failed: number
+}

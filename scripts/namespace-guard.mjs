@@ -206,6 +206,7 @@ export const SCOPES = [
   ['client/features/mcp', 'mcp'],
   ['client/features/openspec', 'spec'],
   ['client/features/session-delete', 'del'],
+  ['client/features/session-manager', 'sess'],
   ['client/features/skills', 'skill'],
   ['client/features/theme-center', 'theme'],
 ]

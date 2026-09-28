@@ -1,14 +1,16 @@
 /**
  * The session-delete feature's host half: `mount()`.
  *
- * It builds the deleter and the previewer and contributes its two routes.
- * Nothing here is MCP's business, and nothing here declares a DSH service as a
- * hard dependency: the delete reaches into `sessionPersistence`, `sessions`,
- * `agents` and `workspaceRegistry` through the structural accessor, per call,
- * so the feature stays mountable where only some of them exist.
+ * It builds the deleter, the previewer and the manager's lister, and
+ * contributes the four routes over them. Nothing here is MCP's business, and
+ * nothing here declares a DSH service as a hard dependency: the delete and
+ * the listing reach into `sessionPersistence`, `sessions`, `agents` and
+ * `workspaceRegistry` through the structural accessor, per call, so the
+ * feature stays mountable where only some of them exist.
  */
 
 import { createSessionDeleter, createSessionPreviewer } from './delete.js'
+import { createSessionLister } from './list.js'
 import { createSessionHandlers } from './api.js'
 import type { HostFeature, HostPlatform } from '../../platform/context.js'
 
@@ -29,6 +31,10 @@ export const sessionDeleteFeature: HostFeature = {
       services: platform.services,
       logger: platform.logger,
     })
-    platform.handlers.push(...createSessionHandlers({ deleteSession, previewSession }))
+    const listSessions = createSessionLister({
+      services: platform.services,
+      logger: platform.logger,
+    })
+    platform.handlers.push(...createSessionHandlers({ deleteSession, previewSession, listSessions }))
   },
 }

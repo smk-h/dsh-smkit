@@ -18,4 +18,5 @@ export const SMKIT_LOCALE_ZH: LocaleDict = {
   tabCustom: "自定义设置",
   tabLocalCache: "本地缓存",
   tabNotify: "通知",
+  tabSessions: "会话管理",
 }

@@ -41,14 +41,16 @@ import { createWandSparklesIcon } from '../../features/skills/icons/WandSparkles
 import { createSettings2Icon } from '../../platform/icons/Settings2Icon'
 import { createNotebookTextIcon } from '../../features/local-cache/icons/NotebookTextIcon'
 import { createBellIcon } from '../../features/notify/icons/BellIcon'
+import { createMessagesSquareIcon } from '../../features/session-manager/icons/MessagesSquareIcon'
 import { createMcpContent } from '../../features/mcp/components/McpContent'
 import { createSkillsContent } from '../../features/skills/components/SkillsContent'
 import { createCustomSettingsContent } from '../../features/custom-settings/components/CustomSettingsContent'
 import { createLocalCachePanel } from '../../features/local-cache/components/LocalCachePanel'
 import { createNotifyPanel } from '../../features/notify/components/NotifyPanel'
+import { createSessionManagerPanel } from '../../features/session-manager/components/SessionManagerPanel'
 import type { ClientDeps, Translator } from '../../platform/types'
 
-/** The copy the merged page reads: the shell's own namespace, then the five
+/** The copy the merged page reads: the shell's own namespace, then the pages
  * it seats panels from. */
 export interface PanelDictionaries {
   section: Translator
@@ -57,6 +59,7 @@ export interface PanelDictionaries {
   customSettings: Translator
   localCache: Translator
   notify: Translator
+  sessionManager: Translator
 }
 
 /** One page: its tab's glyph, its key in the strip, and its panel. */
@@ -86,11 +89,13 @@ export function createSettingsSection(
   const Settings2Icon = createSettings2Icon(deps)
   const NotebookTextIcon = createNotebookTextIcon(deps)
   const BellIcon = createBellIcon(deps)
+  const MessagesSquareIcon = createMessagesSquareIcon(deps)
   const McpContent = createMcpContent(deps)
   const SkillsContent = createSkillsContent(deps)
   const CustomSettingsContent = createCustomSettingsContent(deps)
   const LocalCachePanel = createLocalCachePanel(deps)
   const NotifyPanel = createNotifyPanel(deps)
+  const SessionManagerPanel = createSessionManagerPanel(deps)
 
   /** The pages, in strip order — the order the settings nav listed them in
    * before they were merged. */
@@ -125,6 +130,12 @@ export function createSettingsSection(
       icon: <BellIcon size={14} />,
       Panel: (props) => <NotifyPanel {...props} />,
     },
+    {
+      id: 'sessions',
+      label: 'tabSessions',
+      icon: <MessagesSquareIcon size={14} />,
+      Panel: (props) => <SessionManagerPanel {...props} />,
+    },
   ]
 
   // The keys are the TABS ids, verbatim — the panel lookup below indexes by
@@ -136,6 +147,7 @@ export function createSettingsSection(
     custom: panelDictionaries.customSettings,
     'local-cache': panelDictionaries.localCache,
     notify: panelDictionaries.notify,
+    sessions: panelDictionaries.sessionManager,
   }
 
   // No props: the slot system hands a section the seat's copy, but this shell
