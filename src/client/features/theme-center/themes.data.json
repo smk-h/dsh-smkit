@@ -500,5 +500,33 @@
     },
     "gradeDay": "AAA · 13.6:1",
     "gradeNight": "13.9:1"
+  },
+  {
+    "id": "one-dark-pro",
+    "name": "One Dark Pro",
+    "nameZh": "One Dark Pro",
+    "desc": "The canonical Atom One Dark, verbatim: #282c34 canvas, #abb2bf ink.",
+    "descZh": "Atom One Dark 经典暗色原样移植：#282c34 画布，#abb2bf 墨色。",
+    "tags": [
+      "dark",
+      "cool",
+      "blue"
+    ],
+    "swatch": {
+      "light": [
+        "#282c34",
+        "#2c313c",
+        "#61afef",
+        "#abb2bf"
+      ],
+      "dark": [
+        "#282c34",
+        "#2c313c",
+        "#61afef",
+        "#abb2bf"
+      ]
+    },
+    "gradeDay": "AA · 6.6:1",
+    "gradeNight": "6.6:1"
   }
 ]

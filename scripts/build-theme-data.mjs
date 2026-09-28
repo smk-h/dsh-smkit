@@ -175,8 +175,8 @@ export function contrastRatio(a, b) {
   return (hi + 0.05) / (lo + 0.05)
 }
 
-/** A ratio as the day badge reads it: `AAA · 13.6:1`. Every palette the plugin
- * ships clears AAA; the AA rungs fall through only so a future theme cannot
+/** A ratio as the day badge reads it: `AAA · 13.6:1`. Most palettes the plugin
+ * ships clear AAA; the AA rungs fall through only so a future theme cannot
  * quietly publish a grade it did not earn. */
 function dayGrade(ratio) {
   const level = ratio >= 7 ? 'AAA' : ratio >= 4.5 ? 'AA' : 'AA18'

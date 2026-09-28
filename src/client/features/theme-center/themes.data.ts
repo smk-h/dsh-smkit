@@ -46,6 +46,7 @@ import midnightCss from './themes/midnight.css'
 import mintCss from './themes/mint.css'
 import monoCss from './themes/mono.css'
 import oceanCss from './themes/ocean.css'
+import oneDarkProCss from './themes/one-dark-pro.css'
 import parchmentCss from './themes/parchment.css'
 import peakBlueCss from './themes/peak-blue.css'
 import softBeanGreenCss from './themes/soft-bean-green.css'
@@ -104,6 +105,7 @@ const SHEETS: Readonly<Record<string, string>> = {
   mint: mintCss,
   mono: monoCss,
   ocean: oceanCss,
+  'one-dark-pro': oneDarkProCss,
   parchment: parchmentCss,
   'peak-blue': peakBlueCss,
   'soft-bean-green': softBeanGreenCss,
