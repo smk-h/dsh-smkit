@@ -18,20 +18,23 @@
  * exactly one kind of thing before (a file, a namespace, an effect label) while
  * knowing nothing about each other.
  *
- * Four things this registration sets up, in the order the two seats need them:
+ * Five things this registration sets up, in the order the two seats need them:
  * the swap element and the restored theme (so the row renders against the
  * truth), the override layer on top of it (so the panel opens onto the colors
- * the body really has), then the two seats.
+ * the body really has), the workbench board (so the skin is on before the row
+ * offers to switch it), then the two seats.
  */
 
 import { registerThemeCenter } from './apply'
 import { registerPaletteOverrides } from './overrides'
+import { registerWorkbench } from './workbench'
 import { createThemeCenterRow } from './components/ThemeCenterRow'
 import { createPaletteButton } from './components/PaletteButton'
 import { THEME_CENTER_LOCALE_EN } from './i18n/en'
 import { THEME_CENTER_LOCALE_ZH } from './i18n/zh'
 import rowCss from './style/row.css'
 import paletteCss from './style/palette.css'
+import workbenchCss from './style/workbench.css'
 import type { ClientContext, ClientDeps, ClientFeature, Translator } from '../../platform/types'
 
 /** The built-in Settings → General item list the shell's own rows use. */
@@ -50,8 +53,11 @@ export const themeCenterFeature: ClientFeature = {
   // themes' — no theme swap can touch it, and no theme rule reaches into it —
   // and the floating panel loads with the row rather than with the button,
   // because a panel whose stylesheet arrived on click would flash unstyled.
+  // The workbench sheet is scoped on its own body attribute, so it rides along
+  // unconditionally and paints nothing until the switch puts that attribute on.
   styles: [
     { name: 'theme-center/row', css: rowCss },
+    { name: 'theme-center/workbench', css: workbenchCss },
     { name: 'theme-center/palette', css: paletteCss },
   ],
   register(ctx: ClientContext, deps: ClientDeps, t: Translator): void {
@@ -62,6 +68,10 @@ export const themeCenterFeature: ClientFeature = {
     // the restore's: an edit the user saved must survive a theme switch and a
     // plugin unload that leaves the theme in place.
     registerPaletteOverrides(ctx)
+    // And the skin over the frame, which is the same kind of layer one axis
+    // further out: independent of the theme, restored at mount, and retracted
+    // whole on unload.
+    registerWorkbench(ctx)
     // Built per apply, as the other seats are: the components close over the
     // bound dictionary and keep no state of their own between mounts.
     const ThemeCenterRow = createThemeCenterRow(deps, t)

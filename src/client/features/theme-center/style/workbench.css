@@ -1,0 +1,185 @@
+/*
+ * The workbench's card skin: the shell's frame drawn as separated boards.
+ *
+ * Scoped on `body[data-smkit-workbench="card"]`, the attribute `workbench.ts`
+ * writes — this file is the switch's other half and reads nothing of its own.
+ * Every rule hangs off the host's *data* anchors rather than its class names:
+ * the layout package stamps `data-shell-overlay` on the frame's floating layer
+ * and `data-rightbar-col` on the right column, and those two survive a release
+ * that re-hashes every CSS-modules class in the frame. The columns beside them
+ * are reached structurally, from the frame down, for the same reason.
+ *
+ * What the skin does, in three rules: the frame gains the gutter and the
+ * deeper canvas the boards sit on; each column becomes one board; the left
+ * board keeps the sidebar's own fill and drops the hairline divider the two
+ * columns used to share, because the gutter now says where a column ends. The
+ * right column is a board only while it owns a track — a collapsed one is zero
+ * pixels wide, and a border there would draw a line on nothing.
+ *
+ * The canvas is a `color-mix` step below the active theme's own base rather
+ * than a token of its own: the boards keep whatever the theme painted, so the
+ * only colour this skin has to find is one *below* what it was given — and a
+ * dark base sits near the bottom of its ramp, so the step has to be wider
+ * there to read at all. Hence the second rule.
+ *
+ * This sheet declares no class of the plugin on purpose: the skin wears the
+ * host's structure, so the namespace guard has nothing of ours to check here.
+ * It is the styling half of the one feature whose subject *is* the host.
+ */
+
+body[data-smkit-workbench='card'] {
+  /* The gutter and the frame's own padding, named once: the drag rail below is
+     positioned from them, so a change here moves the rail along with the
+     boards instead of leaving it behind on a board's edge. */
+  --smkit-workbench-gap: 8px;
+  --smkit-workbench-pad: 8px;
+}
+
+/* the frame: a gutter between the boards, on a canvas a step below them */
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) {
+  box-sizing: border-box;
+  gap: var(--smkit-workbench-gap);
+  padding: var(--smkit-workbench-pad);
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) 92%, #000);
+}
+
+/* a dark base is already at the bottom of its ramp; the step has to be wider */
+body[data-smkit-workbench='card'][data-ds-dark-theme] div:has(> [data-shell-overlay]) {
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) 55%, #000);
+}
+
+/* one board per column. The floating layer and the drag rails are not boards,
+   and neither is the right column *here*: it is a board only while it owns a
+   track, so it gets its own rule below. A collapsed column is zero pixels wide,
+   and a border on it drew a stray line down the frame's edge with nothing
+   behind it — the reason the exclusion is spelled out rather than left to a
+   retraction rule, which would have had to out-specify this one to land.
+
+   The two values the left column changes are read through custom properties
+   instead of overridden in a second rule of its own: the left board drops the
+   divider the columns used to share (the gutter says where a column ends now)
+   and keeps the sidebar's own fill, and a variable says both without entering
+   the specificity contest that two rules over the same element would be in. */
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > div:not([data-shell-overlay]):not([data-side]):not([data-rightbar-col]) {
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-right: var(--smkit-workbench-board-edge, 1px solid var(--dsw-alias-border-l1));
+  border-radius: 10px;
+  background: var(--smkit-workbench-board-fill, var(--dsw-alias-bg-base));
+}
+
+/* the left board: the sidebar's own fill, and no shared divider */
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > div:first-of-type {
+  --smkit-workbench-board-fill: var(--dsw-specific-sidebar-fill);
+  --smkit-workbench-board-edge: none;
+}
+
+/* the right column, a board only while it has a track to draw on */
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]):not([data-rightbar-collapsed]) > [data-rightbar-col] {
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-base);
+}
+
+/* A zero-width track is still a track: with the right column collapsed the
+   frame keeps paying the column gap on the far side of the centre board *and*
+   its own right padding, so the canvas ends up with twice the margin it has on
+   the left. Dropping the right padding there hands that gutter back — the
+   board then stops one gap short of the edge, which is exactly what the left
+   edge looks like. */
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay])[data-rightbar-collapsed] {
+  padding-right: 0;
+}
+
+/* The right board's surface is drawn by the panel that fills it, not by the
+   column: the column is `overflow: visible` on purpose — the panel slides out
+   through it, and in fullscreen it leaves the column altogether — so a radius
+   set on the column is painted over by the panel's own square background and
+   never shows. The corners therefore belong on the panel, and only in `push`
+   mode: a `fullscreen` panel is a fixed layer over the whole frame, where a
+   radius would round the window rather than a board. Its own left hairline is
+   replaced by the board's one-pixel edge, so the two columns meet the same way
+   everywhere. */
+body[data-smkit-workbench='card'] [data-sidebar-right-panel='push'] {
+  border-left: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* ── the drag rail ────────────────────────────────────────────────────────
+   The host centres each handle on its column's track edge — exactly where the
+   boards now meet — so left as it is, the rail would sit *on* the left board
+   and the gutter this skin just opened would answer no pointer at all: the
+   only way to drag would be to catch a board's own edge. Shifting it by the
+   frame's padding plus half the gutter puts the whole rail in the open, and
+   the marks below are what say so before the pointer arrives. The two sides
+   move in opposite directions because the host lays each handle out from its
+   own column's edge.
+
+   What the pointer finds is one rail down the middle of the gutter, drawn in a
+   neutral ink rather than in any accent. That is what the editor this copies
+   does: One Dark Pro's own handle is a grey line, not that theme's blue
+   accent, and the shell's accents would not survive the trip anyway —
+   `brand-primary` is a *surface* (it fills the primary button, so it is near
+   black on a light theme and near white on a dark one) and the static colour
+   ramps are syntax colours no theme keeps tuned for chrome. The label ramp is
+   the one family every theme does keep legible against its own background,
+   because chrome copy is painted from it. The rail takes the stronger step of
+   that ramp; the dots rest on the weaker one and step up with the pointer. */
+
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side] {
+  z-index: 12;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side='sidebar'] {
+  transform: translateX(calc(var(--smkit-workbench-pad) + var(--smkit-workbench-gap) / 2));
+}
+
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side='rightbar'] {
+  transform: translateX(calc(-1 * (var(--smkit-workbench-pad) + var(--smkit-workbench-gap) / 2)));
+}
+
+/* the rail itself: hidden until the pointer arrives. Four pixels, taken from
+   the editor's own geometry rather than guessed: its sash is
+   `--vscode-sash-size: 4px` with a `--vscode-sash-hover-size: 4px` line filling
+   it whole (`vs/base/browser/ui/sash/sash.css`), so four is the weight the
+   control has there. The gutter here is twice that, which is why the rail is
+   centred in it instead of filling it — filling it would be the slab this
+   started as, and a hairline would be the other extreme. */
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  transform: translateX(-50%);
+  background: currentColor;
+  opacity: 0;
+  transition: opacity .1s ease-out;
+}
+
+/* the three dots, centred on the rail: the standing hint that it drags */
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 -4px 0 0 currentColor, 0 4px 0 0 currentColor;
+  transform: translate(-50%, -50%);
+}
+
+/* the pointer lifts the rail and its dots to the stronger ink */
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]:hover,
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side][data-dragging] {
+  color: var(--dsw-alias-label-secondary);
+}
+
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]:hover::before,
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side][data-dragging]::before {
+  opacity: 1;
+}

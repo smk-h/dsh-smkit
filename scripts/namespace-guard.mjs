@@ -105,6 +105,26 @@ export const FOREIGN_DATA_ATTRS = [
   'data-ds-dark-theme',
   /** The shell stamps its dialog slots with this; the MCP feature looks one up. */
   'data-slot',
+  /**
+   * The layout package's own anchors, which the workbench card skin selects on
+   * (`style/workbench.css`). They are the stable half of a frame whose class
+   * names are build-time hashes: `data-shell-overlay` marks the floating
+   * layer, `data-rightbar-col` the right column, `data-side` the drag handles,
+   * `data-dragging` the handle under the pointer's drag, and the
+   * `*-collapsed` flag the frame's own state. Read, never written — the skin
+   * moves one attribute of its own and nothing else.
+   *
+   * `data-sidebar-right-panel` is the same kind of anchor one package over:
+   * the right column's board is painted by the panel that fills it, not by the
+   * column, so the skin has to name that panel to give it corners. Its value
+   * (`push` / `fullscreen`) is the panel's own mode.
+   */
+  'data-shell-overlay',
+  'data-rightbar-col',
+  'data-side',
+  'data-dragging',
+  'data-rightbar-collapsed',
+  'data-sidebar-right-panel',
 ]
 
 /**

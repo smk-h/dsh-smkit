@@ -1,7 +1,13 @@
 /**
  * The theme center's settings row: one section of the built-in
- * Settings → General page — title with the theme count, the day/night
- * three-state, the card grid, and the hint line with its reset button.
+ * Settings → General page — title with the theme count, the card-workbench
+ * switch, the day/night three-state, the card grid, and the hint line with its
+ * reset button.
+ *
+ * The workbench switch is the row's one control that is not about a theme: it
+ * toggles the card skin over the shell's frame (see `workbench.ts`), which is
+ * the other axis of "how the app looks". It rides this row because a second
+ * appearance page would be a second place to look for the same question.
  *
  * The cards are the ones the retired `theme` page drew: a day panel and a
  * night strip stacked in one preview, the measured contrast badge, and the
@@ -37,6 +43,7 @@
  */
 
 import { activeThemeId, applyMode, applyTheme, currentMode, DARK_ATTR, subscribe, THEME_ATTR } from '../apply'
+import { applyBoard, cardBoardOn, subscribeWorkbench } from '../workbench'
 import { THEMES, type ThemeDef, type ThemeSwatch } from '../themes.data'
 import type { ClientDeps, Translator } from '../../../platform/types'
 
@@ -45,12 +52,15 @@ interface Snapshot {
   theme: string | null
   mode: 'system' | 'light' | 'dark'
   dark: boolean
+  /** The card workbench switch, which rides the same row but its own module. */
+  card: boolean
 }
 
 const readSnapshot = (): Snapshot => ({
   theme: activeThemeId(),
   mode: currentMode(),
   dark: typeof document !== 'undefined' && document.body.hasAttribute('data-ds-dark-theme'),
+  card: cardBoardOn(),
 })
 
 export function createThemeCenterRow(deps: ClientDeps, t: Translator): () => JSX.Element {
@@ -61,8 +71,13 @@ export function createThemeCenterRow(deps: ClientDeps, t: Translator): () => JSX
     react.useEffect(() => {
       const update = () => setSnap(readSnapshot())
       const unsub = subscribe(update)
+      // The workbench switch answers on the module's own pub/sub: it writes a
+      // body attribute of its own, so the observer below — which watches the
+      // theme pair only — would never hear about it.
+      const unsubBoard = subscribeWorkbench(update)
       if (typeof MutationObserver === 'undefined') return () => {
         unsub()
+        unsubBoard()
       }
       // Watch both body attributes so the ring and the previews follow any
       // change of hand — the shell's own display toggle repaints them too.
@@ -70,6 +85,7 @@ export function createThemeCenterRow(deps: ClientDeps, t: Translator): () => JSX
       mo.observe(document.body, { attributes: true, attributeFilter: [DARK_ATTR, THEME_ATTR] })
       return () => {
         unsub()
+        unsubBoard()
         mo.disconnect()
       }
     }, [])
@@ -152,6 +168,14 @@ export function createThemeCenterRow(deps: ClientDeps, t: Translator): () => JSX
             {t('title')}
             <span className="smkit-theme-row-count">{t('themeCount', { count: THEMES.length })}</span>
           </div>
+          <label className="smkit-theme-row-board" title={t('workbenchCardHint')}>
+            <input
+              type="checkbox"
+              checked={snap.card}
+              onChange={() => applyBoard(snap.card ? null : 'card')}
+            />
+            <span className="smkit-theme-row-board-label">{t('workbenchCard')}</span>
+          </label>
           <div className="smkit-theme-row-modes">
             {modeBtn('system', t('modeAuto'))}
             {modeBtn('light', t('modeLight'))}

@@ -267,6 +267,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // And the layer above it: the palette panel's saved color edits, which must
     // survive a theme switch and so ride an effect of their own.
     'smkit: theme-center/palette overrides',
+    // The other axis out: the card workbench skin, restored at mount onto an
+    // attribute of its own so it survives whatever the theme does.
+    'smkit: theme-center/workbench',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared

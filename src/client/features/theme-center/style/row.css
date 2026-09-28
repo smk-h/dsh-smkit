@@ -30,6 +30,20 @@
 .smkit-theme-row-head{justify-content:space-between;align-items:center;gap:12px;display:flex}
 .smkit-theme-row-title{color:var(--dsw-alias-label-primary);font-size:14px;font-weight:500;line-height:22px;display:flex;align-items:center;gap:6px}
 .smkit-theme-row-count{color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:400}
+
+/* The card-workbench switch: the row's one control that is not about a theme.
+   It is pushed to the right so it reads beside the day/night control rather
+   than as a word in the title's run, and it carries a checkbox of its own
+   because the shell offers no check control this row could borrow. The box is
+   drawn from the same `--dsw-alias-*` tokens as the rest of the chrome, so a
+   theme moves it with everything else. */
+.smkit-theme-row-board{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto;cursor:pointer;user-select:none}
+.smkit-theme-row-board input{appearance:none;position:relative;width:14px;height:14px;flex:none;margin:0;border:1px solid var(--dsw-alias-border-l3);border-radius:4px;background:var(--dsw-alias-bg-layer-3);cursor:pointer;transition:background .15s ease,border-color .15s ease}
+.smkit-theme-row-board input:checked{border-color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-brand-primary)}
+.smkit-theme-row-board input:checked::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid var(--dsw-alias-label-primary-foreground);border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+.smkit-theme-row-board input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+.smkit-theme-row-board-label{white-space:nowrap;font-size:12px;line-height:22px;color:var(--dsw-alias-label-secondary)}
+.smkit-theme-row-board:hover .smkit-theme-row-board-label{color:var(--dsw-alias-label-primary)}
 .smkit-theme-row-modes{flex:none;border-radius:9px;background:var(--dsw-alias-bg-layer-3);padding:2px;gap:2px;display:flex}
 .smkit-theme-row-modes button{border:none;background:transparent;cursor:pointer;font-size:12px;line-height:22px;padding:2px 10px;border-radius:7px;color:var(--dsw-alias-label-secondary)}
 .smkit-theme-row-modes button:hover{color:var(--dsw-alias-label-primary)}

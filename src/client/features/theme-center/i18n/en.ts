@@ -21,6 +21,8 @@ export const THEME_CENTER_LOCALE_EN: LocaleDict = {
   modeDark: "Dark",
   hint: "Selection is saved automatically",
   reset: "Reset",
+  workbenchCard: "Card workbench",
+  workbenchCardHint: "Draw each column as its own board, the way the modern VS Code window separates its panes",
   bubbleSample: "User message…",
   lineSample: "Sample body text, previewing this palette",
   nightGrade: "Night {grade}",

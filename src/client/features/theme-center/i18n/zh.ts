@@ -34,6 +34,8 @@ export const THEME_CENTER_LOCALE_ZH: LocaleDict = {
   modeDark: "深色",
   hint: "选择即保存",
   reset: "恢复默认",
+  workbenchCard: "卡片工作台",
+  workbenchCardHint: "把每一列画成独立卡片，还原 VS Code 现代界面的分区感",
   bubbleSample: "用户消息…",
   lineSample: "正文示例，预览该配色的阅读观感",
   nightGrade: "夜间 {grade}",
