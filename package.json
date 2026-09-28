@@ -47,6 +47,8 @@
     "smkit:install": "node scripts/dsh-smkit.mjs install",
     "smkit:uninstall": "node scripts/dsh-smkit.mjs uninstall",
     "smkit:debug": "node scripts/dsh-smkit.mjs debug",
+    "smkit:scan": "node scripts/dsh-smkit.mjs scan",
+    "smkit:prune": "node scripts/dsh-smkit.mjs prune",
     "pack:tgz": "pnpm pack",
     "pack:list": "node scripts/pack-list.mjs",
     "dsh:kill-port": "node scripts/kill-port.mjs",
