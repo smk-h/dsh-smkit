@@ -124,8 +124,18 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay])[data-rightbar-
    mode: a `fullscreen` panel is a fixed layer over the whole frame, where a
    radius would round the window rather than a board. Its own left hairline is
    replaced by the board's one-pixel edge, so the two columns meet the same way
-   everywhere. */
-body[data-smkit-workbench='card'] [data-sidebar-right-panel='push'] {
+   everywhere.
+
+   Only while the deck is *out*: putting the panel away does not unmount it. The
+   host leaves the element in the frame at its full width and only slides the
+   deck itself out through the right edge, so the container keeps its place at
+   the board's left edge with nothing drawn on it. A border there is an edge
+   with no board behind it — a hairline down the conversation, standing exactly
+   where the board would start. `[data-sidebar-right-open]` is the host's own
+   flag for which of the two the deck is doing, the one its slide-in is keyed
+   on, so gating the rule on it draws the edge only when there is a panel to
+   edge. */
+body[data-smkit-workbench='card'] [data-sidebar-right-panel='push'][data-sidebar-right-open] {
   border-left: 1px solid var(--dsw-alias-border-l1);
   border-radius: 6px;
   overflow: hidden;

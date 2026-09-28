@@ -117,7 +117,9 @@ export const FOREIGN_DATA_ATTRS = [
    * `data-sidebar-right-panel` is the same kind of anchor one package over:
    * the right column's board is painted by the panel that fills it, not by the
    * column, so the skin has to name that panel to give it corners. Its value
-   * (`push` / `fullscreen`) is the panel's own mode.
+   * (`push` / `fullscreen`) is the panel's own mode, and its sibling
+   * `data-sidebar-right-open` is the flag for whether the deck is out — the
+   * element outlives the panel being put away, so the skin has to ask.
    */
   'data-shell-overlay',
   'data-rightbar-col',
@@ -125,6 +127,7 @@ export const FOREIGN_DATA_ATTRS = [
   'data-dragging',
   'data-rightbar-collapsed',
   'data-sidebar-right-panel',
+  'data-sidebar-right-open',
 ]
 
 /**
