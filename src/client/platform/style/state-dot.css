@@ -87,7 +87,14 @@
 /* On a dark canvas the mark steps up the same scale rather than down: the dark
  * palette's business blue is itself a *light* step (see `button.css`), so a
  * fixed ink has to follow it toward the light end — deepening here would sink
- * the dot toward the surface it sits on. */
+ * the dot toward the surface it sits on.
+ *
+ * It stops at 400 rather than carrying on to 300. 300 is `#b7c8fe`, a blue pale
+ * enough that on a panel it reads as a white dot with a cast to it, and this
+ * mark's whole job is to be recognisably *blue* at a glance — it is the answer
+ * to "overridden or default", and the thing it has to be told apart from is a
+ * grey. 400 (`#7aaaff`) is the last step on the ramp that is unmistakably a
+ * colour. */
 body[data-ds-dark-theme] .smkit-ui-state-dot[data-smkit-state='active'] {
-  color: var(--dsw-static-deepseek-300, #7d93ff);
+  color: var(--dsw-static-deepseek-400, #7aaaff);
 }
