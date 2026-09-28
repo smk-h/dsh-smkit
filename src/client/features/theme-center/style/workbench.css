@@ -9,18 +9,25 @@
  * that re-hashes every CSS-modules class in the frame. The columns beside them
  * are reached structurally, from the frame down, for the same reason.
  *
- * What the skin does, in three rules: the frame gains the gutter and the
- * deeper canvas the boards sit on; each column becomes one board; the left
- * board keeps the sidebar's own fill and drops the hairline divider the two
- * columns used to share, because the gutter now says where a column ends. The
- * right column is a board only while it owns a track — a collapsed one is zero
- * pixels wide, and a border there would draw a line on nothing.
+ * What the skin does, in three rules: the frame gains the gutter the boards sit
+ * in; each column becomes one board; the left board keeps the sidebar's own
+ * fill and drops the hairline divider the two columns used to share, because
+ * the gutter now says where a column ends. The right column is a board only
+ * while it owns a track — a collapsed one is zero pixels wide, and a border
+ * there would draw a line on nothing.
  *
- * The canvas is a `color-mix` step below the active theme's own base rather
- * than a token of its own: the boards keep whatever the theme painted, so the
- * only colour this skin has to find is one *below* what it was given — and a
- * dark base sits near the bottom of its ramp, so the step has to be wider
- * there to read at all. Hence the second rule.
+ * The canvas behind the boards is the boards' own colour, not a step below it.
+ * The separation is carried by the one-pixel edges and the eight pixels of open
+ * frame between them, which is how the editor this copies separates its parts:
+ * its `modernUI/editorBorder.css` frames the editor in a hairline and lets the
+ * surface stay what it was. Painting the gutter a step darker instead is what
+ * the editor does *not* do, and it shows: the frame's own canvas reaches around
+ * all four sides of the centre board, so the step reads as a band of a second
+ * colour running down both edges of the conversation and under its top — a
+ * margin that looks like part of the chrome rather than like the space between
+ * two panels. Same colour, and the whole separation is the edges and the gap.
+ * It also spares the skin from having to guess how far below a *dark* theme's
+ * base a step can go before it stops being visible at all.
  *
  * The geometry is read off the editor rather than invented: the gutter is its
  * `spacing.size80` (8px), the frame's padding its `spacing.size60` (6px); the
@@ -59,17 +66,12 @@ body[data-smkit-workbench='card'] {
   --smkit-workbench-pad: 6px;
 }
 
-/* the frame: a gutter between the boards, on a canvas a step below them */
+/* the frame: the gutter between the boards, painted in the boards' own colour */
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) {
   box-sizing: border-box;
   gap: var(--smkit-workbench-gap);
   padding: var(--smkit-workbench-pad);
-  background: color-mix(in srgb, var(--dsw-alias-bg-base) 92%, #000);
-}
-
-/* a dark base is already at the bottom of its ramp; the step has to be wider */
-body[data-smkit-workbench='card'][data-ds-dark-theme] div:has(> [data-shell-overlay]) {
-  background: color-mix(in srgb, var(--dsw-alias-bg-base) 55%, #000);
+  background: var(--dsw-alias-bg-base);
 }
 
 /* one board per column. The floating layer and the drag rails are not boards,
