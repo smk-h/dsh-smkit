@@ -137,9 +137,20 @@ export const ONE_DARK_PRO_TOKENS: Readonly<Record<string, string>> = {
   '--dsw-alias-label-dimmed': '#6b717d', // titleBar.inactiveForeground
   '--dsw-alias-label-primary-bluish': '#d7dae0', // activityBar.foreground
   '--dsw-alias-label-primary-dimmed': '#7f848e', // editor.wordHighlightBorder
-  // The shell means "ink on a filled surface" by this one, which the palette
-  // answers with the canvas it paints everything else against.
-  '--dsw-alias-label-primary-foreground': '#282c34', // editor.background
+  // Two inks for filled surfaces, and they are not the same ink. `-foreground` is
+  // the ink *on* a filled control — the shell reads it for a primary button's
+  // label (`Button.module.css`: `.primary { background: button-primary-fill;
+  // color: label-primary-foreground }`), and paints a switch's thumb and a
+  // checkbox's glyph with it as well — while `-inverted` inks what sits on the
+  // light *contrast* fill (the attachment's remove badge, the sidebar's build
+  // chip), which wants the canvas tone rather than a light one. Filling both with
+  // the canvas is what put every filled button at 1.5:1 (`#282c34` on `#404754`,
+  // measured on the plugins page) — a label nobody can read. This one takes the
+  // palette's UI ink, the tone the shell's own rows and the sidebar's buttons are
+  // lettered in, so a button reads as the same ink as the text around it; the
+  // price is that a thumb on a filled track has less to say for itself than a
+  // white one would (4.4:1 on the grey fill, ~2:1 against the accent).
+  '--dsw-alias-label-primary-foreground': '#abb2bf', // editor.foreground
   '--dsw-alias-label-primary-inverted': '#282c34', // editor.background
 
   // Interactive washes: the list's own row colors, not a white veil — this
