@@ -22,15 +22,15 @@
  * dark base sits near the bottom of its ramp, so the step has to be wider
  * there to read at all. Hence the second rule.
  *
- * The geometry is read off the editor rather than invented: the gutter and the
- * frame's padding are its `spacing.size60` (6px); the centre board carries
- * `cornerRadius.large` (8px), the tier `modernUI/editorBorder.css` frames the
- * editor part with; the side boards and the right panel take
- * `cornerRadius.medium` (6px) from that system's inner tier; the drag rail is a
- * `--vscode-sash-hover-size` line (4px) rounded by half its own width, the way
- * `roundedCorners.css` draws it. The one deliberate departure is the gutter
- * itself — the editor draws no margin between its parts at all, while these are
- * separate boards by request.
+ * The geometry is read off the editor rather than invented: the gutter is its
+ * `spacing.size80` (8px), the frame's padding its `spacing.size60` (6px); the
+ * centre board carries `cornerRadius.large` (8px), the tier
+ * `modernUI/editorBorder.css` frames the editor part with; the side boards and
+ * the right panel take `cornerRadius.medium` (6px) from that system's inner
+ * tier; the drag rail is a `--vscode-sash-hover-size` line (4px) rounded by
+ * half its own width, the way `roundedCorners.css` draws it. The one
+ * deliberate departure is the gutter itself — the editor keeps its parts flush,
+ * while these are separate boards by request.
  *
  * This sheet declares no class of the plugin on purpose: the skin wears the
  * host's structure, so the namespace guard has nothing of ours to check here.
@@ -40,16 +40,22 @@
 body[data-smkit-workbench='card'] {
   /* The gutter and the frame's own padding, named once: the drag rail below is
      positioned from them, so a change here moves the rail along with the
-     boards instead of leaving it behind on a board's edge. Both are 6px — the
-     editor's own `spacing.size60` — so the boards sit on the same spacing ramp
-     as the UI they copy.
+     boards instead of leaving it behind on a board's edge.
 
-     The rail's width is the editor's `--vscode-sash-hover-size` (4px), and the
-     corner radii come from its `cornerRadius` ramp rather than being invented
-     here: 8px (`large`) for the centre, the tier the editor part itself is
-     framed with, and 6px (`medium`) for the side boards and the panel, which
-     that system rounds at its inner tier. */
-  --smkit-workbench-gap: 6px;
+     The gutter is `spacing.size80` (8px), the frame's padding `spacing.size60`
+     (6px). The editor's own `FLOATING_PANEL_MARGIN` is the tempting thing to
+     copy for the gutter, but it is a *per-part* setback rather than a
+     between-boards width: only the trailing edge of a side bar carries it,
+     while the facing edge falls back to `inner-margin` (0) and meets the editor
+     flush — so it shows only beside the activity bar, and is not a number to
+     double. The gutter is picked for the separation it reads at instead.
+
+     The rail is the editor's `--vscode-sash-hover-size` (4px), centred in that
+     gutter, and the corner radii come from the `cornerRadius` ramp rather than
+     being invented here: 8px (`large`) for the centre, the tier the editor
+     part itself is framed with, and 6px (`medium`) for the side boards and the
+     panel, which that system rounds at its inner tier. */
+  --smkit-workbench-gap: 8px;
   --smkit-workbench-pad: 6px;
 }
 
@@ -159,14 +165,14 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side='
   transform: translateX(calc(-1 * (var(--smkit-workbench-pad) + var(--smkit-workbench-gap) / 2)));
 }
 
-/* the rail itself: hidden until the pointer arrives. Four pixels, taken from
-   the editor's own geometry rather than guessed: its sash is
-   `--vscode-sash-size: 4px` with a `--vscode-sash-hover-size: 4px` line filling
-   it whole (`vs/base/browser/ui/sash/sash.css`), so four is the weight the
-   control has there. The gutter here is twice that, which is why the rail is
-   centred in it instead of filling it — filling it would be the slab this
-   started as, and a hairline would be the other extreme. Its radius is half
-   its own width, the way `roundedCorners.css` caps the editor's sash.
+/* the rail itself: hidden until the pointer arrives. Six pixels, centred in the
+   eight-pixel gutter so it reads as a control rather than as the seam where the
+   two boards meet. The editor's own is `--vscode-sash-size: 4px` with a
+   `--vscode-sash-hover-size: 4px` line filling it whole
+   (`vs/base/browser/ui/sash/sash.css`), but that four is tied to its own
+   geometry — a strip drawn between flush parts, not a gap between boards — and
+   does not carry over as a width here. Half its own width rounds it, the way
+   `roundedCorners.css` caps the editor's sash.
 
    Its ends stop where the boards do. The host runs the handle the full height
    of the frame, but the boards start and end one padding inside it, so a rail
@@ -180,15 +186,17 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]:
   left: 50%;
   top: var(--smkit-workbench-pad);
   bottom: var(--smkit-workbench-pad);
-  width: 4px;
-  border-radius: 2px;
+  width: 6px;
+  border-radius: 3px;
   transform: translateX(-50%);
   background: var(--dsw-alias-border-l1);
   opacity: 0;
   transition: opacity .1s ease-out;
 }
 
-/* the three dots, centred on the rail: the standing hint that it drags */
+/* the three dots, centred on the rail: the standing hint that it drags. They
+   give way once the rail itself arrives — the editor's sash shows a line and
+   nothing else, so the two never share the gutter. */
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]::after {
   content: "";
   position: absolute;
@@ -198,13 +206,18 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]:
   height: 2px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 -4px 0 0 currentColor, 0 4px 0 0 currentColor;
+  box-shadow: 0 -5px 0 0 currentColor, 0 5px 0 0 currentColor;
   transform: translate(-50%, -50%);
+  transition: opacity .1s ease-out;
 }
 
-/* the pointer draws the rail; the dots keep the muted ink they stand in, so
-   the handle reads as a mark on a quiet line rather than as a second light */
+/* the pointer swaps the hint for the rail */
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]:hover::before,
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side][data-dragging]::before {
   opacity: 1;
+}
+
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]:hover::after,
+body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side][data-dragging]::after {
+  opacity: 0;
 }
