@@ -34,24 +34,7 @@
  */
 
 import raw from './themes.data.json'
-import auroraCss from './themes/aurora.css'
-import autumnCss from './themes/autumn.css'
-import beanGreenCss from './themes/bean-green.css'
-import charcoalCss from './themes/charcoal.css'
-import forestCss from './themes/forest.css'
-import graphiteCss from './themes/graphite.css'
-import inkCss from './themes/ink.css'
-import matchaCss from './themes/matcha.css'
-import midnightCss from './themes/midnight.css'
-import mintCss from './themes/mint.css'
-import monoCss from './themes/mono.css'
-import oceanCss from './themes/ocean.css'
 import oneDarkProCss from './themes/one-dark-pro.css'
-import parchmentCss from './themes/parchment.css'
-import peakBlueCss from './themes/peak-blue.css'
-import softBeanGreenCss from './themes/soft-bean-green.css'
-import steelCss from './themes/steel.css'
-import terminalCss from './themes/terminal.css'
 import zcodeCss from './themes/zcode.css'
 
 /** The card colors, in the order the row reads them: bg, surface, accent, text. */
@@ -93,24 +76,7 @@ export interface ThemeDef extends ThemeMeta {
  * without its rules.
  */
 const SHEETS: Readonly<Record<string, string>> = {
-  aurora: auroraCss,
-  autumn: autumnCss,
-  'bean-green': beanGreenCss,
-  charcoal: charcoalCss,
-  forest: forestCss,
-  graphite: graphiteCss,
-  ink: inkCss,
-  matcha: matchaCss,
-  midnight: midnightCss,
-  mint: mintCss,
-  mono: monoCss,
-  ocean: oceanCss,
   'one-dark-pro': oneDarkProCss,
-  parchment: parchmentCss,
-  'peak-blue': peakBlueCss,
-  'soft-bean-green': softBeanGreenCss,
-  steel: steelCss,
-  terminal: terminalCss,
   zcode: zcodeCss,
 }
 
