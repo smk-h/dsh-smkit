@@ -109,6 +109,10 @@
 
 /* --------------------------------------------------------------- groups */
 
+/* A group is a ledger line first: head with the group select-all, the fold
+ * control and the count, rows only while expanded (`data-smkit-open`). The
+ * head's bottom border belongs to the open state — a folded group is one
+ * line, not a line plus an empty body. */
 .smkit-sess-page-group {
   border: 1px solid var(--dsw-alias-border-l1);
   border-radius: 10px;
@@ -121,12 +125,37 @@
   gap: 8px;
   padding: 9px 12px;
   background: var(--dsw-alias-bg-layer-2);
-  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  cursor: pointer;
+  user-select: none;
   display: flex;
+}
+.smkit-sess-page-group[data-smkit-open='true'] .smkit-sess-page-group-head {
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+}
+.smkit-sess-page-group-head:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 .smkit-sess-page-group-head > svg {
   color: var(--dsw-alias-label-secondary);
   flex: none;
+}
+/* The fold control: a real button so collapse has a keyboard path; the head's
+ * click reaches it too, so one toggle serves pointer and keyboard alike. */
+.smkit-sess-page-group-chevron {
+  align-items: center;
+  justify-content: center;
+  display: inline-flex;
+  flex: none;
+  margin: 0 -2px;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+.smkit-sess-page-group[data-smkit-open='true'] .smkit-sess-page-group-chevron {
+  transform: rotate(90deg);
 }
 .smkit-sess-page-group-name {
   font-size: 13px;

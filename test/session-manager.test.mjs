@@ -250,3 +250,39 @@ it('refuses a malformed batch before deleting anything', async () => {
   }
   assert.equal(existsSync(dir), true, 'a refused batch must not touch the filesystem')
 })
+
+it('never lists a session it has deleted, though the harness still holds it live', async () => {
+  // The tombstone case: a live session cannot be un-registered from the
+  // harness, so the delete archives it into the registry's archive set and
+  // removes its artifacts. The listing must read that state as "gone" — not
+  // file the session under the archived view a user just cleaned it out of.
+  const root = mkdtempSync(join(tmpdir(), 'dsh-smkit-sessions-tomb-'))
+  const cwd = join(scratchHome, 'tomb-project')
+  const dir = makeSession({ id: 'tomb-gone', cwd, root })
+  const archived = []
+  const handler = makeCtx({
+    persistence: {
+      root,
+      list: async () => [{ header: { id: 'tomb-gone', cwd }, sizeBytes: 42 }],
+      stat: async (id) => ({ header: { id, cwd } }),
+    },
+    sessions: { get: (id) => ({ header: { id, cwd } }) },
+    registry: {
+      list: () => [{ id: 'w1', path: cwd, title: 'Tomb', sessionIds: ['tomb-gone'] }],
+      archiveSession: async (id) => { archived.push(id) },
+      get archivedSessionIds() { return [...archived] },
+    },
+  })
+
+  const listed = await request(handler, 'GET', '/smkit/api/sessions/manager')
+  assert.equal(listed.json.sessions.length, 1, 'the session lists before its delete')
+
+  const batch = await request(handler, 'POST', '/smkit/api/sessions/delete-batch', { sessionIds: ['tomb-gone'] })
+  assert.equal(batch.json.deleted, 1)
+  assert.equal(existsSync(dir), false, 'the artifacts are gone from disk')
+  assert.deepEqual(archived, ['tomb-gone'], 'the hiding tombstone is still written')
+
+  const after = await request(handler, 'GET', '/smkit/api/sessions/manager')
+  assert.deepEqual(after.json.sessions, [], 'the deleted session reads as gone, not archived')
+  assert.deepEqual(after.json.archivedSessionIds, ['tomb-gone'], 'the registry tombstone is echoed unchanged')
+})

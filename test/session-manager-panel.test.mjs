@@ -1,16 +1,19 @@
 /**
  * The session-manager panel, driven through the real client bundle on the
  * merged section's hook harness: open the tab, read the listing the host
- * serves, select rows, confirm a batch delete, and read the report.
+ * serves, fold groups open, select rows (one, a group whole, or all), confirm
+ * a batch delete, and read the report.
  *
- * What is pinned is the shape a user meets: workspace groups with their
- * accounting counts, the ungrouped tail, the archive set one sub-tab away,
- * the toolbar's tri-state select-all and armed delete, the confirm dialog
- * carrying the rows it is confirming (captured at open time, not re-derived),
- * the POST's body, and per-session refusals reported without failing the
- * batch. The translator is the identity, so every copy assertion names the
- * dictionary key; titles and paths come from the fetch stub, which is what
- * the page is supposed to render verbatim.
+ * What is pinned is the shape a user meets: workspace groups that open as a
+ * ledger — head, count, group select-all — and stay folded until asked; the
+ * ungrouped tail; the archive set one sub-tab away; the toolbar's tri-state
+ * select-all and armed delete; a group checkbox that completes or clears its
+ * workspace without expanding it; the confirm dialog carrying the rows it is
+ * confirming (captured at open time, not re-derived); the POST's body; and
+ * per-session refusals reported without failing the batch. The translator is
+ * the identity, so every copy assertion names the dictionary key; titles and
+ * paths come from the fetch stub, which is what the page is supposed to
+ * render verbatim.
  *
  * Harness discipline (same as `skills-page.test.mjs`): every tree read goes
  * through `app.walk`, which resets the hook cursor to where the last render
@@ -181,6 +184,20 @@ async function opened(routes) {
 /** The row checkboxes, select-all first. */
 const checkboxes = (picks) => picks((node) => node.props?.type === 'checkbox')
 
+/** One group's head node, found by the workspace title it renders. */
+const groupHead = (picks, title) =>
+  picks((node) => node.props?.className === 'smkit-sess-page-group-head' && text(node).includes(title))[0]
+
+/** The head's own checkbox — the group select-all — from a head node. */
+const headCheckbox = (head) => nodes(head).find((node) => node.props?.type === 'checkbox')
+
+/** Fold a group open by clicking its head, the way a user does. */
+function expand(picks, title) {
+  const head = groupHead(picks, title)
+  assert.ok(head, `expected a group headed ${title}`)
+  head.props.onClick()
+}
+
 /** The toolbar's delete action (no `aria-busy`), not the dialog's confirm. */
 const toolbarDelete = (picks) =>
   picks((node) => node.props?.className === 'smkit-ui-button danger' && node.props?.['aria-busy'] === undefined)[0]
@@ -196,62 +213,91 @@ function check(picks, label, checked) {
   box.props.onChange({ target: { checked } })
 }
 
-it('groups the active view by workspace, trails the ungrouped and hides archived rows', async () => {
+it('opens to the folded ledger: heads with counts, rows only after expanding', async () => {
   const page = await opened((url, method) => {
     if (method === 'GET' && url.includes('/sessions/manager')) return response(LIST)
   })
   const shown = page.read()
-  // Workspace groups, in registry order, with the ungrouped tail after them.
-  assert.ok(shown.includes('My App'), 'the workspace title renders')
-  assert.ok(shown.includes('Session one') && shown.includes('Session two'), 'both accounted rows render')
+  // The ledger: workspace heads and the ungrouped tail are visible, the rows
+  // under them are not — a session list is the expanded state, not the first.
+  assert.ok(shown.includes('My App') && shown.includes('/work/app'), 'the workspace head renders')
   assert.ok(shown.includes('ungrouped'), 'the ungrouped group renders under its own key')
-  assert.ok(shown.includes('untitledSession'), 'a session without a title says so')
+  assert.ok(!shown.includes('Session one'), 'a folded group keeps its rows to itself')
+  assert.ok(!shown.includes('untitledSession'), 'the ungrouped group stays folded too')
   assert.ok(!shown.includes('Archived one'), 'the archived session stays out of the active view')
-  assert.ok(shown.includes('badgeRunning'), 'the running session wears its badge')
-  // One select-all plus one checkbox per active row.
-  assert.equal(checkboxes(page.picks).length, 4)
+  // One toolbar select-all plus one checkbox per folded group head.
+  assert.equal(checkboxes(page.picks).length, 3)
+
+  expand(page.picks, 'My App')
+  page.again()
+  const openedText = page.read()
+  assert.ok(openedText.includes('Session one') && openedText.includes('Session two'), 'expanding reveals the rows')
+  assert.ok(openedText.includes('badgeRunning'), 'the running session wears its badge')
+  // Toolbar + two heads + the two revealed rows.
+  assert.equal(checkboxes(page.picks).length, 5)
 })
 
-it('arms the batch from a selection and posts exactly the checked ids', async () => {
+it('selects a workspace whole from its head, folded or expanded', async () => {
   const page = await opened((url, method) => {
     if (method === 'GET' && url.includes('/sessions/manager')) return response(LIST)
     if (method === 'POST' && url.includes('/sessions/delete-batch')) {
-      return response({ results: [{ sessionId: 's-1', ok: true }], deleted: 1, failed: 0 })
+      return response({ results: [{ sessionId: 's-1', ok: true }, { sessionId: 's-2', ok: true }], deleted: 2, failed: 0 })
     }
   })
   const { app, again, read, picks } = page
 
-  // An unselected toolbar is inert.
-  assert.equal(toolbarDelete(picks).props.disabled, true)
-
-  // Checking one row arms the summary and the delete.
-  check(picks, 'Session one', true)
+  // The group select-all works on the folded group: no expansion needed.
+  const head = groupHead(picks, 'My App')
+  assert.ok(head, 'the group head renders folded')
+  const groupBox = headCheckbox(head)
+  assert.ok(groupBox, 'the group head carries its own select-all')
+  groupBox.props.onChange({ target: { checked: true } })
   again()
   assert.ok(read().includes('selectedSummary'), 'the selection summary renders')
   assert.equal(toolbarDelete(picks).props.disabled, false)
 
-  // The dialog captures its rows at open time and names them. The rows read
-  // through their title spans: the panel behind the dialog still renders its
-  // own rows, so whole-tree text cannot tell the two apart.
+  // Expanding shows the selection landed on the rows.
+  expand(picks, 'My App')
+  again()
+  for (const name of ['Session one', 'Session two']) {
+    const row = picks((node) => node.props?.type === 'checkbox' && node.props?.['aria-label'] === name)[0]
+    assert.ok(row?.props.checked === true, `${name} renders checked after the group select-all`)
+  }
+
+  // Clearing one row drops the head to its partial mark, not to checked.
+  check(picks, 'Session one', false)
+  again()
+  assert.equal(headCheckbox(groupHead(picks, 'My App'))?.props.checked, false)
+  const headLabel = nodes(groupHead(picks, 'My App')).find((node) => node.props?.className === 'smkit-sess-page-check')
+  assert.equal(headLabel?.props['data-smkit-on'], 'partial', 'a partly selected group reads as partial')
+
+  // The group checkbox completes the group again — the other direction.
+  headCheckbox(groupHead(picks, 'My App')).props.onChange({ target: { checked: true } })
+  again()
+  assert.equal(
+    picks((node) => node.props?.type === 'checkbox' && node.props?.['aria-label'] === 'Session one')[0]?.props.checked,
+    true,
+    'the group select-all completes a partly selected group',
+  )
+
   toolbarDelete(picks).props.onClick()
   again()
   const dialogText = read()
   assert.ok(dialogText.includes('confirmBatchTitle') && dialogText.includes('confirmBatchBody'))
+  // The dialog names its rows through their title spans: the panel behind the
+  // dialog still renders its own rows, so whole-tree text cannot tell them apart.
   const named = picks((node) => node.props?.className === 'smkit-sess-page-confirm-title')
     .map((node) => text(node))
     .join('\n')
-  assert.ok(named.includes('Session one'), 'the dialog names the session it is confirming')
-  assert.ok(!named.includes('Session two'), 'the dialog names only the selected ones')
+  assert.ok(named.includes('Session one') && named.includes('Session two'), 'the dialog names the group rows')
+  assert.ok(!named.includes('Stray session'), 'the dialog names only the selected ones')
 
   dialogConfirm(picks).props.onClick()
   await settle()
   again()
-  const posted = app.calls.filter((call) => call.method === 'POST' && call.url.includes('/sessions/delete-batch'))
-  assert.equal(posted.length, 1)
-  assert.deepEqual(posted[0].body, { sessionIds: ['s-1'] })
   assert.ok(read().includes('batchDone'), 'the success report renders after the batch')
-  const managerReads = app.calls.filter((call) => call.method === 'GET' && call.url.includes('/sessions/manager'))
-  assert.ok(managerReads.length >= 2, 'the panel re-reads the listing after a batch')
+  const posted = app.calls.filter((call) => call.method === 'POST' && call.url.includes('/sessions/delete-batch'))
+  assert.deepEqual(posted[0].body, { sessionIds: ['s-1', 's-2'] })
 })
 
 it('reports a refused session as one line, not a failed batch', async () => {
@@ -270,6 +316,8 @@ it('reports a refused session as one line, not a failed batch', async () => {
   })
   const { again, read, picks } = page
 
+  expand(picks, 'My App')
+  again()
   check(picks, 'Session one', true)
   again()
   check(picks, 'Session two', true)
@@ -284,7 +332,7 @@ it('reports a refused session as one line, not a failed batch', async () => {
   assert.ok(read().includes('deleteSessionRunning'), 'a known refusal reads as its instruction, not the raw code')
 })
 
-it('switches to the archived sub-tab, clears the selection and deletes from there', async () => {
+it('switches to the archived sub-tab, keeps the fold default and deletes from there', async () => {
   const page = await opened((url, method) => {
     if (method === 'GET' && url.includes('/sessions/manager')) return response(LIST)
     if (method === 'POST' && url.includes('/sessions/delete-batch')) {
@@ -294,6 +342,8 @@ it('switches to the archived sub-tab, clears the selection and deletes from ther
   const { app, again, read, picks } = page
 
   // A selection made on the active view must not ride across the split.
+  expand(picks, 'My App')
+  again()
   check(picks, 'Session one', true)
   again()
   const archivedTab = picks((node) => node.props?.role === 'tab' && node.children.includes('subtabArchived'))[0]
@@ -301,9 +351,20 @@ it('switches to the archived sub-tab, clears the selection and deletes from ther
   again()
 
   const shown = read()
-  assert.ok(shown.includes('Archived one'), 'the archived session renders on its own sub-tab')
   assert.ok(!shown.includes('Session one'), 'the active rows stay out of it')
   assert.ok(!shown.includes('selectedSummary'), 'the selection did not survive the switch')
+  // The fold state is per workspace, not per view: the group the user opened
+  // on the active sub-tab is still open here, now holding its archived rows.
+  assert.ok(shown.includes('Archived one'), 'the opened group stays open across the switch')
+
+  // Folding it again hides the rows; expanding once more brings them back.
+  const head = groupHead(picks, 'My App')
+  head.props.onClick()
+  again()
+  assert.ok(!read().includes('Archived one'), 'folding the group on the archived view hides its rows')
+  head.props.onClick()
+  again()
+  assert.ok(read().includes('Archived one'), 'expanding again reveals the archived row')
 
   check(picks, 'Archived one', true)
   again()

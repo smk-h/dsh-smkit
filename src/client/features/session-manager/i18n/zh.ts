@@ -28,6 +28,8 @@ export const SESSION_MANAGER_LOCALE_ZH: LocaleDict = {
   ungrouped: '未分组',
   ungroupedHint: '不归属任何工作区的会话',
   sessionCount: '{count} 个会话',
+  groupSelectAll: '全选「{name}」的会话',
+  groupToggle: '展开或折叠「{name}」',
 
   untitledSession: '未命名会话',
   badgeRunning: '运行中',

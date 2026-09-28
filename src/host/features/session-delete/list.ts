@@ -102,6 +102,13 @@ export interface SessionListerDeps {
   logger: LoggerLike
   /** Harness home override; tests pin it instead of the process environment. */
   dshHome?: string
+  /**
+   * Ids the deleter has removed in this process. Their sessions stay live in
+   * the harness until it restarts (the archive tombstone hides them from the
+   * sidebar), but the manager must not read that tombstone as "archived" — a
+   * deleted session is deleted, not filed. Absent set lists everything.
+   */
+  deletedIds?: ReadonlySet<string>
 }
 
 /** The listing operation the API layer calls. */
@@ -144,6 +151,9 @@ export function createSessionLister(deps: SessionListerDeps): SessionLister {
       const header = row.header
       const id = typeof header.id === 'string' ? header.id : undefined
       if (id === undefined || id === '') continue
+      // A session this deleter removed is a tombstone, not an archive entry:
+      // its artifacts are gone and the manager has nothing to manage.
+      if (deps.deletedIds?.has(id) === true) continue
       // Subagent children belong to their parent's catalog and the sidebar
       // never shows them; the delete refuses them too. Blank sessions are
       // the provisional New-Session placeholders, listed only while current —

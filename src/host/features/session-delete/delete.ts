@@ -158,6 +158,15 @@ export interface SessionDeleterDeps {
   emit?: (event: string, ...args: unknown[]) => void
   /** Harness home override; tests pin it instead of the process environment. */
   dshHome?: string
+  /**
+   * The ids this deleter has removed, recorded for the manager's lister. A
+   * deleted-but-live session keeps merging into `sessions.list()` for the rest
+   * of the process — the archive tombstone is what hides it from the sidebar —
+   * but a cleanup page must not read that tombstone as "archived": the
+   * lister drops every id recorded here, so a deleted session is gone from
+   * the manager the moment it is gone from disk.
+   */
+  deletedIds?: Set<string>
 }
 
 /** Outcome of one delete request: the receipt, or a stable refusal. */
@@ -304,6 +313,9 @@ export function createSessionDeleter(deps: SessionDeleterDeps): SessionDeleter {
     // The browser's sidebar row, current selection, and workspace browser all
     // follow this one frame — no reload, no stale entry.
     deps.emit?.('api-session/removed', id)
+    // The manager's lister reads the same tombstone the sidebar hides by; this
+    // is what keeps the deleted session out of the manager's archived view.
+    deps.deletedIds?.add(id)
 
     return { ok: true, receipt: { deleted: true, sessionId: id, live, archived, removed } }
   }

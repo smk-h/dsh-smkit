@@ -26,11 +26,20 @@
  * on the shared refresh button) — sessions do not churn fast, but the
  * archive set can move from the sidebar while this tab sits open.
  *
+ * **Groups are the primary navigation, collapsed until asked.** A cleanup
+ * page opens to the workspace ledger — one head per workspace, count and
+ * group select-all visible, rows on demand — because the question "which
+ * workspace am I cleaning" comes before "which session". A group head's own
+ * checkbox selects that workspace whole: deleting one workspace's sessions
+ * should not cost an expansion plus one click per row, and a collapsed group
+ * keeps its selection when it closes again (the toolbar still reports it).
+ *
  * A refused session is one line in the report, not a failed batch: a
  * mid-turn agent among fifty rows should not cost the forty-nine around it.
  */
 
 import { createCheckIcon } from '../../../platform/icons/CheckIcon'
+import { createChevronRightIcon } from '../../../platform/icons/ChevronRightIcon'
 import { createFolderIcon } from '../../../platform/icons/FolderIcon'
 import { createConfirmDialog } from '../../../platform/ui/ConfirmDialog'
 import { createRefreshButton } from '../../../platform/ui/RefreshButton'
@@ -169,6 +178,7 @@ export function createSessionManagerPanel(
   const StateDot = createStateDot(deps)
   const Tabs = createTabs(deps)
   const FolderIcon = createFolderIcon(deps)
+  const ChevronRightIcon = createChevronRightIcon(deps)
   const CheckIcon = createCheckIcon(deps)
 
   return function SessionManagerPanel({ t }: SessionManagerPanelProps): JSX.Element {
@@ -176,6 +186,9 @@ export function createSessionManagerPanel(
     const [loadError, setLoadError] = react.useState('')
     const [subtab, setSubtab] = react.useState<'active' | 'archived'>('active')
     const [selected, setSelected] = react.useState<readonly string[]>([])
+    // Groups the user has opened. Absence reads as collapsed — the ledger view
+    // is the default, and a workspace appearing from a poll starts folded.
+    const [expanded, setExpanded] = react.useState<ReadonlySet<string>>(new Set())
     const [pending, setPending] = react.useState<ManagedSessionView[] | undefined>(undefined)
     const [report, setReport] = react.useState<{ deleted: number; failed: SessionBatchDeleteOutcome[] } | undefined>(undefined)
     const { busy, error, run } = useAsyncAction(react)
@@ -226,6 +239,28 @@ export function createSessionManagerPanel(
     }
     const toggleAll = (): void => {
       setSelected(allChecked ? [] : visible.map((s) => s.sessionId))
+    }
+    /** Fold or unfold one workspace group; the key survives polls and sub-tab
+     * switches, so a group the user opened stays open until they close it. */
+    const toggleExpanded = (key: string): void => {
+      setExpanded((prev) => {
+        const next = new Set(prev)
+        if (next.has(key)) next.delete(key)
+        else next.add(key)
+        return next
+      })
+    }
+    /** Check or clear one group whole: an all-selected group clears, a partly
+     * or unselected one completes. Collapsed groups take this too — the head's
+     * checkbox is the whole-workspace delete without expanding anything. */
+    const toggleGroupAll = (group: SessionGroup): void => {
+      const ids = group.sessions.map((s) => s.sessionId)
+      setSelected((prev) => {
+        const complete = ids.every((id) => prev.includes(id))
+        return complete
+          ? prev.filter((id) => !ids.includes(id))
+          : [...prev, ...ids.filter((id) => !prev.includes(id))]
+      })
     }
     const switchSubtab = (id: string): void => {
       setSubtab(id === 'archived' ? 'archived' : 'active')
@@ -297,55 +332,91 @@ export function createSessionManagerPanel(
         ? createPortal(dialog, document.body)
         : dialog
 
-    /** One workspace group: its head row, then the indented session rows. */
-    const renderGroup = (group: SessionGroup): JSX.Element => (
-      <div className="smkit-sess-page-group" key={group.key === '' ? ':ungrouped' : group.key}>
-        <div className="smkit-sess-page-group-head">
-          {group.ungrouped ? null : <FolderIcon size={14} />}
-          <span className="smkit-sess-page-group-name">{group.title}</span>
-          {group.path === undefined ? null : (
-            <span className="smkit-sess-page-group-path" title={group.path}>{group.path}</span>
-          )}
-          <span className="smkit-sess-page-group-count">
-            {t('sessionCount', { count: group.sessions.length })}
-          </span>
+    /** One workspace group: the head ledger row (group select-all included),
+     * then the indented session rows — only while the group is expanded. */
+    const renderGroup = (group: SessionGroup): JSX.Element => {
+      const open = expanded.has(group.key)
+      const groupSelected = group.sessions.filter((s) => selected.includes(s.sessionId)).length
+      const groupAll = group.sessions.length > 0 && groupSelected === group.sessions.length
+      const groupPartial = groupSelected > 0 && !groupAll
+      return (
+        <div
+          className="smkit-sess-page-group"
+          key={group.key === '' ? ':ungrouped' : group.key}
+          data-smkit-open={open ? 'true' : undefined}
+        >
+          <div className="smkit-sess-page-group-head" onClick={() => toggleExpanded(group.key)}>
+            <label
+              className="smkit-sess-page-check"
+              data-smkit-on={groupAll ? 'true' : groupPartial ? 'partial' : undefined}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <input
+                type="checkbox"
+                checked={groupAll}
+                onChange={() => toggleGroupAll(group)}
+                aria-label={t('groupSelectAll', { name: group.title })}
+              />
+              <span className="smkit-sess-page-check-box">
+                {groupAll ? <CheckIcon size={10} /> : null}
+              </span>
+            </label>
+            <button
+              className="smkit-sess-page-group-chevron"
+              type="button"
+              aria-expanded={open}
+              aria-label={t('groupToggle', { name: group.title })}
+            >
+              <ChevronRightIcon size={13} />
+            </button>
+            {group.ungrouped ? null : <FolderIcon size={14} />}
+            <span className="smkit-sess-page-group-name">{group.title}</span>
+            {group.path === undefined ? null : (
+              <span className="smkit-sess-page-group-path" title={group.path}>{group.path}</span>
+            )}
+            <span className="smkit-sess-page-group-count">
+              {t('sessionCount', { count: group.sessions.length })}
+            </span>
+          </div>
+          {open
+            ? group.sessions.map((s) => {
+              const checked = selected.includes(s.sessionId)
+              const name = s.title ?? s.cwd ?? t('untitledSession')
+              const meta = [formatTime(s.lastPromptAt ?? s.createdAt, t), formatBytes(s.sizeBytes)]
+                .filter((part) => part !== '')
+                .join(' · ')
+              return (
+                <div className="smkit-sess-page-row" key={s.sessionId} data-smkit-selected={checked ? 'true' : undefined}>
+                  <label className="smkit-sess-page-check" data-smkit-on={checked ? 'true' : undefined}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(s.sessionId)}
+                      aria-label={name}
+                    />
+                    <span className="smkit-sess-page-check-box">{checked ? <CheckIcon size={10} /> : null}</span>
+                  </label>
+                  <span className="smkit-sess-page-row-title" title={s.title === undefined ? s.sessionId : s.title}>
+                    {s.title ?? t('untitledSession')}
+                  </span>
+                  {meta === '' ? null : <span className="smkit-sess-page-row-meta">{meta}</span>}
+                  <span className="smkit-sess-page-row-end">
+                    {s.running
+                      ? (
+                        <span className="smkit-sess-page-badge">
+                          <StateDot state="active" size={6} />
+                          {t('badgeRunning')}
+                        </span>
+                      )
+                      : null}
+                  </span>
+                </div>
+              )
+            })
+            : null}
         </div>
-        {group.sessions.map((s) => {
-          const checked = selected.includes(s.sessionId)
-          const name = s.title ?? s.cwd ?? t('untitledSession')
-          const meta = [formatTime(s.lastPromptAt ?? s.createdAt, t), formatBytes(s.sizeBytes)]
-            .filter((part) => part !== '')
-            .join(' · ')
-          return (
-            <div className="smkit-sess-page-row" key={s.sessionId} data-smkit-selected={checked ? 'true' : undefined}>
-              <label className="smkit-sess-page-check" data-smkit-on={checked ? 'true' : undefined}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggle(s.sessionId)}
-                  aria-label={name}
-                />
-                <span className="smkit-sess-page-check-box">{checked ? <CheckIcon size={10} /> : null}</span>
-              </label>
-              <span className="smkit-sess-page-row-title" title={s.title === undefined ? s.sessionId : s.title}>
-                {s.title ?? t('untitledSession')}
-              </span>
-              {meta === '' ? null : <span className="smkit-sess-page-row-meta">{meta}</span>}
-              <span className="smkit-sess-page-row-end">
-                {s.running
-                  ? (
-                    <span className="smkit-sess-page-badge">
-                      <StateDot state="active" size={6} />
-                      {t('badgeRunning')}
-                    </span>
-                  )
-                  : null}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-    )
+      )
+    }
 
     const reportLine = report === undefined
       ? null

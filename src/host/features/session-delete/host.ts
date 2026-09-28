@@ -22,9 +22,14 @@ export const sessionDeleteFeature: HostFeature = {
     // The event publication is the same mixed-in method the harness itself uses
     // (`ctx.emit`), bound to this context.
     const hostEmit = ctx.emit
+    // One ledger shared by the delete and the listing: a deleted-but-live
+    // session stays merged into `sessions.list()` until the harness restarts,
+    // and the manager reads the tombstone as "gone", never as "archived".
+    const deletedIds = new Set<string>()
     const deleteSession = createSessionDeleter({
       services: platform.services,
       logger: platform.logger,
+      deletedIds,
       ...(hostEmit === undefined ? {} : { emit: hostEmit.bind(ctx) }),
     })
     const previewSession = createSessionPreviewer({
@@ -34,6 +39,7 @@ export const sessionDeleteFeature: HostFeature = {
     const listSessions = createSessionLister({
       services: platform.services,
       logger: platform.logger,
+      deletedIds,
     })
     platform.handlers.push(...createSessionHandlers({ deleteSession, previewSession, listSessions }))
   },

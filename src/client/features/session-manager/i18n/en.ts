@@ -21,6 +21,8 @@ export const SESSION_MANAGER_LOCALE_EN: LocaleDict = {
   ungrouped: 'Ungrouped',
   ungroupedHint: 'Sessions no workspace claims',
   sessionCount: '{count} sessions',
+  groupSelectAll: 'Select all sessions in {name}',
+  groupToggle: 'Expand or collapse {name}',
 
   untitledSession: 'Untitled session',
   badgeRunning: 'Running',
