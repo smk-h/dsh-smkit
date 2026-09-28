@@ -1,48 +1,44 @@
 /**
  * The theme center's settings row: one section of the built-in
  * Settings → General page — title with the theme count, the card-workbench
- * switch, the day/night three-state, the card grid, and the hint line with its
- * reset button.
+ * switch, the card grid, and the hint line with its reset button.
+ *
+ * There is no day/night switch any more, and that removal is the row's largest
+ * change in this revision. A theme is registered with the shell under one
+ * palette half (`colorScheme`), so "which half is in force" is a property of
+ * the theme rather than a second question the user answers — and the shell's
+ * own Appearance row already offers the half-less preferences (`light`, `dark`,
+ * `system`) for the shell's base palettes. ZCode ships as two entries (day and
+ * night) instead of one entry with a switch; the tooltip on a card names the
+ * half it wears.
  *
  * The workbench switch is the row's one control that is not about a theme: it
  * toggles the card skin over the shell's frame (see `workbench.ts`), which is
  * the other axis of "how the app looks". It rides this row because a second
  * appearance page would be a second place to look for the same question.
  *
- * The cards are the ones the retired `theme` page drew: a day panel and a
- * night strip stacked in one preview, the measured contrast badge, and the
- * palette strip with its hex values. That page and this row used to describe
- * two different theme systems; the three skins it shipped are entries in this
- * grid now, so its card — which previews a palette in both modes at once — is
- * the one that can describe all eighteen. Merging the styles cost nothing but
- * the class prefix: the card was always painted from the *theme's* colors, so
- * it never knew which applier stood behind them.
- *
  * The split every rule and every style prop here observes: the card's preview
  * rides the theme's own palette as custom properties (`--smkit-theme-day-*` /
- * `--smkit-theme-night-*`, set inline from the entry's swatch), because a preview's
- * whole job is to show the theme's colors and never the row's; everything
- * around it — the chrome, the ring, the selected name — comes from the shell's
- * `--dsw-alias-*` tokens, which is what lets one row read correctly under every
- * theme in the center. The ring is deliberately on the shell token rather than
- * on the card's own accent: it sits on the panel's surface, not the theme's,
- * and an accent picked to sit on that theme's background is not guaranteed to
- * be legible on this one.
+ * `--smkit-theme-night-*`, set inline from the entry's swatch), because a
+ * preview's whole job is to show the theme's colors and never the row's;
+ * everything around it — the chrome, the ring, the selected name — comes from
+ * the shell's `--dsw-alias-*` tokens, which is what lets one row read correctly
+ * under every theme in the center. The ring is deliberately on the shell token
+ * rather than on the card's own accent: it sits on the panel's surface, not the
+ * theme's, and an accent picked to sit on that theme's background is not
+ * guaranteed to be legible on this one.
  *
  * The card carries no apply button and no applied badge. The whole surface is
  * the button — clicking anywhere on it applies the theme and saves the choice
  * — so a second control inside would only be a second way to do the one thing
  * the card does. Selection reads through the ring and the name, not a label.
  *
- * The row is state over the `apply.ts` module, not over itself: it renders a
- * snapshot of the shared theme/mode state, refreshed through the module's
- * pub/sub and by observing the two body attributes. The observer is load-
- * bearing — the dark attribute can be driven by this row, by the shell's own
- * appearance setting, or by the OS scheme, and the card previews have to
- * follow whichever one moved it last.
+ * A composition whose shell predates the theme registry gets the cards disabled
+ * rather than a switch that cannot move (`themeAvailable()`), and the rest of
+ * the row — the workbench switch, the copy — stands as it is.
  */
 
-import { activeThemeId, applyMode, applyTheme, currentMode, DARK_ATTR, subscribe, THEME_ATTR } from '../apply'
+import { activeThemeId, applyTheme, subscribe, themeAvailable, THEME_ATTR } from '../apply'
 import { applyBoard, cardBoardOn, subscribeWorkbench } from '../workbench'
 import { THEMES, type ThemeDef, type ThemeSwatch } from '../themes.data'
 import type { ClientDeps, Translator } from '../../../platform/types'
@@ -50,17 +46,16 @@ import type { ClientDeps, Translator } from '../../../platform/types'
 /** What the row renders: the shared state, resolved against the document. */
 interface Snapshot {
   theme: string | null
-  mode: 'system' | 'light' | 'dark'
-  dark: boolean
   /** The card workbench switch, which rides the same row but its own module. */
   card: boolean
+  /** Whether the shell's registry answered at mount. */
+  available: boolean
 }
 
 const readSnapshot = (): Snapshot => ({
   theme: activeThemeId(),
-  mode: currentMode(),
-  dark: typeof document !== 'undefined' && document.body.hasAttribute('data-ds-dark-theme'),
   card: cardBoardOn(),
+  available: themeAvailable(),
 })
 
 export function createThemeCenterRow(deps: ClientDeps, t: Translator): () => JSX.Element {
@@ -73,28 +68,24 @@ export function createThemeCenterRow(deps: ClientDeps, t: Translator): () => JSX
       const unsub = subscribe(update)
       // The workbench switch answers on the module's own pub/sub: it writes a
       // body attribute of its own, so the observer below — which watches the
-      // theme pair only — would never hear about it.
+      // theme's attribute only — would never hear about it.
       const unsubBoard = subscribeWorkbench(update)
       if (typeof MutationObserver === 'undefined') return () => {
         unsub()
         unsubBoard()
       }
-      // Watch both body attributes so the ring and the previews follow any
-      // change of hand — the shell's own display toggle repaints them too.
+      // One attribute is enough now: the palette rides the shell's own inline
+      // variables, so a preference moved by the shell's appearance row or by
+      // the OS reaches this row through the module's pub/sub, and only the
+      // structural attribute is written by us at all.
       const mo = new MutationObserver(update)
-      mo.observe(document.body, { attributes: true, attributeFilter: [DARK_ATTR, THEME_ATTR] })
+      mo.observe(document.body, { attributes: true, attributeFilter: [THEME_ATTR] })
       return () => {
         unsub()
         unsubBoard()
         mo.disconnect()
       }
     }, [])
-
-    const modeBtn = (key: Snapshot['mode'], label: string) => (
-      <button type="button" data-smkit-on={String(snap.mode === key)} onClick={() => applyMode(key)}>
-        {label}
-      </button>
-    )
 
     /** One chip of the palette strip: the swatch, then its hex. */
     const chip = (color: string, key: string) => (
@@ -123,7 +114,12 @@ export function createThemeCenterRow(deps: ClientDeps, t: Translator): () => JSX
           className="smkit-theme-row-card"
           data-smkit-on={String(selected)}
           aria-pressed={selected}
-          title={`${theme.nameZh} · ${theme.name}`}
+          disabled={!snap.available}
+          title={
+            snap.available
+              ? `${theme.nameZh} · ${theme.name} · ${theme.colorScheme}`
+              : t('unavailable')
+          }
           style={{
             '--smkit-theme-day-bg': day[0],
             '--smkit-theme-day-fg': day[3],
@@ -176,16 +172,16 @@ export function createThemeCenterRow(deps: ClientDeps, t: Translator): () => JSX
             />
             <span className="smkit-theme-row-board-label">{t('workbenchCard')}</span>
           </label>
-          <div className="smkit-theme-row-modes">
-            {modeBtn('system', t('modeAuto'))}
-            {modeBtn('light', t('modeLight'))}
-            {modeBtn('dark', t('modeDark'))}
-          </div>
         </div>
         <div className="smkit-theme-row-grid">{THEMES.map(card)}</div>
         <div className="smkit-theme-row-foot">
           <span className="smkit-theme-row-hint">{t('hint')}</span>
-          <button type="button" className="smkit-theme-row-reset" onClick={() => applyTheme(null)}>
+          <button
+            type="button"
+            className="smkit-theme-row-reset"
+            disabled={!snap.available}
+            onClick={() => applyTheme(null)}
+          >
             {t('reset')}
           </button>
         </div>

@@ -1,153 +1,39 @@
 /**
- * The theme center's data file, built and measured.
+ * The theme center's data file, measured and checked.
  *
- * Three jobs, over `src/client/features/theme-center/`:
+ * One job, over `src/client/features/theme-center/`: the badge on a card
+ * reports a fact about the palette, so it is computed here from the same two
+ * hex values the card paints — the base background and the body ink — rather
+ * than quoted from anywhere. It is written into the metadata because the
+ * browser half must not re-derive it per render, and because a hand-edited
+ * table then still shows the ratio of the palette it actually paints.
  *
- * 1. **The retired skins fold in.** The plugin used to ship two theme surfaces
- *    with two apply mechanisms: the `theme` feature's ported dsh-themes skins
- *    (one `body[data-dsh-<dataset>]` attribute each) and the theme center's
- *    themes (one `body[data-smkit-theme="<id>"]` attribute). Folding them in
- *    costs exactly one rewrite: every `body[data-dsh-nord]` selector becomes
- *    `body[data-smkit-theme="nord"]`, verbatim otherwise — same rules, same
- *    order, same specificity — and the result is written to
- *    `themes/<id>.css`, where every theme's stylesheet lives. The job runs only
- *    while the skin stylesheets are still reachable (the pre-merge revision)
- *    and reports when it has nothing to fold, so a re-run on a merged tree is a
- *    no-op rather than an error.
+ * The palettes are NOT re-derived: each entry's swatch is transcribed by hand,
+ * and the pairing rule in `theme-sheet-guard.mjs` asserts every one of those
+ * values occurs in the table that will paint it — so a swatch that drifted from
+ * its table fails this run instead of shipping a card that lies.
  *
- * 2. **Every entry's grade is measured.** The badge on a card reports a fact
- *    about the palette, so it is computed here from the same two hex values the
- *    card paints — the base background and the body ink — rather than quoted
- *    from anywhere. It is written into the metadata because the browser half
- *    must not re-derive it per render, and because a hand-edited stylesheet
- *    then still shows the ratio of the palette it actually paints.
- *
- * 3. **Every entry is checked against its sheet.** The rules live in
- *    `themes/<id>.css` and the metadata in `themes.data.json`, so the two can
- *    drift: this run fails when an entry has no sheet, when a sheet has no
- *    entry, and on everything `themeSheetViolations` reports about the pair —
- *    the block a sheet opens on its scope, and whether the palette a card paints
- *    is the one the sheet actually wears. That rule lives in
- *    `scripts/theme-sheet-guard.mjs` rather than here, because
- *    `test/theme-center-data.test.mjs` applies the very same one. A JSON still
- *    carrying a `css` field from the old in-line layout loses it here; the sheet
- *    is the one source of rules.
- *
- * The palettes are NOT re-derived: the three skins' are transcribed from the
- * retired `theme/skins.ts` (which took them from the stylesheets in the first
- * place) and each value is asserted to appear in its own stylesheet block, so a
- * swatch that drifted from the CSS fails the run instead of shipping. The
- * `surface` slot is the one value `skins.ts` never carried — the center's
- * swatch is `[bg, surface, accent, text]` and a skin shipped a triple — so it
- * is read from the skin's own block (`--bg-1`; zcode's
- * `--dsw-specific-sidebar-fill`) and asserted the same way.
+ * This run used to do one more thing, and the history is worth keeping: it
+ * folded the three retired `theme/skins` stylesheets into the center, rewriting
+ * their `body[data-dsh-*]` scopes onto `data-smkit-theme` and writing each as
+ * `themes/<id>.css`. That is done — the sheets are gone from the tree and the
+ * three entries live here — and the second revision moved every theme's colors
+ * out of stylesheets and into the `tokens/` tables the shell's registry takes,
+ * so there is nothing left to fold. What remains is the measurement and the
+ * check, which is what CI runs.
  *
  * Run: node scripts/build-theme-data.mjs [--check]
+ *   `--check` rewrites nothing and exits non-zero when the file is not current.
  */
 
-import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import {
-  SCOPE_ATTR,
-  blocksOf,
-  plainOf,
-  themeSheetViolations,
-  tokenOf,
-} from './theme-sheet-guard.mjs'
+import { importedTables, themeTableViolations, tokenTableOf } from './theme-sheet-guard.mjs'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const CENTER_DIR = `${ROOT}/src/client/features/theme-center`
 const DATA_PATH = `${CENTER_DIR}/themes.data.json`
-const THEMES_DIR = `${CENTER_DIR}/themes`
-const SKIN_DIR = `${ROOT}/src/client/features/theme/style`
-
-/** The three skins, as `theme/skins.ts` shipped them plus the center's surface.
- * `previous` carries the grades that file published, as the oracle for
- * `--check`: a mismatch means the measurement or a palette moved. */
-const SKINS = [
-  {
-    id: 'festival-dragonboat',
-    file: 'skin-festival-dragonboat.css',
-    dataset: 'dsh-festival-dragonboat',
-    name: 'Dragon Boat Festival',
-    nameZh: '端午',
-    desc: 'Mugwort green and zongzi fragrance; dragon boats race in lacquer red',
-    descZh: '艾草绿粽叶香，龙舟红漆竞渡忙',
-    tags: ['light', 'green', 'festival'],
-    surfaceToken: '--bg-1',
-    previous: { day: 'AAA · 13.6:1', night: '16.3:1' },
-    swatch: {
-      light: { bg: '#f2f6ef', surface: '#fafcf8', accent: '#2e7d4f', text: '#1a2b21' },
-      dark: { bg: '#0a120d', surface: '#101a14', accent: '#58b386', text: '#e6f0e9' },
-    },
-  },
-  {
-    id: 'nord',
-    file: 'skin-nord.css',
-    dataset: 'dsh-nord',
-    name: 'Nord',
-    nameZh: 'Nord',
-    desc: 'Snow Storm daylight, Frost blue accents',
-    descZh: 'Snow Storm 雪原昼色，Frost 冰蓝点缀',
-    tags: ['light', 'cool', 'nordic'],
-    surfaceToken: '--bg-1',
-    previous: { day: 'AAA · 10.8:1', night: '10.3:1' },
-    swatch: {
-      light: { bg: '#eceff4', surface: '#e5e9f0', accent: '#5e81ac', text: '#2e3440' },
-      dark: { bg: '#2e3440', surface: '#333b47', accent: '#88c0d0', text: '#e5e9f0' },
-    },
-  },
-  {
-    id: 'zcode',
-    file: 'skin-zcode.css',
-    dataset: 'dsh-zcode',
-    name: 'ZCode',
-    nameZh: 'ZCode',
-    desc: 'ZCode desktop look: light day, deep night, monochrome CTA',
-    descZh: 'ZCode 桌面端原味配色：昼浅夜深，黑白主键',
-    tags: ['light', 'neutral', 'desktop'],
-    surfaceToken: '--dsw-specific-sidebar-fill',
-    previous: { day: 'AAA · 14.2:1', night: '12.2:1' },
-    swatch: {
-      light: { bg: '#f8f8f8', surface: '#ececee', accent: '#000000', text: '#262626' },
-      dark: { bg: '#161616', surface: '#2b2b2b', accent: '#ffffff', text: '#d4d4d4' },
-    },
-  },
-]
-
-/**
- * One skin's stylesheet, or null once the merge has landed. The working tree
- * carries it until this script's own output is committed; afterwards the file
- * is gone from HEAD too, so the lookup simply reports nothing left to fold
- * instead of failing — the three entries are already in the data by then.
- */
-function readSkinCss(skin) {
-  const path = `${SKIN_DIR}/${skin.file}`
-  if (existsSync(path)) return readFileSync(path, 'utf8')
-  for (const ref of ['HEAD^', 'HEAD']) {
-    try {
-      return execFileSync('git', ['show', `${ref}:src/client/features/theme/style/${skin.file}`], {
-        cwd: ROOT,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      })
-    } catch {
-      // That revision does not carry the file; try the next one.
-    }
-  }
-  return null
-}
-
-/** One retired skin's `body[data-<dataset>]` blocks, which must exist. The
- * reader itself lives with the theme rule (`theme-sheet-guard.mjs`); this is
- * that same shape applied to the attribute the skins shipped with. */
-function blockOf(css, dataset, dark) {
-  const scope = dark ? `body[data-${dataset}][data-ds-dark-theme]` : `body[data-${dataset}]`
-  const blocks = blocksOf(css, scope, dark)
-  if (blocks.length === 0) throw new Error(`${dataset}: no ${dark ? 'dark' : 'light'} block found`)
-  return blocks
-}
+const MODULE_PATH = `${CENTER_DIR}/themes.data.ts`
 
 /* ------------------------------------------------------------- WCAG 2.1 */
 
@@ -187,22 +73,22 @@ function dayGrade(ratio) {
  * is copy and lives in the dictionaries. */
 const nightGrade = (ratio) => `${ratio.toFixed(1)}:1`
 
-/** Grade one entry from its own two palettes, each `[bg, surface, accent, text]`. */
-function gradesOf(tuple) {
+/** Grade one entry from its own two palettes, each `[bg, surface, accent, ink]`. */
+function gradesOf(swatch) {
   return {
-    gradeDay: dayGrade(contrastRatio(tuple.light[0], tuple.light[3])),
-    gradeNight: nightGrade(contrastRatio(tuple.dark[0], tuple.dark[3])),
+    gradeDay: dayGrade(contrastRatio(swatch.light[0], swatch.light[3])),
+    gradeNight: nightGrade(contrastRatio(swatch.dark[0], swatch.dark[3])),
   }
 }
 
 /**
  * One entry's metadata rewritten into the file's canonical key order, grades
- * included. The stylesheet is deliberately absent: it lives in
- * `themes/<id>.css`, and a `css` key from the old in-line layout is dropped
- * here rather than carried forward.
+ * included. The colors are deliberately absent: they live in `tokens/`, and a
+ * `css` key from the revision that inlined a stylesheet is dropped here rather
+ * than carried forward.
  */
 function canonical(entry) {
-  const tuple = { light: [...entry.swatch.light], dark: [...entry.swatch.dark] }
+  const swatch = { light: [...entry.swatch.light], dark: [...entry.swatch.dark] }
   return {
     id: entry.id,
     name: entry.name,
@@ -210,131 +96,58 @@ function canonical(entry) {
     desc: entry.desc,
     descZh: entry.descZh,
     tags: [...entry.tags],
-    swatch: { light: tuple.light, dark: tuple.dark },
-    ...gradesOf(tuple),
+    colorScheme: entry.colorScheme,
+    swatch,
+    ...gradesOf(swatch),
   }
 }
 
 /* --------------------------------------------------------------- the run */
 
-/** The skin CSS with its scope rewritten to the center's attribute. A verbatim
- * port otherwise: only the `body[...]` prefix moves, so every rule keeps the
- * specificity and the order the skin shipped with — including the compound
- * selectors (`body[data-dsh-nord] [class*='sider'] …`), which share the prefix
- * and therefore the rewrite. */
-function rescope(css, skin) {
-  const from = `body[data-${skin.dataset}]`
-  const to = `body[${SCOPE_ATTR}="${skin.id}"]`
-  const rewritten = css.split(from).join(to)
-  if (!rewritten.includes(to)) throw new Error(`${skin.id}: nothing to rescope`)
-  return rewritten
-}
-
-/** One folded skin: its metadata, and the sheet to write beside the others. */
-function buildEntry(skin, css) {
-  const light = blockOf(css, skin.dataset, false)
-  const dark = blockOf(css, skin.dataset, true)
-  const modes = [
-    ['light', light, skin.swatch.light],
-    ['dark', dark, skin.swatch.dark],
-  ]
-  for (const [mode, blocks, palette] of modes) {
-    // Every transcribed color must exist in its own stylesheet, so a palette
-    // that drifted from the CSS fails here rather than shipping a wrong preview.
-    for (const value of [palette.bg, palette.text, palette.accent]) {
-      if (!blocks.some((block) => block.toLowerCase().includes(value))) {
-        throw new Error(`${skin.id} (${mode}): ${value} does not appear in its stylesheet block`)
-      }
-    }
-    const declared = tokenOf(blocks, skin.surfaceToken)
-    if (declared !== palette.surface) {
-      throw new Error(
-        `${skin.id} (${mode}): ${skin.surfaceToken} is ${declared} in the CSS, not ${palette.surface}`,
-      )
-    }
-    // The pair a grade is measured from must be the pair the CSS paints.
-    const bg = plainOf(blocks, 'background-color')
-    const fg = plainOf(blocks, 'color')
-    if (bg !== palette.bg || fg !== palette.text) {
-      throw new Error(
-        `${skin.id} (${mode}): the CSS paints ${bg} on ${fg}, transcribed ${palette.bg} on ${palette.text}`,
-      )
-    }
-  }
-  const pick = (mode) => [mode.bg, mode.surface, mode.accent, mode.text]
-  return {
-    meta: {
-      id: skin.id,
-      name: skin.name,
-      nameZh: skin.nameZh,
-      desc: skin.desc,
-      descZh: skin.descZh,
-      tags: skin.tags,
-      swatch: { light: pick(skin.swatch.light), dark: pick(skin.swatch.dark) },
-    },
-    sheet: rescope(css, skin),
-  }
-}
-
 const existing = JSON.parse(readFileSync(DATA_PATH, 'utf8'))
-const foldable = SKINS.map((skin) => ({ skin, css: readSkinCss(skin) })).filter(
-  (candidate) => candidate.css !== null,
-)
-const migrated = foldable.map(({ skin, css }) => buildEntry(skin, css))
-const known = new Set(existing.map((entry) => entry.id))
-const fresh = migrated.filter((entry) => !known.has(entry.meta.id))
-for (const entry of fresh) {
-  writeFileSync(`${THEMES_DIR}/${entry.meta.id}.css`, `${entry.sheet.replace(/\s*$/, '')}\n`)
-}
+const moduleSource = readFileSync(MODULE_PATH, 'utf8')
+const merged = existing.map(canonical)
 
-const merged = [...existing.map(canonical), ...fresh.map((entry) => canonical(entry.meta))]
-
-// The metadata list and the sheets are two files that have to agree: an entry
-// without its sheet paints nothing, and a sheet nothing selects is dead weight.
-// The scope check is what `rescopecheck` used to rewrite silently. Every check
-// runs before the JSON is written, so a failing run leaves the tree as it found
-// it rather than half-migrated.
+// The metadata list and the tables are separate files that have to agree: an
+// entry without a table registers with no colors at all, and a table nothing
+// maps is dead weight. Every check runs before the JSON is written, so a
+// failing run leaves the tree as it found it rather than half-written.
+const claimed = new Set()
 for (const entry of merged) {
-  const path = `${THEMES_DIR}/${entry.id}.css`
-  if (!existsSync(path)) throw new Error(`${entry.id}: no themes/${entry.id}.css`)
-  const violations = themeSheetViolations(entry, readFileSync(path, 'utf8'))
+  const specifier = tokenTableOf(moduleSource, entry.id)
+  if (specifier === null) throw new Error(`${entry.id}: themes.data.ts maps no token table for it`)
+  claimed.add(specifier)
+  const violations = themeTableViolations(
+    entry,
+    readFileSync(`${CENTER_DIR}/${specifier.slice(2)}.ts`, 'utf8'),
+  )
   if (violations.length > 0) throw new Error(violations.join('\n'))
 }
-const ids = new Set(merged.map((entry) => entry.id))
-for (const file of readdirSync(THEMES_DIR)) {
-  if (!file.endsWith('.css')) continue
-  const id = file.slice(0, -'.css'.length)
-  if (!ids.has(id)) throw new Error(`themes/${file} has no entry in themes.data.json`)
+for (const specifier of importedTables(moduleSource)) {
+  if (!claimed.has(specifier)) {
+    throw new Error(`${specifier} is imported by the TOKENS map but no entry maps it`)
+  }
 }
 
-writeFileSync(DATA_PATH, `${JSON.stringify(merged, null, 2)}\n`)
+const serialized = `${JSON.stringify(merged, null, 2)}\n`
+const current = readFileSync(DATA_PATH, 'utf8')
+const stale = current !== serialized
 
-for (const entry of merged) {
-  console.log(
-    `  ${entry.id.padEnd(20)} ${entry.gradeDay.padEnd(14)} night ${entry.gradeNight.padEnd(8)} ${entry.swatch.light.join(' ')}`,
-  )
-}
-console.log(
-  migrated.length > 0
-    ? `folded in ${migrated.length} retired skins: ${migrated.map((entry) => entry.meta.id).join(', ')}`
-    : 'no skin stylesheets left to fold in — graded the entries already in the data',
-)
-console.log(
-  `themes.data.json: ${merged.length} entries, ${readFileSync(DATA_PATH).length} bytes (+ ${merged.length} sheets under themes/)`,
-)
+const report = (entry) =>
+  `  ${entry.id.padEnd(20)} ${entry.colorScheme.padEnd(6)} ${entry.gradeDay.padEnd(14)} night ${entry.gradeNight.padEnd(8)} ${entry.swatch.light.join(' ')}`
 
 if (process.argv.includes('--check')) {
-  if (migrated.length === 0) {
-    console.log('\ngrade oracle: skipped, the skins are already folded in')
-  } else {
-    console.log('\ngrade oracle (retired skins.ts vs this measurement):')
-    for (const skin of SKINS) {
-      const entry = merged.find((candidate) => candidate.id === skin.id)
-      if (entry === undefined) continue
-      const day = entry.gradeDay === skin.previous.day ? 'ok' : `DIFFERS (was ${skin.previous.day})`
-      const night =
-        entry.gradeNight === skin.previous.night ? 'ok' : `DIFFERS (was ${skin.previous.night})`
-      console.log(`  ${skin.id.padEnd(20)} day ${day}; night ${night}`)
-    }
+  for (const entry of merged) console.log(report(entry))
+  if (stale) {
+    console.error('\nthemes.data.json is not current — run `node scripts/build-theme-data.mjs`')
+    process.exit(1)
   }
+  console.log('\nthemes.data.json is current')
+} else {
+  writeFileSync(DATA_PATH, serialized)
+  for (const entry of merged) console.log(report(entry))
+  console.log(
+    `themes.data.json: ${merged.length} entries, ${readFileSync(DATA_PATH).length} bytes` +
+      `${stale ? ' (rewritten)' : ' (already current)'}`,
+  )
 }

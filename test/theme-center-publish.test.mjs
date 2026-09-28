@@ -2,17 +2,33 @@
  * What the theme center mounts itself as, and everything it leaves alone.
  *
  * `dsh-theme` — a different plugin, one this repository's themes were ported
- * from — is the reason for every assertion here. Its two service names
- * (`ctx.provide('dshTheme', …)`, `window.dshTheme`) collide with Cordis, which
- * throws on a second registration of one name; that throw lands inside the
- * client entry's mount effect, so it used to take the whole entry down (`web
- * boot: 1 entry did not activate`). Its two localStorage keys and its `<style>`
- * id collide more quietly: the keys were read away on every boot, and the
- * element was reused and overwritten by whichever plugin mounted last.
+ * from — is the reason for every coexistence assertion here. Its two service
+ * names (`ctx.provide('dshTheme', …)`, `window.dshTheme`) collide with Cordis,
+ * which throws on a second registration of one name; that throw lands inside
+ * the client entry's mount effect, so it used to take the whole entry down
+ * (`web boot: 1 entry did not activate`). Its two localStorage keys and its
+ * `<style>` id collide more quietly: the keys were read away on every boot, and
+ * the element was reused and overwritten by whichever plugin mounted last.
  *
- * So the assertions run in both directions — this plugin's own names are used,
- * and `dsh-theme`'s are untouched. A rename that quietly reaches for the old
- * name again fails here.
+ * The second revision changed *how* this plugin paints — a theme became a layer
+ * of token overrides stacked over the shell's active theme, plus one write that
+ * pins the shell's preference to the half the theme is drawn for — so the
+ * assertions moved with it: what used to be "the swap element carries our id" is
+ * now "no swap element exists at all, ours or anyone's", and the mount is
+ * checked for the layer it stacks and the preference it writes.
+ *
+ * The preference write is the one that carries a reload, and the harness has to
+ * be honest about why: the shell keeps a *registered* id in memory but persists
+ * only its own three preferences, so anything else it holds is replaced the next
+ * time its durable settings scope lands. `adopt()` below is that moment, and one
+ * test is nothing but it — the regression that made this revision necessary.
+ * The coexistence half is unchanged in substance: our own names are used, and
+ * `dsh-theme`'s are untouched.
+ *
+ * The harness's registry is small but not permissive: `setTheme` persists the
+ * three built-in preferences and keeps anything else in memory, `adopt()`
+ * rewrites the preference from what was persisted, and every accepted write
+ * re-publishes a snapshot, the way `theme/change` does.
  */
 
 import assert from 'node:assert/strict'
@@ -23,6 +39,9 @@ import { it } from 'node:test'
 
 const BUNDLE = fileURLToPath(new URL('../lib/client.js', import.meta.url))
 
+/** The layer the center stacks its own colors under. */
+const THEME_LAYER = 'smkit:theme'
+
 /** A `document` with just the parts the mount effect touches. */
 function fakeDocument() {
   const created = []
@@ -30,9 +49,6 @@ function fakeDocument() {
   return {
     created,
     attrs,
-    // The mount looks the swap element up by id and reuses what it finds, so
-    // the stub has to answer from what it was actually asked to create —
-    // `() => null` would let a duplicated element pass unnoticed.
     getElementById: (id) => created.find((el) => el.id === id) ?? null,
     querySelector: () => null,
     querySelectorAll: () => [],
@@ -74,6 +90,74 @@ function fakeStorage() {
   }
 }
 
+/** The preferences the shell persists; anything else it holds in memory alone. */
+const BUILTIN_PREFERENCES = new Set(['light', 'dark', 'system'])
+
+/**
+ * A stand-in for the shell's theme registry, faithful in the three places the
+ * plugin depends on: `setTheme` persists a built-in preference and keeps anything
+ * else in memory, `overrideTokens` records the layer it was handed, and a write
+ * re-publishes a snapshot the way `theme/change` does.
+ *
+ * `adopt()` is `ThemeRuntime.adopt` — the durable settings scope landing and
+ * rewriting the in-memory preference from what it holds. A test calls it to say
+ * "the settings finished loading"; a registered id would not survive that call,
+ * which is the whole reason the center does not use one.
+ */
+function fakeThemeRegistry() {
+  const layers = []
+  const listeners = []
+  let preference = 'system'
+  let persisted = 'system'
+  const snapshot = () => {
+    const resolved = preference === 'system' ? 'dark' : preference
+    return { preference, active: { id: resolved, colorScheme: resolved === 'light' ? 'light' : 'dark', tokens: {} }, themes: [], revision: 0 }
+  }
+  const publish = () => {
+    for (const listener of [...listeners]) listener(snapshot())
+  }
+  return {
+    layers,
+    get preference() {
+      return preference
+    },
+    get persisted() {
+      return persisted
+    },
+    overrideTokens(source, tokens) {
+      layers.push({ source, tokens })
+      return () => {
+        const at = layers.findIndex((layer) => layer.source === source && layer.tokens === tokens)
+        if (at >= 0) layers.splice(at, 1)
+      }
+    },
+    setTheme(id) {
+      if (preference === id) return
+      preference = id
+      if (BUILTIN_PREFERENCES.has(id)) persisted = id
+      publish()
+    },
+    /** The durable scope landing: the shell rewrites its preference from it. */
+    adopt() {
+      if (preference === persisted) return
+      preference = persisted
+      publish()
+    },
+    subscribe(listener) {
+      listeners.push(listener)
+      return () => {
+        const at = listeners.indexOf(listener)
+        if (at >= 0) listeners.splice(at, 1)
+      }
+    },
+  }
+}
+
+/** The layers currently stacked under a source, oldest first. */
+function layersOf(theme, source) {
+  return theme.layers.filter((layer) => layer.source === source)
+}
+
 /**
  * Boot the real client bundle against a stub harness and report what it did.
  * @param {{ throwOn?: string, storage?: ReturnType<typeof fakeStorage> }} [options]
@@ -86,6 +170,7 @@ function harness(options = {}) {
   const provided = []
   const document = fakeDocument()
   const localStorage = options.storage ?? fakeStorage()
+  const theme = fakeThemeRegistry()
   const window = {
     __ModuleLoader__: {
       load: ({ factory }) => {
@@ -131,6 +216,11 @@ function harness(options = {}) {
       }
       provided.push({ name, value })
     },
+    on: (event, handler) => {
+      if (event === 'theme/change') return theme.subscribe(handler)
+      return () => {}
+    },
+    theme,
     slots: {
       register: () => () => {},
       inject: (_name, cb) => cb(ctx),
@@ -139,8 +229,28 @@ function harness(options = {}) {
     sessions: {},
   }
 
-  return { ctx, provided, document, window, localStorage, boot: () => exported.apply(ctx) }
+  return { ctx, provided, document, window, localStorage, theme, boot: () => exported.apply(ctx) }
 }
+
+it('stacks the theme’s colors as a layer of its own', () => {
+  const storage = fakeStorage()
+  storage.setItem('smkit:theme', 'one-dark-pro')
+  const { boot, theme } = harness({ storage })
+  boot()
+
+  const stacked = layersOf(theme, THEME_LAYER)
+  assert.equal(stacked.length, 1, 'the applied theme must reach the shell as exactly one layer')
+  const tokens = stacked[0].tokens
+  assert.ok(Object.keys(tokens).length > 0, 'the layer carries the tokens the theme repaints')
+  for (const [token, pair] of Object.entries(tokens)) {
+    assert.ok(token.startsWith('--'), `${token}: a layer key is a custom property`)
+    assert.equal(
+      pair.light,
+      pair.dark,
+      `${token}: a theme here is one palette, so both halves repeat its value — a layer that answered per half would follow the OS`,
+    )
+  }
+})
 
 it('publishes the API under the plugin’s own names', () => {
   const { boot, provided, ctx } = harness()
@@ -176,28 +286,118 @@ it('keeps the entry alive when the service name is taken', () => {
   assert.doesNotThrow(() => boot())
 })
 
+it('remembers the choice through the shell and marks the body for its own rules', () => {
+  const { boot, document, theme, localStorage, window } = harness()
+  boot()
+
+  // No stored choice: the mount must leave the shell's own preference alone
+  // rather than claiming one.
+  assert.equal(theme.preference, 'system', 'a fresh browser must not switch the shell’s theme')
+  assert.equal(
+    document.attrs.get('data-smkit-theme'),
+    undefined,
+    'and the structural attribute stays off — no theme of ours is active',
+  )
+
+  window.smkitTheme.set('one-dark-pro')
+
+  assert.equal(
+    theme.preference,
+    'dark',
+    'the theme pins the shell to the half it is drawn for — the one preference the shell persists for us',
+  )
+  assert.equal(
+    document.attrs.get('data-smkit-theme'),
+    'one-dark-pro',
+    'and the attribute the structural sheet is scoped on follows it',
+  )
+  assert.equal(
+    localStorage.getItem('smkit:theme'),
+    'one-dark-pro',
+    'the center’s own id is remembered — the shell’s storage only accepts its own preferences',
+  )
+
+  window.smkitTheme.reset()
+
+  assert.equal(theme.preference, 'system', 'reset hands the preference back to the shell')
+  assert.equal(
+    document.attrs.get('data-smkit-theme'),
+    undefined,
+    'and takes the structural attribute with it',
+  )
+})
+
+it('survives the shell adopting its durable preference', () => {
+  const storage = fakeStorage()
+  storage.setItem('smkit:theme', 'one-dark-pro')
+  const { boot, theme, document } = harness({ storage })
+  boot()
+
+  assert.equal(theme.preference, 'dark', 'the restored theme pins the half it is drawn for')
+  assert.equal(theme.persisted, 'dark', 'and that half is the part the shell actually stores')
+
+  // The durable settings scope lands. A registered theme would be rewritten to
+  // the shell's own preference here and the screen would fall back to it while
+  // the row still showed the theme as selected — the bug this shape exists for.
+  theme.adopt()
+
+  assert.equal(theme.preference, 'dark', 'adopting the stored preference must leave the theme in force')
+  assert.equal(layersOf(theme, THEME_LAYER).length, 1, 'and its colors must stay stacked')
+  assert.equal(
+    document.attrs.get('data-smkit-theme'),
+    'one-dark-pro',
+    'and the structural attribute must stay on the body',
+  )
+})
+
+it('stands down when the shell’s appearance row moves off the theme’s half', () => {
+  const storage = fakeStorage()
+  storage.setItem('smkit:theme', 'one-dark-pro')
+  const { boot, theme, document, localStorage } = harness({ storage })
+  boot()
+
+  assert.equal(theme.preference, 'dark', 'the restored theme starts pinned to its half')
+
+  // The user picks Light in Settings → General. The center only ever writes
+  // `dark`, so this value came from someone else — a choice to leave the theme.
+  theme.setTheme('light')
+
+  assert.equal(localStorage.getItem('smkit:theme'), null, 'the stored choice goes with it')
+  assert.equal(layersOf(theme, THEME_LAYER).length, 0, 'and the colors come off the shell')
+  assert.equal(
+    document.attrs.get('data-smkit-theme'),
+    undefined,
+    'and the body stops being marked for the theme’s own rules',
+  )
+})
+
 it('reads its own old keys forward without touching another plugin’s', () => {
   const storage = fakeStorage()
   // A browser that has upgraded through every name this lineage ever carried,
   // plus a coexisting `dsh-theme` with its own saved choice.
-  storage.setItem('smkit:skin', 'zcode')
+  storage.setItem('smkit:skin', 'one-dark-pro')
   storage.setItem('dsh-theme-pack:theme', 'nord')
   storage.setItem('dsh-theme:theme', 'night-owl')
   storage.setItem('dsh-theme:mode', 'dark')
 
-  const { boot, localStorage, document } = harness({ storage })
+  const { boot, localStorage, document, theme } = harness({ storage })
   boot()
 
   assert.equal(
     localStorage.getItem('smkit:theme'),
-    'zcode',
+    'one-dark-pro',
     'the retired skin key is this center’s own and must be read forward',
   )
   assert.equal(localStorage.getItem('smkit:skin'), null, 'and then retired, since it is ours')
   assert.equal(
+    theme.preference,
+    'dark',
+    'the migrated choice has to reach the shell, not just storage',
+  )
+  assert.equal(
     document.attrs.get('data-smkit-theme'),
-    'zcode',
-    'the migrated choice has to reach the body, not just storage',
+    'one-dark-pro',
+    'and the structural attribute has to reach the body',
   )
 
   assert.equal(
@@ -217,18 +417,34 @@ it('reads its own old keys forward without touching another plugin’s', () => {
   )
 })
 
-it('swaps its stylesheet in an element of its own', () => {
+it('lets an id the center no longer ships fall back to the shell’s palettes', () => {
+  const storage = fakeStorage()
+  // A browser that still remembers a theme this revision retired. It must land
+  // on the shell's own preference rather than on a half state, and it must not
+  // mark the body for a structural sheet that is not there any more.
+  storage.setItem('smkit:theme', 'zcode-dark')
+
+  const { boot, theme, document } = harness({ storage })
+  boot()
+
+  assert.equal(theme.preference, 'system', 'a retired id must not switch the shell’s theme')
+  assert.equal(layersOf(theme, THEME_LAYER).length, 0, 'and must not stack a color layer')
+  assert.equal(
+    document.attrs.get('data-smkit-theme'),
+    undefined,
+    'and must not mark the body',
+  )
+})
+
+it('paints no stylesheet of its own: the shell carries the themes', () => {
   const { boot, document } = harness()
   boot()
 
-  const swap = document.created.find((el) => el.id === 'smkit-theme-active-style')
-  assert.ok(
-    swap,
-    'the swap element must carry this plugin’s own id — `dsh-theme-active-style` is `dsh-theme`’s, and sharing it means whichever mounts last wipes the other’s sheet',
-  )
-  assert.equal(
-    document.created.filter((el) => el.id === 'dsh-theme-active-style').length,
-    0,
-    'and the shared id must not be created at all',
-  )
+  for (const id of ['smkit-theme-active-style', 'dsh-theme-active-style']) {
+    assert.equal(
+      document.created.filter((el) => el.id === id).length,
+      0,
+      `${id} must not be created — a theme is a token table and the shell writes it; sharing dsh-theme’s id means whichever mounts last wipes the other’s rules`,
+    )
+  }
 })

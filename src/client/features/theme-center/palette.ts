@@ -4,21 +4,17 @@
  *
  * The registry is a flat list of CSS custom properties grouped by the surface
  * they paint, and the grouping is correspondence with the center itself: every
- * color-bearing `--dsw-alias-*`, `--dsw-specific-*` and `--dsw-zcode-*` token
- * any theme of the center defines is on the list (the two families are the
- * shell design system's part vocabulary, so token coverage here is part
- * coverage of what the center repaints). Three things are deliberately absent,
- * all for the same reason — the panel edits *colors*: `--dsw-font-family` is a
- * font stack, the two `--dsw-linear-*` tokens are gradient strings a color
- * slider cannot express, and the `--dsw-static-*` palettes are each theme's
- * private pigment shelf, not a part. A theme that does not define some token
- * here (zcode skips six) leaves the host's own default standing, which the
- * override still beats; a token only one theme consumes (zcode's tool-card
- * pair) only shows its effect under that theme — under the others the slider
- * writes an override nothing reads. Each item names its token, a dictionary
- * key for its label, and a fallback used only when the token cannot be
- * resolved (the tool-card variables are the case: themes other than zcode do
- * not define them, so this fallback answers).
+ * color-bearing `--dsw-alias-*` and `--dsw-specific-*` token any theme of the
+ * center defines is on the list — the two families are the shell design
+ * system's part vocabulary, so token coverage here is part coverage of what the
+ * center repaints. Three things are deliberately absent, all for the same
+ * reason — the panel edits *colors*: `--dsw-font-family` is a font stack, the
+ * two `--dsw-linear-*` tokens are gradient strings a color slider cannot
+ * express, and the `--dsw-static-*` palettes are each theme's private pigment
+ * shelf, not a part. A theme that does not name some token here leaves the
+ * shell's own value standing for the palette half that theme declares, and the
+ * override layer still beats it. Each item names its token, a dictionary key
+ * for its label, and a fallback used only when the token cannot be resolved.
  *
  * Every value is read *resolved*: a probe element is attached to the body with
  * `color: var(--the-token)` and the computed color is read back, so var()
@@ -47,9 +43,8 @@ export interface PaletteGroup {
 
 /** The surfaces the panel can repaint, in panel order: the theme's accents,
  * its text hierarchy, its borders, the left sidebar, the conversation area,
- * markdown rendering, tool-call cards, status colors, scrollbars, interaction
- * washes, overlays and tips, the remaining surfaces, and the right panel's
- * layer stack. */
+ * markdown rendering, status colors, scrollbars, interaction washes, overlays
+ * and tips, the remaining surfaces, and the right panel's layer stack. */
 export const PALETTE_GROUPS: readonly PaletteGroup[] = [
   {
     labelKey: 'groupTheme',
@@ -129,13 +124,6 @@ export const PALETTE_GROUPS: readonly PaletteGroup[] = [
       { token: '--dsw-alias-markdown-code-block-banner', labelKey: 'itemCodeBanner', fallback: '#c9dfeb' },
       { token: '--dsw-alias-markdown-code-segment-selected', labelKey: 'itemCodeSelected', fallback: '#c9dfeb' },
       { token: '--dsw-alias-markdown-code-segment-unselected', labelKey: 'itemCodeUnselected', fallback: '#d8e8f1' },
-    ],
-  },
-  {
-    labelKey: 'groupToolCalls',
-    items: [
-      { token: '--dsw-zcode-tool-card-bg', labelKey: 'itemToolCardBg', fallback: '#ffffff' },
-      { token: '--dsw-zcode-tool-card-border', labelKey: 'itemToolCardBorder', fallback: '#e0e0e0' },
     ],
   },
   {

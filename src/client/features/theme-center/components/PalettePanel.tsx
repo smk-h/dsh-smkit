@@ -48,7 +48,7 @@
 
 import type { ClientDeps, Translator } from '../../../platform/types'
 import { createXIcon } from '../../../platform/icons/XIcon'
-import { DARK_ATTR, subscribe, THEME_ATTR } from '../apply'
+import { subscribe, THEME_ATTR } from '../apply'
 import {
   PALETTE_GROUPS,
   hslToCss,
@@ -59,7 +59,10 @@ import {
 } from '../palette'
 import {
   clearColorOverrides,
+  dropColorOverride,
   loadColorOverrides,
+  patchColorOverride,
+  readWithoutOverrides,
   removeColorOverrides,
   saveColorOverrides,
 } from '../overrides'
@@ -135,13 +138,13 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
     const [savedTimer, setSavedTimer] = react.useState<number | undefined>(undefined)
     react.useEffect(() => () => window.clearTimeout(savedTimer), [savedTimer])
 
-    /** Keep the start values the body's own. The two triggers are the ones that
-     * can repaint a token under an open panel: the theme center's state (a card
-     * clicked, or the restored choice at mount) and the body's two attributes
-     * (the day/night override, and the shell's own display setting moving the
-     * dark one). The `attributeFilter` is load-bearing rather than tidy: an
-     * edit sets the body's `style` attribute, and watching that would make
-     * every slider drag re-read the value it had just written. */
+    /** Keep the start values the body's own. Two triggers reach the panel while
+     * it is open: the theme center's state (a card clicked, or the restored
+     * choice at mount) through the module's pub/sub, and the body's structural
+     * attribute. The palette itself now rides the shell's inline properties, so
+     * watching the body's `style` would make every slider drag re-read the
+     * value it had just written — the attribute this plugin owns is the one
+     * signal the panel can watch without watching itself. */
     react.useEffect(() => {
       const reread = () => setColors(readAll())
       const unsub = subscribe(reread)
@@ -153,7 +156,7 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
       const mo = new MutationObserver(reread)
       mo.observe(document.body, {
         attributes: true,
-        attributeFilter: [DARK_ATTR, THEME_ATTR],
+        attributeFilter: [THEME_ATTR],
       })
       return () => {
         unsub()
@@ -161,23 +164,27 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
       }
     }, [])
 
-    /** The color the active theme paints for a token, read with the token's own
-     * override off the body — custom properties inherit, so an override still
-     * set there would be what the probe answers with. Nothing is put back: the
-     * caller writes the token's next value in the same synchronous block, and
-     * when that next value *is* the theme's, leaving the property off is the
-     * whole point. No repaint slips in between, so the removal is invisible. */
-    const themeOwn = (item: PaletteItem): Hsl => {
-      document.body.style.removeProperty(item.token)
-      return (
-        parseColor(readTokenColor(item.token, item.fallback)) ?? { h: 0, s: 0, l: 100, a: 1 }
-      )
-    }
+    /** The color the active theme paints for a token, read with this plugin's
+     * override layer lifted. The layer is folded into the shell's own inline
+     * properties before they reach the body, so a probe would otherwise answer
+     * with the edit rather than with the theme; `readWithoutOverrides` puts the
+     * layer back exactly as it found it, which is why the caller can go on to
+     * write the token's next value in the same synchronous block. */
+    const themeOwn = (item: PaletteItem): Hsl =>
+      parseColor(readWithoutOverrides(() => readTokenColor(item.token, item.fallback))) ?? {
+        h: 0,
+        s: 0,
+        l: 100,
+        a: 1,
+      }
 
-    /** Apply one edit: paint the body inline, remember it, move the sliders. */
+    /** Apply one edit: restack the override layer, remember it, move the
+     * sliders. The layer, not the body's inline style, is what a drag writes —
+     * the shell owns that style, and a value written there would be erased the
+     * next time the shell applies a theme. */
     const edit = (token: string, next: Hsl): void => {
       const value = hslToCss(next.h, next.s, next.l, next.a)
-      document.body.style.setProperty(token, value)
+      patchColorOverride(token, value)
       setColors((prev) => ({ ...prev, [token]: next }))
       setEdits((prev) => ({ ...prev, [token]: value }))
       setSaved(false)
@@ -186,16 +193,16 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
     /** Double-click on a slider row: put this one channel back on the theme's
      * own value and leave the other two alone. When the move happens to restore
      * the token's color whole — the common case, a reader who only moved that
-     * one slider — the override has no work left and is dropped from the body
+     * one slider — the override has no work left and is dropped from the layer
      * and from the saved map alike, so the next Save no longer carries a token
      * that has nothing to say. Anything short of that stays an ordinary edit:
-     * live on the body now, written to storage only by Save. */
+     * live on the layer now, written to storage only by Save. */
     const resetChannel = (item: PaletteItem, channel: 'h' | 's' | 'l'): void => {
       const color = colors[item.token] ?? { h: 0, s: 0, l: 100, a: 1 }
       const own = themeOwn(item)
       const next = { ...color, [channel]: own[channel] }
       if (next.h === own.h && next.s === own.s && next.l === own.l && next.a === own.a) {
-        document.body.style.removeProperty(item.token)
+        dropColorOverride(item.token)
         setColors((prev) => ({ ...prev, [item.token]: next }))
         setEdits((prev) => {
           const remaining = { ...prev }
@@ -216,14 +223,14 @@ export function createPalettePanel(deps: ClientDeps): (props: PalettePanelProps)
     }
 
     const onReset = (): void => {
-      removeColorOverrides(edits)
+      removeColorOverrides()
       clearColorOverrides()
       setEdits({})
       setExpanded(null)
       setSaved(false)
       window.clearTimeout(savedTimer)
-      // re-read one frame later: the inline properties must be off the body
-      // before the probe resolves the tokens again.
+      // re-read one frame later: the lifted layer has to be off the shell's
+      // inline properties before the probe resolves the tokens again.
       window.setTimeout(() => setColors(readAll()), 50)
     }
 

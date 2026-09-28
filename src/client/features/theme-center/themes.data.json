@@ -1,33 +1,5 @@
 [
   {
-    "id": "zcode",
-    "name": "ZCode",
-    "nameZh": "ZCode",
-    "desc": "ZCode desktop look: light day, deep night, monochrome CTA",
-    "descZh": "ZCode 桌面端原味配色：昼浅夜深，黑白主键",
-    "tags": [
-      "light",
-      "neutral",
-      "desktop"
-    ],
-    "swatch": {
-      "light": [
-        "#f8f8f8",
-        "#ececee",
-        "#000000",
-        "#262626"
-      ],
-      "dark": [
-        "#161616",
-        "#2b2b2b",
-        "#ffffff",
-        "#d4d4d4"
-      ]
-    },
-    "gradeDay": "AAA · 14.2:1",
-    "gradeNight": "12.2:1"
-  },
-  {
     "id": "one-dark-pro",
     "name": "One Dark Pro",
     "nameZh": "One Dark Pro",
@@ -38,17 +10,18 @@
       "cool",
       "blue"
     ],
+    "colorScheme": "dark",
     "swatch": {
       "light": [
         "#282c34",
         "#2c313c",
-        "#61afef",
+        "#4d78cc",
         "#abb2bf"
       ],
       "dark": [
         "#282c34",
         "#2c313c",
-        "#61afef",
+        "#4d78cc",
         "#abb2bf"
       ]
     },

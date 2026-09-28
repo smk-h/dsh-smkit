@@ -37,8 +37,17 @@ import type { ClientContext, ClientDeps, ClientFeature } from './platform/types'
  * optional (its slot is injected, not required), but the service is a hard
  * dependency of the control, so the bundle declares it the same way DSH's own
  * session-header contributions do.
+ *
+ * `theme` is the shell's registry (`@deepseek-ai/dsh-client-ui-theme`, the
+ * module the manifest lists in `dsh.client.inject`). It is declared rather than
+ * read ad hoc because a declared service is a property on the context by the
+ * time `apply` runs — the same way `ui-layout` reaches it (`ctx.theme`) — while
+ * an undeclared one is not there to read, and a read that throws lands inside
+ * the mount effect, where it costs the whole entry rather than one feature.
+ * That is exactly how the first cut of the registry support failed
+ * (`web boot: 1 entry did not activate`).
  */
-export const inject = ['slots', 'locale', 'sessions']
+export const inject = ['slots', 'locale', 'sessions', 'theme']
 
 /** The features this plugin ships; the order here is the order they register. */
 const FEATURES: ClientFeature[] = [

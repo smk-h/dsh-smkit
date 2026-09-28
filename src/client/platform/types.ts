@@ -96,9 +96,84 @@ export interface WorkspaceStateLike {
   readonly archivedSessionIds: readonly string[]
 }
 
+/**
+ * One theme definition as the shell's registry holds it.
+ *
+ * Deliberately narrow: the registry's real definition also carries whatever
+ * the shell adds later, and this plugin only ever reads the three fields it
+ * declares here. `colorScheme` is the load-bearing one — the shell flips
+ * `body[data-ds-dark-theme]` from it, so a theme that declares one half can
+ * never disagree with the shell about which half is in force. It is also what
+ * the center writes into the preference, to pin the half its own colors assume.
+ */
+export interface HostThemeDefinitionLike {
+  /** Registry id; unique across every registered theme, the built-ins included. */
+  id: string
+  /** Which base palette this theme builds on. */
+  colorScheme: 'light' | 'dark'
+  /** Alias-layer overrides, applied as the shell's own inline custom properties. */
+  tokens: Readonly<Record<string, string>>
+}
+
+/** The part of one theme snapshot this plugin reads. */
+export interface HostThemeSnapshotLike {
+  /** The preference in force: `light`/`dark`/`system`, or — when another
+   * plugin is driving one — that plugin's registered id. */
+  readonly preference: string
+  /** The active definition, with its palette half resolved. */
+  readonly active: HostThemeDefinitionLike
+  /** Every registered theme, in registration order. */
+  readonly themes: readonly HostThemeDefinitionLike[]
+  /** Monotonic change counter. */
+  readonly revision: number
+}
+
+/**
+ * The slice of the shell's theme service (`ctx.theme`, ui-theme) this plugin
+ * uses: stack override layers, drive the preference, and read the snapshot.
+ * Every member exists on the real `ThemeRuntime`; the plugin never touches the
+ * rest, so it declares only what it calls.
+ *
+ * `register` is deliberately **not** among them. The shell keeps a registered
+ * id in memory alone — `setTheme` persists `light`/`dark`/`system` and nothing
+ * else — while its durable settings scope rewrites the preference from storage
+ * on every load. A registered theme is therefore the active one only until the
+ * next such load; a theme of this center is a layer plus a half instead (see
+ * `theme-center/apply.ts`).
+ */
+export interface HostThemeRuntimeLike {
+  /**
+   * Stack a token override layer on top of the active theme, `{ light, dark }`
+   * per token. Returns the layer's disposer.
+   */
+  overrideTokens(
+    source: string,
+    tokens: Readonly<Record<string, { light: string; dark: string }>>,
+  ): () => void
+  /** Switch the shell's theme preference — the only preference write entry. */
+  setTheme(id: string): void
+}
+
 /** The slot/runtime context DSH hands to a client plugin's `apply`. */
 export interface ClientContext {
   effect(callback: () => void | (() => void), label?: string): void
+  /**
+   * The shell's theme registry.
+   *
+   * Declared as a service dependency in the bundle's `inject` list (see
+   * `entry.ts` and `dsh.client.inject` in the manifest), which is what makes it
+   * a property on the context by the time `apply` runs. Optional in the type
+   * anyway, because a harness that mounts the client half in Node provides no
+   * registry — and because a feature that cannot find one has to stand down
+   * rather than throw: a throw inside a mount effect costs the whole entry.
+   */
+  theme?: HostThemeRuntimeLike
+  /**
+   * Cordis event subscription. The theme center follows `theme/change` so its
+   * row and the structural sheet follow whatever moved the preference last —
+   * the row itself, the shell's own appearance setting, or the OS scheme.
+   */
+  on?: (event: string, handler: (payload: any) => void) => () => void
   locale: {
     register(namespace: string, dictionaries: { zh: LocaleDict; en: LocaleDict }): () => void
     bind(namespace: string): Translator

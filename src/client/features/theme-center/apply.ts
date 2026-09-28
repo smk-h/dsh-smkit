@@ -1,49 +1,68 @@
 /**
- * What applying a theme of the center is: one body attribute and one
- * stylesheet swap.
+ * What applying a theme of the center is: one token-override layer stacked over
+ * whatever the shell has active, plus one preference write that pins the half
+ * the theme is drawn for.
  *
- * Every theme's rules are scoped on `body[data-smkit-theme="<id>"]` (its dark
- * variant on the same scope plus the shell's own `data-ds-dark-theme`), so
- * the applier's job is to keep exactly the chosen theme's attribute on the
- * body and its CSS in a dedicated `<style>` element — swapped by
- * `id="smkit-theme-active-style"`, reused across hot re-applies so a reload
- * can never stack copies. The element stays apart from every feature's own
- * stylesheets: no theme change, however violent, can wipe the settings
- * chrome that paints itself.
+ * The first revision painted themes itself — one `<style>` element swapped with
+ * a sheet, one `data-smkit-theme` attribute on the body, and its own day/night
+ * switch writing the shell's `data-ds-dark-theme`. Every one of those three had
+ * to be kept in step with the shell by hand, and every one of them could drift:
+ * a sheet that named fewer tokens than the shell defined left the shell's light
+ * half showing through a dark theme (the reason this revision exists), and the
+ * switch and the shell's own appearance setting both wrote the same attribute.
  *
- * The choice and the display mode persist under the plugin's own `smkit:`
- * prefix — the same namespace the skins used and the one the local-cache tab
- * promises to leave alone — taking over the keys of every earlier revision
- * once on first read: `smkit:skin` from the retired skin feature, whose values
- * are this center's ids. The mode is the row's own day/night
- * override: light and dark drive the shell's dark attribute directly, `system`
- * leaves it to the built-in appearance setting — which is also why restoring
- * writes the attribute only for the two explicit modes.
+ * The second revision registered each theme with the shell's registry
+ * (`ctx.theme.register`) and drove it with `setTheme`. That is the shape the
+ * registry appears to ask for, and it is the shape it cannot hold: `setTheme`
+ * persists a *built-in* preference (`light`/`dark`/`system`) and keeps every
+ * other id in memory alone, so the next thing to touch the settings scope takes
+ * the choice with it. `ThemeRuntime.adopt` is that next thing — the registry
+ * subscribes to the durable scope and rewrites its own `preference` from that
+ * scope on every update, the one that lands when the scope finishes loading at
+ * boot included. A registered theme therefore survived exactly until the page
+ * was reloaded (or until any setting was written), and the shell settled back
+ * on its own palette; the row would then still show the theme as selected,
+ * because the choice *is* remembered here, while the screen said otherwise.
  *
- * Nothing outside `smkit:` is ever removed, and every name a coexisting
- * `dsh-theme` install still uses is out of reach — see `LS_LEGACY_*` and
- * `LEGACY_STYLE_ID` for the two places that used to reach in.
+ * So the two halves are drawn where each of them can live:
  *
- * The whole state lives at module level behind a tiny pub/sub, because the
- * API is meant to outlive the settings row: `window.smkitTheme` and the
- * `smkitTheme` service drive the same state the cards paint, and a
- * programmatic switch moves the cards' selection ring with it.
+ * - the *colors* are a layer of alias overrides (`ctx.theme.overrideTokens`),
+ *   which the registry composes over the active definition and which no
+ *   preference bookkeeping touches;
+ * - the *half* is the shell's own preference, written to the theme's
+ *   `colorScheme` and therefore persisted the way the shell persists its own
+ *   choice — so `data-ds-dark-theme`, `color-scheme` and every token the table
+ *   does not name come from the shell, and they survive a reload.
  *
- * Both used to be called `dshTheme`, which is `dsh-theme`'s own name — that
- * plugin calls `ctx.provide('dshTheme', …)` too, and Cordis throws on a second
- * registration of one service name, taking the whole client entry down with it.
- * Publishing under our own name is what lets the two coexist; the service call
- * is additionally wrapped, because a future collision should cost the
- * publication, not the entry.
+ * Both sides of a pair carry the table's one value, because a theme here is one
+ * palette (see `tokens/one-dark-pro.ts`): the layer says the same thing
+ * whichever half the shell is on, which is what a fixed-scheme theme is.
+ *
+ * What is left for this module is the two things neither half can know: which
+ * of *our* ids was chosen (`smkit:theme` — the shell's storage accepts only
+ * `light`/`dark`/`system`, and it drops a registered id on its own), and the
+ * body attribute the structural sheet is scoped on.
+ *
+ * The attribute survives because the shell has no way to attach rules to a
+ * theme: a theme is a token table, not a stylesheet. Anything that is a *rule*
+ * rather than a colour — zcode's tool-call cards — stays a sheet of ours,
+ * scoped on the attribute this module writes, and the attribute is therefore
+ * retracted the moment the active theme is not one of ours.
+ *
+ * The mode switch is gone with the same stroke: a theme declares its half
+ * (`colorScheme`), so "which half" is not a second question the user answers.
+ * ZCode's day and night are two entries rather than one sheet with two blocks.
+ *
+ * Everything else is unchanged from the first revision: the state lives at
+ * module level behind a pub/sub so the settings row and the palette panel read
+ * the same truth, and the programmatic API (`window.smkitTheme`, the
+ * `smkitTheme` service) drives that state rather than a copy of it.
  */
 
 import { THEMES, type ThemeDef } from './themes.data'
-import type { ClientContext } from '../../platform/types'
+import type { ClientContext, HostThemeRuntimeLike, HostThemeSnapshotLike } from '../../platform/types'
 
-/** The row's day/night choice; `system` defers to the shell's own setting. */
-export type ThemeMode = 'system' | 'light' | 'dark'
-
-/** One theme as the API reports it: the metadata, without the stylesheet. */
+/** The row's programmatic face, without the token tables. */
 export interface ThemeInfo {
   id: string
   name: string
@@ -57,72 +76,101 @@ export interface ThemeInfo {
 export interface ThemeCenterApi {
   /** Every theme of the center, in card order. */
   list(): ThemeInfo[]
-  /** The applied theme, or null under the shell's default look. */
+  /** The applied theme, or null under the shell's own palettes. */
   get(): { id: string; name: string; nameZh: string } | null
   /** Apply one theme by id; an id the center does not ship throws. */
   set(id: string): void
-  /** Back to the shell's default look. */
+  /** Back to the shell's own palette preference. */
   reset(): void
   /** Advance to the next theme, wrapping. */
   cycle(): void
-  /** Drive the day/night override: light and dark set the shell's own
-   * display attribute, system hands it back. */
-  setMode(next: ThemeMode): void
-  /** The current day/night override. */
-  getMode(): ThemeMode
 }
 
 /**
- * The body attribute that scopes every theme's rules, exported because three
- * other places have to name it and must not disagree about it: this module's
- * own `setAttribute`, the two `MutationObserver`s that watch for a theme swap
- * (`ThemeCenterRow`, `PalettePanel`), and the data build that rewrites each
- * ported stylesheet onto this attribute (`scripts/build-theme-data.mjs`).
+ * The body attribute the structural sheet (`style/zcode-cards.css`) is scoped
+ * on, exported because three other places have to name it and must not disagree
+ * about it: this module's own writers, the `MutationObserver` the settings row
+ * hangs on the body, and the palette panel's anchor watcher.
  *
- * It used to be `data-dsh-theme`, inherited from the days when themes were a
- * separate plugin — and shared with it, down to this very attribute.
+ * It no longer selects a *palette* — the shell does that — only the rules that
+ * ride a theme without being one.
  */
 export const THEME_ATTR = 'data-smkit-theme'
-/** The shell's own day/night flag — not ours, so it keeps the host's name. */
-export const DARK_ATTR = 'data-ds-dark-theme'
-const LS_THEME = 'smkit:theme'
-const LS_MODE = 'smkit:theme-mode'
+
 /**
- * The keys the choice and the mode used to live under, newest first. A browser
- * that upgrades with a skin or a theme selected must land on the same look, so
- * every predecessor is read forward into the live key.
+ * The color layer's identity in the shell's registry: one layer per source, so
+ * switching themes replaces this plugin's whole color layer instead of stacking
+ * a second one on top of the first.
+ */
+const LAYER_SOURCE = 'smkit:theme'
+
+/** Where the chosen theme lives, under the plugin's own `smkit:` prefix. */
+const LS_THEME = 'smkit:theme'
+
+/**
+ * The keys the choice used to live under, newest first. A browser that upgrades
+ * with a theme selected must land on the same look, so every predecessor is read
+ * forward into the live key.
  *
- * `smkit:skin` is the retired skin feature's key — its values were this
- * center's ids, which is what the merge of the two features turned on.
- * `dsh-theme-pack:` is the name this lineage carried before the center
- * existed; `dsh-theme` migrates from the very same pair, so it is read and
- * left in place rather than deleted — a coexisting install keeps its own
- * upgrade path.
- *
- * The `dsh-theme:` pair is deliberately **not** on the list. It looks like one
- * more earlier name of ours, but `dsh-theme` declares it as its *live* keys
- * (`LS_THEME` / `LS_MODE`, `src/client.template.js:46`), so reading them away
- * cleared the saved theme and mode of a coexisting install on every boot.
+ * `smkit:skin` is the retired skin feature's key — its values were this center's
+ * ids. `dsh-theme-pack:` is the name this lineage carried before the center
+ * existed; `dsh-theme` migrates from the very same pair, so it is read and left
+ * in place rather than deleted. The `dsh-theme:` pair is deliberately **not** on
+ * the list: those are a coexisting plugin's *live* keys.
  */
 const LS_LEGACY_THEME = ['smkit:skin', 'dsh-theme-pack:theme']
-const LS_LEGACY_MODE = ['dsh-theme-pack:mode']
+
 /** The one prefix a predecessor may be deleted under. */
 const LS_OWN = 'smkit:'
-const ACTIVE_STYLE_ID = 'smkit-theme-active-style'
-/**
- * The `<style>` id this feature used before the rename — and the id `dsh-theme`
- * still uses (`src/client.template.js:231`), which is why sharing it was never
- * safe: both plugins looked it up, reused whatever they found and wrote their
- * own sheet into it, so whichever activated last owned the element. It is only
- * read now, and only to retire an element that is demonstrably ours.
- */
-const LEGACY_STYLE_ID = 'dsh-theme-active-style'
 
-/** The element the applied theme's CSS rides in; null when no document (tests). */
-let themeStyleEl: HTMLStyleElement | null = null
-let active: ThemeDef | null = null
-let mode: ThemeMode = 'system'
+/**
+ * What "no theme of ours" writes to the shell: back to the built-in preference
+ * that follows the OS, which is the state a browser that never picked a theme
+ * is in. The center does not remember what the preference was before it
+ * borrowed it — the shell's own appearance row owns that answer, and anyone who
+ * wants a particular half can say so there.
+ */
+const PREFERENCE_FALLBACK = 'system'
+
+/**
+ * The shell's registry, or null on a composition without one (see
+ * `ClientContext.theme`). Read once at mount rather than per call: a service
+ * that appeared later would mean the shell re-composed underneath us, which is
+ * the composition's business, not this module's.
+ */
+let runtime: HostThemeRuntimeLike | null = null
+
+/**
+ * The center's id for the theme in force, or null under the shell's own
+ * palettes. Held here rather than read off the registry's snapshot: what the
+ * registry reports as active is the shell's *preference*, and a theme of ours is
+ * a layer over it, not an id the shell can hold (see the module doc).
+ */
+let activeId: string | null = null
+
+/** The stacked color layer's disposer, or null when nothing is stacked. */
+let layerDispose: (() => void) | null = null
+
 const listeners = new Set<() => void>()
+
+/**
+ * The layers that have to sit *above* the theme's own colors, restacked whenever
+ * this one moves — the palette edits, in practice (`overrides.ts`).
+ *
+ * The registry orders its layers by a monotonic sequence handed out per stack
+ * call, so replacing the color layer gives it the newest sequence, and the next
+ * composition would paint it over the user's saved edits — the theme would
+ * quietly overwrite the very colors that were tuned on top of it. Letting the
+ * layers above stack again, *after* this one, restores the order they are meant
+ * to have. One subscriber throwing must not cost the others, hence the guard.
+ */
+const aboveLayers = new Set<() => void>()
+
+/** Watch for the color layer moving; the return value unsubscribes. */
+export function onThemeLayerRestacked(fn: () => void): () => void {
+  aboveLayers.add(fn)
+  return () => aboveLayers.delete(fn)
+}
 
 function notify(): void {
   for (const fn of [...listeners]) {
@@ -140,108 +188,175 @@ export function subscribe(fn: () => void): () => void {
   return () => listeners.delete(fn)
 }
 
-/** The applied theme's id, or null when none is on. */
+/**
+ * Whether the shell's registry answered at mount. The row reads this to disable
+ * its cards rather than offering a switch that cannot move: a host old enough to
+ * lack the registry still gets the rest of the plugin, and a row that says so is
+ * better than one that silently does nothing.
+ */
+export function themeAvailable(): boolean {
+  return runtime !== null
+}
+
+/**
+ * The theme in force, or null under the shell's own palettes. Split out so the
+ * row and the palette panel read one shape, and so the id cannot fall out of
+ * step with the table it names.
+ */
+export function activeTheme(): ThemeDef | null {
+  if (activeId === null) return null
+  return THEMES.find((theme) => theme.id === activeId) ?? null
+}
+
+/**
+ * The center's id for the applied theme, or null under the shell's own palettes.
+ * Read from this module's own state: the shell's registry cannot answer it (see
+ * `activeId`).
+ */
 export function activeThemeId(): string | null {
-  return active !== null ? active.id : null
+  return activeTheme() === null ? null : activeId
 }
 
-/** The row's day/night override. */
-export function currentMode(): ThemeMode {
-  return mode
+/** Write or retract the attribute the structural sheet is scoped on. */
+function syncAttr(): void {
+  if (typeof document === 'undefined') return
+  const body = document.body
+  if (!body || typeof body.setAttribute !== 'function') return
+  const id = activeThemeId()
+  if (id === null) body.removeAttribute(THEME_ATTR)
+  else body.setAttribute(THEME_ATTR, id)
 }
 
 /**
- * One live key's value, carried forward from its predecessors on the first read
- * that finds it empty. The first predecessor to carry a value wins; the rest
- * are only read. Only a predecessor under this plugin's own prefix is cleared:
- * a browser that already carries the live key still gets its own old key
- * retired, so the migration happens exactly once — while a key another plugin
- * also migrates from survives for it to find. A denied storage throws out to
- * `getSaved`, which is the same session-unthemed outcome a private-mode browser
- * got before.
+ * Repaint the attribute the structural sheet rides, and tell the row. The shell
+ * answers a preference write with a `theme/change` of its own, and this is the
+ * path that does not wait for one: a registry that stayed silent, or one that
+ * refused the write, still leaves the body and the row saying what is true.
  */
-function readForward(live: string, legacy: readonly string[]): string | null {
-  const current = localStorage.getItem(live)
-  let carried: string | null = current
-  for (const key of legacy) {
-    const value = localStorage.getItem(key)
-    if (carried === null && value !== null) {
-      carried = value
-      localStorage.setItem(live, value)
-    }
-    if (key.startsWith(LS_OWN)) localStorage.removeItem(key)
-  }
-  return carried
+function refresh(): void {
+  syncAttr()
+  notify()
 }
 
-/** The persisted choice, with the older keys migrated forward on read. */
-function getSaved(): { theme: string | null; mode: string | null } {
+/**
+ * Stack one token override layer through the shell's registry — the palette
+ * panel's edits, and the colors of the theme itself. Answers a no-op disposer on
+ * a composition without a registry, so callers need no null check: the edits
+ * then simply do not paint, which is the same outcome as a theme that cannot be
+ * switched.
+ */
+export function overrideTokens(
+  source: string,
+  tokens: Readonly<Record<string, { light: string; dark: string }>>,
+): () => void {
+  if (runtime === null || typeof runtime.overrideTokens !== 'function') return () => {}
   try {
-    return {
-      theme: readForward(LS_THEME, LS_LEGACY_THEME),
-      mode: readForward(LS_MODE, LS_LEGACY_MODE),
-    }
+    return runtime.overrideTokens(source, tokens)
   } catch {
-    // A private-mode browser throws on any access; a theme that cannot
-    // persist should still apply for the session.
-    return { theme: null, mode: null }
+    // A registry that refuses the layer (a malformed pair, an older shell)
+    // costs the edits, not the client entry.
+    return () => {}
   }
 }
 
-/** Apply one theme by id, or take every theme off with null. Unknown ids
- * clear rather than throw: this is the path the persisted value walks back
- * in, and a stale stored id must not strand the body in a half state. */
+/**
+ * Stack the active theme's colors, or take the layer off when there is no theme
+ * of ours. Every pair repeats the table's single value: a theme of this center
+ * is one palette, so the layer means the same thing on either half — which is
+ * exactly what keeps a fixed-scheme theme from following the OS.
+ *
+ * A theme whose table is missing stacks nothing and paints the shell's palette
+ * through the attribute alone, the same lenient landing `THEMES` describes.
+ */
+function stackThemeLayer(): void {
+  layerDispose?.()
+  layerDispose = null
+  const theme = activeTheme()
+  if (theme === null) return
+  const pairs: Record<string, { light: string; dark: string }> = {}
+  for (const [token, value] of Object.entries(theme.tokens)) pairs[token] = { light: value, dark: value }
+  if (Object.keys(pairs).length === 0) return
+  layerDispose = overrideTokens(LAYER_SOURCE, pairs)
+  // The layer above (the palette edits) has just been outranked in sequence
+  // order; let it stack again so it keeps the position it is meant to hold.
+  for (const fn of [...aboveLayers]) {
+    try {
+      fn()
+    } catch {
+      // A layer that cannot restack loses its place, not the theme.
+    }
+  }
+}
+
+/**
+ * The persisted choice, carried forward from the older keys on the first read
+ * that finds the live one empty. An id the center no longer ships answers null —
+ * the same "no theme of ours" a fresh browser gets, rather than a half state
+ * the row could not render. A theme that is retired therefore lands the browser
+ * on the shell's own palettes; the choice is still in storage, so re-adding the
+ * theme brings it back.
+ */
+function readSaved(): string | null {
+  try {
+    const current = localStorage.getItem(LS_THEME)
+    let carried = current
+    for (const key of LS_LEGACY_THEME) {
+      const value = localStorage.getItem(key)
+      if (carried === null && value !== null) {
+        carried = value
+        localStorage.setItem(LS_THEME, value)
+      }
+      if (key.startsWith(LS_OWN)) localStorage.removeItem(key)
+    }
+    if (carried === null) return null
+    return THEMES.some((theme) => theme.id === carried) ? carried : null
+  } catch {
+    // A private-mode browser throws on any access; an unremembered theme
+    // should still apply for the session, so the caller treats this as none.
+    return null
+  }
+}
+
+/**
+ * Apply one theme by id, or hand the preference back to the shell with null.
+ * Unknown ids clear rather than throw: this is the path a persisted value walks
+ * back in, and a stale stored id must not strand the body in a half state.
+ *
+ * The preference write is the half that has to land for the theme to look like
+ * itself after a reload — it is what the shell persists, and what decides
+ * `data-ds-dark-theme` and every token the table leaves to the shell. A write
+ * the shell refuses (an older registry without that preference) leaves the
+ * colors stacked and the choice stored: the session paints, the next boot tries
+ * again, and the row shows the truth either way.
+ */
 export function applyTheme(id: string | null): void {
-  active = id !== null ? THEMES.find((theme) => theme.id === id) ?? null : null
-  if (typeof document !== 'undefined') {
-    if (active !== null) {
-      document.body.setAttribute(THEME_ATTR, active.id)
-      if (themeStyleEl !== null) themeStyleEl.textContent = active.css
-      try {
-        localStorage.setItem(LS_THEME, active.id)
-      } catch {
-        // Private-mode browsers throw; the session keeps the paint.
-      }
-    } else {
-      document.body.removeAttribute(THEME_ATTR)
-      if (themeStyleEl !== null) themeStyleEl.textContent = ''
-      try {
-        localStorage.removeItem(LS_THEME)
-      } catch {
-        // Same: the session's clear stands.
-      }
+  const theme: ThemeDef | null = id === null ? null : THEMES.find((entry) => entry.id === id) ?? null
+  activeId = theme === null ? null : theme.id
+  if (runtime !== null) {
+    try {
+      runtime.setTheme(theme === null ? PREFERENCE_FALLBACK : theme.colorScheme)
+    } catch {
+      // A shell that refuses the preference (an older registry) still gets the
+      // colors and the attribute below; the next boot tries the write again.
     }
   }
-  notify()
-}
-
-/** Set the day/night override; `system` writes no attribute of its own. */
-export function applyMode(next: string | null): void {
-  mode = next === 'light' || next === 'dark' ? next : 'system'
-  if (typeof document !== 'undefined') {
-    if (mode === 'light') document.body.removeAttribute(DARK_ATTR)
-    else if (mode === 'dark') document.body.setAttribute(DARK_ATTR, '')
-    // system: leave the attribute to the built-in appearance setting.
-  }
+  stackThemeLayer()
   try {
-    if (mode === 'system') localStorage.removeItem(LS_MODE)
-    else localStorage.setItem(LS_MODE, mode)
+    if (theme === null) localStorage.removeItem(LS_THEME)
+    else localStorage.setItem(LS_THEME, theme.id)
   } catch {
-    // Private-mode browsers throw; the session's mode stands.
+    // Private-mode browsers throw; the session keeps the paint.
   }
-  notify()
+  refresh()
 }
 
-/**
- * Name the API publishes itself under — both as a Cordis service and as the
- * `window` handle. It is the plugin's own name, not `dsh-theme`'s.
- */
+/** Name the API publishes itself under — both as a service and a `window` handle. */
 const SERVICE_NAME = 'smkitTheme'
 
 /**
- * The `window.smkitTheme` surface, typed onto the window only where it is
- * set. The handle is the plugin's own name: `window.dshTheme` belongs to
- * `dsh-theme`, and writing it here would silently replace that plugin's object.
+ * The `window.smkitTheme` surface. The handle is the plugin's own name:
+ * `window.dshTheme` belongs to `dsh-theme`, and writing it here would silently
+ * replace that plugin's object.
  */
 function exposeApi(api: ThemeCenterApi): void {
   const target = window as unknown as {
@@ -253,7 +368,7 @@ function exposeApi(api: ThemeCenterApi): void {
   target.smkitThemeCenter = api
 }
 
-/** The programmatic API, over the same module state the cards drive. */
+/** The programmatic API, over the shared state the cards drive. */
 export function createThemeCenterApi(): ThemeCenterApi {
   const info = (theme: ThemeDef): ThemeInfo => ({
     id: theme.id,
@@ -265,7 +380,10 @@ export function createThemeCenterApi(): ThemeCenterApi {
   })
   return {
     list: () => THEMES.map(info),
-    get: () => (active !== null ? { id: active.id, name: active.name, nameZh: active.nameZh } : null),
+    get: () => {
+      const theme = activeTheme()
+      return theme === null ? null : { id: theme.id, name: theme.name, nameZh: theme.nameZh }
+    },
     set: (id: string) => {
       if (THEMES.some((theme) => theme.id === id)) applyTheme(id)
       else throw new Error(`unknown theme id: ${id}`)
@@ -273,63 +391,111 @@ export function createThemeCenterApi(): ThemeCenterApi {
     reset: () => applyTheme(null),
     cycle: () => {
       const ids = THEMES.map((theme) => theme.id)
-      const idx = active !== null ? ids.indexOf(active.id) : -1
+      const current = activeThemeId()
+      const idx = current !== null ? ids.indexOf(current) : -1
       applyTheme(ids[(idx + 1) % ids.length])
     },
-    setMode: (next: ThemeMode) => applyMode(next),
-    getMode: () => mode,
   }
 }
 
 /**
- * Mount-time half of the feature: the swap element goes in, the saved mode
- * and theme are restored, and the API is published — all before the settings
- * row is ever opened, because the theme has to be on the body the whole time.
- * Disposal takes the swap element and the listeners back; what the theme
- * painted on the body goes with it, the same contract every other one-off
- * side effect of this plugin keeps.
+ * Read the shell's registry off the context.
+ *
+ * A service the bundle declares in its `inject` list (see `entry.ts`) is a
+ * property on the context by the time `apply` runs — the same way `ui-layout`
+ * reaches this one (`ctx.theme.getTheme()`) — so this is a plain read. It is
+ * wrapped anyway, because a composition whose shell answers by throwing must
+ * cost the theme center rather than the client entry.
+ *
+ * There is deliberately no `ctx.get`/`ctx.reflect` fallback here: an undeclared
+ * read is exactly what took the whole entry down the first time this shipped
+ * (`web boot: 1 entry did not activate`), and a declared service needs no
+ * second route to itself.
+ */
+function readRegistry(ctx: ClientContext): HostThemeRuntimeLike | null {
+  try {
+    return ctx.theme ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Mount-time half of the feature: the saved choice is restored, its colors are
+ * stacked, and the API is published — all before the settings row is ever
+ * opened, because the theme has to be in force the whole time.
+ *
+ * Disposal takes the layer and the attribute back. The preference is left where
+ * the last `applyTheme` put it: it is the shell's own field, and the shell
+ * resets it on its own if the value ever stops resolving.
+ *
+ * The `theme/change` handler carries one piece of judgement the registry cannot
+ * make: whether the preference moving means *this plugin* moved it. It only ever
+ * writes the half our theme declares, so a preference arriving with any other
+ * value came from somewhere else — the shell's own appearance row, in practice —
+ * and that is a user choosing to leave this theme. The row and the attribute
+ * follow that choice instead of fighting it: the colors come off, the stored id
+ * goes with them, and the shell's palette is left in charge.
  */
 export function registerThemeCenter(ctx: ClientContext): void {
   ctx.effect(
     () => {
-      // A test harness's partial `document` has no element lookup; the swap
-      // element is the first thing this path touches, and every real browser
-      // has it. Every effect answers with a disposer, so the bail-out does too.
-      if (typeof document === 'undefined' || typeof document.getElementById !== 'function') {
-        return () => {}
-      }
-      // Retire the swap element earlier revisions wrote into, so an upgrade
-      // does not leave a second copy of the same sheet behind. Only ours goes:
-      // the id is shared with `dsh-theme`, and the disposer below removes
-      // whatever it finds by id — deleting the host of another plugin's rules
-      // would be the same reach-in this rename exists to undo.
-      const legacy = document.getElementById(LEGACY_STYLE_ID)
-      if (legacy !== null && (legacy.textContent ?? '').includes(THEME_ATTR)) legacy.remove()
-      // Reuse an existing swap element so a hot re-apply never stacks copies.
-      themeStyleEl = document.getElementById(ACTIVE_STYLE_ID) as HTMLStyleElement | null
-      if (themeStyleEl === null) {
-        const style = document.createElement('style')
-        style.id = ACTIVE_STYLE_ID
-        document.head.appendChild(style)
-        themeStyleEl = style
-      }
-      const saved = getSaved()
-      applyMode(saved.mode)
-      applyTheme(saved.theme)
-      const api = createThemeCenterApi()
-      exposeApi(api)
-      try {
-        ctx.provide?.(SERVICE_NAME, api)
-      } catch {
-        // Cordis throws when the name is already registered. Going without the
-        // service costs other plugins the handle; letting it throw costs the
-        // whole client entry, so the publication is the thing that gives.
-      }
-      return () => {
-        themeStyleEl?.remove()
-        themeStyleEl = null
+      const registry = readRegistry(ctx)
+      if (registry === null || typeof registry.overrideTokens !== 'function') return () => {}
+      const disposers: Array<() => void> = []
+      /** Retract everything this mount stacked; safe to call twice. */
+      const teardown = (): void => {
+        for (const dispose of disposers.splice(0)) {
+          try {
+            dispose()
+          } catch {
+            // A registry tearing down its own layers has nothing to fix here.
+          }
+        }
+        layerDispose?.()
+        layerDispose = null
+        aboveLayers.clear()
+        runtime = null
+        activeId = null
         listeners.clear()
+        if (typeof document !== 'undefined' && document.body) {
+          document.body.removeAttribute(THEME_ATTR)
+        }
       }
+      try {
+        runtime = registry
+        const off = ctx.on?.('theme/change', (next: HostThemeSnapshotLike) => {
+          const current = activeTheme()
+          if (current !== null && next.preference !== current.colorScheme) {
+            // Someone else moved the preference off the half this theme pins:
+            // the user's own appearance setting, choosing the shell's palette
+            // back. Stand down rather than write it again on the next boot.
+            applyTheme(null)
+            return
+          }
+          syncAttr()
+          notify()
+        })
+        if (typeof off === 'function') disposers.push(off)
+        const saved = readSaved()
+        if (saved !== null) applyTheme(saved)
+        else refresh()
+        const api = createThemeCenterApi()
+        exposeApi(api)
+        try {
+          ctx.provide?.(SERVICE_NAME, api)
+        } catch {
+          // Cordis throws when the name is already registered. Going without the
+          // service costs other plugins the handle; letting it throw costs the
+          // whole client entry, so the publication is the thing that gives.
+        }
+      } catch {
+        // Whatever the registry or the shell tripped over above costs the theme
+        // center: retract the half that landed and leave this plugin's other
+        // four features untouched.
+        teardown()
+      }
+      return teardown
     },
     'smkit: theme-center/restore',
   )

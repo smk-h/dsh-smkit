@@ -79,6 +79,30 @@ export const HOST_PROPERTY_ROOT = '--dsw'
 export const THEME_SHEETS = /(?:^|\/)client\/features\/theme-center\/themes\/[^/]+\.css$/
 
 /**
+ * The theme token tables, which the scheme exempts the same way it exempts a
+ * sheet: `client/features/theme-center/tokens/*.ts`.
+ *
+ * A theme used to be a stylesheet that declared the host's `--dsw-alias-*` /
+ * `--dsw-specific-*` tokens; it is a token table now (stacked through
+ * `ctx.theme.overrideTokens`, see the feature's `apply.ts`), and it declares
+ * exactly the same host names.
+ * Repainting the host's tokens is what a theme is, so the property rule — which
+ * holds this plugin's own `--smkit-*` properties to their root — has nothing to
+ * check in these files either. Nothing else is exempt: the rest of the feature
+ * (the row, the panel, the structural sheet) stays `smkit-*` throughout.
+ */
+export const THEME_TOKEN_TABLES = /(?:^|\/)client\/features\/theme-center\/tokens\/[^/]+\.ts$/
+
+/**
+ * Whether one TypeScript file is a theme token table, which the scheme exempts.
+ * @param {string} relPath - `client/features/theme-center/tokens/zcode.ts`
+ * @returns {boolean}
+ */
+export function isThemeTokenTable(relPath) {
+  return THEME_TOKEN_TABLES.test(relPath)
+}
+
+/**
  * Whether one stylesheet is a theme skin, which the scheme exempts.
  * @param {string} relPath - `client/features/theme-center/themes/ocean.css`
  * @returns {boolean}

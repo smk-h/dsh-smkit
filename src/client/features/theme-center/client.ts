@@ -18,11 +18,11 @@
  * exactly one kind of thing before (a file, a namespace, an effect label) while
  * knowing nothing about each other.
  *
- * Five things this registration sets up, in the order the two seats need them:
- * the swap element and the restored theme (so the row renders against the
- * truth), the override layer on top of it (so the panel opens onto the colors
- * the body really has), the workbench board (so the skin is on before the row
- * offers to switch it), then the two seats.
+ * Four things this registration sets up, in the order the two seats need them:
+ * the restored choice with the theme's colors stacked under it (so the row
+ * renders against the truth), the palette edits stacked above it (so the panel
+ * opens onto the colors the surface really has), the workbench board (so the
+ * skin is on before the row offers to switch it), then the two seats.
  */
 
 import { registerThemeCenter } from './apply'
@@ -49,19 +49,24 @@ const SESSION_HEADER_UTILITIES = 'conversation.session.header.utilities'
 export const themeCenterFeature: ClientFeature = {
   id: 'theme-center',
   locale: { namespace: 'theme-center', zh: THEME_CENTER_LOCALE_ZH, en: THEME_CENTER_LOCALE_EN },
-  // Each half rides its own stylesheet. The row's chrome stays apart from the
-  // themes' — no theme swap can touch it, and no theme rule reaches into it —
-  // and the floating panel loads with the row rather than with the button,
-  // because a panel whose stylesheet arrived on click would flash unstyled.
-  // The workbench sheet is scoped on its own body attribute, so it rides along
+  // Each half rides its own stylesheet. The row's chrome stays apart from every
+  // theme's — no theme swap can touch it, and no theme reaches into it — and
+  // the floating panel loads with the row rather than with the button, because
+  // a panel whose stylesheet arrived on click would flash unstyled. The
+  // workbench sheet is scoped on its own body attribute, so it rides along
   // unconditionally and paints nothing until the switch puts that attribute on.
+  //
+  // A theme's *colors* are not here at all: they are the `tokens/` tables the
+  // shell's override layer paints (see `apply.ts`). A theme that needed a rule
+  // rather than a colour would add a sheet here, scoped on the attribute
+  // `apply.ts` writes; the center ships none today.
   styles: [
     { name: 'theme-center/row', css: rowCss },
     { name: 'theme-center/workbench', css: workbenchCss },
     { name: 'theme-center/palette', css: paletteCss },
   ],
   register(ctx: ClientContext, deps: ClientDeps, t: Translator): void {
-    // The swap element, the saved state, and the programmatic API first; the
+    // The restored theme and its colors, and the programmatic API first; the
     // row is only one reader of what this call sets up.
     registerThemeCenter(ctx)
     // Then the layer that sits above it. It rides its own effect rather than

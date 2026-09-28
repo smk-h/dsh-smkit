@@ -32,6 +32,7 @@ import {
   findStylesheets,
   guardableSheets,
   isThemeSheet,
+  isThemeTokenTable,
   prefixesOf,
   referencedClasses,
   sheetViolations,
@@ -138,10 +139,12 @@ const CLIENT_DIR = `${SRC_DIR}/client`
 const SHEETS = guardableSheets(findStylesheets(CLIENT_DIR, SRC_DIR))
 const PREFIXES = prefixesOf(SHEETS)
 
-/** Every file the attribute and property guards read. */
+/** Every file the attribute and property guards read. A theme's own definition
+ * is exempt either way it is written — a sheet, or the token table that
+ * replaced it — because declaring the host's tokens is what a theme is. */
 const nameBearingFiles = () => [
   ...walk(CLIENT_DIR, (path) => path.endsWith('.css') && !isThemeSheet(rel(path))),
-  ...walk(CLIENT_DIR, isTypeScript),
+  ...walk(CLIENT_DIR, (path) => isTypeScript(path) && !isThemeTokenTable(rel(path))),
 ]
 
 it('keeps every class inside the namespace of some stylesheet', () => {
