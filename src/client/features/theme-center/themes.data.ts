@@ -27,10 +27,13 @@
  * body ink, so a card's badge always reports the pair it paints, and that same
  * script checks every entry against its table.
  *
- * Adding a theme is therefore four edits: one table under `tokens/`, one entry
- * in `themes.data.json`, one import plus one `TOKENS` line here, and one name
- * plus one description key in each dictionary. `test/theme-center-data.test.mjs`
- * fails if any of the four is missed.
+ * Adding a theme is therefore five edits: one table under `tokens/`, one entry
+ * in `themes.data.json`, one import plus one `TOKENS` line here, one name plus
+ * one description key in each dictionary, and one line in the shared canvas map
+ * the boot HTML is painted from (`src/shared/theme-center/boot.ts` — the host
+ * renders that HTML before any client bundle exists, so it cannot read the table
+ * itself). `test/theme-center-data.test.mjs` fails if any of the first four is
+ * missed, `test/theme-center-boot.test.mjs` if the fifth is.
  */
 
 import raw from './themes.data.json'

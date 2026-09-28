@@ -19,6 +19,7 @@ import { notifyFeature } from './host/features/notify/host.js'
 import { openSpecFeature } from './host/features/openspec/host.js'
 import { sessionDeleteFeature } from './host/features/session-delete/host.js'
 import { skillsFeature } from './host/features/skills/host.js'
+import { themeCenterFeature } from './host/features/theme-center/host.js'
 import type { HostFeature, HostPlatform, PluginContext } from './host/platform/context.js'
 import type { ApiHandler } from './host/platform/routes.js'
 import type { ServiceAccessor } from './host/platform/types.js'
@@ -39,6 +40,7 @@ const FEATURES: HostFeature[] = [
   skillsFeature,
   openSpecFeature,
   notifyFeature,
+  themeCenterFeature,
 ]
 
 export function apply(ctx: PluginContext): void {
@@ -263,3 +265,7 @@ export type {
   ToolSearchResult,
   WorkspaceView,
 } from './host/features/mcp/types.js'
+
+export { bootPaintRows, bootPaintScript } from './host/features/theme-center/boot-paint.js'
+export type { BootInjectionRow } from './host/features/theme-center/boot-paint.js'
+export { CANVAS_TOKEN, THEME_CANVAS } from './shared/theme-center/boot.js'
