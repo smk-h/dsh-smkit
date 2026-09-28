@@ -159,10 +159,13 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
         }),
       })
 
-    const write = (provider: ProviderInputView, model: ModelInputView, modalities: InputModality[] | null) => {
+    const write = (provider: ProviderInputView, model: ModelInputView, modalities: InputModality[] | null, tag = '') => {
       // A box ticked by hand replaces the last check's answer for that row:
       // from here on the row states the user's own choice.
       if (detectNote !== null && detectNote.key === `${provider.provider}/${model.id}`) setDetectNote(null)
+      // `tag` names the control that started this write, and belongs to that
+      // control alone: a tick and a reset write the same row, and each has to
+      // dim only itself (see the tags at the buttons).
       return run(async () => {
         const result = await save(provider, model, modalities)
         if (result.ok) {
@@ -170,7 +173,7 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
           return
         }
         return saveRefusalText(t, result.body.code, result.body.error, result.status)
-      }, `${provider.provider}/${model.id}`)
+      }, `${provider.provider}/${model.id}${tag}`)
     }
 
     const detect = (provider: ProviderInputView, model: ModelInputView) =>
@@ -273,14 +276,23 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                     {provider.error ? <div className="smkit-ui-field-error">{provider.error}</div> : null}
                     {provider.models.map((model) => {
                       const key = `${provider.provider}/${model.id}`
-                      // One action, one busy flag: pressing a button dims that
-                      // button alone, never its neighbour — two controls that
-                      // can physically never be pressed together should not
-                      // light up together either. The boxes still wait for
-                      // whatever the row is doing, so a slow check cannot have
-                      // its answer overwritten mid-flight by a tick.
+                      // Every control carries the tag of the action it starts,
+                      // so a write dims the control that started it and never
+                      // its neighbour — two controls that can physically never
+                      // be pressed together should not light up together
+                      // either. The box's own tag is what keeps the tick from
+                      // dimming the way back: writing a tick under the row's
+                      // key greyed the reset beside it for the whole round trip
+                      // (~1.2s measured), and a row whose edits disable its own
+                      // undo is the one thing this card must not be. The boxes
+                      // are the exception the other way round: they wait for
+                      // any of the three, because a save landing mid-tick would
+                      // overwrite the tick after it. A click that races a write
+                      // is answered by the row's revision check, the same way
+                      // the check has always answered one.
+                      const tickKey = `${key}#tick`
                       const detectKey = `${key}#detect`
-                      const rowBusy = pending === key || pending === detectKey
+                      const rowBusy = pending === key || pending === tickKey || pending === detectKey
                       const modelExpanded = openModels.includes(key)
                       return (
                         <div className="smkit-cs-model-input-model-card" key={model.id}>
@@ -315,7 +327,7 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                   checked={model.effective.includes('image')}
                                   disabled={rowBusy}
                                   inert={!provider.editable}
-                                  onChange={(next) => { void write(provider, model, modalitiesOf(next)) }}
+                                  onChange={(next) => { void write(provider, model, modalitiesOf(next), '#tick') }}
                                 />
                                 {(model.other ?? []).map(name => (
                                   <CheckChip key={name} of={model.id} label={name} checked locked disabled />
