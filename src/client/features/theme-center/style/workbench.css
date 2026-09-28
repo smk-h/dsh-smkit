@@ -22,6 +22,16 @@
  * dark base sits near the bottom of its ramp, so the step has to be wider
  * there to read at all. Hence the second rule.
  *
+ * The geometry is read off the editor rather than invented: the gutter and the
+ * frame's padding are its `spacing.size60` (6px); the centre board carries
+ * `cornerRadius.large` (8px), the tier `modernUI/editorBorder.css` frames the
+ * editor part with; the side boards and the right panel take
+ * `cornerRadius.medium` (6px) from that system's inner tier; the drag rail is a
+ * `--vscode-sash-hover-size` line (4px) rounded by half its own width, the way
+ * `roundedCorners.css` draws it. The one deliberate departure is the gutter
+ * itself — the editor draws no margin between its parts at all, while these are
+ * separate boards by request.
+ *
  * This sheet declares no class of the plugin on purpose: the skin wears the
  * host's structure, so the namespace guard has nothing of ours to check here.
  * It is the styling half of the one feature whose subject *is* the host.
@@ -30,9 +40,17 @@
 body[data-smkit-workbench='card'] {
   /* The gutter and the frame's own padding, named once: the drag rail below is
      positioned from them, so a change here moves the rail along with the
-     boards instead of leaving it behind on a board's edge. */
-  --smkit-workbench-gap: 8px;
-  --smkit-workbench-pad: 8px;
+     boards instead of leaving it behind on a board's edge. Both are 6px — the
+     editor's own `spacing.size60` — so the boards sit on the same spacing ramp
+     as the UI they copy.
+
+     The rail's width is the editor's `--vscode-sash-hover-size` (4px), and the
+     corner radii come from its `cornerRadius` ramp rather than being invented
+     here: 8px (`large`) for the centre, the tier the editor part itself is
+     framed with, and 6px (`medium`) for the side boards and the panel, which
+     that system rounds at its inner tier. */
+  --smkit-workbench-gap: 6px;
+  --smkit-workbench-pad: 6px;
 }
 
 /* the frame: a gutter between the boards, on a canvas a step below them */
@@ -63,20 +81,22 @@ body[data-smkit-workbench='card'][data-ds-dark-theme] div:has(> [data-shell-over
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > div:not([data-shell-overlay]):not([data-side]):not([data-rightbar-col]) {
   border: 1px solid var(--dsw-alias-border-l1);
   border-right: var(--smkit-workbench-board-edge, 1px solid var(--dsw-alias-border-l1));
-  border-radius: 10px;
+  border-radius: var(--smkit-workbench-board-radius, 8px);
   background: var(--smkit-workbench-board-fill, var(--dsw-alias-bg-base));
 }
 
-/* the left board: the sidebar's own fill, and no shared divider */
+/* the left board: the sidebar's own fill, no shared divider, and the inner
+   corner tier — only the centre stands at `cornerRadius.large` */
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > div:first-of-type {
   --smkit-workbench-board-fill: var(--dsw-specific-sidebar-fill);
   --smkit-workbench-board-edge: none;
+  --smkit-workbench-board-radius: 6px;
 }
 
 /* the right column, a board only while it has a track to draw on */
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]):not([data-rightbar-collapsed]) > [data-rightbar-col] {
   border: 1px solid var(--dsw-alias-border-l1);
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--dsw-alias-bg-base);
 }
 
@@ -101,7 +121,7 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay])[data-rightbar-
    everywhere. */
 body[data-smkit-workbench='card'] [data-sidebar-right-panel='push'] {
   border-left: 1px solid var(--dsw-alias-border-l1);
-  border-radius: 10px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
@@ -115,16 +135,16 @@ body[data-smkit-workbench='card'] [data-sidebar-right-panel='push'] {
    move in opposite directions because the host lays each handle out from its
    own column's edge.
 
-   What the pointer finds is one rail down the middle of the gutter, drawn in a
-   neutral ink rather than in any accent. That is what the editor this copies
-   does: One Dark Pro's own handle is a grey line, not that theme's blue
-   accent, and the shell's accents would not survive the trip anyway —
-   `brand-primary` is a *surface* (it fills the primary button, so it is near
-   black on a light theme and near white on a dark one) and the static colour
-   ramps are syntax colours no theme keeps tuned for chrome. The label ramp is
-   the one family every theme does keep legible against its own background,
-   because chrome copy is painted from it. The rail takes the stronger step of
-   that ramp; the dots rest on the weaker one and step up with the pointer. */
+   What the pointer finds is one rail down the middle of the gutter, drawn in
+   the same ink as the board edges rather than in an accent. That is what the
+   editor this copies does: its sash takes `sash.hoverBorder`, which every
+   theme tunes to a border tone — One Dark Pro's is `#3e4452`, the same value
+   its `border-l1` carries here — while the shell's accents would not survive
+   the trip: `brand-primary` is a *surface* (it fills the primary button, so it
+   is near black on a light theme and near white on a dark one). Painting the
+   rail from the label ramp instead made it the brightest thing on the frame,
+   which is what a drag affordance should not be. The dots keep that muted ink
+   so the handle reads as a mark on a quiet line. */
 
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side] {
   z-index: 12;
@@ -145,16 +165,25 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side='
    it whole (`vs/base/browser/ui/sash/sash.css`), so four is the weight the
    control has there. The gutter here is twice that, which is why the rail is
    centred in it instead of filling it — filling it would be the slab this
-   started as, and a hairline would be the other extreme. */
+   started as, and a hairline would be the other extreme. Its radius is half
+   its own width, the way `roundedCorners.css` caps the editor's sash.
+
+   Its ends stop where the boards do. The host runs the handle the full height
+   of the frame, but the boards start and end one padding inside it, so a rail
+   drawn to the handle's own `top: 0; bottom: 0` would overshoot each end by
+   the frame's padding — a line dangling past the surface it belongs to. The
+   offsets name that padding rather than repeating it, so the two stay in step
+   if it changes. */
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]::before {
   content: "";
   position: absolute;
   left: 50%;
-  top: 0;
-  bottom: 0;
+  top: var(--smkit-workbench-pad);
+  bottom: var(--smkit-workbench-pad);
   width: 4px;
+  border-radius: 2px;
   transform: translateX(-50%);
-  background: currentColor;
+  background: var(--dsw-alias-border-l1);
   opacity: 0;
   transition: opacity .1s ease-out;
 }
@@ -173,12 +202,8 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]:
   transform: translate(-50%, -50%);
 }
 
-/* the pointer lifts the rail and its dots to the stronger ink */
-body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]:hover,
-body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side][data-dragging] {
-  color: var(--dsw-alias-label-secondary);
-}
-
+/* the pointer draws the rail; the dots keep the muted ink they stand in, so
+   the handle reads as a mark on a quiet line rather than as a second light */
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]:hover::before,
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side][data-dragging]::before {
   opacity: 1;
