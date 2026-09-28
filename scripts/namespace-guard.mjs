@@ -144,6 +144,12 @@ export const FOREIGN_DATA_ATTRS = [
    * (`push` / `fullscreen`) is the panel's own mode, and its sibling
    * `data-sidebar-right-open` is the flag for whether the deck is out — the
    * element outlives the panel being put away, so the skin has to ask.
+   *
+   * The dockkit pair is the deck's own panes, one package further in:
+   * `data-dockkit-pane` marks a pane, `data-dockkit-column` its index in the
+   * dock. The pane in column 0 is the one at the board's seam, and it draws a
+   * left rule of its own there — so the skin has to name it to take that rule
+   * over (see `style/workbench.css`). Host structure, never written.
    */
   'data-shell-overlay',
   'data-rightbar-col',
@@ -152,6 +158,8 @@ export const FOREIGN_DATA_ATTRS = [
   'data-rightbar-collapsed',
   'data-sidebar-right-panel',
   'data-sidebar-right-open',
+  'data-dockkit-pane',
+  'data-dockkit-column',
 ]
 
 /**

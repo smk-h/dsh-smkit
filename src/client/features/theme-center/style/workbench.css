@@ -29,6 +29,13 @@
  * It also spares the skin from having to guess how far below a *dark* theme's
  * base a step can go before it stops being visible at all.
  *
+ * The edges carry the separation, so they answer to two rules of their own: one
+ * seam is drawn once (two hairlines at one seam is how a frame ends up with a
+ * single line nobody meant to draw — see the panel rule below), and the ink
+ * they are drawn in is read from the palette by scheme, because the shell's
+ * light `border-l1` is a veil that cannot outline a board on a canvas of its own
+ * colour (see the variable block).
+ *
  * The geometry is read off the editor rather than invented: the gutter is its
  * `spacing.size80` (8px), the frame's padding its `spacing.size60` (6px); the
  * centre board carries `cornerRadius.large` (8px), the tier
@@ -64,6 +71,21 @@ body[data-smkit-workbench='card'] {
      panel, which that system rounds at its inner tier. */
   --smkit-workbench-gap: 8px;
   --smkit-workbench-pad: 6px;
+
+  /* The ink every board is edged in — the drag rail too, so the handle reads as
+     a mark on the same line the boards are drawn with. A dark palette's
+     `border-l1` is an opaque tone that reads on its own; the shell's *light* one
+     is a 4% veil, and a veil cannot outline a white board on a white canvas.
+     Drawn with it, the three boards melt into one sheet whose only visible line
+     is whichever seam happens to hold two hairlines at once. A light palette
+     therefore takes the rung the shell itself spends on a *column rule* —
+     `border-l3`, 12% black there, the weight VS Code Light+ gives
+     `editorGroup.border` (#e7e7e7). */
+  --smkit-workbench-edge: var(--dsw-alias-border-l1);
+}
+
+body[data-smkit-workbench='card']:not([data-ds-dark-theme]) {
+  --smkit-workbench-edge: var(--dsw-alias-border-l3);
 }
 
 /* the frame: the gutter between the boards, painted in the boards' own colour */
@@ -87,8 +109,8 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) {
    and keeps the sidebar's own fill, and a variable says both without entering
    the specificity contest that two rules over the same element would be in. */
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > div:not([data-shell-overlay]):not([data-side]):not([data-rightbar-col]) {
-  border: 1px solid var(--dsw-alias-border-l1);
-  border-right: var(--smkit-workbench-board-edge, 1px solid var(--dsw-alias-border-l1));
+  border: 1px solid var(--smkit-workbench-edge);
+  border-right: var(--smkit-workbench-board-edge, 1px solid var(--smkit-workbench-edge));
   border-radius: var(--smkit-workbench-board-radius, 8px);
   background: var(--smkit-workbench-board-fill, var(--dsw-alias-bg-base));
 }
@@ -101,11 +123,29 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > div:first-of
   --smkit-workbench-board-radius: 6px;
 }
 
-/* the right column, a board only while it has a track to draw on */
+/* The right column, a board only while it has a track to draw on. Its left edge
+   is the one side it does not draw: the panel inside it lands on that same seam
+   a pixel further in and carries the edge there (see the rule below), and two
+   rules for one seam is how the frame ends up with a line twice as dark as every
+   other board edge. */
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]):not([data-rightbar-collapsed]) > [data-rightbar-col] {
-  border: 1px solid var(--dsw-alias-border-l1);
+  border: 1px solid var(--smkit-workbench-edge);
+  border-left: none;
   border-radius: 6px;
   background: var(--dsw-alias-bg-base);
+}
+
+/* The leading pane of the deck yields its left edge to the board's. The shell
+   draws one there with `border-l3`/`l4` — the rung it keeps for rules meant to
+   vanish into a surface, which on this center's dark theme is `#181a1f`: a black
+   hairline on the canvas, standing a pixel inside the panel and on the same seam
+   the board is edged at. Measured in the browser, that seam read `#3e4452` and
+   then `#181a1f` — two lines where there is room for one, and the darker of the
+   two the only thing anyone notices. Only the pane in column 0 owns that seam: a
+   dock split into two columns keeps the rule between its halves, where nothing
+   else draws an edge. */
+body[data-smkit-workbench='card'] [data-sidebar-right-panel='push'][data-sidebar-right-open] [data-dockkit-pane][data-dockkit-column='0'] {
+  border-left: 0;
 }
 
 /* A zero-width track is still a track: with the right column collapsed the
@@ -124,24 +164,31 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay])[data-rightbar-
    set on the column is painted over by the panel's own square background and
    never shows. The corners therefore belong on the panel, and only in `push`
    mode: a `fullscreen` panel is a fixed layer over the whole frame, where a
-   radius would round the window rather than a board. Its own left hairline is
-   replaced by the board's one-pixel edge, so the two columns meet the same way
-   everywhere.
+   radius would round the window rather than a board.
+
+   The panel carries the corners, the seam and the fill behind it, and all three
+   are one job: this is the element the shell's own pixels at that edge sit under.
+   It keeps a line of its own — the column's left edge is dropped for it (see the
+   rule above) so the seam is drawn once — and it wants an opaque ink for the same
+   reason: what a translucent edge leaves showing is the couple of pixels of
+   `bg-overlay` the shell keeps at the board's leading edge. That is the tone the
+   seam shows in either palette (`#21252b` under this center's dark theme, a pale
+   grey under a light one), and it reads as a dark line wherever the surface
+   around it is the canvas. Painting the board's own fill over it puts it back to
+   the surface it belongs to, so the seam is one hairline on the board's colour.
 
    Only while the deck is *out*: putting the panel away does not unmount it. The
    host leaves the element in the frame at its full width and only slides the
    deck itself out through the right edge, so the container keeps its place at
-   the board's left edge with nothing drawn on it. A border there is an edge
-   with no board behind it — a hairline down the conversation, standing exactly
-   where the board would start. `[data-sidebar-right-open]` is the host's own
-   flag for which of the two the deck is doing, the one its slide-in is keyed
-   on, so gating the rule on it draws the edge only when there is a panel to
-   edge. */
-body[data-smkit-workbench='card'] [data-sidebar-right-panel='push'][data-sidebar-right-open] {
-  border-left: 1px solid var(--dsw-alias-border-l1);
-  border-radius: 6px;
-  overflow: hidden;
-}
+   the board's left edge with nothing drawn on it — a corner rounding an empty
+   box. `[data-sidebar-right-open]` is the host's own flag for which of the two
+   the deck is doing, so the rule wears the board only when there is a board. */
+   body[data-smkit-workbench='card'] [data-sidebar-right-panel='push'][data-sidebar-right-open] {
+     border-left: 1px solid var(--smkit-workbench-edge);
+     border-radius: 6px;
+     overflow: hidden;
+     background: var(--dsw-alias-bg-base);
+   }
 
 /* ── the drag rail ────────────────────────────────────────────────────────
    The host centres each handle on its column's track edge — exactly where the
@@ -201,7 +248,7 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > [data-side]:
   width: 6px;
   border-radius: 3px;
   transform: translateX(-50%);
-  background: var(--dsw-alias-border-l1);
+  background: var(--smkit-workbench-edge);
   opacity: 0;
   transition: opacity .1s ease-out;
 }
