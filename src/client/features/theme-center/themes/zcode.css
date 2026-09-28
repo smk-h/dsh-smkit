@@ -116,8 +116,20 @@ body[data-smkit-theme="zcode"] {
 
 /* --- alias & specific: light --- */
 /* zai-light：主按钮与发送键纯黑（color-primary = #000000），输入卡片纯白，
-   会话画布 #f8f8f8，窗口面（侧栏）#ececee。 */
+   会话画布 #f8f8f8，窗口面（侧栏）#ececee。
+   文字层级按 zai-light 的 foreground 刻度（neutral-700 60%/40% 透明）换算成
+   #262626 基准的中性灰——正文沿用 swatch 广告的墨色（zai 实际用 #404040，
+   这里保持既有对比度广告不变），次级起不再吃 DSH 原生的蓝灰。 */
 body[data-smkit-theme="zcode"] {
+  --dsw-alias-label-primary: #262626;
+  --dsw-alias-label-secondary: rgba(38, 38, 38, 0.600);
+  --dsw-alias-label-tertiary: rgba(38, 38, 38, 0.550);
+  --dsw-alias-label-caption: rgba(38, 38, 38, 0.550);
+  --dsw-alias-label-dimmed: rgba(38, 38, 38, 0.450);
+  --dsw-alias-label-primary-bluish: #262626;
+  --dsw-alias-label-primary-dimmed: #262626;
+  --dsw-alias-label-primary-foreground: #ffffff;
+  --dsw-alias-label-primary-inverted: #ffffff;
   --dsw-alias-bg-base: #f8f8f8;
   --dsw-alias-button-primary-fill: #000000;
   --dsw-alias-button-primary-hover: #262626;
@@ -146,8 +158,22 @@ body[data-smkit-theme="zcode"] {
 
 /* --- alias & specific: dark --- */
 /* zai-dark：主按钮与发送键纯白（color-primary = #ffffff），输入卡片 #2b2b2b，
-   会话画布 #161616，窗口面（侧栏）#2b2b2b。 */
+   会话画布 #161616，窗口面（侧栏）#2b2b2b。
+   文字层级是 zai-dark 的 foreground 刻度原样落槽：正文 = neutral-300
+   #d4d4d4（源码 var 与运行时截图采样一致，不是纯白），subtle/subtlest 是
+   同色 60%/30% 透明度——DSH 的次级取 60%、三级取 45%（45% 同时是自家
+   dimmed 惯例，也避开 subtlest 30% 在 #161616 上只有 2.2:1 的过暗档）。
+   不写这组时正文吃宿主近白默认值，比 ZCode 实机亮一整档，夜间刺眼。 */
 body[data-smkit-theme="zcode"][data-ds-dark-theme] {
+  --dsw-alias-label-primary: #d4d4d4;
+  --dsw-alias-label-secondary: rgba(212, 212, 212, 0.600);
+  --dsw-alias-label-tertiary: rgba(212, 212, 212, 0.450);
+  --dsw-alias-label-caption: rgba(212, 212, 212, 0.450);
+  --dsw-alias-label-dimmed: rgba(212, 212, 212, 0.450);
+  --dsw-alias-label-primary-bluish: #d4d4d4;
+  --dsw-alias-label-primary-dimmed: #d4d4d4;
+  --dsw-alias-label-primary-foreground: #000000;
+  --dsw-alias-label-primary-inverted: #000000;
   --dsw-alias-bg-base: #161616;
   --dsw-alias-button-primary-fill: #ffffff;
   --dsw-alias-button-primary-hover: #d4d4d4;
