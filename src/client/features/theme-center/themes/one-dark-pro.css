@@ -195,3 +195,34 @@ body[data-smkit-theme="one-dark-pro"][data-ds-dark-theme]{
   --shiki-token-punctuation: #abb2bf;
   --shiki-token-link: #61afef;
 }
+
+/* 宿主的「次级表面」令牌：菜单/下拉的材质底（--dsw-menu-surface-fill）、
+   文档预览面、遮罩、空闲状态点、diff 底、菜单图标、链接文字 —— 宿主给它们
+   的明暗两套值不同，浅色侧是浅色，只有深色侧才是深色。本主题的明暗两块画的
+   是同一种深色，所以这些必须自己给值：上面只覆盖了主表面，宿主一旦停在浅色
+   模式（外观跟随浅色系统时），这些漏网的令牌就保持浅色 —— 下拉与右键菜单的
+   浅色面板、文档预览的白色画布、拖拽时的白雾遮罩都是这么来的。
+   与基块同一个作用域，明暗共用，故不在 dark 块里重复。 */
+body[data-smkit-theme="one-dark-pro"] {
+  --dsw-menu-surface-fill: #21252b;
+  --dsw-alias-bg-document-preview: #282c34;
+  --dsw-alias-label-document-preview: #abb2bf;
+  --dsw-alias-menu-icon: #7f848e;
+  --dsw-alias-link: #61afef;
+  --dsw-alias-toast-label: #f8fafd;
+  --dsw-alias-tooltip-key-bg: color-mix(in srgb, var(--dsw-alias-tooltip-bg), white 18%);
+  --dsw-alias-bg-mask-1: #00000080;
+  --dsw-alias-bg-mask-2: #00000033;
+  --dsw-alias-bg-mask-3: #0000007a;
+  --dsw-alias-bg-mask-photo: #000000e0;
+  --dsw-alias-bg-mask-drop: #21252bb3;
+  --dsw-alias-state-idle-primary: #5c6370;
+  --dsw-alias-code-diff-added: color-mix(in srgb, #98c379 12%, transparent);
+  --dsw-alias-code-diff-deleted: color-mix(in srgb, #e06c75 12%, transparent);
+  --dsw-alias-file-diff-added-bg: #1f3124;
+  --dsw-alias-file-diff-added-gutter: #132016;
+  --dsw-alias-file-diff-added-marker: #41c977;
+  --dsw-alias-file-diff-deleted-bg: #3c1f1b;
+  --dsw-alias-file-diff-deleted-gutter: #28130e;
+  --dsw-alias-file-diff-deleted-marker: #fa423e;
+}
