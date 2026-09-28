@@ -89,6 +89,26 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* The ways back from a blocked permission, one per line: each is a different
+ * place in the browser to go, and a run-on sentence hid them behind each
+ * other. Reads as the help text around it, only indented. */
+.smkit-notify-page-routes-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.smkit-notify-page-routes {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
 .smkit-notify-page-actions {
   display: flex;
   align-items: center;

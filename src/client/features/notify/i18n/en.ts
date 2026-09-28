@@ -25,8 +25,12 @@ export const NOTIFY_LOCALE_EN: LocaleDict = {
     'Keep this page open and grant permission: the browser shows the notification and a click focuses this tab instead of opening a new one. With dsh on a remote host this is the only delivery path — a closed page receives nothing.',
   webNotifEnable: 'Grant permission',
   webNotifGranted: 'Granted',
-  webNotifDenied: 'Denied',
-  webNotifDeniedHint: 'Re-allow notifications in the browser site settings.',
+  webNotifDenied: 'Blocked',
+  webNotifDeniedHint: 'The browser sometimes blocks it outright — it neither asks nor asks again. Ways back:',
+  webNotifDeniedBubble: 'when a "notifications blocked" bubble appears in the top-right corner, click its "Allow"',
+  webNotifDeniedSiteInfo:
+    'click the icon at the left of the address bar and turn the "Notifications" switch on under site permissions ("Reset permissions" sits beside it)',
+  webNotifDeniedSettings: 'allow the site in the browser settings (the address is below — copy it into the address bar)',
   webNotifSettingsHint:
     'A page cannot open the browser\'s own settings, so copy the address below and paste it into the address bar.',
   webNotifSettingsCopy: 'Copy address',
@@ -36,7 +40,7 @@ export const NOTIFY_LOCALE_EN: LocaleDict = {
   webNotifUnsupportedHint: 'Open dsh via localhost or https.',
   webNotifFailed: 'Permission request failed.',
   webNotifNoAnswer:
-    'The browser never answered. If a notification icon appeared in the address bar, use it to allow; otherwise try again in a moment.',
+    'The browser never answered. Check the top-right "notifications blocked" bubble, or the "Notifications" switch behind the address-bar icon; you can also try again in a moment.',
   on: 'On',
   off: 'Off',
   testButton: 'Send a test notification',

@@ -20,11 +20,13 @@
  * the browser. `platform` arrives with the settings read; before it lands the
  * row is absent rather than briefly wrong.
  *
- * The browser-permission row owns the one dead end this panel can reach: a
- * site the browser has already denied. The page may not ask again, and it may
- * not open a privileged scheme either, so the row hands the address over —
+ * The browser-permission row hands the browser's own settings address over —
  * named by the host from the request's user agent — with a copy button and the
- * address itself, selected whole by one click.
+ * address itself, selected whole by one click. A page may not open a
+ * privileged scheme on its own, so copying and pasting is the only way there:
+ * a denied site is the dead end that made this necessary, and a granted one is
+ * the case that keeps it useful — reading what the browser currently allows,
+ * or changing it, is an errand of its own.
  */
 
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
@@ -124,12 +126,16 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
     const enabled = readToggle(settings?.enabled, true)
     const soundEnabled = readToggle(settings?.soundEnabled, true)
     const duration = (settings?.duration as NotifyDuration | undefined) ?? 'short'
-    // The address only matters for the denied case: that is the one where the
-    // page may not ask again, so the user has to go and allow the site
-    // themselves — and a page cannot navigate to a privileged scheme on its
-    // own. The host names it per browser, and `null` means it could not.
+    // Both settled states get the address: a denied site is the one the user
+    // has to go and re-allow, and a granted one is where they look to see what
+    // the browser currently allows or to change it. Only a page that has never
+    // been asked — or one whose browser cannot be named — has nothing to point
+    // at. The host names the address per browser from the request's user agent,
+    // and `null` means it could not.
     const settingsUrl =
-      webPerm === 'denied' && typeof settings?.webSettingsUrl === 'string' ? settings.webSettingsUrl : null
+      (webPerm === 'denied' || webPerm === 'granted') && typeof settings?.webSettingsUrl === 'string'
+        ? settings.webSettingsUrl
+        : null
 
     /** Flip one toggle and take the host's answer as the truth. */
     const flip = (field: 'enabled' | 'soundEnabled', next: boolean): Promise<void> =>
@@ -295,12 +301,22 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
               </div>
               <div className="smkit-notify-page-row-help">
                 {t('webNotifHelp')}
-                {webPerm === 'denied'
-                  ? ` ${t('webNotifDeniedHint')}`
-                  : webPerm === 'unsupported'
-                    ? ` ${t('webNotifUnsupportedHint')}`
-                    : ''}
+                {webPerm === 'unsupported' ? ` ${t('webNotifUnsupportedHint')}` : ''}
               </div>
+              {/* A blocked permission gets its ways back as a list: the bubble,
+                  the address bar's site panel and the browser settings are
+                  three different places, and each one is worth a line of its
+                  own rather than a sentence that runs them together. */}
+              {webPerm === 'denied' ? (
+                <div className="smkit-notify-page-routes-block">
+                  <div className="smkit-notify-page-row-help">{t('webNotifDeniedHint')}</div>
+                  <ul className="smkit-notify-page-routes">
+                    <li>{t('webNotifDeniedBubble')}</li>
+                    <li>{t('webNotifDeniedSiteInfo')}</li>
+                    <li>{t('webNotifDeniedSettings')}</li>
+                  </ul>
+                </div>
+              ) : null}
               {settingsUrl !== null ? (
                 <div className="smkit-notify-page-settings">
                   <div className="smkit-notify-page-row-help">{t('webNotifSettingsHint')}</div>

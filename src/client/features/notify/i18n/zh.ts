@@ -30,8 +30,12 @@ export const NOTIFY_LOCALE_ZH: LocaleDict = {
     '页面保持开启并授权后，通知由浏览器弹出，点击聚焦回本页（不新开标签页）；dsh 跑在远程主机上时这是唯一的通知方式，页面关闭后收不到。',
   webNotifEnable: '授权通知',
   webNotifGranted: '已授权',
-  webNotifDenied: '已被拒绝',
-  webNotifDeniedHint: '可在浏览器的站点设置中重新允许。',
+  webNotifDenied: '已被屏蔽',
+  webNotifDeniedHint: '浏览器有时会直接屏蔽它：不询问、之后也不再问。恢复的几种办法：',
+  webNotifDeniedBubble: '右上角弹出「通知已屏蔽」时，点其中的「允许」',
+  webNotifDeniedSiteInfo:
+    '点地址栏左端的图标，在「此网站的权限」里把「通知」开关打开（旁边还有「重置为默认顺序」）',
+  webNotifDeniedSettings: '在浏览器设置里允许本站（下方给出了地址，复制到地址栏回车即可）',
   webNotifSettingsHint:
     '浏览器不允许网页直接打开它自己的设置页，复制下面的地址粘到地址栏回车即可。',
   webNotifSettingsCopy: '复制地址',
@@ -40,7 +44,8 @@ export const NOTIFY_LOCALE_ZH: LocaleDict = {
   webNotifUnsupported: '不支持',
   webNotifUnsupportedHint: '需通过 localhost 或 https 访问。',
   webNotifFailed: '授权请求失败。',
-  webNotifNoAnswer: '没收到浏览器的回答。若地址栏出现通知图标，点它即可允许；也可以稍后再点一次。',
+  webNotifNoAnswer:
+    '没收到浏览器的回答。看右上角的「通知已屏蔽」气泡、或地址栏左端图标里的「通知」开关；也可以稍后再点一次。',
   on: '已开启',
   off: '已关闭',
   testButton: '发送测试通知',
