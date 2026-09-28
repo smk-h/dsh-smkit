@@ -28,6 +28,7 @@
  */
 
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
+import { settleWithin } from '../../../platform/ui/settleWithin'
 import { NOTIFY_DURATIONS } from '../../../../shared/notify/contract'
 import { NOTIFY_PERMISSION_EVENT } from '../client'
 import { createSwitch } from '../ui/Switch'
@@ -57,6 +58,11 @@ export interface NotifySettingsBody {
 
 /** The browser's Notification permission, plus a stand-in for "no API here". */
 type WebPermission = 'default' | 'granted' | 'denied' | 'unsupported'
+
+/** How long to wait for the browser's answer to the permission prompt before
+ * saying the answer never came. A prompt the user is reading answers well
+ * inside this; one the browser never showed answers never. */
+const PERMISSION_ANSWER_MS = 10_000
 
 /** Read one toggle out of a host answer, keeping the fallback on garbage. */
 function readToggle(value: unknown, fallback: boolean): boolean {
@@ -157,18 +163,33 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
     /** Ask the browser for notification permission; the answer lands in the
      * row's status. Browsers refuse to even ask without a user gesture, so
      * this only ever runs from the button. A grant also reaches the feature's
-     * stream subscriber, which mounted before the answer existed. */
+     * stream subscriber, which mounted before the answer existed.
+     *
+     * The question can also go unanswered for good — the browser folds it into
+     * the address bar's icon instead of showing a dialog — so the wait gets a
+     * ceiling: at the deadline the row says the answer never came and the
+     * button becomes usable again, while the request itself keeps waiting and a
+     * late grant still lands. Without it the button stays disabled and silent
+     * forever, which reads as the click having done nothing at all. */
     const authorize = (): Promise<void> =>
       run(async () => {
+        let asked: Promise<string | undefined>
         try {
-          const next = await Notification.requestPermission()
-          setWebPerm(next)
-          if (next === 'granted' && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-            window.dispatchEvent(new Event(NOTIFY_PERMISSION_EVENT))
-          }
+          asked = Notification.requestPermission().then(
+            (next) => {
+              setWebPerm(next)
+              if (next === 'granted' && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+                window.dispatchEvent(new Event(NOTIFY_PERMISSION_EVENT))
+              }
+              return undefined
+            },
+            () => t('webNotifFailed'),
+          )
         } catch {
           return t('webNotifFailed')
         }
+        const outcome = await settleWithin(asked, PERMISSION_ANSWER_MS)
+        return outcome.answered ? outcome.value : t('webNotifNoAnswer')
       }, 'webperm')
 
     /** Hand the settings address over for pasting: the page cannot open it. */

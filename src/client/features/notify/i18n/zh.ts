@@ -40,6 +40,7 @@ export const NOTIFY_LOCALE_ZH: LocaleDict = {
   webNotifUnsupported: '不支持',
   webNotifUnsupportedHint: '需通过 localhost 或 https 访问。',
   webNotifFailed: '授权请求失败。',
+  webNotifNoAnswer: '没收到浏览器的回答。若地址栏出现通知图标，点它即可允许；也可以稍后再点一次。',
   on: '已开启',
   off: '已关闭',
   testButton: '发送测试通知',

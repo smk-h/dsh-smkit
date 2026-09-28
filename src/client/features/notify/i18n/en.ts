@@ -35,6 +35,8 @@ export const NOTIFY_LOCALE_EN: LocaleDict = {
   webNotifUnsupported: 'Unsupported',
   webNotifUnsupportedHint: 'Open dsh via localhost or https.',
   webNotifFailed: 'Permission request failed.',
+  webNotifNoAnswer:
+    'The browser never answered. If a notification icon appeared in the address bar, use it to allow; otherwise try again in a moment.',
   on: 'On',
   off: 'Off',
   testButton: 'Send a test notification',
