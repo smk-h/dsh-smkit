@@ -143,9 +143,12 @@ function groupSessions(
 }
 
 /** Format one byte count for a row or a summary, as the delete dialog spells
- * sizes. Units read the same in both dictionaries; `t` carries the copy. */
+ * sizes. Units read the same in both dictionaries; `t` carries the copy. A
+ * count the host never measured reads as 0 KB rather than an empty string —
+ * an empty one left the summary ending on its size label with nothing after
+ * it, which is the bug this answers. */
 function formatBytes(bytes: number | undefined): string {
-  if (bytes === undefined || !Number.isFinite(bytes) || bytes <= 0) return ''
+  if (bytes === undefined || !Number.isFinite(bytes) || bytes <= 0) return '0 KB'
   if (bytes < 1024) return `${Math.round(bytes)} B`
   const units = ['KB', 'MB', 'GB', 'TB']
   let value = bytes / 1024
@@ -246,6 +249,13 @@ export function createSessionManagerPanel(
     const selectedBytes = selectedVisible.reduce((sum, s) => sum + (s.sizeBytes ?? 0), 0)
     const allChecked = visible.length > 0 && selectedCount === visible.length
     const partialChecked = selectedCount > 0 && !allChecked
+    // The one sentence the toolbar reads: "select all" while the selection is
+    // empty, then what is selected. A session without a measured size (a
+    // fresh one, or a projection that never saw a log line) sums to nothing,
+    // and the formatter reads that as 0 KB rather than dropping the clause.
+    const selectionText = selectedCount === 0
+      ? t('selectAll')
+      : t('selectedSummary', { count: selectedCount, size: formatBytes(selectedBytes) })
 
     const toggle = (sessionId: string): void => {
       setSelected((prev) => prev.includes(sessionId)
@@ -482,18 +492,12 @@ export function createSessionManagerPanel(
                 type="checkbox"
                 checked={allChecked}
                 onChange={toggleAll}
-                aria-label={selectedCount > 0
-                  ? t('selectedSummary', { count: selectedCount, size: formatBytes(selectedBytes) })
-                  : t('selectAll')}
+                aria-label={selectionText}
               />
               <span className="smkit-sess-page-check-box">
                 {allChecked ? <CheckIcon size={10} /> : null}
               </span>
-              <span className="smkit-sess-page-check-label">
-                {selectedCount > 0
-                  ? t('selectedSummary', { count: selectedCount, size: formatBytes(selectedBytes) })
-                  : t('selectAll')}
-              </span>
+              <span className="smkit-sess-page-check-label">{selectionText}</span>
             </label>
           )}
           <span className="smkit-sess-page-toolbar-spacer" />

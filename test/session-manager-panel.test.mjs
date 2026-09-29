@@ -559,6 +559,26 @@ it('hides the select-all and its hint on an empty view', async () => {
   assert.ok(picks((node) => node.props?.className?.includes('smkit-ui-refresh-button')).length === 1, 'refresh remains')
 })
 
+it('reads a sizeless selection as 0 KB rather than a dangling clause', async () => {
+  // A session without a measured size (a fresh one, or a projection that
+  // never saw a log line) sums to nothing; reading the size clause with an
+  // empty size ended in "合计约 " and stopped. The formatter reads zero as
+  // 0 KB instead.
+  const page = await opened((url, method) => {
+    if (method === 'GET' && url.includes('/sessions/manager')) return response(LIST)
+  })
+  const { again, picks, read } = page
+
+  expand(picks, 'ungrouped')
+  again()
+  check(picks, '/nowhere/stray', true)
+  again()
+
+  const shown = read()
+  assert.ok(shown.includes('selectedSummary'), 'the summary keeps its size clause')
+  assert.ok(shown.includes('0 KB'), 'and reads the missing size as 0 KB')
+})
+
 it('keeps the restore out of batches that refuse the viewed session', async () => {
   // A refusal leaves the session in place, so the view never moves and the
   // shell never closes: the commit must not re-open anything here either.
