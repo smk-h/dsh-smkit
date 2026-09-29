@@ -35,6 +35,7 @@ import { THEME_CENTER_LOCALE_ZH } from './i18n/zh'
 import rowCss from './style/row.css'
 import paletteCss from './style/palette.css'
 import workbenchCss from './style/workbench.css'
+import floatingCss from './style/floating.css'
 import type { ClientContext, ClientDeps, ClientFeature, Translator } from '../../platform/types'
 
 /** The built-in Settings → General item list the shell's own rows use. */
@@ -57,13 +58,16 @@ export const themeCenterFeature: ClientFeature = {
   // unconditionally and paints nothing until the switch puts that attribute on.
   //
   // A theme's *colors* are not here at all: they are the `tokens/` tables the
-  // shell's override layer paints (see `apply.ts`). A theme that needed a rule
-  // rather than a colour would add a sheet here, scoped on the attribute
-  // `apply.ts` writes; the center ships none today.
+  // shell's override layer paints (see `apply.ts`). What can be here is a rule
+  // that points a hardcoded host color back at those tokens — the hover-card
+  // sheet is that one: the harness paints the HoverCard surface from a custom
+  // property it ships fixed to a dark of its own, and the sheet re-points it
+  // at the theme's panel surface so the card reads on every theme's ladder.
   styles: [
     { name: 'theme-center/row', css: rowCss },
     { name: 'theme-center/workbench', css: workbenchCss },
     { name: 'theme-center/palette', css: paletteCss },
+    { name: 'theme-center/floating', css: floatingCss },
   ],
   register(ctx: ClientContext, deps: ClientDeps, t: Translator): void {
     // The restored theme and its colors, and the programmatic API first; the

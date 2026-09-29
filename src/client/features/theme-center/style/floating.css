@@ -1,0 +1,60 @@
+/*
+ * The harness's floating helpers — the HoverCard behind the sidebar's session
+ * and workspace hover cards, and the Tooltip bubbles the header and toolbar
+ * buttons wear — read their surface from theme tokens, but neither carries a
+ * separating edge, and under One Dark Pro the token values sit on the very
+ * surfaces the helpers float over: the sidebar is layer-1 (`#2c313c`), the
+ * composer layer-2 (`#21252b`), and both helpers paint `#21252b` — the hover
+ * card melted into the list, the bubble into the composer.
+ *
+ * The fix is the one VS Code's own hover widget uses: the token surface plus
+ * a quiet border (border-l2, `#4b5362` — textBlockQuote.border), and the ink
+ * off the hardcoded whites onto the theme's own ladder — the hover card's
+ * title at label-primary and its remaining facts at label-secondary, the
+ * tooltip bubble at label-primary (the host paints it with a static
+ * near-white that no theme reaches).
+ *
+ * Everything here is scoped on One Dark Pro alone (`data-smkit-theme` carries
+ * the applied theme's id — see `apply.ts`): the corrections are tuned to that
+ * palette's ladder and must not reach the shell's own themes, whose light
+ * halves would only grow a dark card a border it does not want, nor any other
+ * theme this center may ship later — a different palette corrects differently,
+ * and earns a sheet of its own keyed on its id. Within One Dark Pro the rules
+ * read tokens, so they follow every retune of the palette.
+ *
+ * The selectors ride hooks that survive CSS-module hashing, because every
+ * real class name here is a build-time hash:
+ *
+ * - the HoverCard stamps `--dsh-hover-preview-fade` into the card's inline
+ *   style, and no other element carries it; excluding the `preview`/`media`
+ *   substrings leaves the sidebar's two cards alone — the preview-shaped
+ *   variants paint their own backgrounds and must not grow this border;
+ * - the Tooltip bubble is the one `[data-side]` element that is neither the
+ *   layout's panel handle (`data-dragging`) nor the conversation's width
+ *   handle (`data-width-handle`).
+ *
+ * If a harness build drops a hook, that surface simply loses the border and
+ * keeps the host's own look — a style-only regression, never a broken
+ * layout.
+ */
+
+/* The hover cards: surface and ink from the theme's own ladder. */
+body[data-smkit-theme='one-dark-pro'] div[style*='dsh-hover-preview-fade']:not([class*='preview']):not([class*='media']) {
+  background: var(--dsw-alias-bg-layer-2);
+  border: 1px solid var(--dsw-alias-border-l2);
+}
+body[data-smkit-theme='one-dark-pro'] div[style*='dsh-hover-preview-fade']:not([class*='preview']):not([class*='media']) > div > div {
+  color: var(--dsw-alias-label-secondary);
+}
+body[data-smkit-theme='one-dark-pro'] div[style*='dsh-hover-preview-fade']:not([class*='preview']):not([class*='media']) > div > div:first-child {
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The tooltip bubbles: the theme already paints the surface (tooltip-bg is
+ * editorHoverWidget.background); the border is what separates it from an
+ * anchor surface the same color, and the ink moves off the host's static
+ * near-white onto the theme's own. */
+body[data-smkit-theme='one-dark-pro'] [data-side]:not([data-width-handle]):not([data-dragging]) {
+  border: 1px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-primary);
+}

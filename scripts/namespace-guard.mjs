@@ -167,6 +167,12 @@ export const FOREIGN_DATA_ATTRS = [
    * written.
    */
   'data-shortcut-modal',
+  /**
+   * The conversation's width handle carries this (`ConversationRoot`); the
+   * floating-surface sheet excludes it so its border reaches only the tooltip
+   * bubbles among the `[data-side]` elements. Read, never written.
+   */
+  'data-width-handle',
 ]
 
 /**
