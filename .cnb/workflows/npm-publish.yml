@@ -1,10 +1,10 @@
 # npm 自动发布流水线（模式与 embedded-mcp-toolkit 的同名流程一致）
-# 当 push 的提交记录中含有 [publish] 时触发：构建 → 测试 → 发布到 npm。
+# 仅 main 分支：当 push 的提交记录中含有 [publish] 时触发：构建 → 测试 → 发布到 npm。
 # 幂等：版本已存在于 npm 时自动跳过。
 # dist-tag：预发布版本（如 0.2.0-alpha.0）发布到 alpha，稳定版发布到 latest。
 # 发布成功后即可安装：dsh plugin --profile web add @smai-kit/dsh-smkit@latest
 
-"**":
+main:
   push:
     - docker:
         image: node:24
