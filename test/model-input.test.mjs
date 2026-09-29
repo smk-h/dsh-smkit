@@ -967,11 +967,11 @@ it('gives every model a row of boxes showing what it takes', async () => {
   assert.equal(chip(view, 'catalog-vision', 'modalityImage').props.checked, true, 'nor is a model the catalog says takes images')
   assert.equal(view.text.includes('stateDeclared'), false, 'no row narrates where its answer comes from')
   assert.equal(view.text.includes('stateInherited'), false, 'neither does it name the state it is not in')
-  assert.equal(dot(view, 'OpenRouter').props['data-smkit-state'], 'active', 'a route with any stored declaration wears the blue dot')
+  assert.equal(dot(view, 'OpenRouter').props['data-smkit-state'], 'custom', 'a route with any stored declaration wears the orange dot')
   assert.equal(dot(view, 'DeepSeek').props['data-smkit-state'], 'idle', 'a route none of whose models was written wears the grey one')
   assert.ok(hasInherit(view, 'union-alpha'), 'a row with a stored declaration can be reset')
   assert.ok(hasInherit(view, 'plain-model'), 'and so can one that never had one, which the reset leaves as it is')
-  assert.equal(dot(view, 'union-alpha').props['data-smkit-state'], 'active', 'the row this page wrote wears the blue dot')
+  assert.equal(dot(view, 'union-alpha').props['data-smkit-state'], 'custom', 'the row this page wrote wears the orange dot')
   assert.equal(dot(view, 'plain-model').props['data-smkit-state'], 'idle', 'the row it never wrote wears the grey one')
 })
 
@@ -1040,7 +1040,7 @@ it('turns the dot grey again once the row has been reset', async () => {
     },
   })
   const view = await app.open()
-  assert.equal(dot(view, 'union-alpha').props['data-smkit-state'], 'active', 'the stored declaration paints the blue dot')
+  assert.equal(dot(view, 'union-alpha').props['data-smkit-state'], 'custom', 'the stored declaration paints the orange dot')
 
   app.render().labelled('union-alpha · choiceInherit').props.onClick()
   await settle()

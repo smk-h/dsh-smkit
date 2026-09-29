@@ -22,7 +22,7 @@
  *
  * The boxes show what a request is accepted for today: a model this page has not
  * touched takes whatever answer dsh resolves for it, and the tick still reports
- * that. The dot says which of the two a card is — blue once this page has
+ * that. The dot says which of the two a card is — orange once this page has
  * written its list, grey while it has not. A card that never had a declaration
  * answers the reset by staying exactly as it is, so the control needs no state
  * to be predictable. Un-ticking image is not the reset: it states "text only",
@@ -246,7 +246,7 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                     <span className="smkit-ui-disclosure-card-name">{provider.displayName}</span>
                     <span className="smkit-cs-model-input-route">{provider.provider}</span>
                     <StateDot
-                      state={declared > 0 ? 'active' : 'idle'}
+                      state={declared > 0 ? 'custom' : 'idle'}
                       label={`${provider.displayName} · ${t(declared > 0 ? 'modelStatusCustom' : 'modelStatusDefault')}`}
                     />
                   </button>
@@ -312,7 +312,7 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                 <ChevronRightIcon className="smkit-cs-model-input-caret" />
                               </button>
                               <StateDot
-                                state={model.overridden ? 'active' : 'idle'}
+                                state={model.overridden ? 'custom' : 'idle'}
                                 label={`${model.id} · ${t(model.overridden ? 'modelStatusCustom' : 'modelStatusDefault')}`}
                               />
                             </span>

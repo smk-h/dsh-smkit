@@ -61,19 +61,22 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* The blue that says nothing went wrong and something is switched on — a
- * subject wearing a setting of its own instead of the default. It is the one
- * mark in this sheet no theme may repaint, and that is the point.
+/* The blue that says nothing went wrong and something is switched on — a live
+ * process, a running session. It used to also answer "overridden or default",
+ * but that answer moved to `custom` below, whose orange names the state the
+ * reader actually asked about.
+ *
+ * It is the one mark in this sheet no theme may repaint, and that is the point.
  *
  * It used to wear `--dsw-alias-state-business-primary`, the alias the filled
  * controls wear. That is the right ink for a control, whose colour is the
  * theme's own accent showing through, but the wrong one for this dot, whose
- * blue is not decoration: it is the answer to "overridden or default". Four of
- * the shipped themes — graphite, ink, charcoal, mono — are monochrome on
- * purpose, and each repaints that alias to a grey of its own; charcoal paints
- * it `#333333` against an `idle` of `#7d7d7d`. The mark then lands a shade away
- * from the very colour it has to be told apart from, and the one thing it
- * exists to report stops being readable.
+ * blue is not decoration: it is the answer to "on or off". Four of the shipped
+ * themes — graphite, ink, charcoal, mono — are monochrome on purpose, and each
+ * repaints that alias to a grey of its own; charcoal paints it `#333333`
+ * against an `idle` of `#7d7d7d`. The mark then lands a shade away from the
+ * very colour it has to be told apart from, and the one thing it exists to
+ * report stops being readable.
  *
  * So the ink comes from the static ramp instead: the brand's fixed blue scale,
  * which the built-in themes leave alone. The ported themes do remap it, to
@@ -91,10 +94,35 @@
  *
  * It stops at 400 rather than carrying on to 300. 300 is `#b7c8fe`, a blue pale
  * enough that on a panel it reads as a white dot with a cast to it, and this
- * mark's whole job is to be recognisably *blue* at a glance — it is the answer
- * to "overridden or default", and the thing it has to be told apart from is a
- * grey. 400 (`#7aaaff`) is the last step on the ramp that is unmistakably a
- * colour. */
+ * mark's whole job is to be recognisably *blue* at a glance. 400 (`#7aaaff`)
+ * is the last step on the ramp that is unmistakably a colour. */
 body[data-ds-dark-theme] .smkit-ui-state-dot[data-smkit-state='active'] {
   color: var(--dsw-static-deepseek-400, #7aaaff);
+}
+
+/* The orange that says "this subject carries a setting of its own instead of
+ * the default" — the model-input page's answer to which cards this page has
+ * written. It took the job over from the blue above, because a reader scanning
+ * that page asked for a colour they could pick out as *the customized one*, and
+ * the blue was spending that answer everywhere else a subject is merely on.
+ *
+ * The same theme-proofing as the blue, for one more reason. The palette's own
+ * orange lives on `--dsw-alias-state-warn-primary` — but that rung is
+ * `warning`'s, and a dot that borrowed it would make "customized" and "needs
+ * the user" one answer wherever the theme keeps the hue, and a grey where a
+ * monochrome theme repaints it: the exact trap the blue climbed out of. So the
+ * ink is fixed here too, and fixed literally — the static ramp the blue rides
+ * is the brand's blue scale, and there is no orange sibling on it to borrow.
+ *
+ * 600 in the day (`#ea580c`), 500 at night (`#f97316`) — the same step-up the
+ * blue takes on a dark canvas, and both chosen as the steps that stay
+ * unmistakably *orange*: not the yellow the amber family drifts toward, not
+ * the brown a darker step sinks into, and never near enough grey for the
+ * `idle` dot beside it to be mistaken for it. */
+.smkit-ui-state-dot[data-smkit-state='custom'] {
+  color: #ea580c;
+}
+
+body[data-ds-dark-theme] .smkit-ui-state-dot[data-smkit-state='custom'] {
+  color: #f97316;
 }

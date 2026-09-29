@@ -11,11 +11,14 @@
  *
  * `state` picks the colour and nothing else. `done` is the outcome that needs
  * no explanation, `warning` the one that needs the user, `error` the one that
- * went wrong, and `idle` the absence of all three. `active` is blue — a fixed
- * blue rather than the palette's — for a subject that carries a setting of its
- * own instead of the default. That ink is written out in `state-dot.css`
- * because a monochrome theme repaints the palette's accent to a grey this mark
- * would then share with `idle`, which is the one colour it must not share.
+ * went wrong, and `idle` the absence of all three. `custom` is orange — a
+ * fixed orange rather than the palette's warn — for a subject that carries a
+ * setting of its own instead of the default, and `active` is blue — likewise
+ * fixed — for one that is switched on or live. Both inks are written out in
+ * `state-dot.css` because a monochrome theme repaints the palette's accents to
+ * greys these marks would then share with `idle` — and `custom` borrowing the
+ * warn alias would additionally read as `warning`, which is one answer too
+ * many for a dot that exists to be told apart at a glance.
  * (DSH adds an animated `ongoing` for a live process; here a process in flight
  * already has the platform spinner, and a dot that turns is two answers to one
  * question.)
@@ -32,7 +35,7 @@
 import type { ClientDeps } from '../types'
 
 /** Which of the shell's state colours to wear. */
-export type StateDotState = 'done' | 'warning' | 'error' | 'active' | 'idle'
+export type StateDotState = 'done' | 'warning' | 'error' | 'custom' | 'active' | 'idle'
 
 /** DSH's own measure for the dot, in px. */
 const DEFAULT_SIZE = 10
