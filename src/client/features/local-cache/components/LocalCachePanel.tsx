@@ -215,11 +215,7 @@ export function createLocalCachePanel(
           <p className="smkit-cache-page-note">{t('tableEmpty')}</p>
         ) : (
           buckets.map((bucket) => (
-            <details
-              key={bucket.id}
-              className="smkit-cache-page-card"
-              open={bucket.scope === 'clean'}
-            >
+            <details key={bucket.id} className="smkit-cache-page-card">
               <summary className="smkit-cache-page-card-summary">
                 <span className="smkit-cache-page-card-heading">
                   <span className="smkit-cache-page-card-title">{t(bucket.id)}</span>
