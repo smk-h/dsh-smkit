@@ -36,6 +36,7 @@ import rowCss from './style/row.css'
 import paletteCss from './style/palette.css'
 import workbenchCss from './style/workbench.css'
 import floatingCss from './style/floating.css'
+import checkChipCss from './style/check-chip.css'
 import type { ClientContext, ClientDeps, ClientFeature, Translator } from '../../platform/types'
 
 /** The built-in Settings → General item list the shell's own rows use. */
@@ -68,6 +69,7 @@ export const themeCenterFeature: ClientFeature = {
     { name: 'theme-center/workbench', css: workbenchCss },
     { name: 'theme-center/palette', css: paletteCss },
     { name: 'theme-center/floating', css: floatingCss },
+    { name: 'theme-center/check-chip', css: checkChipCss },
   ],
   register(ctx: ClientContext, deps: ClientDeps, t: Translator): void {
     // The restored theme and its colors, and the programmatic API first; the

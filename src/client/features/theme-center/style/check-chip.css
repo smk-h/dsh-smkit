@@ -1,0 +1,27 @@
+/*
+ * The check chip's tick under One Dark Pro.
+ *
+ * The platform sheet (`platform/style/check-chip.css`) pairs the ticked box's
+ * fill with `label-primary-foreground`, the ink the shell keeps for labels on
+ * filled controls — and on the shell's own palettes that pairing holds, the
+ * shell defining the foreground against the very fills its controls wear.
+ * This theme does not: its table spends `#abb2bf` on the foreground on
+ * purpose, the ink its *buttons*' grey fill wants (see
+ * `tokens/one-dark-pro.ts`), and it puts the same value on `label-primary` —
+ * so the ticked box fills with `#abb2bf` and the tick draws `#abb2bf` over
+ * it, a glyph the colour of its own ground.
+ *
+ * The theme's own answer for "ink on a light fill" is the inverted slot
+ * (`#282c34`, the canvas — the remove badge and the build chip read from it),
+ * and that is what the tick takes here.
+ *
+ * Scoped on the body attribute `apply.ts` writes when this theme is the
+ * applied one, after the manner of the floating sheet: the platform pairing
+ * stands untouched for the shell's palettes and for any theme whose
+ * foreground and fill stay distinct — a palette corrects differently, and
+ * earns a rule of its own keyed on its id.
+ */
+
+body[data-smkit-theme='one-dark-pro'] .smkit-ui-check-chip[data-smkit-on=true] .smkit-ui-check-chip-chip-box {
+  color: var(--dsw-alias-label-primary-inverted);
+}
