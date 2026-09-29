@@ -26,6 +26,7 @@ import { resolveSoundFile } from './sound.js'
 import { showToast } from './toast.js'
 import { createNotifyBroadcaster } from './broadcaster.js'
 import { createNotifyHandlers } from './api.js'
+import { isDesktopProfile } from '../../platform/desktop.js'
 import type { HostFeature, HostPlatform } from '../../platform/context.js'
 import type { NotifyDecision, NotifySettings } from './types.js'
 
@@ -42,6 +43,31 @@ export const notifyFeature: HostFeature = {
   id: 'notify',
 
   mount(platform: HostPlatform): void {
+    // The Desktop profile gets no notifications, and no routes to configure
+    // them with. Nothing else in the plugin is affected by the return below.
+    //
+    // What this feature cannot get there is the one signal it rests on. Its
+    // quiet condition (ZCode's) is "the page says it is focused, and said so
+    // recently" — and in the Desktop shell that condition never lifts: with the
+    // application window inactive, a session end as far as either half can tell
+    // is still "the user is looking at this". Both gates read the same value
+    // (the heartbeat the page sends, and the page's own `document.hasFocus()`
+    // check), so the only reading of the report — permission granted, so the
+    // stream is live; the panel's test fire lands; a real finish produces
+    // nothing — is that the shell's document keeps reporting itself focused.
+    // The test fire is the one thing that survives it precisely because `force`
+    // skips suppression. The native Windows fallback cannot cover for it
+    // either: dispatch only reaches for it when no page is connected, and the
+    // Desktop always has one.
+    //
+    // A notification that never fires is worse than none, so the feature stands
+    // down until the Desktop offers a focus signal that means something. It is
+    // gated on the profile name alone: `dsh web` — including the copy started
+    // from the command the Desktop installs — is untouched.
+    if (isDesktopProfile(platform.ctx)) {
+      platform.logger.info?.(`${LOG_PREFIX} desktop profile: notifications stay off`)
+      return
+    }
     const ctx = platform.ctx
     const logger = platform.logger
 

@@ -49,6 +49,7 @@ import { createCustomSettingsContent } from '../../features/custom-settings/comp
 import { createLocalCachePanel } from '../../features/local-cache/components/LocalCachePanel'
 import { createNotifyPanel } from '../../features/notify/components/NotifyPanel'
 import { createSessionManagerPanel } from '../../features/session-manager/components/SessionManagerPanel'
+import { isDesktopShell } from '../../platform/desktop'
 import type { ClientDeps, Translator } from '../../platform/types'
 
 /** The copy the merged page reads: the shell's own namespace, then the pages
@@ -110,6 +111,16 @@ export function createSettingsSection(
   const NotifyPanel = createNotifyPanel(deps)
   const SessionManagerPanel = createSessionManagerPanel(deps)
 
+  /** The notifications page. Built whether or not this document gets the tab:
+   * the strip spread below is the only thing that decides, and a component
+   * built but never rendered costs nothing. */
+  const notifyTab: SettingsTab = {
+    id: 'notify',
+    label: 'tabNotify',
+    icon: <BellIcon size={14} />,
+    Panel: (props) => <NotifyPanel {...props} />,
+  }
+
   /** The pages, in strip order — the order the settings nav listed them in
    * before they were merged. */
   const TABS: SettingsTab[] = [
@@ -137,12 +148,11 @@ export function createSettingsSection(
       icon: <NotebookTextIcon size={14} />,
       Panel: (props) => <LocalCachePanel {...props} />,
     },
-    {
-      id: 'notify',
-      label: 'tabNotify',
-      icon: <BellIcon size={14} />,
-      Panel: (props) => <NotifyPanel {...props} />,
-    },
+    // The Desktop shell is the one place this page cannot be offered: its host
+    // mounts no notification route at all (see `features/notify/host.ts`), so a
+    // tab there would open a panel with nothing to talk to. Everywhere else the
+    // strip is what it always was.
+    ...(isDesktopShell() ? [] : [notifyTab]),
     {
       id: 'sessions',
       label: 'tabSessions',

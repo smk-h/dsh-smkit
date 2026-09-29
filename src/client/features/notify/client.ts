@@ -36,6 +36,7 @@ import { API_PREFIX } from '../../../shared/http'
 import { NOTIFY_LOCALE_EN } from './i18n/en'
 import { NOTIFY_LOCALE_ZH } from './i18n/zh'
 import { NOTIFY_CSS } from './styles'
+import { isDesktopShell } from '../../platform/desktop'
 import type { ClientContext, ClientDeps, ClientFeature, Translator } from '../../platform/types'
 
 /** How often the page renews its `focused` heartbeat, in milliseconds. The
@@ -67,6 +68,14 @@ export const notifyFeature: ClientFeature = {
   styles: [{ name: 'page', css: NOTIFY_CSS }],
 
   register(ctx: ClientContext, deps: ClientDeps, _t: Translator): void {
+    // The Desktop shell registers neither half of this feature: its host
+    // mounts no `/notify/*` route at all (see `features/notify/host.ts` for
+    // why), so there is nothing here to talk to — no heartbeat to send, no
+    // stream to hold, no toast to raise. The settings page drops its tab for
+    // the same reason, and the dictionary and stylesheets `entry.ts` registers
+    // for every feature stay where they are: inert without a panel to read
+    // them. A browser is never this document, so the web keeps both effects.
+    if (isDesktopShell()) return
     ctx.effect(() => {
       // The heartbeat is a browser behavior and degrades silently outside
       // one: the bundle is also mounted in Node test harnesses where
