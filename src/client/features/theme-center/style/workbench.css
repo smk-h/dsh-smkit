@@ -11,10 +11,8 @@
  *
  * What the skin does, in three rules: the frame gains the gutter the boards sit
  * in; each column becomes one board; the left board keeps the sidebar's own
- * fill and drops the hairline divider the two columns used to share, because
- * the gutter now says where a column ends. The right column is a board only
- * while it owns a track — a collapsed one is zero pixels wide, and a border
- * there would draw a line on nothing.
+ * fill. The right column is a board only while it owns a track — a collapsed
+ * one is zero pixels wide, and a border there would draw a line on nothing.
  *
  * The canvas behind the boards is the boards' own colour, not a step below it.
  * The separation is carried by the one-pixel edges and the eight pixels of open
@@ -104,22 +102,20 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) {
    retraction rule, which would have had to out-specify this one to land.
 
    The two values the left column changes are read through custom properties
-   instead of overridden in a second rule of its own: the left board drops the
-   divider the columns used to share (the gutter says where a column ends now)
-   and keeps the sidebar's own fill, and a variable says both without entering
-   the specificity contest that two rules over the same element would be in. */
+   instead of overridden in a second rule of its own: the left board keeps the
+   sidebar's own fill and rounds at the inner tier, and a variable says each
+   without entering the specificity contest that two rules over the same
+   element would be in. */
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > div:not([data-shell-overlay]):not([data-side]):not([data-rightbar-col]) {
   border: 1px solid var(--smkit-workbench-edge);
-  border-right: var(--smkit-workbench-board-edge, 1px solid var(--smkit-workbench-edge));
   border-radius: var(--smkit-workbench-board-radius, 8px);
   background: var(--smkit-workbench-board-fill, var(--dsw-alias-bg-base));
 }
 
-/* the left board: the sidebar's own fill, no shared divider, and the inner
-   corner tier — only the centre stands at `cornerRadius.large` */
+/* the left board: the sidebar's own fill and the inner corner tier — only the
+   centre stands at `cornerRadius.large` */
 body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) > div:first-of-type {
   --smkit-workbench-board-fill: var(--dsw-specific-sidebar-fill);
-  --smkit-workbench-board-edge: none;
   --smkit-workbench-board-radius: 6px;
 }
 
