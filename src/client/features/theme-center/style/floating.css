@@ -30,8 +30,10 @@
  *   substrings leaves the sidebar's two cards alone — the preview-shaped
  *   variants paint their own backgrounds and must not grow this border;
  * - the Tooltip bubble is the one `[data-side]` element that is neither the
- *   layout's panel handle (`data-dragging`) nor the conversation's width
- *   handle (`data-width-handle`).
+ *   layout's panel handle (`data-dragging`), the conversation's width handle
+ *   (`data-width-handle`), nor one of the frame's own drag handles — those
+ *   are the frame div's *direct* `[data-side]` children (the workbench rail
+ *   rides them), and the bubble never is.
  *
  * If a harness build drops a hook, that surface simply loses the border and
  * keeps the host's own look — a style-only regression, never a broken
@@ -53,8 +55,11 @@ body[data-smkit-theme='one-dark-pro'] div[style*='dsh-hover-preview-fade']:not([
 /* The tooltip bubbles: the theme already paints the surface (tooltip-bg is
  * editorHoverWidget.background); the border is what separates it from an
  * anchor surface the same color, and the ink moves off the host's static
- * near-white onto the theme's own. */
-body[data-smkit-theme='one-dark-pro'] [data-side]:not([data-width-handle]):not([data-dragging]) {
+ * near-white onto the theme's own. The frame's drag handles are excluded by
+ * position — a bubble sits deep inside the tree, a handle is the frame's own
+ * child — because boxing a full-height grab strip is what drew two lines
+ * down an otherwise clean seam. */
+body[data-smkit-theme='one-dark-pro'] [data-side]:not([data-width-handle]):not([data-dragging]):not(div:has(> [data-shell-overlay]) > *) {
   border: 1px solid var(--dsw-alias-border-l2);
   color: var(--dsw-alias-label-primary);
 }
