@@ -405,6 +405,17 @@ pnpm smkit:uninstall   # 移除
 
 然后重启 `dsh web`，启动日志里即可看到插件的 `console.log` 输出。改码后重新运行 `pnpm smkit:install` 即可更新；等价的手动操作与说明见「2.2 改码后的更新循环」。
 
+桌面端同理，但 desktop profile 由 Electron 应用独占管理（`dsh --profile desktop` 一律被拒，只有桌面端自带包装器的 `plugin` 子命令例外），所以脚本会先定位桌面端安装目录、再用它自带的 CLI 转 pnpm，并给了一份省掉 `--profile desktop` 的别名：
+
+```sh
+pnpm smkit:desktop:install     # 装入（要求应用完全退出）
+pnpm smkit:desktop:uninstall   # 移除
+pnpm smkit:desktop:kill        # 终止桌面端进程，--yes 跳过确认
+pnpm smkit:desktop:debug       # 杀应用 → 装入 → 重新拉起应用
+```
+
+找不到安装目录时用 `DSH_DESKTOP_ROOT` 指给它；装完重启桌面端，在插件页确认该 bundle 已启用。
+
 两点提示：
 
 - 当前插件只输出一行日志，Web UI 里没有可交互的内容；后期在 `apply` 里注册工具后，就可以在 Web UI 对话中调用工具并观察入参与返回，那才是 Web UI 调试的主战场。
