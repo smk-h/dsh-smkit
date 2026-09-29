@@ -160,6 +160,13 @@ export const FOREIGN_DATA_ATTRS = [
   'data-sidebar-right-open',
   'data-dockkit-pane',
   'data-dockkit-column',
+  /**
+   * The settings panel carries this (`SettingsRoot` in ui-settings-general);
+   * the shell-restore fallback reads it to tell the settings dialog from any
+   * other `role="dialog"` surface before touching the trigger. Read, never
+   * written.
+   */
+  'data-shortcut-modal',
 ]
 
 /**

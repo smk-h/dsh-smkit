@@ -43,6 +43,7 @@ import { createChevronRightIcon } from '../../../platform/icons/ChevronRightIcon
 import { createFolderIcon } from '../../../platform/icons/FolderIcon'
 import { createConfirmDialog } from '../../../platform/ui/ConfirmDialog'
 import { createRefreshButton } from '../../../platform/ui/RefreshButton'
+import type { SettingsShellGuard } from '../../../platform/ui/settings-shell'
 import { createStateDot } from '../../../platform/ui/StateDot'
 import { createTabs } from '../../../platform/ui/Tabs'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
@@ -58,6 +59,13 @@ import type {
 /** Props the merged section's shell hands every panel. */
 export interface SessionManagerPanelProps {
   t: Translator
+  /**
+   * The settings-shell guard around a confirmed batch (see
+   * `platform/ui/settings-shell`): whether the removal can trip the shell's
+   * own close is only decidable before the request, so `arm` runs with the ids
+   * about to go and `commit` after they have, with the ones that did.
+   */
+  onBatchDelete?: SettingsShellGuard
 }
 
 /** How often the panel re-reads the listing while it is mounted. */
@@ -181,7 +189,7 @@ export function createSessionManagerPanel(
   const ChevronRightIcon = createChevronRightIcon(deps)
   const CheckIcon = createCheckIcon(deps)
 
-  return function SessionManagerPanel({ t }: SessionManagerPanelProps): JSX.Element {
+  return function SessionManagerPanel({ t, onBatchDelete }: SessionManagerPanelProps): JSX.Element {
     const [list, setList] = react.useState<SessionManagerList | undefined>(undefined)
     const [loadError, setLoadError] = react.useState('')
     const [subtab, setSubtab] = react.useState<'active' | 'archived'>('active')
@@ -271,16 +279,23 @@ export function createSessionManagerPanel(
     const confirm = (): void => {
       void run(async () => {
         const ids = (pending ?? []).map((s) => s.sessionId)
+        // Before the request: whether the viewed session is among these is only
+        // readable now — once the removals land, its row is gone from the store.
+        onBatchDelete?.arm(ids)
         const result = await api('/sessions/delete-batch', {
           method: 'POST',
           body: JSON.stringify({ sessionIds: ids }),
         })
         if (!result.ok) return t('batchFailed', { status: result.status })
         const receipt = result.body as SessionBatchDeleteReceipt
+        // Only the ids the host actually removed: a refusal leaves its session
+        // in place, so it cannot have moved the view the shell watches.
+        const removed = receipt.results.filter((r) => r.ok).map((r) => r.sessionId)
         setReport({ deleted: receipt.deleted, failed: receipt.results.filter((r) => !r.ok) })
         setPending(undefined)
         setSelected([])
         refresh()
+        onBatchDelete?.commit(removed)
       })
     }
 

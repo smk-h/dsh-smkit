@@ -54,6 +54,7 @@ import type {
   ClientDeps,
   SessionListSelector,
   Translator,
+  UiWorkspaceLike,
   WorkspaceSelector,
 } from '../../platform/types'
 import type { SessionPreview, SessionStoreFootprint } from '../../../shared/session-delete/contract'
@@ -174,32 +175,48 @@ export function createSessionDeleteButton(
 
     /**
      * Start the next session the way DSH's own New Session does: in the
-     * workspace the user was already working in. `ui-workspace`'s
-     * `startSession` derives that workspace from the current session, but the
-     * deleted session is no longer current by the time this runs, so its
-     * identity is captured above and named explicitly.
+     * workspace the user was already working in. That workspace's identity is
+     * captured above, because the deleted session is no longer current by the
+     * time this runs.
+     *
+     * DSH 0.1.7 moved session navigation out of the sessions contract ("that
+     * contract now reads: navigation belongs to view owners") into the
+     * `uiWorkspace` service, whose `startSession` is this very flow — connect
+     * the workspace, create or reuse its blank session, show it. The service is
+     * read through reflection at click time, the way `reflect` is meant to be
+     * used: declaring it would make the whole entry unloadable on a host whose
+     * shell predates the service, while the legacy `create` + `open` pair below
+     * stays the fallback for one that still carries navigation on `sessions`.
      */
     const startInDeletedWorkspace = async (): Promise<void> => {
       const sessions = ctx.sessions
-      if (sessions === undefined) return
+      const workspace = ctx.reflect?.get('uiWorkspace') as UiWorkspaceLike | undefined
       try {
         if (workspaceId === undefined && cwd === undefined) {
           // Nothing to reuse (an ungrouped session without a directory): the
           // no-session state is the honest destination, and its workspace
-          // picker is the same first step a fresh harness starts from.
-          sessions.clear()
-        } else {
-          const created = await sessions.create(
-            workspaceId !== undefined ? { workspaceId } : { cwd },
-          )
-          sessions.open(created)
+          // picker is the same first step a fresh harness starts from. The
+          // removal has usually cleared the selection already, so a host
+          // without the legacy `clear` needs nothing here either.
+          sessions?.clear?.()
+          return
         }
+        if (workspaceId !== undefined && typeof workspace?.startSession === 'function') {
+          workspace.startSession(workspaceId)
+          return
+        }
+        if (sessions === undefined) return
+        const created = await sessions.create(
+          workspaceId !== undefined ? { workspaceId } : { cwd },
+        )
+        if (typeof workspace?.openSession === 'function') workspace.openSession(created)
+        else sessions.open?.(created)
       } catch {
         // The workspace vanished, or the Host refused the create: never leave
         // the deleted session selected — fall back to the empty state.
-        sessions.clear()
+        sessions?.clear?.()
       }
-      void sessions.refresh().catch(() => {})
+      void sessions?.refresh().catch(() => {})
     }
 
     const confirm = (): void => {

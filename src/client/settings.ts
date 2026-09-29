@@ -28,6 +28,7 @@ import { LOCAL_CACHE_LOCALE_ZH } from './features/local-cache/i18n/zh'
 import { SESSION_MANAGER_LOCALE_EN } from './features/session-manager/i18n/en'
 import { SESSION_MANAGER_LOCALE_ZH } from './features/session-manager/i18n/zh'
 import { createSettingsSection } from './settings/components/SettingsSection'
+import { createSettingsShellRestore } from './platform/ui/settings-shell'
 import { MCP_CSS } from './features/mcp/styles'
 import { SKILLS_CSS } from './features/skills/styles'
 import { CUSTOM_SETTINGS_CSS } from './features/custom-settings/styles'
@@ -111,6 +112,13 @@ export const settingsFeature: ClientFeature = {
       localCache: ctx.locale.bind('local-cache'),
       notify: ctx.locale.bind('notify'),
       sessionManager: ctx.locale.bind('session-manager'),
+    }, {
+      // The shell closes itself when a removal empties the main view; the
+      // guard arms before a batch and puts the dialog back on this section
+      // after (a no-op while it stayed open, and a stand-down on a host whose
+      // ledger answers nothing). The literal is the seat id below — the
+      // namespace guard pins it.
+      onBatchDelete: createSettingsShellRestore(ctx, 'mcp-manager'),
     })
     ctx.slots.inject('settings.section', () =>
       ctx.slots.register(

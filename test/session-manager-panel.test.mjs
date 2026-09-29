@@ -73,9 +73,16 @@ const findAll = (tree, matches) => nodes(tree).filter(matches)
 /**
  * Mount the real bundle and the merged section on a hook harness; the caller
  * opens the session-manager tab the way a user does.
+ *
+ * `extras` carries the context a case wants beyond the bare slots/locale pair:
+ * `slots` merges into the base slot object (the shell-restore cases hand in a
+ * ledger `entries` read), and `sessions` becomes the whole sessions service —
+ * the restore reads the main-view retention out of it, the panel itself never
+ * does.
  */
-function mount(routes) {
+function mount(routes, extras = {}) {
   const calls = []
+  const timers = []
   const registrations = new Map()
   let exported
   let states = []
@@ -112,7 +119,9 @@ function mount(routes) {
     },
     setInterval: () => 1,
     clearInterval: () => {},
-    setTimeout: () => 1,
+    // The settings-shell restore schedules its checks with setTimeout; the
+    // harness parks them so a case flushes them exactly where it wants.
+    setTimeout: (fn) => { timers.push(fn); return timers.length },
     clearTimeout: () => {},
   })
   exported.apply({
@@ -121,12 +130,23 @@ function mount(routes) {
     slots: {
       inject: (_name, callback) => callback(),
       register: (options, component) => { registrations.set(options.id, component) },
+      ...extras.slots,
     },
+    ...(extras.sessions === undefined
+      ? {}
+      : { sessions: { refresh: async () => {}, ...extras.sessions } }),
   })
   const section = registrations.get('mcp-manager')
   assert.ok(section, 'the merged settings section must be registered')
   return {
     calls,
+    timers,
+    /** Run the callbacks the bundle parked with setTimeout, in order. */
+    flushTimers() {
+      const pending = [...timers]
+      timers.length = 0
+      for (const fn of pending) fn()
+    },
     openTab(label) {
       cursor = 0
       const tree = section()
@@ -156,6 +176,16 @@ function mount(routes) {
       capturing = false
       return read()
     },
+    /**
+     * Unmount everything and render fresh — what the settings shell does to
+     * the section with every dialog close (only the active section stays
+     * mounted). Hook state is lost; module state is not, which is exactly the
+     * line the tab memory sits on.
+     */
+    remount() {
+      states.length = 0
+      return this.render()
+    },
     effects() {
       const pending = [...effects.values()]
       effects.clear()
@@ -168,8 +198,8 @@ function mount(routes) {
  * Open the tab, let the first read land, and hand back read helpers that all
  * go through `walk` (cursor discipline).
  */
-async function opened(routes) {
-  const app = mount(routes)
+async function opened(routes, extras) {
+  const app = mount(routes, extras)
   app.openTab('tabSessions')
   let tree = app.render()
   app.effects()
@@ -375,4 +405,169 @@ it('switches to the archived sub-tab, keeps the fold default and deletes from th
   again()
   const posted = app.calls.filter((call) => call.method === 'POST' && call.url.includes('/sessions/delete-batch'))
   assert.deepEqual(posted[0].body, { sessionIds: ['s-arch'] })
+})
+
+/**
+ * A settings shell that reads like DSH's: its own store handle rides the
+ * `sidebar.settings` entry, and `create()` answers the instance the dialog's
+ * open state lives in. `shell.open` is what the restore reads; `restored`
+ * collects the `openSection` calls.
+ */
+function shellStub() {
+  const shell = { open: true, activeId: 'mcp-manager' }
+  const restored = []
+  return {
+    shell,
+    restored,
+    entries: (key) => key === 'sidebar.settings'
+      ? [{
+          store: {
+            create: () => ({
+              getSnapshot: () => ({ ...shell }),
+              actions: {
+                openSection: (id) => { shell.open = true; shell.activeId = id; restored.push(id) },
+              },
+            }),
+          },
+        }]
+      : [],
+  }
+}
+
+/** The sessions slice the restore reads the main-view retention out of. */
+const retention = (byId) => ({ list: { getSnapshot: () => ({ byId }) } })
+
+/** Flush the restore's parked checks until none is left. */
+const drain = (app) => {
+  while (app.timers.length > 0) app.flushTimers()
+}
+
+it('puts the settings dialog back when the batch removes the viewed session', async () => {
+  // Deleting the session the browser is viewing is what makes dsh's settings
+  // shell close itself: its onboarding coordinator reads the sessions store,
+  // sees the main view go absent (or blank), and runs its own close — a path
+  // no mask, Escape or close button took. The page cannot stop that close, so
+  // it reads the shell's own state back and re-opens on this section.
+  const stub = shellStub()
+  // The removals land while the POST is in flight: by the time the page reads
+  // the store again, the viewed row is gone. That is exactly why the guard
+  // captures the fact before the request instead of after it.
+  const byId = {
+    's-1': { blank: false, retainedBy: { mainView: 1 } },
+    's-2': { blank: false, retainedBy: {} },
+  }
+  const page = await opened((url, method) => {
+    if (method === 'GET' && url.includes('/sessions/manager')) return response(LIST)
+    if (method === 'POST' && url.includes('/sessions/delete-batch')) {
+      delete byId['s-1']
+      return response({ results: [{ sessionId: 's-1', ok: true }], deleted: 1, failed: 0 })
+    }
+  }, {
+    slots: { entries: stub.entries },
+    sessions: retention(byId),
+  })
+  const { app, again, picks } = page
+
+  expand(picks, 'My App')
+  again()
+  check(picks, 'Session one', true)
+  again()
+  toolbarDelete(picks).props.onClick()
+  again()
+  dialogConfirm(picks).props.onClick()
+  await settle()
+
+  // The close lands in a React effect behind the sessions-store update, i.e.
+  // after the answer the delete flow resumes on: simulate it, then let the
+  // restore's checks see it.
+  stub.shell.open = false
+  drain(app)
+
+  assert.deepEqual(stub.restored, ['mcp-manager'], 'the dialog comes back on this section')
+  assert.equal(stub.shell.activeId, 'mcp-manager', 'and stays on it, not the shell default')
+})
+
+it('leaves the dialog alone when the batch keeps the viewed session', async () => {
+  const stub = shellStub()
+  const page = await opened((url, method) => {
+    if (method === 'GET' && url.includes('/sessions/manager')) return response(LIST)
+    if (method === 'POST' && url.includes('/sessions/delete-batch')) {
+      return response({ results: [{ sessionId: 's-2', ok: true }], deleted: 1, failed: 0 })
+    }
+  }, {
+    slots: { entries: stub.entries },
+    sessions: retention({
+      's-1': { blank: false, retainedBy: { mainView: 1 } },
+      's-2': { blank: false, retainedBy: {} },
+    }),
+  })
+  const { app, again, picks } = page
+
+  expand(picks, 'My App')
+  again()
+  check(picks, 'Session two', true)
+  again()
+  toolbarDelete(picks).props.onClick()
+  again()
+  dialogConfirm(picks).props.onClick()
+  await settle()
+  stub.shell.open = false
+  drain(app)
+
+  assert.deepEqual(stub.restored, [], 'a removal that cannot empty the main view re-opens nothing')
+})
+
+it('reopens the section on the tab the user was reading, not the strip default', () => {
+  // The restore puts the dialog back on this section, but the shell unmounts
+  // the section with the dialog, so the section's own tab state dies with the
+  // close. The memory lives above the component — exactly the line an
+  // unmount/remount crosses — so the page the user was reading comes back too,
+  // instead of the strip's first tab.
+  return opened((url, method) => {
+    if (method === 'GET' && url.includes('/sessions/manager')) return response(LIST)
+  }).then(({ app }) => {
+    const tree = app.remount()
+    // The panel's own active/archived sub-tabs wear `aria-selected` too, so the
+    // assertion names the strip tab rather than counting selected ones.
+    const selected = (label) => app.walk(() =>
+      findAll(tree, (node) =>
+        node.props?.role === 'tab' && node.props?.['aria-selected'] === true && text(node).includes(label)))
+    assert.equal(selected('tabSessions').length, 1, 'the sessions tab reads as selected after the remount')
+    assert.deepEqual(selected('tabMcp'), [], 'the strip default did not take the place back')
+  })
+})
+
+it('keeps the restore out of batches that refuse the viewed session', async () => {
+  // A refusal leaves the session in place, so the view never moves and the
+  // shell never closes: the commit must not re-open anything here either.
+  const stub = shellStub()
+  const page = await opened((url, method) => {
+    if (method === 'GET' && url.includes('/sessions/manager')) return response(LIST)
+    if (method === 'POST' && url.includes('/sessions/delete-batch')) {
+      return response({
+        results: [{ sessionId: 's-1', ok: false, code: 'session/running', message: 'stop it first' }],
+        deleted: 0,
+        failed: 1,
+      })
+    }
+  }, {
+    slots: { entries: stub.entries },
+    sessions: retention({
+      's-1': { blank: false, retainedBy: { mainView: 1 } },
+    }),
+  })
+  const { app, again, picks } = page
+
+  expand(picks, 'My App')
+  again()
+  check(picks, 'Session one', true)
+  again()
+  toolbarDelete(picks).props.onClick()
+  again()
+  dialogConfirm(picks).props.onClick()
+  await settle()
+  stub.shell.open = false
+  drain(app)
+
+  assert.deepEqual(stub.restored, [], 'nothing was removed, so nothing is re-opened')
 })

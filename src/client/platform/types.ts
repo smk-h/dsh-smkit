@@ -50,12 +50,52 @@ export interface ClientSessionsLike {
    * only names a directory.
    */
   create(opts?: { workspaceId?: string; cwd?: string }): Promise<string>
-  /** Select a created session as current. */
-  open(id: string): void
-  /** Clear the current selection: the layout falls to the no-session state. */
-  clear(): void
+  /** Select a created session as current.
+   *
+   * Optional on purpose: DSH 0.1.7 moved session navigation out of the
+   * sessions contract ("navigation belongs to view owners") into the
+   * `uiWorkspace` service, so a host on that build answers `undefined` here and
+   * the navigation caller reaches the same flow through `ctx.reflect`. */
+  open?(id: string): void
+  /** Clear the current selection: the layout falls to the no-session state.
+   * Optional for the same reason as `open`. */
+  clear?(): void
   /** Re-pull the Host-authoritative session list. */
   refresh(): Promise<void>
+  /**
+   * The host-authoritative session list (`ISessions.list`), read only to
+   * predict whether a removal turns the main view absent or blank — the
+   * condition the settings shell answers by closing itself (see
+   * `platform/ui/settings-shell`). Optional on purpose: without it the restore
+   * simply runs after every batch, which is a no-op while the dialog is open.
+   */
+  list?: {
+    getSnapshot(): {
+      readonly byId?: Readonly<Record<string, {
+        readonly blank?: boolean
+        readonly retainedBy?: Readonly<Record<string, number | undefined>>
+      }>>
+    }
+  }
+}
+
+/**
+ * The slice of DSH's cross-Controller navigation service (`ctx.uiWorkspace`)
+ * the delete control uses to put a replacement session on screen. Reached
+ * through `ctx.reflect` at click time rather than declared in `inject`: a host
+ * without the service must not unload the whole entry, and a read that answers
+ * `undefined` there costs one gesture, not the bundle.
+ */
+export interface UiWorkspaceLike {
+  /**
+   * Start the New Session flow in one workspace and navigate to its session —
+   * the same control DSH's own sidebar runs, refusal notice included. Present
+   * from DSH 0.1.7, which is where the sessions contract stopped carrying
+   * navigation; a host without it falls back to the legacy `sessions` pair.
+   */
+  startSession?(workspaceId?: string): void
+  /** Select a session and show its conversation as one navigation action. */
+  openSession?(sessionId: string): void
 }
 
 /** `useSessions`' callee shape: a selector over the client's session-list state. */
@@ -181,6 +221,14 @@ export interface ClientContext {
   slots: {
     inject(name: string, setup: () => void): void
     register(options: SlotOptions, component: unknown): unknown
+    /**
+     * Snapshot the entries registered under one slot key — the ledger's public
+     * read (`SlotRegistry.entries`). Optional on purpose: the settings-shell
+     * restore (`platform/ui/settings-shell`) reads the shell's own store handle
+     * off the ledger, and a harness or host without the read simply degrades to
+     * the dialog staying closed.
+     */
+    entries?(key: string): readonly unknown[]
   }
   /**
    * Client Session state and selection. Declared optional on purpose: the

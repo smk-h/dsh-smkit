@@ -35,6 +35,7 @@
  */
 
 import { createTabs } from '../../platform/ui/Tabs'
+import type { SettingsShellGuard } from '../../platform/ui/settings-shell'
 import { createVersionBadge } from '../../platform/ui/VersionBadge'
 import { createCableIcon } from '../../features/mcp/icons/CableIcon'
 import { createWandSparklesIcon } from '../../features/skills/icons/WandSparklesIcon'
@@ -75,9 +76,21 @@ interface SettingsTab {
   Panel: (props: { t: Translator }) => JSX.Element
 }
 
+/** Composition-layer options the seat's owner hands the section. */
+export interface SettingsSectionOptions {
+  /**
+   * The settings-shell guard around a session-manager batch delete (see
+   * `platform/ui/settings-shell`): the shell closes itself when a removal
+   * empties the main view, and the layer that owns the seat hands the page the
+   * restore; without it the page keeps today's behavior.
+   */
+  onBatchDelete?: SettingsShellGuard
+}
+
 export function createSettingsSection(
   deps: ClientDeps,
   panelDictionaries: PanelDictionaries,
+  options: SettingsSectionOptions = {},
 ): () => JSX.Element {
   const { h, react } = deps
   // `t` is this section's own copy; a tab's panel is handed its namespace's.
@@ -134,7 +147,7 @@ export function createSettingsSection(
       id: 'sessions',
       label: 'tabSessions',
       icon: <MessagesSquareIcon size={14} />,
-      Panel: (props) => <SessionManagerPanel {...props} />,
+      Panel: (props) => <SessionManagerPanel {...props} onBatchDelete={options.onBatchDelete} />,
     },
   ]
 
@@ -150,12 +163,27 @@ export function createSettingsSection(
     sessions: panelDictionaries.sessionManager,
   }
 
+  // The tab the user was last reading, for the life of the module. The shell
+  // mounts only the active section, so this component's own state dies with
+  // every dialog close — and the dialog also closes on the shell's own behalf
+  // (see `platform/ui/settings-shell`: the shell shuts itself when a session
+  // delete empties the main view, and the restore re-opens the section). What
+  // the user was reading must survive that round trip, which plain state
+  // cannot. Memory, not storage: across a page reload the shell already lands
+  // on the last section by itself, and a tab older than that would only
+  // surprise.
+  let lastTabId = TABS[0].id
+
   // No props: the slot system hands a section the seat's copy, but this shell
   // reads only the dictionaries it was built with — its own for the frame, each
   // panel's for the page below the strip.
   return function SettingsSection(): JSX.Element {
-    const [selected, setSelected] = react.useState(TABS[0].id)
+    const [selected, setSelected] = react.useState(() => lastTabId)
     const active = TABS.find((tab) => tab.id === selected) ?? TABS[0]
+    const select = (id: string): void => {
+      lastTabId = id
+      setSelected(id)
+    }
     return (
       <div className="smkit-shell-page-section">
         {/* The identity block, top down: the page's name, the line that says what
@@ -167,7 +195,7 @@ export function createSettingsSection(
         <Tabs
           ariaLabel={t('sectionLabel')}
           active={active.id}
-          onChange={setSelected}
+          onChange={select}
           tabs={TABS.map((tab) => ({ id: tab.id, label: t(tab.label), icon: tab.icon }))}
         />
         <div className="smkit-shell-page-panel" role="tabpanel">

@@ -64,7 +64,7 @@ function confirmButton(tree) {
  * @param options - URL-routed fetch stub, the session/workspace state the selectors read, an optional create override, and the platform modules the bundle may require.
  * @returns the render/click helpers plus the recorded calls.
  */
-function mount({ fetch, session, workspace, create, primitives }) {
+function mount({ fetch, session, workspace, create, primitives, workspaceNav }) {
   const calls = []
   const registrations = new Map()
   let exported
@@ -125,6 +125,11 @@ function mount({ fetch, session, workspace, create, primitives }) {
       clear: () => { cleared.push(true) },
       refresh: async () => { refreshed += 1 },
     },
+    // The navigation face a 0.1.7 host serves (`ctx.uiWorkspace`), reached
+    // through reflection; a case without one reads as an older host.
+    ...(workspaceNav === undefined ? {} : {
+      reflect: { get: (name) => (name === 'uiWorkspace' ? workspaceNav : undefined) },
+    }),
   }
   exported.apply(ctx)
   const SessionDelete = registrations.get('smkit-session-delete')
@@ -354,4 +359,45 @@ it('still offers the delete when the dry run itself fails', async () => {
 
   assert.ok(texts(shown).includes('sessionInfoFailed'), 'the failed read is reported, not hidden')
   assert.equal(confirmButton(shown).props.disabled, false, 'the host re-validates; a failed read does not block')
+})
+
+it('navigates through uiWorkspace when the host carries the service', async () => {
+  // DSH 0.1.7 took session navigation out of the sessions contract and into
+  // `ctx.uiWorkspace`; the control prefers it over the legacy create+open pair.
+  const navigated = []
+  const nav = {
+    startSession: (id) => { navigated.push(['start', id]) },
+    openSession: (id) => { navigated.push(['open', id]) },
+  }
+  const app = mount({
+    fetch: routing({}),
+    session: sessionState(),
+    workspace: workspaceState(),
+    workspaceNav: nav,
+  })
+  await app.confirm()
+
+  assert.deepEqual(navigated, [['start', 'w1']], "dsh's own New Session flow runs in the deleted workspace")
+  assert.deepEqual(plain(app.created), [], 'startSession replaces the create+open pair')
+  assert.deepEqual(app.opened, [], 'the sessions contract no longer carries navigation')
+})
+
+it('still lands in the deleted session\u2019s directory through uiWorkspace\u2019s openSession', async () => {
+  // An ungrouped session with a directory has no workspace to start from, so
+  // the create stays — but the navigation goes through the service that owns it.
+  const navigated = []
+  const app = mount({
+    fetch: routing({}),
+    session: sessionState(),
+    workspace: workspaceState([]),
+    workspaceNav: {
+      startSession: (id) => { navigated.push(['start', id]) },
+      openSession: (id) => { navigated.push(['open', id]) },
+    },
+  })
+  await app.confirm()
+
+  assert.deepEqual(plain(app.created), [{ cwd: '/ws/app' }])
+  assert.deepEqual(navigated, [['open', 'created-1']], 'the created session is shown by the navigation owner')
+  assert.deepEqual(app.opened, [], 'the legacy open stays unused while the service is there')
 })
