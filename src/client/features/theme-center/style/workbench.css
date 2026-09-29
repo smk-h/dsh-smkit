@@ -132,14 +132,12 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]):not([data-righ
 }
 
 /* The leading pane of the deck yields its left edge to the board's. The shell
-   draws one there with `border-l3`/`l4` — the rung it keeps for rules meant to
-   vanish into a surface, which on this center's dark theme is `#181a1f`: a black
-   hairline on the canvas, standing a pixel inside the panel and on the same seam
-   the board is edged at. Measured in the browser, that seam read `#3e4452` and
-   then `#181a1f` — two lines where there is room for one, and the darker of the
-   two the only thing anyone notices. Only the pane in column 0 owns that seam: a
-   dock split into two columns keeps the rule between its halves, where nothing
-   else draws an edge. */
+   draws one there with `border-l3`/`l4` — the rungs the theme keeps at the
+   panel-border tone, the same ink this skin edges every board with, so the two
+   lines on that seam now read alike; two is still one too many, and the board's
+   edge is the one that owns the corner rounding. Only the pane in column 0 owns
+   that seam: a dock split into two columns keeps the rule between its halves,
+   where nothing else draws an edge. */
 body[data-smkit-workbench='card'] [data-sidebar-right-panel='push'][data-sidebar-right-open] [data-dockkit-pane][data-dockkit-column='0'] {
   border-left: 0;
 }

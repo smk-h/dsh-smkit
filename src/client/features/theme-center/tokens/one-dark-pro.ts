@@ -83,26 +83,31 @@ export const ONE_DARK_PRO_TOKENS: Readonly<Record<string, string>> = {
   '--dsw-alias-bg-multi-select': '#ffffff14', // 8% white
   '--dsw-alias-bg-skeleton': '#ffffff1d', // editorWhitespace.foreground
 
-  // Borders. The four rungs are roles here rather than a climb, and l3 is the
-  // one that steps *below* the others on purpose: the shell spends l3 on the
-  // frame's column rules (`sidebarCol`'s right edge, `centerCol`'s and
-  // `rightbarCol`'s left edge) plus the thin frames of the cards inside the
-  // right column, and a column rule has to *disappear* into the surface —
-  // especially on the right, where the shell paints the column with `bg-base`
-  // and the rule is the only thing marking the seam. So it takes the palette's
-  // `editorGroup.border` / `tab.border`, the rung One Dark Pro itself uses
-  // between editor groups. l1 and l2 stay on the visible tones, because they
-  // draw edges that are meant to be read: the center's cards and the shell's
-  // panels.
+  // Borders. The four rungs are roles rather than a climb, and l3 with l4 are
+  // the shell's *rule* rungs — the frame's column rules (`sidebarCol`'s right
+  // edge, `centerCol`'s and `rightbarCol`'s left edge), the right column's
+  // panel edge, the thin frames of the cards inside the right column, and the
+  // tab strip's underline. The first instinct, taking the palette's
+  // `editorGroup.border`/`tab.border` (`#181a1f`) so a column rule would
+  // vanish into the surface, reads as a black cut here: in the editor that ink
+  // only ever shows inside the group gap, while the harness lays its rules
+  // *between two lit surfaces* — the left seam holds `#21252b` against
+  // `#282c34`, and a near-black line between them is the loudest thing on the
+  // frame (measured: a crisp 1px `#181a1f` rule on both seams and under the
+  // tabs). A rule drawn across surfaces wants the rung the palette spends on
+  // edges that are meant to be read — `panel.border`/`focusBorder` — which is
+  // also the ink the card workbench already draws every board edge and the
+  // drag rail with, so the frame speaks one line whether it is skinned or not.
   '--dsw-alias-border-l1': '#3e4452', // focusBorder, panel.border, terminal.border
   '--dsw-alias-border-l2': '#4b5362', // textBlockQuote.border
-  '--dsw-alias-border-l3': '#181a1f', // tab.border, editorGroup.border — the frame's column rules
-  '--dsw-alias-border-l4': '#181a1f', // tab.border, editorGroup.border — the right column's panel edge
+  '--dsw-alias-border-l3': '#3e4452', // panel.border — the frame's column rules
+  '--dsw-alias-border-l4': '#3e4452', // panel.border — the right column's panel edge
   '--dsw-alias-border-l2-darkmode-thin': '#ffffff1d', // editorWhitespace.foreground
-  // No counterpart (the palette has no inverted rule); its darkest ink plays
-  // that role away from a light surface, and the menu separator is the one
-  // mid-tone the palette does use for a rule inside a surface.
-  '--dsw-alias-border-inverted': '#181a1f', // tab.border
+  // No counterpart (the palette has no inverted rule). The shell spends this
+  // on the tab underline — the same rule between lit surfaces as l3 above —
+  // so it rides the same rung; the menu separator stays the palette's own
+  // mid-tone.
+  '--dsw-alias-border-inverted': '#3e4452', // panel.border
   '--dsw-alias-border-inverted2': '#343a45', // menu.separatorBackground
 
   // Brand: the badge blue and the ink the palette puts on it. `#61afef` is the
