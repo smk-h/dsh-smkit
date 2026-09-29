@@ -1,17 +1,16 @@
 lockfileVersion: '9.0'
 
 settings:
-  autoInstallPeers: true
+  autoInstallPeers: false
   excludeLinksFromLockfile: false
 
 importers:
 
   .:
-    dependencies:
+    devDependencies:
       '@deepseek-ai/cordis':
         specifier: ^4.0.2
         version: 4.0.2
-    devDependencies:
       '@types/node':
         specifier: 26.5.1
         version: 26.5.1

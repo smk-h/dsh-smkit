@@ -1,11 +1,16 @@
 # Single-package workspace for this plugin repo (same shape dsh writes into
-# its profiles). autoInstallPeers lets `pnpm install` pull the peer service
-# definition packages locally so `tsc` can type-check against them; at
-# runtime the dsh host supplies every peer itself (see README).
+# its profiles).
+#
+# autoInstallPeers 是关的，而"类型检查需要的那一个 peer"（@deepseek-ai/cordis）
+# 改成了显式的 devDependency。原因：这里的 peerDependencies 是"运行时契约" ——
+# 它由 dsh 宿主在运行时装好（见 README），不是本仓库必须在磁盘上装一份的东西。
+# 一旦让 pnpm 自动装 peer，声明的每个名字都会进 dev 树与锁文件，而
+# `@deepseek-ai/dsh` 那一棵树就是整套启动器；更关键的是，manifest 与锁文件一旦
+# 不一致，`pnpm install --frozen-lockfile`（两条发布流水线都跑它）会直接失败。
 packages:
   - .
 
 nodeLinker: hoisted
-autoInstallPeers: true
+autoInstallPeers: false
 minimumReleaseAgeExclude:
   - '@types/node@26.5.1'
