@@ -89,6 +89,11 @@ async function copyAddress(text: string): Promise<boolean> {
   }
 }
 
+/** How long the copy's answer stays before it clears itself. A sticky answer
+ * reads as a state the second copy should change — and it never does, so the
+ * answer must vanish for the next copy to begin. */
+const COPY_FEEDBACK_MS = 2_000
+
 /** The dictionary key per duration option, spelled out rather than templated
  * so the dictionaries stay greppable. */
 const DURATION_KEYS: Record<NotifyDuration, string> = {
@@ -203,6 +208,15 @@ export function createNotifyPanel(deps: ClientDeps): (props: NotifyPanelProps) =
       if (settingsUrl === null) return
       setCopyState((await copyAddress(settingsUrl)) ? 'done' : 'failed')
     }
+
+    // The copy's answer clears itself: two seconds after it lands the line
+    // goes back to just the address, and the next copy reads as a new answer
+    // rather than the previous one still hanging there.
+    react.useEffect(() => {
+      if (copyState === 'idle') return
+      const timer = setTimeout(() => setCopyState('idle'), COPY_FEEDBACK_MS)
+      return () => clearTimeout(timer)
+    }, [copyState])
 
     const fireTest = (): Promise<void> =>
       run(async () => {
