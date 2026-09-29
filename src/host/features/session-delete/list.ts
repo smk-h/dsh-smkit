@@ -26,6 +26,7 @@ import { join, resolve } from 'node:path'
 import { isRecord } from '../../platform/util/text.js'
 import { serviceOf } from '../../platform/util/services.js'
 import { LOG_PREFIX } from '../../platform/constants.js'
+import { measureFootprint } from './measure.js'
 import type {
   ManagedSessionView,
   ManagedWorkspaceView,
@@ -58,10 +59,9 @@ interface StoredHeaderLike {
   createdAt?: unknown
 }
 
-/** Structural slice of a persistence snapshot: header plus measured log size. */
+/** Structural slice of a persistence snapshot: the header the merge reads. */
 interface StoredSnapshotLike {
   header?: StoredHeaderLike
-  sizeBytes?: unknown
 }
 
 /** Structural slice of `ctx.sessions`: the attached-session store. */
@@ -94,7 +94,19 @@ interface StorageBackendLike {
 /** Structural slice of `ctx.sessionPersistence`. */
 interface PersistenceLike {
   list?(options?: { signal?: AbortSignal }): Promise<unknown>
+  /** The backend's configured session root, when it exposes one. */
+  root?: unknown
+  /** Concrete-backend helper returning the current-generation artifact path. */
+  resolveCurrentLog?(id: string, signal?: AbortSignal): Promise<string | undefined>
 }
+
+/**
+ * How long a measured total is reused across polls. The artifact trees only
+ * grow while a session is in use, and the summary already says "约" — a
+ * minute-old measurement is exactly as honest as a fresh one, for a fraction
+ * of the filesystem traffic.
+ */
+const SIZE_CACHE_TTL_MS = 60_000
 
 export interface SessionListerDeps {
   /** The host context cast into the plugin's structural service view. */
@@ -122,6 +134,11 @@ export type SessionLister = () => Promise<SessionManagerList>
  * @returns the session lister.
  */
 export function createSessionLister(deps: SessionListerDeps): SessionLister {
+  // Measured totals, briefly cached: the page polls, and re-walking every
+  // session's artifact trees on each poll buys nothing over an answer a few
+  // seconds old — while the delete dialog's own dry run always measures fresh.
+  const measured = new Map<string, { bytes: number; at: number }>()
+
   return async function listSessions(): Promise<SessionManagerList> {
     const registry = serviceOf(deps.services, 'workspaceRegistry') as WorkspaceRegistryLike | undefined
     const workspaces = readWorkspaces(registry, deps.logger)
@@ -181,7 +198,7 @@ export function createSessionLister(deps: SessionListerDeps): SessionLister {
         running: agents?.get?.(id)?.status === 'running',
         ...(typeof header.createdAt === 'number' ? { createdAt: header.createdAt } : {}),
         ...(meta?.lastPromptAt !== undefined ? { lastPromptAt: meta.lastPromptAt } : {}),
-        ...(row.sizeBytes !== undefined ? { sizeBytes: row.sizeBytes } : {}),
+        sizeBytes: await measuredSize(id, typeof header.cwd === 'string' ? header.cwd : undefined),
       })
     }
 
@@ -191,6 +208,26 @@ export function createSessionLister(deps: SessionListerDeps): SessionLister {
       title: ws.title,
     }))
     return { workspaces: workspaceViews, sessions, archivedSessionIds }
+  }
+
+  /**
+   * The session's on-disk total, as the delete dialog's own dry run measures
+   * it — the artifact directory, the projection-cache row and the spill tree
+   * summed, so a row's number and the dialog's total are one figure, not two
+   * opinions. Measured values are cached briefly; the backing trees only grow
+   * while a session is in use, and a slightly stale total is what the "约"
+   * in the summary already owns up to.
+   * @param id - the session to measure.
+   * @param cwd - the session's project directory, when the header carries one.
+   * @returns the total bytes (0 when the session has nothing on disk).
+   */
+  async function measuredSize(id: string, cwd: string | undefined): Promise<number> {
+    const hit = measured.get(id)
+    if (hit !== undefined && Date.now() - hit.at < SIZE_CACHE_TTL_MS) return hit.bytes
+    const persistence = serviceOf(deps.services, 'sessionPersistence') as PersistenceLike | undefined
+    const footprint = await measureFootprint(deps, persistence, id, cwd)
+    measured.set(id, { bytes: footprint.totalBytes, at: Date.now() })
+    return footprint.totalBytes
   }
 }
 
@@ -202,8 +239,6 @@ interface MergeRow {
   liveObject?: unknown
   /** The attached session's event counter — a blank session never turned. */
   seq: number | undefined
-  /** The persisted log's measured bytes, when persistence reported them. */
-  sizeBytes: number | undefined
 }
 
 /** Every registered workspace, in registry order, with its accounting. */
@@ -266,7 +301,6 @@ function collectLive(store: LiveSessionStoreLike | undefined, merged: Map<string
       live: true,
       liveObject: session,
       seq: typeof session.seq === 'number' ? session.seq : undefined,
-      sizeBytes: undefined,
     })
   }
 }
@@ -296,12 +330,10 @@ async function collectStored(
     const header = isRecord(stored.header) ? stored.header : undefined
     const id = typeof header?.id === 'string' ? header.id : undefined
     if (id === undefined || merged.has(id)) continue
-    const sizeBytes = typeof stored.sizeBytes === 'number' ? stored.sizeBytes : undefined
     merged.set(id, {
       header: header ?? {},
       live: false,
       seq: undefined,
-      sizeBytes,
     })
   }
 }

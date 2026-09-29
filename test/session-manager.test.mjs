@@ -15,7 +15,7 @@
  *   and a malformed body is refused before any delete runs.
  */
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, it } from 'node:test'
@@ -152,6 +152,9 @@ it('lists the sidebar population with workspace accounting and the archive set',
     [...byId.keys()].sort(),
     ['s-archived', 's-cold-1', 's-cold-2', 's-live', 's-ungrouped'].sort(),
   )
+  // A row's size is the dialog's own total: the session has no artifact
+  // directory here, so what remains is its projection-cache document.
+  const cacheDoc = (id) => join(storageRoot, 'session_projcache', 'sessions', `${id}.json`)
   assert.deepEqual(byId.get('s-live'), {
     sessionId: 's-live',
     workspaceId: 'w1',
@@ -159,6 +162,7 @@ it('lists the sidebar population with workspace accounting and the archive set',
     running: true,
     cwd: '/work/app',
     createdAt: 1_710_000_000_000,
+    sizeBytes: 0,
   })
   assert.deepEqual(byId.get('s-cold-1'), {
     sessionId: 's-cold-1',
@@ -169,11 +173,43 @@ it('lists the sidebar population with workspace accounting and the archive set',
     cwd: '/work/app',
     createdAt: 1_700_000_000_000,
     lastPromptAt: 1_700_000_100_000,
-    sizeBytes: 2048,
+    sizeBytes: statSync(cacheDoc('s-cold-1')).size,
   })
   assert.equal(byId.get('s-archived').workspaceId, 'w1', 'an archived session keeps its workspace accounting')
   assert.equal(byId.get('s-ungrouped').workspaceId, undefined, 'an unaccounted session trails ungrouped')
   assert.equal(byId.get('s-ungrouped').title, 'Stray session')
+})
+
+it('measures a row the way the delete dialog does: log dir plus cache row', async () => {
+  // The row's number and the dialog's total used to be two different figures
+  // (the persistence snapshot's current-generation log file versus the whole
+  // measured footprint), and neither matched the other. The listing now runs
+  // the dialog's own measurement, so one session reads one size everywhere.
+  const root = mkdtempSync(join(tmpdir(), 'dsh-smkit-sessions-measure-'))
+  const cwd = join(scratchHome, 'measure-project')
+  const dir = makeSession({ id: 's-measured', cwd, root })
+  appendFileSync(join(dir, 'session.jsonl'), 'x'.repeat(1_000))
+  const storageRoot = join(scratchHome, 'storages')
+  writeProjCache(storageRoot, 's-measured', { title: { val: 'Measured session' } })
+  const cacheDoc = join(storageRoot, 'session_projcache', 'sessions', 's-measured.json')
+
+  const handler = makeCtx({
+    persistence: { root, list: async () => [{ header: { id: 's-measured', cwd } }] },
+    sessions: {
+      list: () => [{ header: { id: 's-measured', cwd, createdAt: 1_710_000_000_000 }, seq: 9 }],
+    },
+    registry: {
+      list: () => [{ id: 'w1', path: cwd, title: 'Measured', sessionIds: ['s-measured'] }],
+    },
+    storageBackend: { root: storageRoot },
+  })
+
+  const r = await request(handler, 'GET', '/smkit/api/sessions/manager')
+  assert.equal(r.code, 200)
+  assert.equal(r.json.sessions.length, 1)
+  const expected = statSync(join(dir, 'session.jsonl')).size + statSync(cacheDoc).size
+  assert.equal(r.json.sessions[0].sizeBytes, expected, 'log directory and cache row, the dialog\'s own total')
+  assert.equal(r.json.sessions[0].live, true, 'the measurement does not care whether the session is attached')
 })
 
 it('keeps listing when the registry, the title service or the cache are absent', async () => {

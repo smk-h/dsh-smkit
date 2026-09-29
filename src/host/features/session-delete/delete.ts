@@ -78,34 +78,19 @@
  * path that could drift.
  */
 
-import { createHash } from 'node:crypto'
-import { readdir, rm, stat } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import { encodeSegment, sessionDir } from './path.js'
+import { rm } from 'node:fs/promises'
+import { locateSessionDir, measureFootprint, projectionRowPaths, spillDirPath } from './measure.js'
 import { serviceOf } from '../../platform/util/services.js'
 import { LOG_PREFIX } from '../../platform/constants.js'
 import type {
   SessionDeleteRefusal,
   SessionDeleteReceipt,
   SessionPreview,
-  SessionStoreFootprint,
 } from '../../../shared/session-delete/contract.js'
 import type { LoggerLike, ServiceAccessor } from '../../platform/types.js'
 
 /** Longest session id accepted from the wire; far above any id the harness mints. */
 const MAX_SESSION_ID_LENGTH = 200
-
-/**
- * Projection-cache keys become path segments in the storage backend, which
- * accepts exactly this alphabet (`storage-json`'s `SAFE_KEY_RE`). A key
- * outside it was never written, so there is nothing to clean.
- */
-const SAFE_STORAGE_KEY = /^[a-zA-Z0-9_-]+$/
-
-/** The domain and table holding one projection-checkpoint document per session. */
-const PROJECTION_UNIT = 'session_projcache'
-const PROJECTION_TABLE = 'sessions'
 
 /** One stored session's metadata, as the persistence service reports it. */
 interface SessionHeaderLike {
@@ -138,16 +123,6 @@ interface AgentRegistryLike {
 /** Structural slice of `ctx.workspaceRegistry`. */
 interface WorkspaceRegistryLike {
   archiveSession?(id: string): Promise<void>
-}
-
-/** Structural slice of the storage hub's json backend, which owns the storage root. */
-interface StorageBackendLike {
-  root?: unknown
-}
-
-/** Structural slice of `ctx.spillStore`: the local backend exposes its resolved root. */
-interface SpillStoreLike {
-  root?: unknown
 }
 
 export interface SessionDeleterDeps {
@@ -334,16 +309,7 @@ export function createSessionPreviewer(deps: SessionDeleterDeps): SessionPreview
     if (!inspection.ok) return refuse(inspection.code, inspection.message)
     const { id, persistence, header, cwd } = inspection.target
 
-    const log = await measureSessionDir(persistence, id, cwd, deps)
-    const cacheFiles = await projectionRowPaths(deps, id)
-    const cache = cacheFiles.length === 0 ? undefined : await measureFiles(cacheFiles)
-    let spill: SessionStoreFootprint | undefined
-    const spillPath = spillDirPath(deps, id)
-    if (spillPath !== undefined) {
-      const measured = await measureTree(spillPath)
-      // An empty (or absent) spill directory is not worth a row of its own.
-      if (measured.files > 0) spill = { path: spillPath, ...measured }
-    }
+    const { log, cache, spill, totalBytes } = await measureFootprint(deps, persistence, id, cwd)
 
     return {
       ok: true,
@@ -354,77 +320,9 @@ export function createSessionPreviewer(deps: SessionDeleterDeps): SessionPreview
         ...(log === undefined ? {} : { log }),
         ...(cache === undefined ? {} : { cache }),
         ...(spill === undefined ? {} : { spill }),
-        totalBytes: (log?.bytes ?? 0) + (cache?.bytes ?? 0) + (spill?.bytes ?? 0),
+        totalBytes,
       },
     }
-  }
-}
-
-/**
- * Measure the directory the delete would remove for this session.
- * @param persistence - the persistence service that names the artifact.
- * @param sessionId - the session being previewed.
- * @param cwd - the session's project directory, when the header carries one.
- * @param deps - deleter dependencies.
- * @returns the footprint, or undefined when the session has no directory (an
- *   attached session that never materialized leaves nothing on disk).
- */
-async function measureSessionDir(
-  persistence: PersistenceLike,
-  sessionId: string,
-  cwd: string | undefined,
-  deps: SessionDeleterDeps,
-): Promise<SessionStoreFootprint | undefined> {
-  const encoded = encodeSegment(sessionId)
-  const roots = knownRoots(persistence, deps.dshHome)
-  const dir = await locateSessionDir(persistence, sessionId, cwd, encoded, roots, deps.logger)
-  if (dir === undefined) return undefined
-  return { path: dir, ...await measureTree(dir) }
-}
-
-/** Sum the bytes and count the files of a list of existing files (all in one directory). */
-async function measureFiles(paths: readonly string[]): Promise<SessionStoreFootprint> {
-  let bytes = 0
-  for (const path of paths) bytes += await fileSize(path)
-  return { path: dirname(paths[0]), bytes, files: paths.length }
-}
-
-/**
- * Walk one path and total its file bytes. An unreadable entry contributes
- * nothing rather than failing the preview: the dialog showing a smaller number
- * than reality is harmless next to refusing to open.
- * @param path - the directory to measure.
- * @returns the total bytes and file count (0/0 when the path is absent).
- */
-async function measureTree(path: string): Promise<{ bytes: number; files: number }> {
-  let entries
-  try {
-    entries = await readdir(path, { withFileTypes: true })
-  } catch {
-    return { bytes: 0, files: 0 }
-  }
-  let bytes = 0
-  let files = 0
-  for (const entry of entries) {
-    const child = join(path, entry.name)
-    if (entry.isDirectory()) {
-      const nested = await measureTree(child)
-      bytes += nested.bytes
-      files += nested.files
-      continue
-    }
-    bytes += await fileSize(child)
-    files += 1
-  }
-  return { bytes, files }
-}
-
-/** One file's size, or 0 when it cannot be read. */
-async function fileSize(path: string): Promise<number> {
-  try {
-    return (await stat(path)).size
-  } catch {
-    return 0
   }
 }
 
@@ -498,9 +396,7 @@ async function removeArtifacts(
   cwd: string | undefined,
   deps: SessionDeleterDeps,
 ): Promise<string[]> {
-  const encoded = encodeSegment(sessionId)
-  const roots = knownRoots(persistence, deps.dshHome)
-  const dir = await locateSessionDir(persistence, sessionId, cwd, encoded, roots, deps.logger)
+  const dir = await locateSessionDir(persistence, sessionId, cwd, deps)
   if (dir === undefined) {
     // Nothing on disk: either the session never materialized (a created-but-
     // empty session leaves no footprint) or it was removed out of band. The
@@ -510,140 +406,6 @@ async function removeArtifacts(
   }
   await rm(dir, { recursive: true, force: true })
   return [dir]
-}
-
-/** The session roots this process can legitimately find an artifact under. */
-function knownRoots(persistence: PersistenceLike, dshHome: string | undefined): string[] {
-  const roots: string[] = []
-  const configured = typeof persistence.root === 'string' && persistence.root !== ''
-    ? persistence.root
-    : undefined
-  if (configured !== undefined) roots.push(configured)
-  const fallback = join(dshHome ?? resolveDshHome(), 'sessions')
-  if (configured === undefined || resolve(configured) !== resolve(fallback)) roots.push(fallback)
-  return roots
-}
-
-/**
- * Resolve the harness home the way the runtime does: `$DSH_HOME` when set and
- * non-blank, otherwise `~/.dsh`. Only used to locate a backend that does not
- * report its own root.
- * @returns the absolute harness home.
- */
-function resolveDshHome(): string {
-  const fromEnv = process.env.DSH_HOME
-  const home = fromEnv !== undefined && fromEnv.trim().length > 0 ? fromEnv : join(homedir(), '.dsh')
-  return resolve(home)
-}
-
-/**
- * Find the one directory that belongs to this session.
- * @param persistence - the persistence service.
- * @param sessionId - the session being deleted.
- * @param cwd - the session's project directory, when known.
- * @param encoded - the session id as one path segment.
- * @param roots - candidate session roots.
- * @param logger - host logger for a failed backend probe.
- * @returns the verified directory, or undefined when the session has none.
- */
-async function locateSessionDir(
-  persistence: PersistenceLike,
-  sessionId: string,
-  cwd: string | undefined,
-  encoded: string,
-  roots: string[],
-  logger: LoggerLike,
-): Promise<string | undefined> {
-  // The backend's own answer is the most authoritative one: it is where the
-  // service reads and writes this exact session right now, so its directory
-  // needs no root arithmetic — only the name and kind check.
-  if (typeof persistence.resolveCurrentLog === 'function') {
-    try {
-      const path = await persistence.resolveCurrentLog(sessionId)
-      if (typeof path === 'string' && path !== '') {
-        const dir = dirname(path)
-        if (basename(dir) === encoded && await isDirectory(dir)) return resolve(dir)
-      }
-    } catch (error) {
-      logger.warn(`${LOG_PREFIX}: could not locate session "${sessionId}" through persistence: ${String(error)}`)
-    }
-  }
-
-  for (const root of roots) {
-    const candidate = sessionDir(root, cwd, sessionId)
-    if (await isOwnSessionDirectory(candidate, encoded, roots)) return resolve(candidate)
-  }
-
-  // Last resort: a session whose header lost its cwd, or a backend that reports
-  // a root spelled differently than it resolves. Scanning the project
-  // directories under the known roots costs one readdir per root and keeps the
-  // delete possible at all.
-  for (const root of roots) {
-    for (const dir of await projectDirectories(root)) {
-      const candidate = join(dir, encoded)
-      if (await isOwnSessionDirectory(candidate, encoded, roots)) return resolve(candidate)
-    }
-  }
-  return undefined
-}
-
-/** The project directories under one session root (absence means no sessions). */
-async function projectDirectories(root: string): Promise<string[]> {
-  const entries = await readdir(root, { withFileTypes: true }).catch(() => [])
-  return entries.filter(entry => entry.isDirectory()).map(entry => join(root, entry.name))
-}
-
-/**
- * Whether a candidate really is one session's directory: it must exist as a
- * directory, be named exactly after the encoded session id, and lie inside a
- * known root. The three checks together make the following `rm` incapable of
- * walking outside the session store.
- * @param candidate - the path to verify.
- * @param encoded - the expected directory name (the encoded session id).
- * @param roots - the roots the candidate must sit under.
- * @returns whether the candidate is the session directory.
- */
-async function isOwnSessionDirectory(candidate: string, encoded: string, roots: string[]): Promise<boolean> {
-  if (basename(candidate) !== encoded) return false
-  const absolute = resolve(candidate)
-  if (!roots.some(root => isInside(root, absolute))) return false
-  return isDirectory(absolute)
-}
-
-/** Whether a path is an existing directory (every read failure reads as "no"). */
-async function isDirectory(path: string): Promise<boolean> {
-  try {
-    return (await stat(path)).isDirectory()
-  } catch {
-    return false
-  }
-}
-
-/** Whether `target` is a strict descendant of `root` (both are resolved). */
-function isInside(root: string, target: string): boolean {
-  const rel = relative(resolve(root), target)
-  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)
-}
-
-/**
- * The session's spilled tool-output directory. Tool results too large to keep in
- * the log are written to `<spill root>/session-<hash12>/…` — one directory per
- * session, where `hash12` is the first 12 hex digits of `sha256(sessionId)`. The
- * name is a pure function of the id, so this addresses this session's directory
- * and no other.
- * @param deps - deleter dependencies.
- * @param sessionId - the session.
- * @returns the directory path, or undefined when this deployment has no spill store.
- */
-function spillDirPath(deps: SessionDeleterDeps, sessionId: string): string | undefined {
-  const spill = serviceOf(deps.services, 'spillStore') as SpillStoreLike | undefined
-  const root = typeof spill?.root === 'string' && spill.root !== '' ? resolve(spill.root) : undefined
-  if (root === undefined) return undefined
-  const name = `session-${createHash('sha256').update(sessionId).digest('hex').slice(0, 12)}`
-  const dir = join(root, name)
-  // `name` holds no separator and `join` cannot escape its own root, so the
-  // guard only states the invariant the removal depends on.
-  return isInside(root, dir) ? dir : undefined
 }
 
 /**
@@ -666,30 +428,6 @@ async function forgetSpillFiles(deps: SessionDeleterDeps, sessionId: string): Pr
     return undefined
   }
   return dir
-}
-
-/**
- * The projection-cache documents written for this session: the record itself
- * plus any `<key>.json.bak.<stamp>` document the backend moved aside. The store
- * is one file per session under `<storage root>/session_projcache/sessions/`,
- * and its keys are path-safe by construction (a key outside the backend's
- * alphabet was never written), so a session id that fails that check has nothing
- * to look for.
- * @param deps - deleter dependencies.
- * @param sessionId - the session.
- * @returns the matching document paths, empty when there are none.
- */
-async function projectionRowPaths(deps: SessionDeleterDeps, sessionId: string): Promise<string[]> {
-  if (!SAFE_STORAGE_KEY.test(sessionId)) return []
-  const backend = serviceOf(deps.services, 'storage.backend.json') as StorageBackendLike | undefined
-  const storageRoot = typeof backend?.root === 'string' && backend.root !== ''
-    ? backend.root
-    : join(deps.dshHome ?? resolveDshHome(), 'storages')
-  const tableDir = join(storageRoot, PROJECTION_UNIT, PROJECTION_TABLE)
-  const entries = await readdir(tableDir).catch(() => [])
-  return entries
-    .filter(name => name === `${sessionId}.json` || name.startsWith(`${sessionId}.json.bak.`))
-    .map(name => join(tableDir, name))
 }
 
 /**

@@ -118,9 +118,12 @@ export interface ManagedSessionView {
   /** Last user prompt instant, epoch milliseconds, when the projection cache knows one. */
   lastPromptAt?: number
   /**
-   * The current generation's log bytes, as the persistence snapshot reports
-   * them. One file, not the whole session directory — the preview dialog
-   * remains the precise tool; this number only ranks and roughly sums rows.
+   * The session's whole on-disk footprint — artifact directory, projection
+   * cache and spill tree summed — measured the same way the preview dialog
+   * measures its total, so a row's number and the dialog's are one figure.
+   * Measured briefly before the read and cached across the page's polls, so
+   * it can lag a just-used session by a minute; the dialog stays the precise
+   * tool.
    */
   sizeBytes?: number
 }
