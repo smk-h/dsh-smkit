@@ -161,6 +161,17 @@ export const FOREIGN_DATA_ATTRS = [
   'data-dockkit-pane',
   'data-dockkit-column',
   /**
+   * The desktop preload's Windows marker (`apps/desktop/src/preload-windows.ts`),
+   * set on the ROOT element. It is what tells the caption row's platform apart
+   * from the web shell: ui-layout gives `[data-windows-titlebar] .frame` a
+   * `padding-top` seat for the native menu bar, so the workbench skin has to
+   * name the same attribute to put that seat back after its own padding
+   * shorthand takes it away (see `style/workbench.css`). Read, never written —
+   * and because it lives on the root rather than the body, nothing this plugin
+   * does on the web can match a rule that hangs off it.
+   */
+  'data-windows-titlebar',
+  /**
    * The settings panel carries this (`SettingsRoot` in ui-settings-general);
    * the shell-restore fallback reads it to tell the settings dialog from any
    * other `role="dialog"` surface before touching the trigger. Read, never
@@ -173,6 +184,30 @@ export const FOREIGN_DATA_ATTRS = [
    * bubbles among the `[data-side]` elements. Read, never written.
    */
   'data-width-handle',
+]
+
+/**
+ * Custom properties that are deliberately not ours, and are not tokens either.
+ *
+ * `HOST_PROPERTY_ROOT` covers the shell's design tokens: the `--dsw-*` ramp
+ * every surface paints from. These are the host's *other* vocabulary — geometry
+ * the layout publishes for its own frame, read by a child that has to line up
+ * with it. Reading one is not repainting the shell, and none of them is ours to
+ * rename, so they are listed one by one rather than matched by a prefix: a
+ * blanket `--dsh-` allowance would wave through a mistyped name of our own just
+ * as happily.
+ */
+export const FOREIGN_PROPERTIES = [
+  /**
+   * The height of the Windows caption row, written on the root by the desktop
+   * preload (`apps/desktop/src/preload-windows.ts`) and spent by ui-layout's
+   * `[data-windows-titlebar] .frame` as its `padding-top` — the seat the native
+   * menu bar and the sidebar's brand strip sit in. The workbench card skin
+   * pads the frame with a shorthand, which clears that seat, so it reads this
+   * to hand the seat back at its own height plus its gutter (see
+   * `style/workbench.css`). Read, never written.
+   */
+  '--dsh-windows-titlebar-height',
 ]
 
 /**

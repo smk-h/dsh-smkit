@@ -94,6 +94,26 @@ body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) {
   background: var(--dsw-alias-bg-base);
 }
 
+/* Windows desktop: the shorthand above also resets the host's own `padding-top`,
+   and that one is a seat rather than a margin — `[data-windows-titlebar] .frame`
+   in ui-layout's AppFrame.module.css reserves the caption row (the native menu
+   bar plus the sidebar's brand strip) with
+   `padding-top: var(--dsh-windows-titlebar-height)`, a 40px the desktop preload
+   writes on the root, and paints the band itself with `.frame::before` — an
+   element that reads the variable and never moves with this padding. Taking the
+   seat away lifted all three columns 34px into the caption, under a band that
+   stayed put; the web shell has no such band, which is why only the desktop
+   shows it.
+
+   The seat comes back at its own height plus this skin's gutter, and the three
+   sides the shorthand already owns stay as they were. A browser without the
+   desktop preload is untouched by construction: the attribute lives on the ROOT
+   element rather than the body every other rule here hangs off, so this selector
+   never becomes true where there is no caption to seat. */
+html[data-windows-titlebar] body[data-smkit-workbench='card'] div:has(> [data-shell-overlay]) {
+  padding-top: calc(var(--dsh-windows-titlebar-height) + var(--smkit-workbench-pad));
+}
+
 /* one board per column. The floating layer and the drag rails are not boards,
    and neither is the right column *here*: it is a board only while it owns a
    track, so it gets its own rule below. A collapsed column is zero pixels wide,

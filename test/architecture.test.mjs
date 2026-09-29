@@ -22,6 +22,7 @@ import { it } from 'node:test'
 import {
   DATA_ROOT,
   FOREIGN_DATA_ATTRS,
+  FOREIGN_PROPERTIES,
   FROZEN,
   HOST_PROPERTY_ROOT,
   MODIFIERS,
@@ -190,9 +191,10 @@ it('namespaces every custom property this plugin defines and reads', () => {
       )
     }
     for (const name of usedProperties(source)) {
+      if (FOREIGN_PROPERTIES.includes(name)) continue
       assert.ok(
         name.startsWith(`${PROPERTY_ROOT}-`) || name.startsWith(`${HOST_PROPERTY_ROOT}-`),
-        `${rel(file)}: reads "${name}" — a plugin stylesheet may read its own ${PROPERTY_ROOT}-* properties or the shell's ${HOST_PROPERTY_ROOT}-* tokens, and nothing else`,
+        `${rel(file)}: reads "${name}" — a plugin stylesheet may read its own ${PROPERTY_ROOT}-* properties, the shell's ${HOST_PROPERTY_ROOT}-* tokens, or a host geometry property listed in FOREIGN_PROPERTIES`,
       )
     }
   }
