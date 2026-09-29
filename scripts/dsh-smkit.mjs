@@ -3,16 +3,16 @@
  * @smai-kit/dsh-smkit — 把本插件装入 / 卸出 dsh profile 的辅助脚本，兼管
  * profile 存量（扫描与清理）。
  *
- *   pnpm smkit:install   [--profile web]
- *   pnpm smkit:uninstall [--profile web]
- *   pnpm smkit:debug     [--profile web] [--port 3080]
+ *   pnpm smkit:web:install|uninstall|debug   [--port 3080]
+ *   pnpm smkit:desktop:install|uninstall|debug|kill
  *   pnpm smkit:scan
  *   pnpm smkit:prune     [名字...] [--confirm]
  *
- *   desktop 另有别名，等价于上面加 --profile desktop：
- *   pnpm smkit:desktop:install|uninstall|debug|kill
+ *   两条别名各自把 --profile 固定住（web / desktop）。自定义 profile 没有别名，
+ *   直接用脚本本身，命令与别名等价：
+ *   node scripts/dsh-smkit.mjs install --profile <name>
  *
- *   kill 命令本身还在脚本里（web / 自定义 profile 按端口杀，与 dsh:kill-port 同源；
+ *   kill 命令本身也在脚本里（web / 自定义 profile 按端口杀，与 dsh:kill-port 同源；
  *   desktop 一般走上面的别名）：
  *   node scripts/dsh-smkit.mjs kill [--profile <name>] [--port <port>] [--yes]
  *
@@ -423,7 +423,7 @@ function prepareProfile(profile, yes) {
   return `"${desktopCli(root)}"`
 }
 
-/** pnpm smkit:install — 打包并装入 profile，重启 dsh 后生效。 */
+/** install — 打包并装入 profile，重启 dsh 后生效。 */
 function cmdInstall(profile, yes) {
   const prefix = prepareProfile(profile, yes)
   step(`打包并装入 profile "${profile}"`)
@@ -433,12 +433,12 @@ function cmdInstall(profile, yes) {
     isDesktop(profile)
       ? '重启桌面端后生效：pnpm smkit:desktop:debug（或手工重开应用）'
       : profile === 'web'
-        ? '如 dsh web 正在运行，重启后生效：pnpm smkit:debug'
-        : `如 dsh 正在使用 profile "${profile}"，重启后生效：pnpm smkit:debug --profile ${profile} --port <port>`,
+        ? '如 dsh web 正在运行，重启后生效：pnpm smkit:web:debug'
+        : `如 dsh 正在使用 profile "${profile}"，重启后生效：node scripts/dsh-smkit.mjs debug --profile ${profile} --port <port>`,
   )
 }
 
-/** pnpm smkit:uninstall — 从 profile 移除插件。 */
+/** uninstall — 从 profile 移除插件。 */
 function cmdUninstall(profile) {
   const desktop = isDesktop(profile)
   const prefix = desktop ? `"${desktopCli(requireDesktopRoot())}"` : 'dsh'
@@ -462,7 +462,7 @@ async function cmdKill(profile, port, yes) {
   killDsh(port, yes)
 }
 
-/** pnpm smkit:debug — 完整调试循环：装入新代码 → 杀掉运行中的实例 → 重启。 */
+/** debug — 完整调试循环：装入新代码 → 杀掉运行中的实例 → 重启。 */
 async function cmdDebug(profile, port, portGiven) {
   if (isDesktop(profile)) {
     const root = requireDesktopRoot()
@@ -603,14 +603,13 @@ function cmdPrune(names, confirm) {
 }
 
 function printUsage() {
-  console.log(
-    '用法：pnpm smkit:install|uninstall|debug|scan|prune [--profile <name>] [--port <port>] [--yes] [--confirm]',
-  )
-  console.log('      pnpm smkit:desktop:install|uninstall|debug|kill   等价于上面加 --profile desktop')
-  console.log('      smkit:debug  = 打包安装 → 杀掉运行中的实例 → 重启（web 前台起 dsh web，桌面端拉起应用）')
-  console.log('      smkit:scan   = 只读扫描：各 profile 的 bundles、依赖、体积、是否在跑')
-  console.log('      smkit:prune  = 列出/删除不需要的 profile（默认 dry-run，--confirm 才真删）')
-  console.log('      kill 命令仍在脚本里（web 按端口，同 dsh:kill-port）：node scripts/dsh-smkit.mjs kill')
+  console.log('用法：pnpm smkit:web:install|uninstall|debug [--port <port>] [--yes]')
+  console.log('      pnpm smkit:desktop:install|uninstall|debug|kill')
+  console.log('      pnpm smkit:scan|prune [名字...] [--confirm]')
+  console.log('      别名把 --profile 固定住；自定义 profile 用脚本本身，如')
+  console.log('      node scripts/dsh-smkit.mjs install --profile <name> [--port <port>] [--yes]')
+  console.log('      smkit:web:debug / smkit:desktop:debug = 打包安装 → 杀掉运行中的实例 → 重启')
+  console.log('      kill 命令也在脚本里（web 按端口，同 dsh:kill-port）：node scripts/dsh-smkit.mjs kill')
   console.log('      desktop 走桌面端自带的 CLI，找不到安装目录时用 DSH_DESKTOP_ROOT 指给它')
 }
 

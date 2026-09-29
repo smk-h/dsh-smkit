@@ -363,7 +363,7 @@ cd ~/.dsh/profiles/demo && node -e "import('dsh-smkit').then(m => m.apply({}))"
 仓库根目录的辅助脚本可一步完成打包与装入：
 
 ```sh
-pnpm smkit:install --profile demo
+node scripts/dsh-smkit.mjs install --profile demo
 ```
 
 等价的手动流程：
@@ -399,11 +399,11 @@ profile 目录位于 `$DSH_HOME/profiles/<name>`，可用 `pnpm dsh:config` 在�
 Web UI 由 web profile 独有的 `@deepseek-ai/dsh-web-app` bundle 提供（`dsh web` 等价于 `dsh --profile web`）。profile 之间互相隔离：插件装在其他 profile 时，`dsh web` 不会加载它。要把插件带进 Web UI，运行辅助脚本（默认装入 web profile，`--profile` 可指定其他）：
 
 ```sh
-pnpm smkit:install     # 打包（pnpm pack）并用 tarball 装入
-pnpm smkit:uninstall   # 移除
+pnpm smkit:web:install     # 打包（pnpm pack）并用 tarball 装入
+pnpm smkit:web:uninstall   # 移除
 ```
 
-然后重启 `dsh web`，启动日志里即可看到插件的 `console.log` 输出。改码后重新运行 `pnpm smkit:install` 即可更新；等价的手动操作与说明见「2.2 改码后的更新循环」。
+然后重启 `dsh web`，启动日志里即可看到插件的 `console.log` 输出。改码后重新运行 `pnpm smkit:web:install` 即可更新；等价的手动操作与说明见「2.2 改码后的更新循环」。
 
 桌面端同理，但 desktop profile 由 Electron 应用独占管理（`dsh --profile desktop` 一律被拒，只有桌面端自带包装器的 `plugin` 子命令例外），所以脚本会先定位桌面端安装目录、再用它自带的 CLI 转 pnpm，并给了一份省掉 `--profile desktop` 的别名：
 

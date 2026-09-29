@@ -18,7 +18,7 @@
 
 ```sh
 # scripts/dsh-smkit.mjs
-pnpm smkit:install          # pnpm pack（prepack 会跑 tsc + tsdown + verify）后装入 web profile
+pnpm smkit:web:install      # pnpm pack（prepack 会跑 tsc + tsdown + verify）后装入 web profile
 ```
 
 等价的纯离线自检（不启动 dsh，只验证插件本体能被加载、`apply` 能挂上路由）：
@@ -32,7 +32,7 @@ pnpm build && pnpm verify && pnpm test
 （1）前台重启 dsh web，日志与访问链接直接输出到当前终端：
 
 ```sh
-pnpm smkit:debug
+pnpm smkit:web:debug
 ```
 
 （2）确认插件已进入配置层：
@@ -337,7 +337,7 @@ MCP 服务器分两个层级，配置位置与作用范围都不同：
 （1）令牌值不在配置文件里，只在 dsh 进程的环境里，所以要在**启动 dsh 的那个终端**先导出，再启动：
 
 ```sh
-MCP_HTTP_TOKEN=test-token pnpm smkit:debug
+MCP_HTTP_TOKEN=test-token pnpm smkit:web:debug
 ```
 
 （2）`pnpm http-mcp:serve static` 启动 8792（预设的 `--token=test-token` 与上面一致）；
@@ -517,7 +517,7 @@ ssh -o BatchMode=yes 127.0.0.1 'node -v'
 | ---- | ---- | ---- |
 | 一直停在 `认证中` | 授权流程开了标签页但没点同意，或标签页被直接关掉 | 点「重启」退出该状态，再重新发起认证 |
 | 工作区行看不到 | 没打开该工作区，工作区条目不会激活 | 打开对应工作区后回设置页刷新 |
-| 改了客户端代码但界面没变 | 浏览器缓存了旧的客户端脚本 | 重新 `pnpm smkit:install` 后重启 dsh web，并硬刷新（Ctrl+F5） |
+| 改了客户端代码但界面没变 | 浏览器缓存了旧的客户端脚本 | 重新 `pnpm smkit:web:install` 后重启 dsh web，并硬刷新（Ctrl+F5） |
 | 全部条目都显示连接失败 | 服务端实例没起，而工作区条目没有启用开关可以关掉 | `pnpm http-mcp:serve`；不需要的条目直接从 `mcp.json` 删掉 |
 
 ---
