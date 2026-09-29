@@ -12,9 +12,14 @@
  *   直接用脚本本身，命令与别名等价：
  *   node scripts/dsh-smkit.mjs install --profile <name>
  *
- *   kill 命令本身也在脚本里（web / 自定义 profile 按端口杀，与 dsh:kill-port 同源；
- *   desktop 一般走上面的别名）：
+ *   kill 命令本身也在脚本里（按端口杀，与 dsh:kill-port 同源）：
  *   node scripts/dsh-smkit.mjs kill [--profile <name>] [--port <port>] [--yes]
+ *
+ * 脚本按三层排下来：通用管道 → desktop 独占的那条通道 → 命令层。
+ *
+ * 除 desktop 外没有"某个 profile 专用"的函数：装上 profile 名就能用（走 PATH 上
+ * 的 `dsh --profile <name>`），所以 ensureProfile / killDsh / startDsh 这些是通用
+ * 的，名字里不带 profile。真正需要区别对待的只有 desktop 一层（见下）。
  *
  * profile 不存在时 install/debug 会先从内置的 web 模板创建它（见 ensureProfile），
  * 所以换一台机器或换了 profile 名时不必手工建。非 web 的 profile 只有显式给出
@@ -28,19 +33,19 @@
  * 打包后用绝对路径 add 进 profile。不使用 link:/相对路径——profile 与项目
  * 跨盘符时 pnpm 会把 link: 目标当相对路径解析，生成坏 junction。
  *
- * debug 是完整调试循环：装入新代码 → 杀掉端口上的 dsh → 前台重启 dsh web。
- * 服务进程随本脚本一起跑在前台，启动日志（含访问链接）直接可见，按 Ctrl+C
- * 即可结束；不带 --no-open，每次重启由 dsh 自动打开浏览器。
+ * debug 是完整调试循环：装入新代码 → 杀掉运行中的实例 → 重启。普通 profile 是前台
+ * 起 dsh，服务进程随本脚本一起跑在前台，启动日志（含访问链接）直接可见，按 Ctrl+C
+ * 即可结束，且不带 --no-open（每次重启由 dsh 自己打开浏览器）；desktop 则是把应用
+ * 重新拉起来。
  *
- * --profile desktop 走另一条通道。desktop profile 由 Electron 应用独占管理：
- * dsh 的 CLI 对 `dsh --profile desktop` 一律拒绝，连桌面端自带的那份包装器
- * 也只放行 plugin 子命令（manageDesktopProfile），profile 本身由应用初始化。
- * 所以这里先用 desktopRoot() 定位安装目录，再用它的 dsh.cmd 转 pnpm
- * （见 desktopCli），找不到就明确报错，而不是让调用方对着
- * "managed exclusively by the Electron application" 发愣。
- * 桌面端也没有"前台重启"一说：kill 杀的是应用进程（按安装目录过滤，同名程序
- * 不误伤），debug 杀完再用安装目录里的 exe 拉起它 —— profile 的加载权在应用
- * 手里。进程管理目前只实现了 Windows。
+ * desktop 是另一条通道：desktop profile 由 Electron 应用独占管理，dsh 的 CLI 对
+ * `dsh --profile desktop` 一律拒绝，连桌面端自带的那份包装器也只放行 plugin 子命令
+ * （manageDesktopProfile），profile 本身由应用初始化。所以这一层先用
+ * findDesktopRoot() 定位安装目录，再用它自带的 CLI 转 pnpm（见 desktopCli），找不到
+ * 就明确报错，而不是让调用方对着 "managed exclusively by the Electron application"
+ * 发愣。桌面端也没有"前台重启"一说：kill 杀的是应用进程（按安装目录过滤可执行文件
+ * 路径，同名程序不误伤），debug 杀完再用安装目录里的 exe 拉起它 —— profile 的加载权
+ * 在应用手里。进程管理目前只实现了 Windows。
  */
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -54,15 +59,25 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 // 包名不写死，随 package.json 走：改名时这里自动跟上。
 const PLUGIN = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).name
 
+/** 不带 --profile 时的默认 profile：本插件的主要目标是 Web UI。 */
+const DEFAULT_PROFILE = 'web'
+/** 普通通道用的 CLI：PATH 上的 dsh，web 与自定义 profile 都走它。 */
+const DSH_CLI = 'dsh'
+/** dsh 内置的 profile 名：不进 prune 候选，也不接受显式删除。 */
+const PROTECTED_PROFILES = new Set(['web', 'tui', 'headless', 'desktop', 'rescue'])
+
+/* ─────────────────────────────── 通用：与 profile 种类无关的管道与动作 ── */
+
 /** shell step() 风格的阶段提示：亮青色 ➤ 前缀。 */
 function step(message) {
   console.log(`\x1B[96m➤  ${message}\x1B[0m`)
 }
 
+/** 命令行：--profile / --port 是本脚本自己的，其余原样留给命令层（--yes 等）。 */
 function parseArgs(argv) {
   // `portGiven` 记的是"调用方点过 --port"，不是端口值本身：非 web profile 据此
   // 决定要不要把 --port 交给应用（见 startDsh）。
-  const args = { _: [], profile: 'web', port: '3080', portGiven: false }
+  const args = { _: [], profile: DEFAULT_PROFILE, port: '3080', portGiven: false }
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--profile' || argv[i] === '-p') {
       args.profile = argv[++i] || args.profile
@@ -90,6 +105,15 @@ function run(command, { capture = false, ignoreFailure = false } = {}) {
   return r.stdout || ''
 }
 
+/** PATH 上某个命令的路径（where / command -v）；找不到给 null。 */
+function whichCommand(name) {
+  const out = run(process.platform === 'win32' ? `where ${name}` : `command -v ${name}`, {
+    capture: true,
+    ignoreFailure: true,
+  })
+  return out.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)[0] ?? null
+}
+
 /** dsh 的 profile 根目录：$DSH_HOME/profiles，未设置时是 ~/.dsh（dsh 自己的解析）。 */
 function profilesRoot() {
   return path.join(process.env.DSH_HOME || path.join(homedir(), '.dsh'), 'profiles')
@@ -98,22 +122,6 @@ function profilesRoot() {
 /** 目标 profile 建好了没有 —— 用 dsh 自己的判据：目录里有 package.json。 */
 function profileExists(profile) {
   return existsSync(path.join(profilesRoot(), profile, 'package.json'))
-}
-
-/**
- * 目标 profile 不存在时先建它：从内置的 web 模板派生（与本脚本的默认 profile
- * 同源），并用 `--dump-config` 让它把合成结果打印完就退出 —— 这一步在 dsh 里
- * 先于应用启动，所以创建不会留下一个跑着的服务。派生出来的 profile 只有模板
- * 自带的 bundles，本插件仍由随后的 install 装入。
- */
-function ensureProfile(profile) {
-  if (profileExists(profile)) return
-  step(`profile "${profile}" 不存在，从内置 web 模板创建`)
-  run(`dsh ${profile} --from-default-profile web --dump-config`, { capture: true })
-  if (!profileExists(profile)) {
-    console.error(`ensure: 创建 profile "${profile}" 失败`)
-    process.exit(1)
-  }
 }
 
 /** 读一份 profile 的 package.json；读不动时给 null（例如目录里根本没有）。 */
@@ -180,9 +188,6 @@ function formatSize(bytes) {
   return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb.toFixed(0)} MB`
 }
 
-/** dsh 内置的 profile 名：不进候选，也不接受显式删除。 */
-const PROTECTED_PROFILES = new Set(['web', 'tui', 'headless', 'desktop', 'rescue'])
-
 /**
  * 正在跑的 dsh 进程，按 profile 名索引。dsh 会把 profile 名写在 bin.js 之后
  * （`bin.js web --port 3080`）或 --profile 之后，据此辨认。和插件的 notify 一样
@@ -203,13 +208,71 @@ function runningProfiles() {
   return map
 }
 
-/* ------------------------------------------------------------------ 桌面端 */
+/** 打包：pnpm pack（prepack 会先构建 + verify），返回 tarball 的文件名。 */
+function packTarball() {
+  const out = run('pnpm pack', { capture: true })
+  const lines = out.split(/\r?\n/).filter(Boolean)
+  const tgz = lines[lines.length - 1]
+  if (!/\.tgz$/.test(tgz)) {
+    console.error(`install: 无法从 pnpm pack 输出解析 tarball 文件名：\n${out}`)
+    process.exit(1)
+  }
+  return tgz
+}
+
+/**
+ * 装入一个 profile：先卸载再装入。版本号不变时，pnpm 视同名依赖为已满足、不替换
+ * 文件内容，装入会变成 no-op；先卸载（未安装时允许失败）保证每次都落到新代码。
+ * `prefix` 是走哪条通道的 CLI（普通通道是 dsh，desktop 是桌面端包装器的绝对路径）。
+ */
+function installPlugin(profile, prefix) {
+  const tgz = packTarball()
+  run(`${prefix} plugin --profile ${profile} remove ${PLUGIN}`, { capture: true, ignoreFailure: true })
+  run(`${prefix} plugin --profile ${profile} add "${path.join(ROOT, tgz)}"`)
+}
+
+/**
+ * 目标 profile 不存在时先建它：从内置的 web 模板派生（与本脚本的默认 profile
+ * 同源），并用 `--dump-config` 让它把合成结果打印完就退出 —— 这一步在 dsh 里
+ * 先于应用启动，所以创建不会留下一个跑着的服务。派生出来的 profile 只有模板
+ * 自带的 bundles，本插件仍由随后的 install 装入。
+ */
+function ensureProfile(profile) {
+  if (profileExists(profile)) return
+  step(`profile "${profile}" 不存在，从内置 web 模板创建`)
+  run(`dsh ${profile} --from-default-profile web --dump-config`, { capture: true })
+  if (!profileExists(profile)) {
+    console.error(`ensure: 创建 profile "${profile}" 失败`)
+    process.exit(1)
+  }
+}
+
+/** 终止监听在 dsh 端口上的进程（复用 kill-port.mjs，--yes 跳过它的确认）。 */
+function killDsh(port, yes) {
+  run(`node "${path.join(ROOT, 'scripts', 'kill-port.mjs')}" ${port}${yes ? ' --yes' : ''}`)
+}
+
+/** 前台重启 dsh：日志（含访问链接）直接输出到当前终端，Ctrl+C 结束。
+ * 不带 --no-open，由 dsh 每次重启后自动打开浏览器。 */
+function startDsh(profile, port, portGiven) {
+  // `dsh web` 是 `--profile web` 的别名；其他 profile（例如从 web 模板派生的
+  // webs）走通用 boot 入口。--port 是 web 应用自己的开关，所以只在调用方点过
+  // 它时才往下传：拿给不带这个开关的应用（tui 之类）会被拒。
+  const flags = `--port ${port}`
+  const boot =
+    profile === 'web' ? `dsh web ${flags}` : portGiven ? `dsh --profile ${profile} ${flags}` : `dsh --profile ${profile}`
+  // stdio 置 inherit：把当前终端交给 dsh，启动链接随日志一起打印；
+  // 本进程阻塞等待，Ctrl+C 同时终止 dsh 与脚本（Windows 上 Ctrl+C 会
+  // 广播给共享同一控制台的整条进程链，npm/pnpm 一并退出）。
+  spawnSync(boot, { shell: true, cwd: ROOT, stdio: 'inherit' })
+}
+
+/* ────────────────── desktop：桌面端独占的那条通道（唯一需要区别对待的） ── */
 
 /*
- * desktop profile 归 Electron 应用独占：dsh 的 CLI（含桌面端自带的那份）对
- * boot 路径一律拒绝，只有 plugin 子命令被 manageDesktopProfile 放行，profile
- * 的初始化也由应用完成。这里不重复它的判断，只做三件事：定位安装目录 →
- * 用它的包装器转 pnpm → 杀/拉起应用进程。
+ * 这里不重复 dsh 自己的 profile 归属判断，只做三件事：定位安装目录 →
+ * 用它的包装器转 pnpm → 杀/拉起应用进程。electron 应用才是 desktop profile
+ * 的 owner，所以本脚本对它只做"代理"。
  */
 
 const DESKTOP_PROFILE = 'desktop'
@@ -224,18 +287,19 @@ function desktopCli(root) {
   return path.join(root, ...DESKTOP_CLI, process.platform === 'win32' ? 'dsh.cmd' : 'dsh')
 }
 
+/** 桌面端 CLI 的调用前缀：绝对路径，引号不能省（安装路径里通常带空格）。 */
+function desktopCliPrefix(root) {
+  return `"${desktopCli(root)}"`
+}
+
 /** 目录像不像桌面端的安装根 —— 只看包装器在不在。 */
 function isDesktopRoot(dir) {
   return typeof dir === 'string' && dir !== '' && existsSync(desktopCli(dir))
 }
 
-/** PATH 上第一个 dsh 的路径（where / command -v）。 */
-function whichDsh() {
-  const out = run(process.platform === 'win32' ? 'where dsh' : 'command -v dsh', {
-    capture: true,
-    ignoreFailure: true,
-  })
-  return out.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)[0] ?? null
+/** 这个 profile 是不是桌面端那个（大小写不敏感：dsh 自己也是这么比的）。 */
+function isDesktopProfile(profile) {
+  return profile.toLowerCase() === DESKTOP_PROFILE
 }
 
 /**
@@ -244,9 +308,9 @@ function whichDsh() {
  * <安装根>/resources/runtime/cli/bin/dsh.cmd，往上四级就是安装根 —— 这比认
  * 版本号稳，也不碰注册表。
  */
-function desktopRoot() {
+function findDesktopRoot() {
   if (isDesktopRoot(process.env.DSH_DESKTOP_ROOT)) return process.env.DSH_DESKTOP_ROOT
-  const shim = whichDsh()
+  const shim = whichCommand('dsh')
   if (shim !== null) {
     const root = path.resolve(path.dirname(shim), '..', '..', '..', '..')
     if (isDesktopRoot(root)) return root
@@ -261,7 +325,7 @@ function desktopRoot() {
 
 /** 找不到安装目录时的统一出口：说清楚要指什么，而不是拼一条注定被拒的命令。 */
 function requireDesktopRoot() {
-  const root = desktopRoot()
+  const root = findDesktopRoot()
   if (root === null) {
     console.error(
       'desktop: 找不到桌面端安装目录（其中应有 resources/runtime/cli/bin/dsh.cmd）。\n' +
@@ -315,7 +379,7 @@ async function waitForDesktopExit(root, timeoutMs = 15000) {
 }
 
 /** 终止桌面端；未经 --yes 时先问一遍（与 kill-port 的确认口径一致）。 */
-async function killDesktop(root, yes) {
+async function killDesktopApp(root, yes) {
   if (process.platform !== 'win32') {
     console.error('desktop: 进程管理目前只实现了 Windows')
     process.exit(1)
@@ -348,7 +412,7 @@ async function killDesktop(root, yes) {
  * 拉起桌面端（不等待退出）。profile 的加载权在应用手里，CLI 那条 boot 路径对
  * desktop 是关闭的，所以"重启"只能把应用本身拉起来。
  */
-function startDesktop(root) {
+function startDesktopApp(root) {
   const exe = path.join(root, DESKTOP_EXE)
   if (!existsSync(exe)) {
     console.error(`desktop: 找不到 ${exe}，请手工打开桌面端`)
@@ -357,60 +421,17 @@ function startDesktop(root) {
   spawn(exe, [], { detached: true, stdio: 'ignore' }).unref()
 }
 
-/** 这个 profile 是不是桌面端那个（大小写不敏感：dsh 自己也是这么比的）。 */
-function isDesktop(profile) {
-  return profile.toLowerCase() === DESKTOP_PROFILE
-}
-
-/** 打包（prepack 先构建 + verify）并强制装入 profile：先卸载再装入。 */
-function installPlugin(profile, prefix) {
-  const out = run('pnpm pack', { capture: true })
-  const lines = out.split(/\r?\n/).filter(Boolean)
-  const tgz = lines[lines.length - 1]
-  if (!/\.tgz$/.test(tgz)) {
-    console.error(`install: 无法从 pnpm pack 输出解析 tarball 文件名：\n${out}`)
-    process.exit(1)
-  }
-  // 版本号不变时，pnpm 视同名依赖为已满足、不替换文件内容，装入会变成
-  // no-op。先卸载（未安装时允许失败）再装入，保证每次都落到新代码。
-  run(`${prefix} plugin --profile ${profile} remove ${PLUGIN}`, { capture: true, ignoreFailure: true })
-  run(`${prefix} plugin --profile ${profile} add "${path.join(ROOT, tgz)}"`)
-}
-
-/** 终止监听在 dsh web 端口上的进程（复用 kill-port.mjs）。 */
-function killDsh(port, yes) {
-  run(`node "${path.join(ROOT, 'scripts', 'kill-port.mjs')}" ${port}${yes ? ' --yes' : ''}`)
-}
-
-/** 前台重启 dsh：日志（含访问链接）直接输出到当前终端，Ctrl+C 结束。
- * 不带 --no-open，由 dsh 每次重启后自动打开浏览器。 */
-function startDsh(profile, port, portGiven) {
-  // `dsh web` 是 `--profile web` 的别名；其他 profile（例如从 web 模板派生的
-  // webs）走通用 boot 入口。--port 是 web 应用自己的开关，所以只在调用方点过
-  // 它时才往下传：拿给不带这个开关的应用（tui 之类）会被拒。
-  const flags = `--port ${port}`
-  const boot =
-    profile === 'web' ? `dsh web ${flags}` : portGiven ? `dsh --profile ${profile} ${flags}` : `dsh --profile ${profile}`
-  // stdio 置 inherit：把当前终端交给 dsh，启动链接随日志一起打印；
-  // 本进程阻塞等待，Ctrl+C 同时终止 dsh 与脚本（Windows 上 Ctrl+C 会
-  // 广播给共享同一控制台的整条进程链，npm/pnpm 一并退出）。
-  spawnSync(boot, { shell: true, cwd: ROOT, stdio: 'inherit' })
-}
-
 /**
- * 装入前的准备：给出该 profile 该用的 CLI 前缀（web 是 PATH 上的 dsh，桌面端是
- * 它自带包装器的绝对路径），并做各自的前置检查。--yes 只用于跳过"桌面端还在跑"
- * 这一条 —— 它是个有依据的提示，不是硬错误，调用方可以自己担。
+ * 桌面端通道的装入前准备：安装目录必须找得到（否则 CLI 注定被拒），profile 必须
+ * 已由应用初始化，且应用默认必须已退出 —— 最后一条可用 allowRunning 放行，因为
+ * 它是"有依据的提示"而非硬错误（卸出不必先关应用；debug 会自己先杀）。
+ * @returns 桌面端 CLI 的调用前缀（含引号）。
  */
-function prepareProfile(profile, yes) {
-  if (!isDesktop(profile)) {
-    ensureProfile(profile)
-    return 'dsh'
-  }
+function prepareDesktopProfile({ allowRunning = false } = {}) {
   const root = requireDesktopRoot()
   requireDesktopProfile()
   const processes = desktopProcesses(root)
-  if (processes.length > 0 && !yes) {
+  if (processes.length > 0 && !allowRunning) {
     console.error(
       `install: 桌面端正在运行（${processes.length} 个进程），装入要求应用完全退出。\n` +
         'install: 先跑 pnpm smkit:desktop:kill；' +
@@ -419,20 +440,31 @@ function prepareProfile(profile, yes) {
     )
     process.exit(1)
   }
-  // 引号不能省：安装路径里通常带空格（DeepSeek Harness）。
-  return `"${desktopCli(root)}"`
+  return desktopCliPrefix(root)
+}
+
+/* ──────────────────────────────────────────────── 命令层：每个命令一层薄壳 ── */
+
+/**
+ * 装入 / 卸出前的准备：给出该 profile 该用的 CLI 前缀。普通 profile 走 PATH 上的
+ * dsh（顺带把不存在的 profile 从 web 模板建出来），desktop 转到它自己那条通道。
+ */
+function prepareProfile(profile, { allowRunning = false } = {}) {
+  if (isDesktopProfile(profile)) return prepareDesktopProfile({ allowRunning })
+  ensureProfile(profile)
+  return DSH_CLI
 }
 
 /** install — 打包并装入 profile，重启 dsh 后生效。 */
 function cmdInstall(profile, yes) {
-  const prefix = prepareProfile(profile, yes)
+  const prefix = prepareProfile(profile, { allowRunning: yes })
   step(`打包并装入 profile "${profile}"`)
   installPlugin(profile, prefix)
   console.log(`\ninstall: ${PLUGIN} 已装入 profile "${profile}"`)
   console.log(
-    isDesktop(profile)
+    isDesktopProfile(profile)
       ? '重启桌面端后生效：pnpm smkit:desktop:debug（或手工重开应用）'
-      : profile === 'web'
+      : profile === DEFAULT_PROFILE
         ? '如 dsh web 正在运行，重启后生效：pnpm smkit:web:debug'
         : `如 dsh 正在使用 profile "${profile}"，重启后生效：node scripts/dsh-smkit.mjs debug --profile ${profile} --port <port>`,
   )
@@ -440,22 +472,23 @@ function cmdInstall(profile, yes) {
 
 /** uninstall — 从 profile 移除插件。 */
 function cmdUninstall(profile) {
-  const desktop = isDesktop(profile)
-  const prefix = desktop ? `"${desktopCli(requireDesktopRoot())}"` : 'dsh'
+  // 卸出不需要应用先退出，所以放行"桌面端在跑"这一条。
+  const prefix = prepareProfile(profile, { allowRunning: true })
   step(`从 profile "${profile}" 移除插件`)
   run(`${prefix} plugin --profile ${profile} remove ${PLUGIN}`)
   console.log(`\nuninstall: ${PLUGIN} 已从 profile "${profile}" 移除`)
   console.log(
-    desktop
+    isDesktopProfile(profile)
       ? '重启桌面端后生效；桌面端在跑时建议先 pnpm smkit:desktop:kill'
       : '如 dsh web 正在运行，重启后生效：dsh web',
   )
 }
 
-/** kill — 终止该 profile 的运行实例：web 按端口找（同 dsh:kill-port），桌面端找应用进程。 */
+/** kill — 终止该 profile 的运行实例：普通 profile 按端口找（同 dsh:kill-port），
+ * desktop 找应用进程。桌面端不需要 profile 已初始化，所以只要求找得到安装目录。 */
 async function cmdKill(profile, port, yes) {
-  if (isDesktop(profile)) {
-    await killDesktop(requireDesktopRoot(), yes)
+  if (isDesktopProfile(profile)) {
+    await killDesktopApp(requireDesktopRoot(), yes)
     return
   }
   step(`终止端口 ${port} 上的 dsh`)
@@ -464,21 +497,21 @@ async function cmdKill(profile, port, yes) {
 
 /** debug — 完整调试循环：装入新代码 → 杀掉运行中的实例 → 重启。 */
 async function cmdDebug(profile, port, portGiven) {
-  if (isDesktop(profile)) {
+  if (isDesktopProfile(profile)) {
     const root = requireDesktopRoot()
     requireDesktopProfile()
     step('终止桌面端（装入要求应用退出）')
-    await killDesktop(root, true)
+    await killDesktopApp(root, true)
     step(`打包并装入 profile "${profile}"`)
-    installPlugin(profile, `"${desktopCli(root)}"`)
+    installPlugin(profile, desktopCliPrefix(root))
     console.log(`debug: ${PLUGIN} 已装入 profile "${profile}"`)
     step('重新拉起桌面端')
-    startDesktop(root)
+    startDesktopApp(root)
     return
   }
   ensureProfile(profile)
   step(`打包并装入 profile "${profile}"`)
-  installPlugin(profile, 'dsh')
+  installPlugin(profile, DSH_CLI)
   console.log(`debug: ${PLUGIN} 已装入 profile "${profile}"`)
   step(`终止端口 ${port} 上的 dsh`)
   killDsh(port, true)
@@ -490,9 +523,9 @@ async function cmdDebug(profile, port, portGiven) {
 }
 
 /**
- * pnpm smkit:scan — 只读扫描：每个 profile 的 bundles、依赖（装了哪些插件、来自
- * 哪里）、体积、是否在跑。顺带标出 prune 会看上眼的那两类（临时命名、本地依赖
- * 失效），以及 dsh 自用的目录。
+ * scan — 只读扫描：每个 profile 的 bundles、依赖（装了哪些插件、来自哪里）、
+ * 体积、是否在跑。顺带标出 prune 会看上眼的那两类（临时命名、本地依赖失效），
+ * 以及 dsh 自用的目录。
  */
 function cmdScan() {
   const root = profilesRoot()
@@ -502,7 +535,7 @@ function cmdScan() {
   }
   const live = runningProfiles()
   // 桌面端的宿主是 Electron 应用而不是 node.exe，runningProfiles() 看不见它。
-  const desktopDir = desktopRoot()
+  const desktopDir = findDesktopRoot()
   const desktopApps = desktopDir === null ? [] : desktopProcesses(desktopDir)
   const entries = readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory())
   step(`扫描 ${root}（${entries.length} 项）`)
@@ -536,7 +569,7 @@ function cmdScan() {
 }
 
 /**
- * pnpm smkit:prune — 删除不需要的 profile。默认只列候选（dry-run），--confirm
+ * prune — 删除不需要的 profile。默认只列候选（dry-run），--confirm
  * （或 --yes/-y）才真删。候选只来自两条客观线索：临时命名（smkit-*）和依赖
  * 里的本地 tarball 已失效；不带名字时只按这两条找，带名字时只删那几个。dsh 内置名字永远
  * 不进候选、也不接受显式删除，正在运行的 profile 一律跳过。
@@ -609,7 +642,7 @@ function printUsage() {
   console.log('      别名把 --profile 固定住；自定义 profile 用脚本本身，如')
   console.log('      node scripts/dsh-smkit.mjs install --profile <name> [--port <port>] [--yes]')
   console.log('      smkit:web:debug / smkit:desktop:debug = 打包安装 → 杀掉运行中的实例 → 重启')
-  console.log('      kill 命令也在脚本里（web 按端口，同 dsh:kill-port）：node scripts/dsh-smkit.mjs kill')
+  console.log('      kill 命令也在脚本里（按端口，同 dsh:kill-port）：node scripts/dsh-smkit.mjs kill')
   console.log('      desktop 走桌面端自带的 CLI，找不到安装目录时用 DSH_DESKTOP_ROOT 指给它')
 }
 
