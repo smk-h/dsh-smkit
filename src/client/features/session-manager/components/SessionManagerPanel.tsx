@@ -46,6 +46,7 @@ import { createRefreshButton } from '../../../platform/ui/RefreshButton'
 import type { SettingsShellGuard } from '../../../platform/ui/settings-shell'
 import { createStateDot } from '../../../platform/ui/StateDot'
 import { createTabs } from '../../../platform/ui/Tabs'
+import { watchTipBoundaries } from '../../../platform/ui/tip'
 import { useAsyncAction } from '../../../platform/ui/useAsyncAction'
 import type { ApiResult, ClientDeps, Translator } from '../../../platform/types'
 import type {
@@ -225,6 +226,12 @@ export function createSessionManagerPanel(
       const timer = setInterval(refresh, POLL_INTERVAL_MS)
       return () => { clearInterval(timer) }
     }, [refresh, pending, busy])
+
+    // The refresh button wears the shared bubble and sits at the toolbar's
+    // right edge; one document-level watch serves every `.smkit-ui-tip` this
+    // panel renders and keeps that bubble inside the panel (see
+    // `platform/ui/tip`).
+    react.useEffect(() => watchTipBoundaries(), [])
 
     const archived = new Set(list?.archivedSessionIds ?? [])
     const showArchived = subtab === 'archived'
@@ -461,28 +468,34 @@ export function createSessionManagerPanel(
           ]}
         />
         <div className="smkit-sess-page-toolbar">
-          <label
-            className="smkit-sess-page-check"
-            data-smkit-on={allChecked ? 'true' : partialChecked ? 'partial' : undefined}
-          >
-            <input
-              type="checkbox"
-              checked={allChecked}
-              disabled={visible.length === 0}
-              onChange={toggleAll}
-              aria-label={t('selectAll')}
-            />
-            <span className="smkit-sess-page-check-box">
-              {allChecked ? <CheckIcon size={10} /> : null}
-            </span>
-          </label>
-          {selectedCount > 0
-            ? (
-              <span className="smkit-sess-page-selected">
-                {t('selectedSummary', { count: selectedCount, size: formatBytes(selectedBytes) })}
+          {/* Nothing to select, nothing to select with: an empty view renders
+              no select-all at all. With rows, the word beside the box is the
+              one sentence the toolbar needs: "select all" while the selection
+              is empty, then what is selected — it is inside the label, so
+              clicking it toggles like the box itself. */}
+          {visible.length === 0 ? null : (
+            <label
+              className="smkit-sess-page-check smkit-sess-page-select-all"
+              data-smkit-on={allChecked ? 'true' : partialChecked ? 'partial' : undefined}
+            >
+              <input
+                type="checkbox"
+                checked={allChecked}
+                onChange={toggleAll}
+                aria-label={selectedCount > 0
+                  ? t('selectedSummary', { count: selectedCount, size: formatBytes(selectedBytes) })
+                  : t('selectAll')}
+              />
+              <span className="smkit-sess-page-check-box">
+                {allChecked ? <CheckIcon size={10} /> : null}
               </span>
-            )
-            : null}
+              <span className="smkit-sess-page-check-label">
+                {selectedCount > 0
+                  ? t('selectedSummary', { count: selectedCount, size: formatBytes(selectedBytes) })
+                  : t('selectAll')}
+              </span>
+            </label>
+          )}
           <span className="smkit-sess-page-toolbar-spacer" />
           <RefreshButton onClick={refresh} disabled={busy} />
           <button

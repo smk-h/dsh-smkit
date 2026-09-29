@@ -252,11 +252,14 @@ it('opens to the folded ledger: heads with counts, rows only after expanding', a
   // under them are not — a session list is the expanded state, not the first.
   assert.ok(shown.includes('My App') && shown.includes('/work/app'), 'the workspace head renders')
   assert.ok(shown.includes('ungrouped'), 'the ungrouped group renders under its own key')
+  assert.ok(shown.includes('selectAll'), 'the toolbar select-all reads its word beside the box')
   assert.ok(!shown.includes('Session one'), 'a folded group keeps its rows to itself')
   assert.ok(!shown.includes('untitledSession'), 'the ungrouped group stays folded too')
   assert.ok(!shown.includes('Archived one'), 'the archived session stays out of the active view')
   // One toolbar select-all plus one checkbox per folded group head.
   assert.equal(checkboxes(page.picks).length, 3)
+  // The toolbar's two checkbox kinds need their scope spelled out somewhere.
+  assert.ok(!page.read().includes('selectedSummary'), 'an empty selection reads as plain select-all')
 
   expand(page.picks, 'My App')
   page.again()
@@ -535,6 +538,25 @@ it('reopens the section on the tab the user was reading, not the strip default',
     assert.equal(selected('tabSessions').length, 1, 'the sessions tab reads as selected after the remount')
     assert.deepEqual(selected('tabMcp'), [], 'the strip default did not take the place back')
   })
+})
+
+it('hides the select-all and its hint on an empty view', async () => {
+  // An empty view has nothing to select, so the toolbar's leading pair — the
+  // select-all and its scope hint — would only be an orphaned checkbox.
+  const page = await opened((url, method) => {
+    if (method === 'GET' && url.includes('/sessions/manager')) {
+      return response({ ...LIST, archivedSessionIds: [] })
+    }
+  })
+  const { again, picks } = page
+  const archivedTab = picks((node) => node.props?.role === 'tab' && node.children.includes('subtabArchived'))[0]
+  archivedTab.props.onClick()
+  again()
+
+  assert.deepEqual(picks((node) => node.props?.className === 'smkit-sess-page-check'), [], 'no checkbox renders without rows')
+  assert.ok(!page.read().includes('selectAll'), 'and no select-all word either')
+  // The rest of the toolbar survives: refresh and the delete button stay put.
+  assert.ok(picks((node) => node.props?.className?.includes('smkit-ui-refresh-button')).length === 1, 'refresh remains')
 })
 
 it('keeps the restore out of batches that refuse the viewed session', async () => {
