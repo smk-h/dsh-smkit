@@ -38,8 +38,12 @@
 }
 
 .smkit-theme-palette-panel {
+  /* The seat under the conversation header, stated once: the desktop override
+   * below adds the caption row to this same number instead of restating it, so
+   * the two cannot drift apart. */
+  --smkit-palette-panel-seat: 56px;
   position: fixed;
-  top: 56px;
+  top: var(--smkit-palette-panel-seat);
   /* The corner the panel actually hangs in is measured by the script
    * (`../panelAnchor`), which writes an inline `right` while the toggle's own
    * header is there: the column's edge, not the window's, so an opened Sidebar
@@ -61,6 +65,26 @@
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 12px;
   box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.35);
+}
+
+/* Windows desktop: the seat above is measured from the viewport, because
+   `position: fixed` gives this panel the window as its containing block — while
+   the desktop pads the whole app frame under its caption row
+   (`[data-windows-titlebar] .frame` in ui-layout's AppFrame.module.css reserves
+   it with `padding-top: var(--dsh-windows-titlebar-height)`, the 40px the
+   desktop preload writes on the root). Those 40px are exactly the offset
+   missing here, so the panel came up over the conversation header's own row of
+   buttons — the row its toggle sits in — instead of under it, which is the one
+   thing a web shell, with no caption to clear, never showed.
+
+   `right` needs no counterpart: `../panelAnchor` measures a box, and a measured
+   box already carries the offset (the OpenSpec panel, placed from measured
+   coordinates, has never had this problem for the same reason).
+
+   The guard is the attribute the desktop preload writes on the ROOT element and
+   the web never has, so the web reads the seat above and nothing else. */
+html[data-windows-titlebar] .smkit-theme-palette-panel {
+  top: calc(var(--dsh-windows-titlebar-height) + var(--smkit-palette-panel-seat));
 }
 
 .smkit-theme-palette-head {
