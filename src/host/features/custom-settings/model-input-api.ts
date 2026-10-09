@@ -1,6 +1,7 @@
 /**
  * The model-input tab's routes: `GET /model-input/providers`,
- * `POST /model-input/modalities` and `POST /model-input/discover`.
+ * `POST /model-input/modalities`, `POST /model-input/reasoning-efforts` and
+ * `POST /model-input/discover`.
  *
  * Like the retry routes next to them, these are thin transports over
  * {@link ModelInputAdmin}: this module owns the path matching and the HTTP
@@ -18,6 +19,9 @@ export const MODEL_INPUT_PROVIDERS_PATH = '/model-input/providers'
 
 /** Path inside the plugin's API prefix that writes one model's modalities. */
 export const MODEL_INPUT_SAVE_PATH = '/model-input/modalities'
+
+/** Path inside the plugin's API prefix that writes one model's reasoning levels. */
+export const MODEL_INPUT_REASONING_PATH = '/model-input/reasoning-efforts'
 
 /** Path inside the plugin's API prefix that asks one route's endpoint about one model. */
 export const MODEL_INPUT_DISCOVER_PATH = '/model-input/discover'
@@ -56,6 +60,26 @@ export function createModelInputHandlers(admin: ModelInputAdmin): ApiHandler[] {
           provider: typeof body['provider'] === 'string' ? body['provider'] : '',
           model: typeof body['model'] === 'string' ? body['model'] : '',
           modalities: body['modalities'],
+          ...typeof revision === 'number' ? { revision } : {},
+        })
+        if (outcome.ok) {
+          sendJson(res, 200, { provider: outcome.provider })
+          return true
+        }
+        sendJson(res, outcome.status, { error: outcome.message, code: outcome.code })
+        return true
+      }
+
+      if (facts.rest === MODEL_INPUT_REASONING_PATH && req.method === 'POST') {
+        const body = await readBody(req)
+        const revision = body['revision']
+        // `declared` is passed through unwidened: the administration refuses
+        // anything that is not a boolean, and defaulting an absent field here
+        // would turn a malformed request into a silent "remove it".
+        const outcome = await admin.saveReasoning({
+          provider: typeof body['provider'] === 'string' ? body['provider'] : '',
+          model: typeof body['model'] === 'string' ? body['model'] : '',
+          declared: body['declared'],
           ...typeof revision === 'number' ? { revision } : {},
         })
         if (outcome.ok) {

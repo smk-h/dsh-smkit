@@ -21,6 +21,11 @@
  * at the moment, as when a request is in flight; `inert` means this subject can
  * never answer the question at all, so the box dims instead of inviting a click
  * that would only be refused.
+ *
+ * `hint` is for the chip whose two words cannot say what the tick does — a
+ * question asked about a field the reader cannot see, where "what happens when
+ * I click this" is the whole of the answer. It is the sentence a pointer
+ * reveals, and it stays off the chips whose label already is the fact.
  */
 
 import { createCheckIcon } from '../icons/CheckIcon'
@@ -41,6 +46,8 @@ export interface CheckChipProps {
   locked?: boolean
   /** This subject cannot answer the question, so the box dims. */
   inert?: boolean
+  /** The sentence a pointer reveals, for a label that cannot carry it alone. */
+  hint?: string
   /** What a click does. Left out, the chip is a statement rather than a control. */
   onChange?: (checked: boolean) => void
 }
@@ -55,6 +62,7 @@ export function createCheckChip(deps: ClientDeps): (props: CheckChipProps) => JS
     return (
       <label
         className="smkit-ui-check-chip"
+        title={props.hint}
         data-smkit-on={props.checked ? 'true' : undefined}
         data-smkit-locked={props.locked ? 'true' : undefined}
         data-smkit-inert={props.inert ? 'true' : undefined}

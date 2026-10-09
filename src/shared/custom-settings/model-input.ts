@@ -46,6 +46,20 @@ export interface ModelInputView {
    */
   overridden: boolean
   /**
+   * Whether the stored configuration declares this model's reasoning levels
+   * (`reasoningEfforts`).
+   *
+   * A fact of its own, not a second reading of {@link overridden}: the two
+   * fields are written and cleared by separate controls, so a model may carry
+   * either, both, or neither. True is what ticking the page's 推理等级 check
+   * writes — dsh then offers the composer's own 推理等级 row for this model
+   * instead of leaving the answer to the installed catalog. False is the state
+   * un-ticking it returns to, the state its 恢复默认 names, and the state a model
+   * this page has never touched is already in: the field is absent, which asks
+   * dsh again, rather than stored empty, which the adapter refuses.
+   */
+  reasoningDeclared: boolean
+  /**
    * Modality names the model declares that this page has no control for — a
    * hand-written `video`, or one a later dsh adds. Absent means there are none.
    * The page shows them as locked chips and a write leaves them in the stored
@@ -117,6 +131,31 @@ export interface ModelInputSaveResponse {
   provider: ProviderInputView
 }
 
+/**
+ * Body of `POST /model-input/reasoning-efforts`: one model's next reasoning
+ * declaration.
+ *
+ * A flag rather than a level map: the page offers one check that declares the
+ * full set of levels dsh knows and one control that removes the declaration, so
+ * the only two states a caller can ask for are "declared" and "absent". Which
+ * levels are written — and that `off` is written valueless — is the host's,
+ * because it is a fact about the adapter's schema, not a choice the check
+ * makes.
+ */
+export interface ModelReasoningSaveRequest {
+  provider: string
+  model: string
+  /** `true` writes the level set; `false` removes the declaration so the model inherits again. */
+  declared: boolean
+  /** The {@link ProviderInputView.revision} the caller rendered. */
+  revision?: number
+}
+
+/** Answer of `POST /model-input/reasoning-efforts`: the route as it now stands. */
+export interface ModelReasoningSaveResponse {
+  provider: ProviderInputView
+}
+
 /** Body of `POST /model-input/discover`: which route and model to interrogate. */
 export interface ModelDiscoveryRequest {
   provider: string
@@ -144,6 +183,7 @@ export type ModelInputRefusal =
   | 'input/unknown-model'
   | 'input/not-editable'
   | 'input/invalid-modalities'
+  | 'input/invalid-reasoning'
   | 'input/conflict'
   | 'input/unavailable'
 

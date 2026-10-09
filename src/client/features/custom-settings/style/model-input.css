@@ -9,8 +9,9 @@
  * The card frame, its head and its details slot are the platform's
  * (`platform/style/disclosure-card.css`), so these rows line up with the
  * Settings → MCP server list without either page owning the other's stylesheet,
- * and the boxes a model's input capability is made of are the platform's check
- * chip (`platform/style/check-chip.css`). What is left here is this tab's own
+ * and the boxes a model's input capability is made of, and the check its
+ * reasoning line carries, are the platform's check chip
+ * (`platform/style/check-chip.css`). What is left here is this tab's own
  * subject: the route cards, the model rows, and where their pieces sit.
  *
  * Classes are namespaced `mi_*`, deliberately not the page shell's `cs_*` nor
@@ -251,4 +252,38 @@
 
 .smkit-cs-model-input-detect-note[data-smkit-failed=true] {
   color: var(--dsw-alias-state-error-primary);
+}
+
+/* The body's second subject, under a rule of its own. The rule is where the
+ * card says the two lines answer different questions — what a request may carry
+ * is not whether the model can be asked to think — and it spans the body
+ * because both lines do. One step darker than the hairline the mini-card itself
+ * draws (`border-l4`): a separator that matches its container is not read as
+ * one, and `border-l2` is the buttons' edge, which would make it read as a
+ * control's rule rather than a seam between two. */
+.smkit-cs-model-input-reasoning {
+  flex-basis: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  display: flex;
+}
+
+.smkit-cs-model-input-reasoning-seam {
+  border-top: 0.5px solid var(--dsw-alias-border-l3);
+  height: 0;
+}
+
+/* The row keeps the same two edges everything above it keeps: the declaration
+ * check at the left, its own reset at the right — held there by the shared
+ * tail's margin rather than a growing column — each falling to a line of its
+ * own once the row cannot pay for both. The chip arrives already measured
+ * (26px tall, 7px corners, 8px of inside edge), which is the measure the reset
+ * beside it carries too. */
+.smkit-cs-model-input-reasoning-row {
+  align-items: center;
+  row-gap: 6px;
+  column-gap: 6px;
+  flex-wrap: wrap;
+  display: flex;
 }

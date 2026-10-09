@@ -259,8 +259,9 @@ it('lists every route with the models it serves and what each one declares', asy
   assert.equal(declared.displayName, 'OpenRouter', 'the directory names the route for configuration surfaces')
   assert.equal(declared.editable, true, 'a pi-ai route with a models list is writable here')
   assert.equal(declared.revision, 4, 'the revision rides along for stale-write detection')
-  assert.deepEqual(declared.models[0], { id: 'union-alpha', name: 'Union Alpha', effective: ['text', 'image'], overridden: true })
+  assert.deepEqual(declared.models[0], { id: 'union-alpha', name: 'Union Alpha', effective: ['text', 'image'], overridden: true, reasoningDeclared: false })
   assert.equal(declared.models[1].overridden, false, 'a list entry that names no modalities inherits them')
+  assert.equal(declared.models[1].reasoningDeclared, false, 'and it declares no reasoning levels either')
   assert.deepEqual(declared.models[1].effective, ['text', 'image'], 'and the answer in force is still shown')
   assert.deepEqual(declared.models[2].effective, ['text'], 'a name this page has no control for is not an effective modality')
   assert.deepEqual(declared.models[2].other, ['video'], 'but it is reported as what the route stores')
@@ -340,10 +341,12 @@ const MODEL_KEYS = ['id', 'name', 'contextWindow', 'maxTokens', 'input', 'reason
 function assertWritesAreStorable(writes) {
   for (const write of writes) {
     for (const op of write.ops) {
-      // A write that addresses a modality list directly carries only names; one
-      // that replaces a model's whole entry may only carry keys the adapter
+      // A write that addresses a modality list or a reasoning set directly
+      // carries only the names and levels the adapter resolves; one that
+      // replaces a model's whole entry may only carry keys the adapter
       // resolves — anything else it refuses with `unknown key "..."`.
-      if (op.op !== 'set' || op.path[op.path.length - 1] === 'input') continue
+      const leaf = op.path[op.path.length - 1]
+      if (op.op !== 'set' || leaf === 'input' || leaf === 'reasoningEfforts') continue
       const entries = Array.isArray(op.value) ? op.value : [op.value]
       for (const model of entries) {
         assert.deepEqual(
@@ -354,6 +357,21 @@ function assertWritesAreStorable(writes) {
       }
     }
   }
+}
+
+/**
+ * The level set the one reasoning button declares: pi-ai's full escalation
+ * order, with `off` valueless. Written out rather than imported from the
+ * bundle, so a change to the declaration has to be a deliberate test edit.
+ */
+const DECLARED_EFFORTS = {
+  off: null,
+  minimal: 'minimal',
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  xhigh: 'xhigh',
+  max: 'max',
 }
 
 it('edits a declared route inside its own models list, leaving the other models intact', async () => {
@@ -479,6 +497,94 @@ it('accepts a reset from a model that never declared, because it changes nothing
     [{ op: 'unset', path: ['providers', 'anthropic-gateway', 'modelOverrides', 'catalog-claude'] }],
   ])
   assertWritesAreStorable(settings.writes)
+})
+
+it('declares a model\'s reasoning levels inside the list it lives in, leaving the other models alone', async () => {
+  const settings = settingsStub()
+  const route = mountHost({ llm: llmStub(), settings })
+
+  const answered = await call(route, {
+    method: 'POST',
+    path: '/model-input/reasoning-efforts',
+    body: { provider: 'openrouter-cm', model: 'plain-model', declared: true, revision: 4 },
+  })
+
+  assert.equal(answered.code, 200)
+  assert.deepEqual(settings.writes, [{
+    ns: 'llm-pi-ai',
+    ops: [{
+      op: 'set',
+      path: ['providers', 'openrouter-cm', 'models'],
+      value: [
+        STORED_MODELS[0],
+        { ...STORED_MODELS[1], reasoningEfforts: DECLARED_EFFORTS },
+        STORED_MODELS[2],
+      ],
+    }],
+    expectedRevision: 4,
+  }])
+  assertWritesAreStorable(settings.writes)
+  assert.equal(answered.payload.provider.models[1].reasoningDeclared, true, 'the answer says the declaration is stored')
+  assert.equal(answered.payload.provider.models[1].overridden, false, 'and it did not become a modality declaration')
+})
+
+it('takes the reasoning declaration back without touching the fields beside it', async () => {
+  const settings = settingsStub()
+  const route = mountHost({ llm: llmStub(), settings })
+  const write = (body) => call(route, { method: 'POST', path: '/model-input/reasoning-efforts', body })
+
+  // A catalog route, so the field lands under `modelOverrides` — beside an
+  // `input` the row already stored, which has to survive the round trip.
+  await write({ provider: 'anthropic-gateway', model: 'stored-claude', declared: true })
+  await write({ provider: 'anthropic-gateway', model: 'stored-claude', declared: false })
+  // And one whose reasoning set was the only thing it declared: the entry goes
+  // with the field rather than lingering as an empty override.
+  await write({ provider: 'anthropic-gateway', model: 'catalog-claude', declared: true })
+  await write({ provider: 'anthropic-gateway', model: 'catalog-claude', declared: false })
+
+  assert.deepEqual(settings.writes.map((recorded) => recorded.ops), [
+    [{ op: 'set', path: ['providers', 'anthropic-gateway', 'modelOverrides', 'stored-claude', 'reasoningEfforts'], value: DECLARED_EFFORTS }],
+    [{ op: 'unset', path: ['providers', 'anthropic-gateway', 'modelOverrides', 'stored-claude', 'reasoningEfforts'] }],
+    [{ op: 'set', path: ['providers', 'anthropic-gateway', 'modelOverrides', 'catalog-claude', 'reasoningEfforts'], value: DECLARED_EFFORTS }],
+    [{ op: 'unset', path: ['providers', 'anthropic-gateway', 'modelOverrides', 'catalog-claude'] }],
+  ])
+  assertWritesAreStorable(settings.writes)
+})
+
+it('refuses a reasoning write it cannot serve, and one that names no answer at all', async () => {
+  const settings = settingsStub()
+  const route = mountHost({ llm: llmStub(), settings })
+
+  const named = await call(route, {
+    method: 'POST',
+    path: '/model-input/reasoning-efforts',
+    body: { provider: 'openrouter-cm', model: 'plain-model', declared: 'yes' },
+  })
+  assert.equal(named.code, 400)
+  assert.equal(named.payload.code, 'input/invalid-reasoning', 'a value that is not a boolean is not read as a removal')
+
+  const absent = await call(route, {
+    method: 'POST',
+    path: '/model-input/reasoning-efforts',
+    body: { provider: 'openrouter-cm', model: 'plain-model' },
+  })
+  assert.equal(absent.code, 400, 'and neither is a request that never said which way')
+
+  const foreign = await call(route, {
+    method: 'POST',
+    path: '/model-input/reasoning-efforts',
+    body: { provider: 'deepseek-official', model: 'deepseek-chat', declared: true },
+  })
+  assert.equal(foreign.payload.code, 'input/not-editable', 'the field is pi-ai\'s, so another adapter\'s route has none')
+
+  const storage = await call(route, {
+    method: 'POST',
+    path: '/model-input/reasoning-efforts',
+    body: { provider: 'broken-list', model: 'first-model', declared: true },
+  })
+  assert.equal(storage.payload.code, 'input/not-editable', 'a route this page cannot write stores nothing for it')
+
+  assert.deepEqual(settings.writes, [], 'a refused write never reaches the settings seam')
 })
 
 it('refuses a write it cannot serve, before anything is persisted', async () => {
@@ -769,10 +875,12 @@ const openRouterProvider = {
   editable: true,
   revision: 4,
   models: [
-    { id: 'union-alpha', name: 'Union Alpha', effective: ['text', 'image'], overridden: true },
-    { id: 'plain-model', name: 'Plain Model', effective: ['text'], overridden: false },
-    { id: 'catalog-vision', name: 'Catalog Vision', effective: ['text', 'image'], overridden: false },
-    { id: 'video-model', name: 'Video Model', effective: ['text', 'image'], overridden: true, other: ['video'] },
+    { id: 'union-alpha', name: 'Union Alpha', effective: ['text', 'image'], overridden: true, reasoningDeclared: false },
+    { id: 'plain-model', name: 'Plain Model', effective: ['text'], overridden: false, reasoningDeclared: false },
+    // The reasoning set is the only declaration this row carries: either field
+    // makes the row this page's own, so the dot has to go orange on this alone.
+    { id: 'catalog-vision', name: 'Catalog Vision', effective: ['text', 'image'], overridden: false, reasoningDeclared: true },
+    { id: 'video-model', name: 'Video Model', effective: ['text', 'image'], overridden: true, reasoningDeclared: false, other: ['video'] },
   ],
 }
 
@@ -784,7 +892,7 @@ const deepSeekProvider = {
   editable: false,
   refusal: 'other-adapter',
   revision: 2,
-  models: [{ id: 'deepseek-chat', name: 'DeepSeek Chat', effective: ['text'], overridden: false }],
+  models: [{ id: 'deepseek-chat', name: 'DeepSeek Chat', effective: ['text'], overridden: false, reasoningDeclared: false }],
 }
 
 /**
@@ -934,6 +1042,16 @@ const chip = (view, model, key) => view.labelled(`${model} · ${key}`)
 const hasInherit = (view, model) => view.flat.some(node => node.props?.['aria-label'] === `${model} · choiceInherit`)
 /** Whether one model's row offers to ask the endpoint what the model takes. */
 const hasAutoDetect = (view, model) => view.flat.some(node => node.props?.['aria-label'] === `${model} · autoFetch`)
+/** Whether one model's row carries the named half of its reasoning line. */
+const hasReasoning = (view, model, key) => view.flat.some(node => node.props?.['aria-label'] === `${model} · ${key}`)
+/** The pill one model's reasoning check is drawn as: the label the box lives
+ * under, which is where the chip states whether it is on. */
+const reasoningChip = (view, model) => {
+  const box = view.labelled(`${model} · reasoningLevel`)
+  const found = view.flat.find((node) => (node.children ?? []).includes(box))
+  assert.ok(found, `expected the reasoning check on model "${model}" to sit in a chip`)
+  return found
+}
 /** The state dot one model's row wears, so a case can name the colour it paints. */
 const dot = (view, model) => {
   const found = view.flat.find((node) => {
@@ -1193,5 +1311,127 @@ it('dims only the button that was pressed, never its neighbour, while it waits',
   assert.equal(resetting.labelled('plain-model · autoFetch').props.disabled, false, 'and a reset never dims the check beside it')
   assert.ok(resetting.labelled('plain-model · autoFetch').children.includes('autoFetch'), 'the check keeps its own label')
   answerSave()
+  await settle()
+})
+
+it('gives a writable row a reasoning line of its own, drawn as the platform check chip', async () => {
+  const app = mountClient({ fetch: routing({ list: { providers: [openRouterProvider] } }) })
+  const view = await app.open()
+
+  assert.ok(hasReasoning(view, 'plain-model', 'reasoningLevel'), 'every writable row offers the declaration')
+  assert.ok(hasReasoning(view, 'plain-model', 'reasoningReset'), 'and a way back of its own')
+  assert.equal(view.labelled('plain-model · reasoningLevel').props.checked, false, 'a row storing nothing states that')
+  assert.equal(view.labelled('catalog-vision · reasoningLevel').props.checked, true, 'a row whose reasoning set is stored states that instead')
+  assert.equal(
+    reasoningChip(view, 'catalog-vision').props['data-smkit-on'],
+    'true',
+    'and it is the chip the boxes above it are, on the way they are, rather than a second style of our own',
+  )
+  assert.equal(reasoningChip(view, 'plain-model').props['data-smkit-on'], undefined, 'the same chip off states the other answer')
+  assert.equal(dot(view, 'catalog-vision').props['data-smkit-state'], 'custom', 'a reasoning set alone is the row being this page’s')
+
+  app.render().labelled('plain-model · reasoningLevel').props.onChange({ target: { checked: true } })
+  await settle()
+
+  const posted = app.calls.filter((request) => request.url.endsWith('/model-input/reasoning-efforts'))
+  assert.deepEqual(plain(posted.map((request) => request.body)), [{
+    provider: 'openrouter-cm',
+    model: 'plain-model',
+    declared: true,
+    revision: 4,
+  }], 'the declaration names one route and one model, with the revision it read')
+  assert.equal(
+    app.calls.some((request) => request.url.endsWith('/model-input/modalities')),
+    false,
+    'and it is not smuggled through the modality write',
+  )
+})
+
+it('resets the reasoning declaration on its own, leaving the inputs above it alone', async () => {
+  const app = mountClient({ fetch: routing({ list: { providers: [openRouterProvider] } }) })
+  await app.open()
+  app.render().labelled('catalog-vision · reasoningReset').props.onClick()
+  await settle()
+
+  const posted = app.calls.filter((request) => request.url.endsWith('/model-input/reasoning-efforts'))
+  assert.deepEqual(plain(posted.map((request) => request.body)), [{
+    provider: 'openrouter-cm',
+    model: 'catalog-vision',
+    declared: false,
+    revision: 4,
+  }], 'the reset asks for the removal, not for an empty set')
+  assert.equal(
+    app.calls.some((request) => request.url.endsWith('/model-input/modalities')),
+    false,
+    'and the input row it sits under is not touched by it',
+  )
+})
+
+it('takes the declaration back when the reasoning check is un-ticked', async () => {
+  const app = mountClient({ fetch: routing({ list: { providers: [openRouterProvider] } }) })
+  await app.open()
+  app.render().labelled('catalog-vision · reasoningLevel').props.onChange({ target: { checked: false } })
+  await settle()
+
+  const posted = app.calls.filter((request) => request.url.endsWith('/model-input/reasoning-efforts'))
+  assert.deepEqual(plain(posted.map((request) => request.body)), [{
+    provider: 'openrouter-cm',
+    model: 'catalog-vision',
+    declared: false,
+    revision: 4,
+  }], 'the box has no third state to offer: off is the removal the reset beside it also names')
+})
+
+it('keeps the reasoning line off a route this page cannot write', async () => {
+  const app = mountClient({ fetch: routing({ list: { providers: [deepSeekProvider] } }) })
+  const view = await app.open()
+
+  assert.equal(hasReasoning(view, 'deepseek-chat', 'reasoningLevel'), false, 'a foreign adapter has no such field here')
+  assert.equal(hasReasoning(view, 'deepseek-chat', 'reasoningReset'), false, 'so it offers no way back either')
+})
+
+it('holds each reasoning control for its own request alone', async () => {
+  let answer
+  const app = mountClient({
+    fetch: (url) => {
+      if (url.endsWith('/llm-retry/routes')) return response({ routes: [] })
+      if (url.endsWith('/model-input/providers')) return response({ providers: [openRouterProvider] })
+      if (url.endsWith('/model-input/reasoning-efforts')) {
+        return new Promise((resolve) => { answer = () => resolve(response({ provider: openRouterProvider })) })
+      }
+      return response({}, false, 404)
+    },
+  })
+  await app.open()
+
+  app.render().labelled('plain-model · reasoningLevel').props.onChange({ target: { checked: true } })
+  await settle()
+  const ticking = app.render()
+  assert.equal(ticking.labelled('plain-model · reasoningLevel').props.disabled, true, 'the pressed control waits for its answer')
+  assert.equal(
+    ticking.labelled('plain-model · reasoningLevel').props.checked,
+    false,
+    'and the box keeps stating what the store holds rather than what was asked of it',
+  )
+  assert.equal(
+    ticking.labelled('plain-model · reasoningReset').props.disabled,
+    false,
+    'the reset beside it is not dragged into the tick: a write must not grey the way back',
+  )
+  assert.equal(ticking.labelled('plain-model · autoFetch').props.disabled, false, 'the input line above is not dragged into it')
+  answer()
+  await settle()
+  assert.equal(app.render().labelled('plain-model · reasoningLevel').props.disabled, false, 'and it frees up when the write lands')
+
+  app.render().labelled('plain-model · reasoningReset').props.onClick()
+  await settle()
+  const resetting = app.render()
+  assert.equal(resetting.labelled('plain-model · reasoningReset').props.disabled, true, 'the same holds the other way round')
+  assert.equal(
+    resetting.labelled('plain-model · reasoningLevel').props.disabled,
+    false,
+    'and a reset leaves the check beside it live, so neither answers the other’s click',
+  )
+  answer()
   await settle()
 })

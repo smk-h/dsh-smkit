@@ -1,7 +1,8 @@
 /**
  * The model-input administration behind the 模型输入 tab of Settings →
  * 自定义设置: which request modalities each model of each provider route
- * accepts, and how one model's choice is written back.
+ * accepts, which of them declare their reasoning levels, and how one model's
+ * answer to either question is written back.
  *
  * Like the retry administration next to it, nothing here reads or writes
  * `settings.yaml`. The model set and the modalities in force are the llm
@@ -11,9 +12,9 @@
  * and `mutate` applies the edit. That is also why a change lands live: the
  * owning adapter re-registers the route when its own namespace changes.
  *
- * Two facts about the pi-ai adapter shape everything below:
+ * Three facts about the pi-ai adapter shape everything below:
  *
- * - A modality list is declared per model, under two possible keys: an entry of
+ * - A capability is declared per model, under two possible keys: an entry of
  *   the route's `models` list, or — for a route the installed catalog describes
  *   and configuration lists no models for — `modelOverrides.<id>`. Which of them
  *   a route uses is a stored fact, not a preference: an override beside a models
@@ -21,6 +22,10 @@
  * - `models` is an array, and a path-addressed settings edit descends objects
  *   only. Naming an element's index would replace the whole array with an
  *   object keyed `0`, so a list is always read, patched and written back whole.
+ * - `input` and `reasoningEfforts` sit on the same entry but answer different
+ *   questions, and the page writes them one at a time. Clearing one must leave
+ *   the other where it stands, which is why each write rebuilds an overrides
+ *   entry only from the keys it is not touching.
  */
 
 import { LOG_PREFIX } from '../../platform/constants.js'
@@ -55,6 +60,29 @@ const PI_AI_NS = 'llm-pi-ai'
 const MODELS_KEY = 'models'
 const OVERRIDES_KEY = 'modelOverrides'
 const INPUT_KEY = 'input'
+const REASONING_KEY = 'reasoningEfforts'
+
+/**
+ * The declaration the 推理等级 button writes: pi-ai's full escalation order,
+ * every level spelled as itself except `off`.
+ *
+ * `off` is valueless on purpose, and it is the whole reason this is a constant
+ * rather than something the page sends. Under `openai-responses` the adapter
+ * turns a valueless `off` into `reasoning: { effort: "none" }` — the spelling
+ * the gateway that prompted this control actually accepts — while a literal
+ * `off: off` would be sent as `effort: "off"` and refused with a 400. The
+ * adapter's own resolution also refuses a set whose only member is `off`, so
+ * the levels below are the smallest declaration that means anything.
+ */
+const REASONING_EFFORTS: Readonly<Record<string, string | null>> = {
+  off: null,
+  minimal: 'minimal',
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  xhigh: 'xhigh',
+  max: 'max',
+}
 
 /**
  * What the page may declare. pi-ai's own vocabulary is wider than this on
@@ -101,6 +129,23 @@ export interface ModelInputSaveFailure {
 /** One accepted write, answered with the route as it now stands. */
 export type ModelInputSaveOutcome = { ok: true; provider: ProviderInputView } | ModelInputSaveFailure
 
+/**
+ * Untrusted input of one reasoning write, as the API route hands it over.
+ *
+ * The modality write's sibling, and it reuses its refusals: a route that cannot
+ * be written here cannot take this declaration either, for the same reasons.
+ */
+export interface ModelReasoningSaveInput {
+  provider: string
+  model: string
+  /** Anything but a boolean is refused; `true` declares the level set, `false` removes it. */
+  declared: unknown
+  revision?: number
+}
+
+/** One accepted reasoning write, answered with the route as it now stands. */
+export type ModelReasoningSaveOutcome = { ok: true; provider: ProviderInputView } | ModelInputSaveFailure
+
 /** Untrusted input of one endpoint probe, as the API route hands it over. */
 export interface ModelDiscoveryInput {
   provider: string
@@ -118,10 +163,11 @@ export interface ModelDiscoveryFailure {
 /** One accepted probe, answered with what the endpoint reports for the model. */
 export type ModelDiscoveryOutcome = { ok: true; modalities: InputModality[] } | ModelDiscoveryFailure
 
-/** What the three API routes call. */
+/** What the four API routes call. */
 export interface ModelInputAdmin {
   listProviders(): Promise<ModelInputsResponse>
   save(input: ModelInputSaveInput): Promise<ModelInputSaveOutcome>
+  saveReasoning(input: ModelReasoningSaveInput): Promise<ModelReasoningSaveOutcome>
   discover(input: ModelDiscoveryInput): Promise<ModelDiscoveryOutcome>
 }
 
@@ -336,18 +382,34 @@ export function createModelInputAdmin(deps: AdminDeps): ModelInputAdmin {
     return undefined
   }
 
-  /** The modality list one stored per-model entry declares, `undefined` when it inherits. */
-  function storedModalities(target: WriteTarget | undefined, model: string): string[] | undefined {
+  /** The stored entry one model's declarations live in, `undefined` when it has none. */
+  function storedEntry(target: WriteTarget | undefined, model: string): Record<string, unknown> | undefined {
     if (target === undefined) return undefined
-    const entryOfModel = target.kind === 'models'
+    return target.kind === 'models'
       ? target.list.find(candidate => candidate['id'] === model)
       : target.map[model]
+  }
+
+  /** The modality list one stored per-model entry declares, `undefined` when it inherits. */
+  function storedModalities(target: WriteTarget | undefined, model: string): string[] | undefined {
+    const entryOfModel = storedEntry(target, model)
     if (entryOfModel === undefined) return undefined
     const declared = entryOfModel[INPUT_KEY]
     if (!Array.isArray(declared)) return undefined
     const list = declared.filter((modality): modality is string => typeof modality === 'string')
     // An empty list states nothing to the adapter, so it is shown as inherited.
     return list.length === 0 || list.length !== declared.length ? undefined : list
+  }
+
+  /**
+   * Whether one stored per-model entry declares reasoning levels itself.
+   *
+   * Presence, not shape: `reasoningEfforts: false` is a declaration too — the
+   * adapter reads it as "this model does not reason" — so anything but an
+   * absent field counts, and the page paints the button the same way for both.
+   */
+  function storedReasoning(target: WriteTarget | undefined, model: string): boolean {
+    return storedEntry(target, model)?.[REASONING_KEY] !== undefined
   }
 
   /**
@@ -400,6 +462,7 @@ export function createModelInputAdmin(deps: AdminDeps): ModelInputAdmin {
           name: model.name,
           effective: filterModalities(model.inputModalities ?? []),
           overridden: storedModalities(target, model.id) !== undefined,
+          reasoningDeclared: storedReasoning(target, model.id),
           ...others.length === 0 ? {} : { other: others },
         }
       }),
@@ -436,13 +499,20 @@ export function createModelInputAdmin(deps: AdminDeps): ModelInputAdmin {
     return { ok: false, status, code, message }
   }
 
-  /** Map a settings-write failure: a moved section is the caller's to fix by reloading. */
-  function failureFrom(error: unknown): ModelInputSaveFailure {
-    const code = isPlainObject(error) ? error['code'] : undefined
-    if (code === 'SETTINGS_CONFLICT') {
+  /**
+   * Map a settings-write failure: a moved section is the caller's to fix by
+   * reloading, and anything else is the schema refusing what was sent.
+   * @param error - what the settings seam threw.
+   * @param code - the refusal to report a schema rejection as; the field the
+   * caller wrote decides which, since the write's own validator already said
+   * what it accepts.
+   */
+  function failureFrom(error: unknown, code: ModelInputRefusal = 'input/invalid-modalities'): ModelInputSaveFailure {
+    const thrown = isPlainObject(error) ? error['code'] : undefined
+    if (thrown === 'SETTINGS_CONFLICT') {
       return failure(409, 'input/conflict', 'the settings section changed since this page read it; reload and try again')
     }
-    return failure(400, 'input/invalid-modalities', toErrorMessage(error))
+    return failure(400, code, toErrorMessage(error))
   }
 
   /**
@@ -480,6 +550,126 @@ export function createModelInputAdmin(deps: AdminDeps): ModelInputAdmin {
   }
 
   /**
+   * The edit that puts one model's reasoning levels where the adapter reads
+   * them, or takes the declaration back.
+   *
+   * Whole-set and all-or-nothing: `declared` writes every level the adapter
+   * accepts, and unsetting removes the field rather than storing an empty one,
+   * which the adapter refuses as loudly as a set offering nothing but `off`.
+   * @returns the op, or why the write cannot be made at all.
+   */
+  function opForReasoning(
+    target: WriteTarget,
+    model: string,
+    declared: boolean,
+  ): { op: SettingsPathOp } | { failure: ModelInputSaveFailure } {
+    if (target.kind === 'models') {
+      const index = target.list.findIndex(entry => entry['id'] === model)
+      if (index < 0) {
+        return { failure: failure(404, 'input/unknown-model', `route does not list model "${model}" in its configuration`) }
+      }
+      // Same rule as the modality list: an array element cannot be addressed,
+      // so the whole list goes back with every other entry untouched.
+      const next = [...target.list.map(entry => ({ ...entry }))]
+      if (declared) next[index][REASONING_KEY] = { ...REASONING_EFFORTS }
+      else delete next[index][REASONING_KEY]
+      return { op: { op: 'set', path: target.path, value: next } }
+    }
+    if (declared) {
+      return { op: { op: 'set', path: [...target.path, model, REASONING_KEY], value: { ...REASONING_EFFORTS } } }
+    }
+    // An override that carried nothing but this field goes with it, so a model
+    // handed back to the catalog does not linger as an empty object. One that
+    // still declares modalities keeps them, and loses only this key.
+    const kept = Object.keys(target.map[model] ?? {}).filter(key => key !== REASONING_KEY)
+    return kept.length === 0
+      ? { op: { op: 'unset', path: [...target.path, model] } }
+      : { op: { op: 'unset', path: [...target.path, model, REASONING_KEY] } }
+  }
+
+  /**
+   * Everything one per-model write needs once it may proceed: the section to
+   * write, the route's own address, and where the model's declarations live.
+   */
+  interface WriteContext {
+    section: SettingsServiceLike
+    registry: LlmServiceLike
+    info: LlmProviderInfoLike
+    entry: ConfigurableProviderLike
+    target: WriteTarget
+  }
+
+  /**
+   * Resolve one per-model write's target, or the refusal that stops it.
+   *
+   * The one prefix both writes share: a missing seam, an unknown route, a route
+   * configured by another adapter, a model the route does not serve, and a
+   * route whose models live where this page may not write are the same facts
+   * whether the caller is about to write a modality list or a reasoning set.
+   * @param provider - the route key the request named.
+   * @param model - the model id the request named.
+   */
+  async function resolveForWrite(provider: string, model: string): Promise<
+    { ok: true; context: WriteContext } | { ok: false; failure: ModelInputSaveFailure }
+  > {
+    const registry = llm()
+    if (registry === undefined) return { ok: false, failure: failure(503, 'input/unavailable', 'this deployment mounts no llm service') }
+    const section = settings()
+    if (section === undefined) return { ok: false, failure: failure(503, 'input/unavailable', 'this deployment mounts no settings service') }
+
+    if (provider.length === 0) return { ok: false, failure: failure(400, 'input/unknown-provider', 'provider must name a registered route key') }
+    const info = registeredRoutes(registry).find(candidate => candidate.id === provider)
+    if (info === undefined) {
+      return { ok: false, failure: failure(404, 'input/unknown-provider', `no adapter is registered for provider "${provider}"`) }
+    }
+    if (model.length === 0) return { ok: false, failure: failure(400, 'input/unknown-model', 'model must name a model id of that route') }
+
+    const entry = directoryOf(registry).get(provider)
+    const descriptor = entry === undefined ? undefined : descriptorsOf(section).get(entry.settingsNs)
+    const refusal = refusalOf(entry, descriptor)
+    if (refusal === 'no-address' || entry === undefined) {
+      return { ok: false, failure: failure(400, 'input/not-editable', `provider "${provider}" declares no settings address, so its models cannot be written here`) }
+    }
+    if (refusal === 'other-adapter') {
+      return { ok: false, failure: failure(400, 'input/not-editable', `provider "${provider}" is configured by the "${entry.settingsNs}" adapter, whose model schema this page does not write`) }
+    }
+    if (refusal === 'no-namespace' || descriptor === undefined) {
+      return { ok: false, failure: failure(400, 'input/not-editable', `settings namespace "${entry.settingsNs}" is not registered, so provider "${provider}" cannot be written here`) }
+    }
+
+    const listed = await modelsOf(registry, provider)
+    if (listed === undefined) {
+      return { ok: false, failure: failure(400, 'input/not-editable', `this deployment reports no model list for provider "${provider}"`) }
+    }
+    if (!listed.some(candidate => candidate.id === model)) {
+      return { ok: false, failure: failure(404, 'input/unknown-model', `provider "${provider}" does not serve model "${model}"`) }
+    }
+
+    const target = targetOf(entry, descriptor)
+    if (target === undefined) {
+      return {
+        ok: false,
+        failure: failure(
+          400,
+          'input/not-editable',
+          `provider "${provider}" stores its models nowhere this page may write: a route the configuration declares lists its models itself, and overrides need a catalog route without a models list`,
+        ),
+      }
+    }
+    return { ok: true, context: { section, registry, info, entry, target } }
+  }
+
+  /** The route as the page reads it after a write landed. */
+  async function viewAfterWrite(context: WriteContext, provider: string): Promise<ProviderInputView> {
+    return viewOf(
+      context.info,
+      context.entry,
+      descriptorsOf(context.section).get(context.entry.settingsNs),
+      await modelsOf(context.registry, provider),
+    )
+  }
+
+  /**
    * Write one model's modalities, or remove the declaration so it inherits.
    *
    * The choice is checked here for a readable message; the owning adapter's
@@ -489,48 +679,9 @@ export function createModelInputAdmin(deps: AdminDeps): ModelInputAdmin {
    * @returns the route as it now stands, or why the write was refused.
    */
   async function save(input: ModelInputSaveInput): Promise<ModelInputSaveOutcome> {
-    const registry = llm()
-    if (registry === undefined) return failure(503, 'input/unavailable', 'this deployment mounts no llm service')
-    const section = settings()
-    if (section === undefined) return failure(503, 'input/unavailable', 'this deployment mounts no settings service')
-
-    const provider = input.provider
-    if (provider.length === 0) return failure(400, 'input/unknown-provider', 'provider must name a registered route key')
-    const info = registeredRoutes(registry).find(candidate => candidate.id === provider)
-    if (info === undefined) {
-      return failure(404, 'input/unknown-provider', `no adapter is registered for provider "${provider}"`)
-    }
-    if (input.model.length === 0) return failure(400, 'input/unknown-model', 'model must name a model id of that route')
-
-    const entry = directoryOf(registry).get(provider)
-    const descriptor = entry === undefined ? undefined : descriptorsOf(section).get(entry.settingsNs)
-    const refusal = refusalOf(entry, descriptor)
-    if (refusal === 'no-address' || entry === undefined) {
-      return failure(400, 'input/not-editable', `provider "${provider}" declares no settings address, so its models cannot be written here`)
-    }
-    if (refusal === 'other-adapter') {
-      return failure(400, 'input/not-editable', `provider "${provider}" is configured by the "${entry.settingsNs}" adapter, whose model schema this page does not write`)
-    }
-    if (refusal === 'no-namespace' || descriptor === undefined) {
-      return failure(400, 'input/not-editable', `settings namespace "${entry.settingsNs}" is not registered, so provider "${provider}" cannot be written here`)
-    }
-
-    const listed = await modelsOf(registry, provider)
-    if (listed === undefined) {
-      return failure(400, 'input/not-editable', `this deployment reports no model list for provider "${provider}"`)
-    }
-    if (!listed.some(model => model.id === input.model)) {
-      return failure(404, 'input/unknown-model', `provider "${provider}" does not serve model "${input.model}"`)
-    }
-
-    const target = targetOf(entry, descriptor)
-    if (target === undefined) {
-      return failure(
-        400,
-        'input/not-editable',
-        `provider "${provider}" stores its models nowhere this page may write: a route the configuration declares lists its models itself, and overrides need a catalog route without a models list`,
-      )
-    }
+    const resolved = await resolveForWrite(input.provider, input.model)
+    if (!resolved.ok) return resolved.failure
+    const context = resolved.context
 
     let modalities: InputModality[] | undefined
     if (input.modalities !== null) {
@@ -545,21 +696,42 @@ export function createModelInputAdmin(deps: AdminDeps): ModelInputAdmin {
       modalities = parsed
     }
 
-    const built = opFor(target, input.model, modalities)
+    const built = opFor(context.target, input.model, modalities)
     if ('failure' in built) return built.failure
     try {
-      await section.mutate(entry.settingsNs, [built.op], input.revision)
+      await context.section.mutate(context.entry.settingsNs, [built.op], input.revision)
     } catch (error) {
       return failureFrom(error)
     }
+    return { ok: true, provider: await viewAfterWrite(context, input.provider) }
+  }
 
-    const written = viewOf(
-      info,
-      entry,
-      descriptorsOf(section).get(entry.settingsNs),
-      await modelsOf(registry, provider),
-    )
-    return { ok: true, provider: written }
+  /**
+   * Declare one model's reasoning levels, or hand it back to the catalog.
+   *
+   * The sibling of {@link save}, and deliberately not folded into it: the two
+   * fields are independent — a model may take images without reasoning, or
+   * reason about text alone — so one request carries one field, and clearing
+   * one never touches the other.
+   * @param input - route key, model id, whether to declare, and the revision read.
+   * @returns the route as it now stands, or why the write was refused.
+   */
+  async function saveReasoning(input: ModelReasoningSaveInput): Promise<ModelReasoningSaveOutcome> {
+    if (typeof input.declared !== 'boolean') {
+      return failure(400, 'input/invalid-reasoning', 'declared must be true to write the levels or false to remove them')
+    }
+    const resolved = await resolveForWrite(input.provider, input.model)
+    if (!resolved.ok) return resolved.failure
+    const context = resolved.context
+
+    const built = opForReasoning(context.target, input.model, input.declared)
+    if ('failure' in built) return built.failure
+    try {
+      await context.section.mutate(context.entry.settingsNs, [built.op], input.revision)
+    } catch (error) {
+      return failureFrom(error, 'input/invalid-reasoning')
+    }
+    return { ok: true, provider: await viewAfterWrite(context, input.provider) }
   }
 
   /** One refused probe, in the shape both the API and the page read. */
@@ -718,5 +890,5 @@ export function createModelInputAdmin(deps: AdminDeps): ModelInputAdmin {
     return { ok: true, modalities: filterModalities(kept) }
   }
 
-  return { listProviders, save, discover }
+  return { listProviders, save, saveReasoning, discover }
 }

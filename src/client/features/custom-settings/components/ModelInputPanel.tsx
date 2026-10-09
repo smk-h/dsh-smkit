@@ -16,6 +16,23 @@
  * check states its answer, so a reply of text-only is seen as the result it
  * is rather than mistook for a check that never finished.
  *
+ * A rule closes the body, and under it the second subject: the reasoning levels
+ * the model may be asked for. Its check is a line of its own rather than one
+ * more chip in the row above because it answers a different question — what a
+ * request may carry is not whether the model can be asked to think — and
+ * because the two are stored under separate keys, each with its own reset.
+ * Ticking it writes the level set the owning adapter accepts; un-ticking it, or
+ * the named reset beside it, removes the declaration and hands the question
+ * back to the route's installed catalog. Neither greys the other while it is
+ * writing: they answer two separate clicks, and a control that dims its
+ * neighbour is read as one control whose second half moved on its own.
+ *
+ * The check wears the same chip the boxes above wear, because it is the same
+ * kind of answer: a yes or a no about this model, moved by the click itself.
+ * Only the field under it differs, which is what the tooltip is for — a reader
+ * who has not opened `settings.yaml` cannot tell from two words what a tick
+ * writes or what the reset beside it deletes.
+ *
  * There is no draft and no Save button, because ticking a box is the write, and
  * the card paints what the host reports, which the 3-second poll keeps true
  * after an edit made by hand in `settings.yaml` or in another window.
@@ -75,6 +92,7 @@ function saveRefusalText(t: Translator, code: unknown, message: string | undefin
     case 'input/not-editable': return t('codeNotEditable')
     case 'input/unavailable': return t('codeUnavailable')
     case 'input/invalid-modalities': return t('codeInvalidModalities')
+    case 'input/invalid-reasoning': return t('codeInvalidReasoning')
     default: return message || t('saveFailed', { status })
   }
 }
@@ -211,6 +229,31 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
         // it would state the same refusal twice.
       }, `${provider.provider}/${model.id}#detect`)
 
+    // The reasoning declaration's write: the same round trip as a box, one
+    // field over. It names an endpoint of its own rather than riding on the
+    // modality save, because the two fields are separate facts — a model that
+    // takes images without reasoning is the ordinary case, not an odd one — and
+    // either one being cleared has to leave the other where it stands.
+    const writeReasoning = (provider: ProviderInputView, model: ModelInputView, declared: boolean, tag = '') =>
+      run(async () => {
+        const result = await api('/model-input/reasoning-efforts', {
+          method: 'POST',
+          body: JSON.stringify({
+            provider: provider.provider,
+            model: model.id,
+            declared,
+            // The same revision discipline as the modality write: a section
+            // that moved under the card refuses rather than clobbers.
+            ...(provider.revision === undefined ? {} : { revision: provider.revision }),
+          }),
+        })
+        if (result.ok) {
+          refresh()
+          return
+        }
+        return saveRefusalText(t, result.body.code, result.body.error, result.status)
+      }, `${provider.provider}/${model.id}${tag}`)
+
     const toggleCard = (provider: string) => {
       setOpen(open.includes(provider) ? open.filter(kept => kept !== provider) : [...open, provider])
     }
@@ -237,7 +280,10 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
         <div className="smkit-cs-model-input-cards">
           {providers.map((provider) => {
             const expanded = open.includes(provider.provider)
-            const declared = provider.models.filter(model => model.overridden).length
+            // A model counts as this page's once either field is stored: the two
+            // are written by separate controls, and either one alone is enough
+            // to make the row this page's rather than the catalog's.
+            const declared = provider.models.filter(model => model.overridden || model.reasoningDeclared).length
             const visual = provider.models.filter(model => model.effective.includes('image')).length
             return (
               <div className="smkit-ui-disclosure-card" key={provider.provider} data-smkit-open={expanded ? 'true' : undefined}>
@@ -292,7 +338,25 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                       // the check has always answered one.
                       const tickKey = `${key}#tick`
                       const detectKey = `${key}#detect`
+                      const reasoningKey = `${key}#reasoning`
+                      const reasoningResetKey = `${key}#reasoning-reset`
                       const rowBusy = pending === key || pending === tickKey || pending === detectKey
+                      // Each of the two reasoning controls answers its own
+                      // click and no other. They do write one field, so either
+                      // request changes what the other one is showing — but the
+                      // check is a tick and the button beside it is a way back,
+                      // and a tick that greys the way back (or a reset that
+                      // greys the tick) reads as a single control moved twice
+                      // rather than two answers given separately. The line
+                      // above holds the same rule for its button. A click that
+                      // races a write is answered by the row's revision check,
+                      // the same way every race on this page is.
+                      const reasoningTickBusy = pending === reasoningKey
+                      const reasoningResetBusy = pending === reasoningResetKey
+                      // Whether this row carries a declaration of this page's
+                      // making. Either field counts on its own — they are
+                      // written and cleared by separate controls.
+                      const mine = model.overridden || model.reasoningDeclared
                       const modelExpanded = openModels.includes(key)
                       return (
                         <div className="smkit-cs-model-input-model-card" key={model.id}>
@@ -312,8 +376,8 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                                 <ChevronRightIcon className="smkit-cs-model-input-caret" />
                               </button>
                               <StateDot
-                                state={model.overridden ? 'custom' : 'idle'}
-                                label={`${model.id} · ${t(model.overridden ? 'modelStatusCustom' : 'modelStatusDefault')}`}
+                                state={mine ? 'custom' : 'idle'}
+                                label={`${model.id} · ${t(mine ? 'modelStatusCustom' : 'modelStatusDefault')}`}
                               />
                             </span>
                           </div>
@@ -356,6 +420,41 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                               {detectNote !== null && detectNote.key === key ? (
                                 <div className="smkit-cs-model-input-detect-note" data-smkit-failed={detectNote.failed ? 'true' : undefined}>
                                   {detectNote.text}
+                                </div>
+                              ) : null}
+                              {/* The rule states that the line beneath it answers
+                                * a different question: the boxes above say what a
+                                * request may carry, the check below says whether
+                                * this model can be asked to think. The two live on
+                                * the same model entry but under keys that are
+                                * written and cleared separately, so the reset on
+                                * this line touches its own field alone — and the
+                                * check's own off state is that same removal, since
+                                * an absent field and a field cleared to nothing are
+                                * not both storable answers. */}
+                              {provider.editable ? (
+                                <div className="smkit-cs-model-input-reasoning">
+                                  <div className="smkit-cs-model-input-reasoning-seam" />
+                                  <div className="smkit-cs-model-input-reasoning-row">
+                                    <CheckChip
+                                      of={model.id}
+                                      label={t('reasoningLevel')}
+                                      checked={model.reasoningDeclared}
+                                      disabled={reasoningTickBusy}
+                                      hint={t('reasoningHint')}
+                                      onChange={(next) => { void writeReasoning(provider, model, next, '#reasoning') }}
+                                    />
+                                    <span className="smkit-cs-model-input-body-tail">
+                                      <button
+                                        className="smkit-ui-button smkit-cs-model-input-body-btn"
+                                        aria-label={`${model.id} · ${t('reasoningReset')}`}
+                                        onClick={() => { void writeReasoning(provider, model, false, '#reasoning-reset') }}
+                                        disabled={reasoningResetBusy}
+                                      >
+                                        {t('reasoningReset')}
+                                      </button>
+                                    </span>
+                                  </div>
                                 </div>
                               ) : null}
                             </div>
