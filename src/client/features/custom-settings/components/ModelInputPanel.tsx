@@ -16,6 +16,12 @@
  * check states its answer, so a reply of text-only is seen as the result it
  * is rather than mistook for a check that never finished.
  *
+ * Auto-detect wears the shell's hover bubble, because its own two words cannot
+ * carry the fact that the answer belongs to the endpoint: providers publish
+ * this differently, so the check may come back empty or incomplete, and the
+ * reader has to know the boxes above are theirs to set by hand — from the
+ * provider's own documentation when the check has nothing to report.
+ *
  * A rule closes the body, and under it the second subject: the reasoning levels
  * the model may be asked for. Its check is a line of its own rather than one
  * more chip in the row above because it answers a different question — what a
@@ -116,7 +122,7 @@ function modalitiesOf(image: boolean): InputModality[] {
 }
 
 export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanelProps) => JSX.Element {
-  const { h, react, api } = deps
+  const { h, react, api, Tooltip } = deps
   const ChevronRightIcon = createChevronRightIcon(deps)
   const CheckChip = createCheckChip(deps)
   const StateDot = createStateDot(deps)
@@ -262,6 +268,15 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
       setOpenModels(openModels.includes(key) ? openModels.filter(kept => kept !== key) : [...openModels, key])
     }
 
+    // The shell's own hover bubble for a control whose two words cannot carry
+    // the caveat behind it. A host that hands no bubble over loses nothing but
+    // the styling: the anchor then wears the browser's `title`, which is the
+    // same sentence in a plainer box. Each such anchor sets `title` exactly
+    // when `Tooltip` is missing, so a host with the bubble never floats two at
+    // once.
+    const bubble = (label: string, anchor: JSX.Element): JSX.Element =>
+      Tooltip === undefined ? anchor : <Tooltip label={label} side="bottom" delayMs={300} maxWidth={280}>{anchor}</Tooltip>
+
     const seamNotice = unavailableText(t, unavailable)
     const modelCount = providers.reduce((total, provider) => total + provider.models.length, 0)
     return (
@@ -399,14 +414,17 @@ export function createModelInputPanel(deps: ClientDeps): (props: ModelInputPanel
                               </div>
                               {provider.editable ? (
                                 <span className="smkit-cs-model-input-body-tail">
-                                  <button
-                                    className="smkit-ui-button smkit-cs-model-input-body-btn"
-                                    aria-label={`${model.id} · ${t('autoFetch')}`}
-                                    onClick={() => { void detect(provider, model) }}
-                                    disabled={pending === detectKey}
-                                  >
-                                    {pending === detectKey ? t('detecting') : t('autoFetch')}
-                                  </button>
+                                  {bubble(t('autoFetchHint'), (
+                                    <button
+                                      className="smkit-ui-button smkit-cs-model-input-body-btn"
+                                      aria-label={`${model.id} · ${t('autoFetch')}`}
+                                      title={Tooltip === undefined ? t('autoFetchHint') : undefined}
+                                      onClick={() => { void detect(provider, model) }}
+                                      disabled={pending === detectKey}
+                                    >
+                                      {pending === detectKey ? t('detecting') : t('autoFetch')}
+                                    </button>
+                                  ))}
                                   <button
                                     className="smkit-ui-button smkit-cs-model-input-body-btn"
                                     aria-label={`${model.id} · ${t('choiceInherit')}`}

@@ -42,6 +42,7 @@ export const CUSTOM_SETTINGS_LOCALE_ZH: LocaleDict = {
   "choiceInherit": "恢复默认",
   "autoFetch": "自动获取",
   "detecting": "获取中…",
+  "autoFetchHint": "各家 API 的实现并不统一，自动获取可能取不到，或者取到的不完整；这时可以到 API 提供商处确认模型支持哪些输入，再用上面的勾选框手动设置。",
   "reasoningLevel": "推理等级",
   "reasoningReset": "恢复默认",
   "reasoningHint": "勾选即为这个模型声明推理等级（off、minimal、low、medium、high、xhigh、max），写进该路由配置的 reasoningEfforts 字段——dsh 的模型菜单就是靠它决定要不要显示「推理等级」这一行。取消勾选（或按旁边的「恢复默认」）删掉该字段，把这一项交回 dsh 内置清单决定；两行互不影响。",

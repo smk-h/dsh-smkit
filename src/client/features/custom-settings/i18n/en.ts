@@ -38,6 +38,7 @@ export const CUSTOM_SETTINGS_LOCALE_EN: LocaleDict = {
   "choiceInherit": "Reset to default",
   "autoFetch": "Auto-detect",
   "detecting": "Checking…",
+  "autoFetchHint": "Providers publish this differently, so the check may find nothing, or find less than the model takes. When it does, confirm the inputs with the API provider and set them by hand with the boxes above.",
   "reasoningLevel": "Reasoning level",
   "reasoningReset": "Reset to default",
   "reasoningHint": "Ticking this declares the model's reasoning levels (off, minimal, low, medium, high, xhigh, max) in the route's own reasoningEfforts field — the declaration dsh reads to decide whether its model menu offers a reasoning-level row for this model. Un-ticking it, or the reset beside it, removes the field and hands the question back to dsh's built-in catalog. The two rows do not affect each other.",

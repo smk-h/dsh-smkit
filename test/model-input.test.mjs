@@ -918,10 +918,12 @@ const routing = ({ list, save, discover } = {}) => (url) => {
  * Mount the real client bundle with a hook harness and take the settings page
  * that seats the model-input tab (the section component the slot was handed),
  * already opened on that tab.
- * @param options - the URL-routed fetch stub.
+ * @param options - the URL-routed fetch stub, and optionally the shell's own
+ * `Tooltip`, which a host either hands over through `ui-primitives` or does not
+ * — leaving it out is what an older host looks like.
  * @returns `calls` (every request the page made) and `render()`.
  */
-function mountClient({ fetch }) {
+function mountClient({ fetch, Tooltip }) {
   const calls = []
   const registrations = new Map()
   let exported
@@ -946,7 +948,12 @@ function mountClient({ fetch }) {
     useEffect: (effect) => { effect() },
     useCallback: (callback) => callback,
   }
-  const modules = { react }
+  // The platform module table a host seeds. `react` is always there; the shell's
+  // `Tooltip` only when the case asks for one, since a table without it is the
+  // state a case has to be able to reach as well.
+  const modules = Tooltip === undefined
+    ? { react }
+    : { react, '@deepseek-ai/dsh-client-ui-primitives': { Tooltip } }
   runInNewContext(clientSource, {
     window: { __ModuleLoader__: { load: ({ factory }) => { exported = factory((id) => modules[id]) } } },
     fetch: async (url, options) => {
@@ -1196,6 +1203,40 @@ it('names the reason a foreign route is read-only, and keeps its boxes inert', a
   assert.equal(hasAutoDetect(view, 'deepseek-chat'), false, 'and no capability check')
   assert.equal(dot(view, 'deepseek-chat').props['data-smkit-state'], 'idle', 'the dot still says where that row stands')
   assert.equal(app.calls.some((request) => request.url.endsWith('/model-input/modalities')), false, 'nothing is posted')
+})
+
+it('hangs the capability check\'s caveat on the shell bubble, when the host has one', async () => {
+  const bubbles = []
+  // The host's Tooltip as this plugin uses it: one bubble describing one anchor.
+  // The harness renders a stand-in rather than the shell's own, so the case can
+  // read the props the page handed it.
+  const Bubble = (props) => {
+    bubbles.push(props)
+    return { type: 'span', props: {}, children: props.children ?? [] }
+  }
+  const app = mountClient({ fetch: routing({ list: { providers: [openRouterProvider] } }), Tooltip: Bubble })
+  const view = await app.open()
+
+  const bubble = bubbles.find((node) => node.label === 'autoFetchHint')
+  assert.ok(bubble, 'the check explains itself where its two words cannot')
+  assert.equal(bubble.side, 'bottom', 'placed under the button, like the page\'s other bubbles')
+  assert.equal(typeof bubble.maxWidth, 'number', 'and capped, because the sentence is wider than the row')
+  assert.equal(
+    view.labelled('plain-model · autoFetch').props.title,
+    undefined,
+    'a host with the shell bubble is not also given the browser\'s own',
+  )
+})
+
+it('falls back to the browser\'s own bubble when the host hands none over', async () => {
+  const app = mountClient({ fetch: routing({ list: { providers: [openRouterProvider] } }) })
+  const view = await app.open()
+
+  assert.equal(
+    view.labelled('plain-model · autoFetch').props.title,
+    'autoFetchHint',
+    'the caveat survives a host with no ui-primitives: the plain title carries the same sentence',
+  )
 })
 
 it('reports the seam a deployment does not mount', async () => {
