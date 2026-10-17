@@ -1,7 +1,7 @@
 /**
- * The merged settings section: the shell around the plugin's five pages.
+ * The merged settings section: the shell around the plugin's settings pages.
  *
- * One nav row instead of five, and a strip of five tabs above the panel —
+ * One nav row instead of one per page, and a strip of tabs above the panel —
  * each tab is one of the pages this plugin used to seat on its own, so the
  * panels are the very components those seats rendered (`features/mcp`,
  * `features/skills`, `features/custom-settings`, `features/local-cache`),
@@ -43,12 +43,14 @@ import { createSettings2Icon } from '../../platform/icons/Settings2Icon'
 import { createNotebookTextIcon } from '../../features/local-cache/icons/NotebookTextIcon'
 import { createBellIcon } from '../../features/notify/icons/BellIcon'
 import { createMessagesSquareIcon } from '../../features/session-manager/icons/MessagesSquareIcon'
+import { createPuzzleIcon } from '../../features/plugin-gallery/icons/PuzzleIcon'
 import { createMcpContent } from '../../features/mcp/components/McpContent'
 import { createSkillsContent } from '../../features/skills/components/SkillsContent'
 import { createCustomSettingsContent } from '../../features/custom-settings/components/CustomSettingsContent'
 import { createLocalCachePanel } from '../../features/local-cache/components/LocalCachePanel'
 import { createNotifyPanel } from '../../features/notify/components/NotifyPanel'
 import { createSessionManagerPanel } from '../../features/session-manager/components/SessionManagerPanel'
+import { createPluginGalleryPanel } from '../../features/plugin-gallery/components/PluginGalleryPanel'
 import { isDesktopShell } from '../../platform/desktop'
 import type { ClientDeps, Translator } from '../../platform/types'
 
@@ -62,6 +64,7 @@ export interface PanelDictionaries {
   localCache: Translator
   notify: Translator
   sessionManager: Translator
+  pluginGallery: Translator
 }
 
 /** One page: its tab's glyph, its key in the strip, and its panel. */
@@ -104,12 +107,14 @@ export function createSettingsSection(
   const NotebookTextIcon = createNotebookTextIcon(deps)
   const BellIcon = createBellIcon(deps)
   const MessagesSquareIcon = createMessagesSquareIcon(deps)
+  const PuzzleIcon = createPuzzleIcon(deps)
   const McpContent = createMcpContent(deps)
   const SkillsContent = createSkillsContent(deps)
   const CustomSettingsContent = createCustomSettingsContent(deps)
   const LocalCachePanel = createLocalCachePanel(deps)
   const NotifyPanel = createNotifyPanel(deps)
   const SessionManagerPanel = createSessionManagerPanel(deps)
+  const PluginGalleryPanel = createPluginGalleryPanel(deps)
 
   /** The notifications page. Built whether or not this document gets the tab:
    * the strip spread below is the only thing that decides, and a component
@@ -159,11 +164,22 @@ export function createSettingsSection(
       icon: <MessagesSquareIcon size={14} />,
       Panel: (props) => <SessionManagerPanel {...props} onBatchDelete={options.onBatchDelete} />,
     },
+    // The shelf of other plugins, last in the strip: it is the one page here
+    // that describes nothing this plugin does. A reader comes to this dialog
+    // for the pages above it; this one is what they read when those pages
+    // leave a question open — where the behaviour came from, or where to get
+    // it without us.
+    {
+      id: 'plugin-gallery',
+      label: 'tabPlugins',
+      icon: <PuzzleIcon size={14} />,
+      Panel: (props) => <PluginGalleryPanel {...props} />,
+    },
   ]
 
   // The keys are the TABS ids, verbatim — the panel lookup below indexes by
-  // `active.id`. `local-cache` is the one id no bare key can spell: `-` reads
-  // as subtraction outside quotes.
+  // `active.id`. The two hyphenated ids need their quotes: `-` reads as
+  // subtraction outside them.
   const PANEL_T: Record<string, Translator> = {
     mcp: panelDictionaries.mcp,
     skills: panelDictionaries.skills,
@@ -171,6 +187,7 @@ export function createSettingsSection(
     'local-cache': panelDictionaries.localCache,
     notify: panelDictionaries.notify,
     sessions: panelDictionaries.sessionManager,
+    'plugin-gallery': panelDictionaries.pluginGallery,
   }
 
   // The tab the user was last reading, for the life of the module. The shell

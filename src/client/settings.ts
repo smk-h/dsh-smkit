@@ -1,6 +1,6 @@
 /**
- * The merged settings section: one seat in the settings dialog for the five
- * pages this plugin used to seat on its own.
+ * The merged settings section: one seat in the settings dialog for the pages
+ * this plugin used to seat on its own.
  *
  * The feature directories stay what they were — each owns its panel, its
  * dictionary and its stylesheets — and none of them seats a page any more:
@@ -27,6 +27,8 @@ import { LOCAL_CACHE_LOCALE_EN } from './features/local-cache/i18n/en'
 import { LOCAL_CACHE_LOCALE_ZH } from './features/local-cache/i18n/zh'
 import { SESSION_MANAGER_LOCALE_EN } from './features/session-manager/i18n/en'
 import { SESSION_MANAGER_LOCALE_ZH } from './features/session-manager/i18n/zh'
+import { PLUGIN_GALLERY_LOCALE_EN } from './features/plugin-gallery/i18n/en'
+import { PLUGIN_GALLERY_LOCALE_ZH } from './features/plugin-gallery/i18n/zh'
 import { createSettingsSection } from './settings/components/SettingsSection'
 import { createSettingsShellRestore } from './platform/ui/settings-shell'
 import { MCP_CSS } from './features/mcp/styles'
@@ -35,6 +37,7 @@ import { CUSTOM_SETTINGS_CSS } from './features/custom-settings/styles'
 import { LOCAL_CACHE_CSS } from './features/local-cache/styles'
 import { NOTIFY_CSS } from './features/notify/styles'
 import { SESSION_MANAGER_CSS } from './features/session-manager/styles'
+import { PLUGIN_GALLERY_CSS } from './features/plugin-gallery/styles'
 import { SETTINGS_NAV_ATTRIBUTE, markSettingsNavRow } from './platform/ui/settings-nav'
 import { iconMaskDataUri } from './platform/icons/Icon'
 import { SETTINGS2_SPEC } from './platform/icons/Settings2Icon'
@@ -64,7 +67,7 @@ let section: unknown
 export const settingsFeature: ClientFeature = {
   id: 'smkit',
   locale: { namespace: 'smkit', zh: SMKIT_LOCALE_ZH, en: SMKIT_LOCALE_EN },
-  // The five pages' own dictionaries — except the notify page's, which the
+  // The seated pages' own dictionaries — except the notify page's, which the
   // notify feature itself registers on mount: their panels still read their
   // copy through their own namespace, so this section only binds what it
   // seats. Theme is not among them — it seats no panel here, and
@@ -76,6 +79,7 @@ export const settingsFeature: ClientFeature = {
     { namespace: 'custom-settings', zh: CUSTOM_SETTINGS_LOCALE_ZH, en: CUSTOM_SETTINGS_LOCALE_EN },
     { namespace: 'local-cache', zh: LOCAL_CACHE_LOCALE_ZH, en: LOCAL_CACHE_LOCALE_EN },
     { namespace: 'session-manager', zh: SESSION_MANAGER_LOCALE_ZH, en: SESSION_MANAGER_LOCALE_EN },
+    { namespace: 'plugin-gallery', zh: PLUGIN_GALLERY_LOCALE_ZH, en: PLUGIN_GALLERY_LOCALE_EN },
   ],
   styles: [
     { name: 'mcp', css: MCP_CSS },
@@ -84,6 +88,7 @@ export const settingsFeature: ClientFeature = {
     { name: 'local-cache', css: LOCAL_CACHE_CSS },
     { name: 'notify', css: NOTIFY_CSS },
     { name: 'session-manager', css: SESSION_MANAGER_CSS },
+    { name: 'plugin-gallery', css: PLUGIN_GALLERY_CSS },
     { name: 'smkit/page', css: pageCss },
     { name: 'smkit/nav-icon', css: NAV_GLYPH_RULE },
   ],
@@ -112,6 +117,7 @@ export const settingsFeature: ClientFeature = {
       localCache: ctx.locale.bind('local-cache'),
       notify: ctx.locale.bind('notify'),
       sessionManager: ctx.locale.bind('session-manager'),
+      pluginGallery: ctx.locale.bind('plugin-gallery'),
     }, {
       // The shell closes itself when a removal empties the main view; the
       // guard arms before a batch and puts the dialog back on this section

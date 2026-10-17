@@ -151,7 +151,7 @@ clientExports.apply({
     register: (spec) => { slotSpecs.set(spec.name, [...(slotSpecs.get(spec.name) ?? []), spec]) },
   },
 })
-for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'openspec']) {
+for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'openspec', 'plugin-gallery']) {
   assert.ok(dictionaries[namespace], `the ${namespace} dictionary must be registered`)
   assert.deepEqual(
     Object.keys(dictionaries[namespace].zh).sort(),

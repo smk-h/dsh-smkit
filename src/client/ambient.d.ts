@@ -214,5 +214,9 @@ declare namespace JSX {
      * the elements bring the fold for free. */
     details: DetailsProps
     summary: CommonProps
+    /* The install commands the plugin gallery prints: a command is a code run,
+     * not a word in a sentence, and mark-up is what says so to a reader, a
+     * screen reader and a copy-paste alike. */
+    code: CommonProps
   }
 }

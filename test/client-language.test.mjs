@@ -209,7 +209,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -257,6 +257,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The session-manager page's own dictionary, seated by the merged section
     // like the pages above it.
     'smkit: session-manager/dictionaries',
+    // The plugin gallery's dictionary, seated by the merged section the same
+    // way: its list is data, but the one line per card is copy.
+    'smkit: plugin-gallery/dictionaries',
     'smkit: openspec/dictionaries',
     'smkit: theme-center/dictionaries',
     'smkit: notify/heartbeat',

@@ -8,14 +8,23 @@
  * component and keeps its rules in its own stylesheet, the way the MCP form's
  * field-shaped picker does; these rules are what a page gets without asking.
  * The strip wraps instead of shrinking its labels when the dialog is too narrow
- * to hold them: a clipped tab is unreadable, a second row is not.
+ * to hold them: a clipped tab is unreadable, a second row is not — and the two
+ * rows sit a hairline apart rather than a gutter apart, so a wrapped strip
+ * still reads as one control.
  */
 
 .smkit-ui-tabs {
   border-bottom: .5px solid var(--dsw-alias-border-l2);
   align-items: flex-end;
   flex-wrap: wrap;
-  gap: 22px;
+  /* A wrapped strip has two gaps to place, not one. The horizontal one is the
+   * 22px the tabs breathe by in a single row; the vertical one is the rows'
+   * own hairline, because a first row's active underline hangs 1px below its
+   * box and the rows must keep that pixel. A single `gap` spends the column
+   * value on both axes, which is what a strip with a seventh tab used to show:
+   * a band of empty panel the height of the gutter above the last row. */
+  column-gap: 22px;
+  row-gap: 2px;
   display: flex;
 }
 

@@ -1,0 +1,135 @@
+/**
+ * The gallery tab: the line that introduces the shelf, then one card per
+ * plugin.
+ *
+ * The page reads as a sentence and a stack of cards, wearing the same 12px/18px
+ * secondary intro the local-cache page opens with and the same card recipe as
+ * its cards (layer-1 fill, level-2 hairline, 12px corners), so a reader moving
+ * between tabs meets one surface rather than two. What is specific to this page
+ * is what sits inside a card: a heading that is itself a link — the plugin's
+ * name with the GitHub mark in front of it, the mark riding the anchor because
+ * a mark outside it would not be part of the target — a one-line description,
+ * and the install command on a monospace row of its own.
+ *
+ * The command row is the one behaviour this page asks for: the line itself
+ * selects whole on a click (`user-select: all`) and the button beside it writes
+ * the same line to the clipboard, because the thing a reader does with an
+ * install command is copy it — and there are two ways to want that, one for a
+ * reader who will paste it themselves and one for a reader who would rather
+ * press a button. The line wraps rather than scrolls — a command is read as one
+ * sentence, and a `@scope/name` or a `-w` flag clipped off the right edge is
+ * exactly what must not be missed.
+ *
+ * Classes are namespaced `smkit-gallery-page-*`: one owner, no cross-terms with
+ * the shell's `smkit-shell-*` or with another page's prefix.
+ */
+
+.smkit-gallery-page-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.smkit-gallery-page-intro {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.smkit-gallery-page-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.smkit-gallery-page-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+}
+
+.smkit-gallery-page-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The name is the link, and the link is the whole heading. A package name may
+ * run longer than the card — a scoped one is one edit away, and the list is
+ * data — so the line wraps mid-token rather than pushing the card wide or
+ * clipping the tail. */
+.smkit-gallery-page-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.smkit-gallery-page-name:hover {
+  text-decoration: underline;
+}
+
+/* The mark at its own 16px, taking the link's colour, which is how it follows
+ * both themes without a second colour or a theme selector — the pairing the
+ * identity badge makes. It is decoration, so it never shrinks to fit. */
+.smkit-gallery-page-mark {
+  flex: none;
+  display: inline-flex;
+}
+
+.smkit-gallery-page-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The command and the button that hands it over, on one line: the command is
+ * the flexible half — it may wrap, and `min-width: 0` is what lets it — and the
+ * button the fixed one. */
+.smkit-gallery-page-command-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.smkit-gallery-page-command {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  background: var(--dsw-alias-bg-layer-2);
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-primary);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* The copy button: the shared neutral button — its size, its hairline, its
+ * hover — with one rule of its own, a floor under its width. Its label is a
+ * report as well as a name ("copy" -> "copied" -> "copy failed"), and a report
+ * that resized the row would push the command sideways under the cursor that
+ * just clicked it, which is the same trap the pending state avoids by keeping
+ * its label in the box. The floor is set for the widest of the three labels,
+ * so no language of this page can move the command by a pixel. */
+.smkit-gallery-page-copy {
+  flex: none;
+  min-width: 88px;
+  white-space: nowrap;
+}

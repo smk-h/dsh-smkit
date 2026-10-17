@@ -253,6 +253,7 @@ export const SCOPES = [
   ['client/features/local-cache', 'cache'],
   ['client/features/mcp', 'mcp'],
   ['client/features/openspec', 'spec'],
+  ['client/features/plugin-gallery', 'gallery'],
   ['client/features/session-delete', 'del'],
   ['client/features/session-manager', 'sess'],
   ['client/features/skills', 'skill'],

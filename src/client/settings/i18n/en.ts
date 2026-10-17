@@ -20,4 +20,5 @@ export const SMKIT_LOCALE_EN: LocaleDict = {
   tabLocalCache: 'Local cache',
   tabNotify: 'Notifications',
   tabSessions: 'Sessions',
+  tabPlugins: 'Plugins',
 }
