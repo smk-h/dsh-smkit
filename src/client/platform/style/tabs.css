@@ -11,10 +11,44 @@
  * to hold them: a clipped tab is unreadable, a second row is not — and the two
  * rows sit a hairline apart rather than a gutter apart, so a wrapped strip
  * still reads as one control.
+ *
+ * Every row of a wrapped strip is closed by the hairline the strip itself ends
+ * with, so the rows read as rows of one control instead of a group of tabs, a
+ * band of empty panel, and another group. The repeated line comes from a
+ * bottom-anchored gradient at the row pitch — the tab's own height, declared in
+ * the strip's block and read by both rules below — and a single-row strip,
+ * which is every strip but a wrapped one, paints none of the copies.
  */
 
 .smkit-ui-tabs {
-  border-bottom: .5px solid var(--dsw-alias-border-l2);
+  /* The pitch one row repeats at: the tab's own height (its two paddings around
+   * its line box, the numbers `.smkit-ui-tabs-tab` below reads) plus the row
+   * gap. One declaration per number, read by both rules, so the baseline cannot
+   * drift from the row it closes; a tab taller than its line box — a glyph
+   * above 20px, which no caller passes, or a label broken over two lines, which
+   * the tab's `nowrap` below prevents — is what would move one. */
+  --smkit-tabs-line-box: 20px;
+  --smkit-tabs-pad-top: 7px;
+  --smkit-tabs-pad-bottom: 9px;
+  --smkit-tabs-row-gap: 2px;
+  --smkit-tabs-hairline: .5px;
+  --smkit-tabs-row-pitch: calc(
+    var(--smkit-tabs-pad-top) + var(--smkit-tabs-line-box) + var(--smkit-tabs-pad-bottom) +
+      var(--smkit-tabs-row-gap)
+  );
+  /* Anchored at the bottom, so each repeated line lands just under the row it
+   * closes — in the middle of that row gap. The pattern's own first line is
+   * shifted below the border box by the two hairlines in play (the strip's
+   * border and the line's own thickness), which is why a single-row strip keeps
+   * exactly the one hairline it always had. */
+  background-image: repeating-linear-gradient(
+    to top,
+    var(--dsw-alias-border-l2) 0 var(--smkit-tabs-hairline),
+    transparent var(--smkit-tabs-hairline) var(--smkit-tabs-row-pitch)
+  );
+  background-repeat: no-repeat;
+  background-position: 0 calc(var(--smkit-tabs-hairline) + var(--smkit-tabs-hairline));
+  border-bottom: var(--smkit-tabs-hairline) solid var(--dsw-alias-border-l2);
   align-items: flex-end;
   flex-wrap: wrap;
   /* A wrapped strip has two gaps to place, not one. The horizontal one is the
@@ -24,7 +58,7 @@
    * value on both axes, which is what a strip with a seventh tab used to show:
    * a band of empty panel the height of the gutter above the last row. */
   column-gap: 22px;
-  row-gap: 2px;
+  row-gap: var(--smkit-tabs-row-gap);
   display: flex;
 }
 
@@ -34,9 +68,16 @@
   cursor: pointer;
   background: 0 0;
   border: 0;
-  padding: 7px 1px 9px;
+  /* The strip's row pitch is measured in tabs that are this tall (see above),
+   * so the tab reads its geometry from there rather than repeating the
+   * numbers. */
+  padding: var(--smkit-tabs-pad-top) 1px var(--smkit-tabs-pad-bottom);
   font-size: 13px;
-  line-height: 20px;
+  line-height: var(--smkit-tabs-line-box);
+  /* One line always: a label broken over two would make its row taller than the
+   * pitch and take that row's baseline out from under it. The label keeps its
+   * width instead, which only overflows a strip narrower than a single tab. */
+  white-space: nowrap;
   align-items: center;
   display: inline-flex;
   position: relative;
