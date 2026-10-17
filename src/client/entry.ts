@@ -27,6 +27,7 @@ import { createApi, createStream } from './platform/api'
 import { PLATFORM_LOCALE_EN } from './platform/i18n/en'
 import { PLATFORM_LOCALE_ZH } from './platform/i18n/zh'
 import { PLATFORM_CSS, installStylesheet } from './platform/styles'
+import { watchTabsScroll } from './platform/ui/tabs-scroll'
 import type { ClientContext, ClientDeps, ClientFeature } from './platform/types'
 
 /**
@@ -107,6 +108,12 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
         () => ctx.locale.register('platform', { zh: PLATFORM_LOCALE_ZH, en: PLATFORM_LOCALE_EN }),
         'smkit: platform/dictionaries',
       )
+      // The tab strip is one row that scrolls (`platform/ui/tabs-scroll`): its
+      // watch is armed here, once, rather than by each strip, because it finds
+      // every strip in the document — present and future — and only ever needs
+      // one of itself. A strip that mounts later (a page swapping under the
+      // settings dialog) is picked up by its own scan.
+      ctx.effect(() => watchTabsScroll(), 'smkit: tab strip scrolling')
       const deps: ClientDeps = {
         react,
         h: react.createElement,

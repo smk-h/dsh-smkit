@@ -13,4 +13,6 @@ export const PLATFORM_LOCALE_ZH: LocaleDict = {
   "cancel": "取消",
   "delete": "删除",
   "refresh": "刷新",
+  "scrollEnd": "向右滚动页签",
+  "scrollStart": "向左滚动页签",
 }

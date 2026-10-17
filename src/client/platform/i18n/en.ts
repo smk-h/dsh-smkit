@@ -11,4 +11,6 @@ export const PLATFORM_LOCALE_EN: LocaleDict = {
   "cancel": "Cancel",
   "delete": "Delete",
   "refresh": "Refresh",
+  "scrollEnd": "Scroll the tabs right",
+  "scrollStart": "Scroll the tabs left",
 }

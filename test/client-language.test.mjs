@@ -244,6 +244,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-conversation'))
   assert.deepEqual(app.effectLabels, [
     'smkit: platform/dictionaries',
+    // The platform's own other watch: the tab strip's scrolling, armed once for
+    // the document rather than by each strip (see `platform/ui/tabs-scroll`).
+    'smkit: tab strip scrolling',
     'smkit: session-delete/dictionaries',
     // The notify feature: its dictionary (it sits before the merged settings
     // in the feature list) and its focus heartbeat, the one effect that runs
@@ -305,6 +308,24 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     /STRINGS|translator|systemLanguage|navigator\.(language|languages|userLanguage|userAgent|platform)|settings\/language|mm_language/,
   )
   app.dispose()
+})
+
+it('seats the strip scroll buttons with the platform copy', () => {
+  const app = mount(async () => response({}))
+  // The strip is one row that scrolls (`platform/ui/Tabs`): the two buttons
+  // that move it belong to the strip, not to the page seated in it, so their
+  // names come from the platform dictionary rather than from any one page's.
+  const arrows = app
+    .paint()
+    .nodes.filter((node) => node.props?.['data-smkit-tabs-arrow'] !== undefined)
+  assert.deepEqual(
+    arrows.map((node) => [node.props['data-smkit-tabs-arrow'], node.props['aria-label']]),
+    [
+      ['start', 'Scroll the tabs left'],
+      ['end', 'Scroll the tabs right'],
+    ],
+    'one button per direction, in row order, each named by the platform dictionary',
+  )
 })
 
 it('binds the shell copy and each panel copy, and follows locale changes', async () => {

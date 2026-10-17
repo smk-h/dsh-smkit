@@ -7,59 +7,62 @@
  * A page that needs a different look names another class family on the
  * component and keeps its rules in its own stylesheet, the way the MCP form's
  * field-shaped picker does; these rules are what a page gets without asking.
- * The strip wraps instead of shrinking its labels when the dialog is too narrow
- * to hold them: a clipped tab is unreadable, a second row is not — and the two
- * rows sit a hairline apart rather than a gutter apart, so a wrapped strip
- * still reads as one control.
  *
- * Every row of a wrapped strip is closed by the hairline the strip itself ends
- * with, so the rows read as rows of one control instead of a group of tabs, a
- * band of empty panel, and another group. The repeated line comes from a
- * bottom-anchored gradient at the row pitch — the tab's own height, declared in
- * the strip's block and read by both rules below — and a single-row strip,
- * which is every strip but a wrapped one, paints none of the copies.
+ * The strip is **one row that scrolls**. It used to wrap, and the wrap cost
+ * more than it looked: a second row of tabs over a band of empty panel, plus a
+ * question — where does the second row begin? — that only the dialog's width
+ * could answer. So the row clips instead (its scrollbar hidden: the baseline
+ * under it is the visual anchor, and the arrows say the rest) and is reached by
+ * the wheel or by the two arrow buttons seated at its right end. Both are
+ * `ui/tabs-scroll`'s measurement, published as `data-smkit-tabs-scroll` on the
+ * strip's root — the attribute's presence is what seats the arrows, and its
+ * `start`/`end` tokens say which way there is still room to move.
+ *
+ * The focus ring is the one thing a clipped row would eat: a focused tab's
+ * outline hangs 4px outside its box, so the row carries that much padding — and
+ * hands the vertical share back with a negative margin, so the strip's own
+ * height and rhythm stay exactly what they were.
  */
 
 .smkit-ui-tabs {
-  /* The pitch one row repeats at: the tab's own height (its two paddings around
-   * its line box, the numbers `.smkit-ui-tabs-tab` below reads) plus the row
-   * gap. One declaration per number, read by both rules, so the baseline cannot
-   * drift from the row it closes; a tab taller than its line box — a glyph
-   * above 20px, which no caller passes, or a label broken over two lines, which
-   * the tab's `nowrap` below prevents — is what would move one. */
+  /* The tab's own height, one declaration per number, read by both rules below
+   * — the row is exactly as tall as a tab, and the strip's rhythm rides on it. */
   --smkit-tabs-line-box: 20px;
   --smkit-tabs-pad-top: 7px;
   --smkit-tabs-pad-bottom: 9px;
-  --smkit-tabs-row-gap: 2px;
-  --smkit-tabs-hairline: .5px;
-  --smkit-tabs-row-pitch: calc(
-    var(--smkit-tabs-pad-top) + var(--smkit-tabs-line-box) + var(--smkit-tabs-pad-bottom) +
-      var(--smkit-tabs-row-gap)
-  );
-  /* Anchored at the bottom, so each repeated line lands just under the row it
-   * closes — in the middle of that row gap. The pattern's own first line is
-   * shifted below the border box by the two hairlines in play (the strip's
-   * border and the line's own thickness), which is why a single-row strip keeps
-   * exactly the one hairline it always had. */
-  background-image: repeating-linear-gradient(
-    to top,
-    var(--dsw-alias-border-l2) 0 var(--smkit-tabs-hairline),
-    transparent var(--smkit-tabs-hairline) var(--smkit-tabs-row-pitch)
-  );
-  background-repeat: no-repeat;
-  background-position: 0 calc(var(--smkit-tabs-hairline) + var(--smkit-tabs-hairline));
-  border-bottom: var(--smkit-tabs-hairline) solid var(--dsw-alias-border-l2);
-  align-items: flex-end;
-  flex-wrap: wrap;
-  /* A wrapped strip has two gaps to place, not one. The horizontal one is the
-   * 22px the tabs breathe by in a single row; the vertical one is the rows'
-   * own hairline, because a first row's active underline hangs 1px below its
-   * box and the rows must keep that pixel. A single `gap` spends the column
-   * value on both axes, which is what a strip with a seventh tab used to show:
-   * a band of empty panel the height of the gutter above the last row. */
-  column-gap: 22px;
-  row-gap: var(--smkit-tabs-row-gap);
+  /* The room the focus ring needs outside a tab, and therefore inside the clip. */
+  --smkit-tabs-focus-room: 4px;
+  border-bottom: .5px solid var(--dsw-alias-border-l2);
+  align-items: center;
   display: flex;
+}
+
+/* The row itself: the tabs, side by side, with the dialog's width as their
+ * only limit and the wheel and the arrows as the way past it.
+ *
+ * The padding is real on both axes and the margin only pulls back vertically
+ * again: the clip is the padding box, so a focused tab needs that room *inside*
+ * it, while the strip's own height has to stay what it was — which is what the
+ * negative vertical margin gives back. The cost is a 4px lead-in before the
+ * first tab, visible only when the row is scrolled to its start. */
+.smkit-ui-tabs-row {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  column-gap: 22px;
+  padding: var(--smkit-tabs-focus-room);
+  margin: calc(var(--smkit-tabs-focus-room) * -1) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* A horizontal gesture stops at the row instead of reaching the dialog behind
+   * it (or a browser's own swipe-back): the row is what the wheel is meant to
+   * move here, and `ui/tabs-scroll` only claims the gestures it can use. */
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.smkit-ui-tabs-row::-webkit-scrollbar {
+  display: none;
 }
 
 .smkit-ui-tabs-tab {
@@ -68,16 +71,16 @@
   cursor: pointer;
   background: 0 0;
   border: 0;
-  /* The strip's row pitch is measured in tabs that are this tall (see above),
-   * so the tab reads its geometry from there rather than repeating the
-   * numbers. */
+  /* The strip's rhythm is this tab's own geometry (see the numbers above), so
+   * the two rules read the same declarations rather than repeating them. */
   padding: var(--smkit-tabs-pad-top) 1px var(--smkit-tabs-pad-bottom);
   font-size: 13px;
   line-height: var(--smkit-tabs-line-box);
-  /* One line always: a label broken over two would make its row taller than the
-   * pitch and take that row's baseline out from under it. The label keeps its
-   * width instead, which only overflows a strip narrower than a single tab. */
+  /* One line, and its own width: a label broken over two lines would make a
+   * taller row, and a squeezed one would make the row fit when it does not —
+   * the row overflows and scrolls instead (see `.smkit-ui-tabs-row`). */
   white-space: nowrap;
+  flex: 0 0 auto;
   align-items: center;
   display: inline-flex;
   position: relative;
@@ -108,4 +111,40 @@
   outline-offset: 2px;
   color: var(--dsw-alias-label-primary);
   border-radius: 2px;
+}
+
+/* The two overflow buttons: the plugin's 28px icon-button skeleton
+ * (`style/icon-button.css`) in the strip's own paint — plain glyphs that
+ * darken, the way the tabs beside them answer a pointer. They are seated on
+ * the labels' line (the row is as tall as a tab, and these are centred in it)
+ * and only while the row overflows; the direction a row has run out of is
+ * dimmed and takes no press, both facts off `data-smkit-tabs-scroll`. */
+.smkit-ui-tabs-arrow {
+  display: none;
+  color: var(--dsw-alias-label-tertiary);
+  /* The icon-button skeleton leaves the border to the feature wearing it, as it
+   * leaves colour and hover paint; without this the browser's own button frame
+   * draws a ring around both chevrons. */
+  border: 0;
+  flex: 0 0 auto;
+}
+
+/* Six points off the row's last tab, two between the pair: enough to read as
+ * "the way past the tabs" without splitting the strip's own rhythm. */
+.smkit-ui-tabs-arrow[data-smkit-tabs-arrow=start] {
+  margin-left: 6px;
+}
+.smkit-ui-tabs-arrow[data-smkit-tabs-arrow=end] {
+  margin-left: 2px;
+}
+.smkit-ui-tabs-arrow:hover {
+  color: var(--dsw-alias-label-primary);
+}
+.smkit-ui-tabs[data-smkit-tabs-scroll] .smkit-ui-tabs-arrow {
+  display: inline-flex;
+}
+.smkit-ui-tabs[data-smkit-tabs-scroll]:not([data-smkit-tabs-scroll~=start]) .smkit-ui-tabs-arrow[data-smkit-tabs-arrow=start],
+.smkit-ui-tabs[data-smkit-tabs-scroll]:not([data-smkit-tabs-scroll~=end]) .smkit-ui-tabs-arrow[data-smkit-tabs-arrow=end] {
+  opacity: .35;
+  pointer-events: none;
 }
