@@ -170,8 +170,13 @@ function entry(kind, path, extra = []) {
   return item
 }
 
-/** A document holding a right sidebar with one file tree. */
-function fakeDocument(rows, sidebarSession = 's1') {
+/**
+ * A document holding a right sidebar with one file tree, and (optionally) the
+ * conversation column with the composer `<textarea>` inside it.
+ */
+function fakeDocument(rows, sidebarSession = 's1', composer = null) {
+  /** The conversation column: the one thing the composer lookup starts from. */
+  const column = composer === null ? null : { querySelector: () => composer }
   const html = new SandboxElement('html')
   html.root = true
   const body = new SandboxElement('body')
@@ -196,7 +201,12 @@ function fakeDocument(rows, sidebarSession = 's1') {
     documentElement: html,
     head: { appendChild: () => {} },
     createElement: (tag) => new SandboxElement(tag),
-    querySelector: () => null,
+    // The composer lookup: the conversation column first, then the textarea
+    // inside it; no other selector in the document is answered.
+    querySelector: (selector) => {
+      if (column === null) return null
+      return String(selector).includes('conversation') ? column : null
+    },
     // Other features in the same bundle ask the document their own questions
     // (the settings nav row, the format chips); this stand-in answers only the
     // selectors the reference feature writes and reports nothing for the rest.
@@ -214,26 +224,75 @@ function fakeDocument(rows, sidebarSession = 's1') {
 
 /**
  * Mount the whole bundle once and hand back what the assertions need.
- * @param options - `rows`, the services the feature reads, and whether the
- *   shell's own tree already carries an `@` control.
+ * @param options - `rows`, the services the feature reads, whether the shell's
+ *   own tree already carries an `@` control, and the `draft`/`caret` the
+ *   composer stand-in holds (`composer: false` models a host whose composer the
+ *   feature cannot find).
  */
 function mount(options = {}) {
-  const dom = fakeDocument(options.rows ?? [], options.sidebarSession === undefined ? 's1' : options.sidebarSession)
+  let draft = options.draft ?? 'before'
+  let draftRev = 1
+  /** Where the composer's caret sits: a textarea selection, or the shell's span. */
+  let caret = options.caret ?? draft.length
+  /** Every `insertText` the shell stand-in took. */
+  const shellCalls = []
+  /**
+   * The input shell's action face, as the host's `SessionInputShell` publishes
+   * it: a detect-coordinate caret and one span-CAS'd text insert that moves the
+   * caret behind what it wrote. Only mounted when a test asks for it — its
+   * absence is the older host whose composer the feature cannot read.
+   */
+  const shell = options.shellInput === true ? {
+    captureInsertion: () => ({ start: caret, end: caret, draftRev }),
+    insertText: (text, span) => {
+      shellCalls.push({ text, span })
+      if (span.draftRev !== draftRev) return false
+      draft = `${draft.slice(0, span.start)}${text}${draft.slice(span.end)}`
+      caret = span.start + text.length
+      draftRev += 1
+      return true
+    },
+  } : undefined
+  /**
+   * The composer `<textarea>` stand-in. Its value follows the draft the way a
+   * controlled textarea re-renders after `setDraft`, and its selection is where
+   * the user's caret is — the position a reference has to land on.
+   */
+  const composer = options.composer === false ? null : {
+    disabled: false,
+    readOnly: false,
+    selectionStart: caret,
+    selectionEnd: options.caretEnd ?? caret,
+    get value() { return draft },
+    setSelectionRange(start, end) {
+      this.selectionStart = start
+      this.selectionEnd = end
+    },
+  }
+  const dom = fakeDocument(
+    options.rows ?? [],
+    options.sidebarSession === undefined ? 's1' : options.sidebarSession,
+    composer,
+  )
   const observers = []
   let click = null
   dom.addEventListener = (type, handler) => { if (type === 'click') click = handler }
 
   /** Every `slash/input-insert-reference` the feature emitted, in order. */
   const emitted = []
-  let draft = options.draft ?? 'before'
-  let draftRev = 1
   const provided = []
   const effects = []
   const actx = {
     emit: (name, payload) => {
       emitted.push({ name, payload })
-      // The host's input machine mints the occurrence and moves the revision;
-      // the feature only reports success when that happened.
+      // The host's input machine replaces the span it was handed with the
+      // occurrence's text, writes the space it puts after a file chip, and
+      // moves the revision. The feature only reports success when that happened,
+      // and derives its caret placement from the resulting draft length.
+      if (payload?.span !== undefined && payload?.reference !== undefined) {
+        const { start, end } = payload.span
+        draft = `${draft.slice(0, start)}${payload.reference.ref} ${draft.slice(end)}`
+      }
       draftRev += 1
     },
   }
@@ -247,9 +306,15 @@ function mount(options = {}) {
     },
     conversation: {
       input: {
+        // The shell's action face is optional in the feature, so it is only
+        // present when a test asks for it: absent = the DOM/append paths.
         for: () => ({
           state: { getSnapshot: () => ({ draft, draftRev }) },
           setDraft: (text) => { draft = text; draftRev += 1 },
+          ...(shell === undefined ? {} : { actions: shell }),
+          // The editor's text projection, which is what the feature reads to
+          // decide whether a mention needs a separator. Plain text, no chips.
+          projection: { get detectText() { return draft } },
         }),
       },
     },
@@ -305,6 +370,8 @@ function mount(options = {}) {
     chips,
     status,
     emitted,
+    composer,
+    shellCalls,
     draft: () => draft,
     press(chip) {
       const prevented = []
@@ -351,7 +418,9 @@ it('puts one @ chip on every file and folder row of the shell tree', () => {
 })
 
 it('emits the host insertion event with a workspace-root relative mention', () => {
-  const view = mount({ rows: [entry('file', '/work/docs/my notes.md')] })
+  // No composer: the caret cannot be read, so the span is the end of the draft —
+  // the degradation a host without a findable textarea gets.
+  const view = mount({ rows: [entry('file', '/work/docs/my notes.md')], composer: false })
   try {
     const result = view.press(view.chips()[0])
     assert.equal(result.stopped, true, 'the row must not also open the file')
@@ -369,6 +438,129 @@ it('emits the host insertion event with a workspace-root relative mention', () =
         span: { draftRev: 1, start: 'before'.length, end: 'before'.length },
       },
     }]))
+  } finally {
+    view.dispose()
+  }
+})
+
+it('inserts a file at the composer caret instead of at the end of the draft', () => {
+  // Caret at the very start: an append would land after "second" instead.
+  const view = mount({ rows: [entry('file', '/work/src/a.ts')], draft: 'second', caret: 0 })
+  try {
+    view.press(view.chips()[0])
+    const span = view.emitted[0]?.payload?.span
+    assert.deepEqual(
+      { start: span.start, end: span.end },
+      { start: 0, end: 0 },
+      'the span is the live caret, which is where the host writes the token',
+    )
+    assert.equal(view.draft(), '@src/a.ts second')
+    assert.equal(
+      view.composer.selectionStart,
+      '@src/a.ts '.length,
+      'the caret follows the token, ready for whatever is typed next',
+    )
+  } finally {
+    view.dispose()
+  }
+})
+
+it('replaces the composer selection, and leaves the rest of the draft alone', () => {
+  const view = mount({
+    rows: [entry('file', '/work/src/a.ts')],
+    draft: 'keep junk',
+    caret: 5,
+    caretEnd: 9,
+  })
+  try {
+    view.press(view.chips()[0])
+    assert.equal(view.draft(), 'keep @src/a.ts ')
+    assert.equal(view.composer.selectionStart, 'keep @src/a.ts '.length)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('takes the caret from the input shell, which is the host composer we actually face', () => {
+  // The real composer is a Lexical contenteditable with no textarea in sight:
+  // only the shell's `captureInsertion` speaks the detect coordinates `span`
+  // uses, so the DOM probe must not be the primary source.
+  const view = mount({
+    rows: [entry('file', '/work/src/a.ts')],
+    draft: 'second',
+    composer: false,
+    caret: 0,
+    shellInput: true,
+  })
+  try {
+    view.press(view.chips()[0])
+    const span = view.emitted[0]?.payload?.span
+    assert.deepEqual({ start: span.start, end: span.end }, { start: 0, end: 0 })
+    assert.equal(view.draft(), '@src/a.ts second')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('inserts a folder through the shell instead of rewriting the draft', () => {
+  const view = mount({
+    rows: [entry('directory', '/work/my dir')],
+    draft: 'second',
+    composer: false,
+    caret: 0,
+    shellInput: true,
+  })
+  try {
+    view.press(view.chips()[0])
+    assert.equal(view.shellCalls.length, 1, 'one span-based insert')
+    assert.equal(view.shellCalls[0].text, '@"my dir/" ')
+    assert.deepEqual({ ...view.shellCalls[0].span }, { start: 0, end: 0, draftRev: 1 })
+    assert.equal(view.draft(), '@"my dir/" second')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('keeps a mention off the word before it, so DSH still sees one', () => {
+  // `asdf@lib/` is not a mention: the grammar needs a word boundary, so the
+  // folder has to be written as `asdf @lib/` — the separator belongs to the
+  // insert, exactly as the host's own batch path decides.
+  const view = mount({
+    rows: [entry('directory', '/work/lib')],
+    draft: 'asdf',
+    composer: false,
+    caret: 4,
+    shellInput: true,
+  })
+  try {
+    view.press(view.chips()[0])
+    assert.equal(view.shellCalls[0].text, ' @lib/ ')
+    assert.equal(view.draft(), 'asdf @lib/ ')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('separates a file chip from a word before committing it', () => {
+  const view = mount({
+    rows: [entry('file', '/work/src/a.ts')],
+    draft: 'asdf',
+    composer: false,
+    caret: 4,
+    shellInput: true,
+  })
+  try {
+    view.press(view.chips()[0])
+    assert.deepEqual(
+      view.shellCalls.map((call) => call.text),
+      [' '],
+      'the separator goes in first; the chip itself is the host event, not a text insert',
+    )
+    assert.equal(view.draft(), 'asdf @src/a.ts ')
+    const span = view.emitted[0]?.payload?.span
+    assert.deepEqual({ start: span.start, end: span.end }, { start: 5, end: 5 },
+      'the chip lands after the inserted separator')
+    assert.equal(span.draftRev, 2, 'and carries the revision that separator produced')
   } finally {
     view.dispose()
   }

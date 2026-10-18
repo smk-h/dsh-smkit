@@ -46,10 +46,49 @@ interface SpliceResult {
   caretAfter: number
 }
 
+/**
+ * The input shell's action face (`SessionInputShell.actions`), which the host
+ * also hands to its own composer slots as `inputActions`.
+ *
+ * Optional on purpose: it is the newest part of that shell, so a host too old
+ * to carry it still gets the plugin's textarea probe (and, failing that, the
+ * append this feature used to do).
+ */
+interface InputActions {
+  /**
+   * The composer's live selection as a detect-coordinate span, with the draft
+   * revision it was measured on — the host's own caret source for reference
+   * and text insertion.
+   */
+  captureInsertion?(): { start: number; end: number; draftRev?: number }
+  /** Replace one detect-coordinate span with plain text (span-CAS'd). */
+  insertText?(text: string, span: { start: number; end: number; draftRev: number }): boolean
+}
+
 /** The composer draft face reached through `ctx.conversation.input`. */
 interface ConversationInput {
   state: { getSnapshot(): { draft: string; draftRev?: number } }
   setDraft(text: string): void
+  actions?: InputActions
+  /**
+   * The editor's published projection. `detectText` is the string span offsets
+   * index into — the same coordinates `captureInsertion` answers in, and the
+   * only place a word-boundary question can be asked, since a chip serializes
+   * to a different length in the clipboard `draft`.
+   */
+  projection?: { detectText?: string }
+}
+
+/**
+ * One resolved insertion point, and what its offsets mean.
+ *
+ * `host` offsets are DETECT coordinates: the host's own text projection, where
+ * a chip counts as one serialized token. They are meaningless as JavaScript
+ * string indices, so they are only ever handed back to the host. `dom` offsets
+ * are plain string indices of a real `<textarea>` draft.
+ */
+interface InsertionPoint extends DraftCaret {
+  source: 'host' | 'dom'
 }
 
 /** The `conversation` client service, as this feature uses it. */
@@ -124,9 +163,14 @@ function spliceInsert(draft: string, text: string, caret: DraftCaret | null): Sp
 }
 
 /**
- * Locate the composer `<textarea>`: the `data-phase`-tagged one inside the
+ * Locate a composer `<textarea>`: the `data-phase`-tagged one inside the
  * conversation column, falling back to any textarea in that column and then to
  * a bare `data-phase` textarea on hosts whose column carries no slot marker.
+ *
+ * Only a fallback: the host composer is a Lexical contenteditable (the
+ * `data-phase` attribute sits on it, and the chips in the draft are editor
+ * nodes, not text), so `probeInsertion` asks the input shell first and this
+ * lookup only serves hosts whose composer really is a plain textarea.
  */
 function findComposerTextarea(): HTMLTextAreaElement | null {
   if (typeof document === 'undefined') return null
@@ -157,6 +201,64 @@ function probeComposerCaret(draft: string): DraftCaret | null {
   start = Math.max(0, Math.min(start, draft.length))
   end = Math.max(start, Math.min(end, draft.length))
   return { start, end }
+}
+
+/**
+ * The point a reference belongs at: the composer's live selection.
+ *
+ * The input shell answers first, through the same `captureInsertion()` the host
+ * hands its own composer slots. That is the only source that speaks the
+ * coordinates `span` is written in — the editor's DETECT projection, where each
+ * chip is one token — and the only one that survives a draft made of editor
+ * nodes, which the host's composer is. The DOM textarea is a fallback for hosts
+ * whose input really is a textarea, and `null` (append at the end) is the last
+ * resort: an unreadable caret must not block the insert.
+ */
+function probeInsertion(input: ConversationInput, draft: string): InsertionPoint | null {
+  const captured = input.actions?.captureInsertion?.()
+  if (captured !== undefined && Number.isFinite(captured.start) && Number.isFinite(captured.end)) {
+    const start = Math.max(0, captured.start)
+    return { start, end: Math.max(start, captured.end), source: 'host' }
+  }
+  const caret = probeComposerCaret(draft)
+  return caret === null ? null : { start: caret.start, end: caret.end, source: 'dom' }
+}
+
+/**
+ * One character of the editor's text projection, or `undefined` when the editor
+ * publishes none (or the offset falls outside it).
+ */
+function projectedChar(input: ConversationInput, at: number): string | undefined {
+  const text = input.projection?.detectText
+  if (typeof text !== 'string' || at < 0 || at > text.length) return undefined
+  return text.slice(at, at + 1)
+}
+
+/**
+ * Whether a mention written at `point` would be glued to the word before it.
+ *
+ * A glued mention is not a mention: DSH's `@` grammar needs a word boundary, so
+ * `asdf@lib/` stays flat text while `@lib/` becomes a chip. An unknown
+ * projection answers `true` — losing the decoration is the failure worth
+ * avoiding, and the space it costs is invisible.
+ */
+function needsLeadingSpace(input: ConversationInput, point: InsertionPoint): boolean {
+  if (point.start === 0) return false
+  const char = projectedChar(input, point.start - 1)
+  if (char === undefined) return true
+  return char !== '' && !/\s/u.test(char)
+}
+
+/**
+ * `text` with the separators its surroundings need: a leading one when the
+ * mention would otherwise be glued to a word, and no doubled trailing space
+ * where the projection already shows whitespace.
+ */
+function withSeparators(input: ConversationInput, point: InsertionPoint, text: string): string {
+  const lead = needsLeadingSpace(input, point) ? ' ' : ''
+  const next = projectedChar(input, point.end)
+  const spaced = / $/u.test(text) && next !== undefined && next !== '' && /\s/u.test(next)
+  return `${lead}${spaced ? text.replace(/ $/u, '') : text}`
 }
 
 /**
@@ -197,6 +299,14 @@ function placeComposerCaretAfterInsert(expectedDraft: string, caretIndex: number
  * Insert `text` into the session's draft at the composer's live caret,
  * appending when the caret cannot be resolved. False (and logged) when the
  * conversation service or the session scope is unavailable.
+ *
+ * Two paths, in order of authority. The input shell's `insertText` replaces the
+ * caret's detect span in place — the same call the host makes for its own text
+ * inserts, which keeps the editor's chips (and their undo entry) intact. Only a
+ * host without that face falls back to rewriting the whole draft through
+ * `setDraft`, which is why the offsets are then taken from the textarea alone:
+ * string indices and detect coordinates are not interchangeable once a draft
+ * holds chips.
  */
 function appendToDraft(ctx: ClientContext, sessionId: string, text: string): boolean {
   try {
@@ -211,9 +321,18 @@ function appendToDraft(ctx: ClientContext, sessionId: string, text: string): boo
       return false
     }
     const input = conversation.input.for(actx)
-    const draft = input.state.getSnapshot().draft
-    const caret = probeComposerCaret(draft)
-    const { draft: next, caretAfter } = spliceInsert(draft, text, caret)
+    const before = input.state.getSnapshot()
+    const point = probeInsertion(input, before.draft)
+    if (point !== null && point.source === 'host' && before.draftRev !== undefined) {
+      const applied = input.actions?.insertText?.(withSeparators(input, point, text), {
+        start: point.start,
+        end: point.end,
+        draftRev: before.draftRev,
+      })
+      if (applied === true) return true
+    }
+    const caret = point !== null && point.source === 'dom' ? { start: point.start, end: point.end } : null
+    const { draft: next, caretAfter } = spliceInsert(before.draft, text, caret)
     input.setDraft(next)
     placeComposerCaretAfterInsert(next, caretAfter)
     return true
@@ -291,6 +410,16 @@ export function mentionFor(
  * picker does. The chip shows the basename but serializes to the workspace
  * relative path. False when the host did not take the event (or is too old to
  * have it), which the caller answers by falling back to plain draft text.
+ *
+ * The event's span is the composer's LIVE caret, the same position the native
+ * picker replaces: a reference belongs where the user is typing, not at the end
+ * of the draft. The caret comes from the input shell's `captureInsertion` (see
+ * `probeInsertion`); an unreadable composer degrades to the append the host
+ * would have done without any caret information.
+ *
+ * A word boundary is part of the insert, not cosmetics: mid-word the host glues
+ * the chip to the text before it and DSH's `@` grammar then sees no mention at
+ * all. The separator is written first, as the host's own batch path does.
  */
 export function insertFileReference(ctx: ClientContext, sessionId: string, relativePath: string): boolean {
   const reference = mentionFor(relativePath, 'file')
@@ -301,8 +430,27 @@ export function insertFileReference(ctx: ClientContext, sessionId: string, relat
     const conversation = service<ConversationService>(ctx, 'conversation')
     if (conversation === undefined) return false
     const input = conversation.input.for(actx)
-    const before = input.state.getSnapshot()
-    if (before.draftRev === undefined) return false
+    let inputDraft = input.state.getSnapshot()
+    if (inputDraft.draftRev === undefined) return false
+    let point = probeInsertion(input, inputDraft.draft)
+    // The host's reference insert writes the space AFTER the chip and never
+    // before it, so mid-word the chip would be glued to the word it follows —
+    // its own batch path treats that as a defect and writes the separator first
+    // (`insertFileReferences`). Same here: one plain-text edit, then the
+    // reference at the caret that edit left behind.
+    if (point !== null && point.source === 'host' && point.start === point.end
+      && needsLeadingSpace(input, point)) {
+      const spaced = input.actions?.insertText?.(' ', {
+        start: point.start,
+        end: point.end,
+        draftRev: inputDraft.draftRev,
+      })
+      if (spaced === true) {
+        inputDraft = input.state.getSnapshot()
+        if (inputDraft.draftRev === undefined) return false
+        point = probeInsertion(input, inputDraft.draft)
+      }
+    }
     // The session-scope context's typed `emit` is keyed to the host's closed
     // event map; this internal composer event is deliberately string-loose.
     ;(actx as ScopeContext).emit('slash/input-insert-reference', {
@@ -314,13 +462,24 @@ export function insertFileReference(ctx: ClientContext, sessionId: string, relat
         clipboardText: reference.mention,
       },
       span: {
-        draftRev: before.draftRev,
-        start: before.draft.length,
-        end: before.draft.length,
+        draftRev: inputDraft.draftRev,
+        start: point?.start ?? inputDraft.draft.length,
+        end: point?.end ?? inputDraft.draft.length,
       },
     })
     const after = input.state.getSnapshot()
-    return after.draftRev !== before.draftRev
+    if (after.draftRev === inputDraft.draftRev) return false
+    if (point !== null && point.source === 'dom') {
+      // A DOM caret is a string index, so it has to be re-derived from the
+      // committed text: the host owns the token's spelling (quotes, the space
+      // after a chip), hence the length measured against the draft rather than
+      // the mention's own length. A host caret needs no help — the editor's
+      // own insert already leaves the selection after the new chip.
+      const replaced = point.end - point.start
+      const inserted = after.draft.length - inputDraft.draft.length + replaced
+      placeComposerCaretAfterInsert(after.draft, point.start + Math.max(0, inserted))
+    }
+    return true
   } catch (error) {
     console.warn('[smkit] file-reference insert failed:', error)
     return false
