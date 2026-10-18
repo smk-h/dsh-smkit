@@ -19,6 +19,7 @@
  */
 
 import { fileReferenceFeature } from './features/file-reference/client'
+import { markdownOutlineFeature } from './features/markdown-outline/client'
 import { openSpecFeature } from './features/openspec/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
 import { themeCenterFeature } from './features/theme-center/client'
@@ -58,9 +59,11 @@ const FEATURES: ClientFeature[] = [
   settingsFeature,
   openSpecFeature,
   themeCenterFeature,
-  // Last on purpose: it decorates a surface another plugin may own, so it
-  // registers after every seat of this plugin — and stands itself down when
-  // `dsh-better-sidebar` (or a future host) is the one providing the chip.
+  // Both of these decorate surfaces another plugin may own (the explorer, the
+  // Markdown preview), so they register after every seat of this plugin — and
+  // the chip stands itself down when `dsh-better-sidebar` (or a future host) is
+  // the one providing it.
+  markdownOutlineFeature,
   fileReferenceFeature,
 ]
 

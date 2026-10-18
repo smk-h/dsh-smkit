@@ -209,6 +209,18 @@ export const FOREIGN_DATA_ATTRS = [
    * Read only.
    */
   'data-phase',
+  /**
+   * The document preview's own anchors (`ui-sidebar-documentpreview`): the
+   * markdown-outline feature hangs a table of contents on the preview the host
+   * draws, and these are the stable half of that surface — its classes are
+   * build-time hashes. `data-textpreview-body` is the scroll body the outline
+   * bar is inserted into (and whose scroll it follows), and
+   * `data-document-markdown` is the rendered Markdown document the headings are
+   * collected from. Read only; the only element this plugin marks is its own
+   * bar, with `data-smkit-md-toc`.
+   */
+  'data-textpreview-body',
+  'data-document-markdown',
 ]
 
 /**
@@ -277,6 +289,7 @@ export const SCOPES = [
   ['client/features/custom-settings', 'cs'],
   ['client/features/file-reference', 'file'],
   ['client/features/local-cache', 'cache'],
+  ['client/features/markdown-outline', 'outline'],
   ['client/features/mcp', 'mcp'],
   ['client/features/openspec', 'spec'],
   ['client/features/plugin-gallery', 'gallery'],

@@ -1,0 +1,128 @@
+/**
+ * The Markdown preview's outline: the zero-height bar, its toggle, the popover.
+ *
+ * Every value is the one `dsh-better-sidebar`'s stylesheet carries (its
+ * `.tocBar` / `.tocButton` / `.tocPanel` / `.tocItem` block), because the two
+ * outlines appear on the same surface — whichever plugin draws the Markdown
+ * preview — and must be indistinguishable. Only the paint route differs: this
+ * plugin has no CSS Modules, so the classes are global and carry the plugin's
+ * own prefix (`scripts/namespace-guard.mjs`), and every colour comes from the
+ * shell's alias tokens so the bar follows whatever theme is in force.
+ *
+ * One declaration has no upstream counterpart: `white-space: normal` on the
+ * bar. The bar hangs inside the host's rendered Markdown document, which is
+ * already normal, but the preview's own scroll body around it is a monospace,
+ * `white-space: pre` box — stating this here keeps the popover's copy out of
+ * preformatted whitespace should the host ever move the document.
+ */
+
+/* The zero-height sticky bar: occupies no layout, keeps the toggle visible
+   while the preview scrolls, and lets pointer events pass through the bar
+   itself (only the interactive children re-enable them). The bar's stacking
+   context also frames the popover, so its z-index clears the host's code-block
+   banner (z-index 6) — 7 sits just above that banner and below the portalled
+   selection popup (60) / mermaid modal (1000). */
+.smkit-outline-toc-bar {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  display: flex;
+  justify-content: flex-end;
+  height: 0;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.smkit-outline-toc-toggle {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: 4px 2px 0 0;
+  padding: 0;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.smkit-outline-toc-toggle:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The popover, anchored under the toggle (the bar is the containing block; its
+   height is 0, so the panel drops below the pinned toggle row). */
+.smkit-outline-toc-panel {
+  position: absolute;
+  top: 32px;
+  right: 2px;
+  display: flex;
+  flex-direction: column;
+  width: min(300px, 82%);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-shadow-lv2);
+  pointer-events: auto;
+}
+
+.smkit-outline-toc-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-xxs-12);
+  text-align: left;
+  cursor: pointer;
+}
+
+.smkit-outline-toc-item:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Indent by heading level (h2 = one step, h3 = two steps…). */
+.smkit-outline-toc-item[data-smkit-md-toc-level='2'] { padding-left: 18px; }
+.smkit-outline-toc-item[data-smkit-md-toc-level='3'] { padding-left: 28px; }
+.smkit-outline-toc-item[data-smkit-md-toc-level='4'] { padding-left: 38px; }
+.smkit-outline-toc-item[data-smkit-md-toc-level='5'] { padding-left: 48px; }
+.smkit-outline-toc-item[data-smkit-md-toc-level='6'] { padding-left: 58px; }
+
+/* The tiny level number keeps deep outlines scannable. */
+.smkit-outline-toc-level {
+  flex: none;
+  font: var(--dsw-font-xxxs-11);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-outline-toc-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The jumped-to heading flashes once (the class is added to the host-rendered
+   heading element by watch.ts, then taken off after 1.2 s). */
+@keyframes smkit-outline-toc-flash {
+  0%, 60% { background: var(--dsw-alias-interactive-bg-hover); }
+  100% { background: transparent; }
+}
+
+.smkit-outline-toc-flash {
+  animation: smkit-outline-toc-flash 1.2s ease-out;
+  border-radius: 4px;
+}
