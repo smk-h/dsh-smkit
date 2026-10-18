@@ -422,13 +422,13 @@ it('copies the row’s path relative to the tree root', async () => {
     assert.equal(view.menu().open, false, 'the menu closes on selection')
     await settle()
     assert.deepEqual(view.clipboard.texts, ['src/a.ts'])
-    assert.equal(view.file.getAttribute('data-smkit-path-copied'), '', 'the row owns the label')
-    const label = view.file.querySelector('[data-smkit-path-copy-label]')
+    assert.equal(view.file.getAttribute('data-smkit-explorer-copied'), '', 'the row owns the label')
+    const label = view.file.querySelector('[data-smkit-explorer-label]')
     assert.equal(label.textContent, 'copied')
-    assert.equal(label.getAttribute('class'), 'smkit-path-copy-label')
+    assert.equal(label.getAttribute('class'), 'smkit-explorer-label')
     view.flush()
-    assert.equal(view.file.querySelector('[data-smkit-path-copy-label]'), null, 'the label is transient')
-    assert.equal(view.file.getAttribute('data-smkit-path-copied'), null)
+    assert.equal(view.file.querySelector('[data-smkit-explorer-label]'), null, 'the label is transient')
+    assert.equal(view.file.getAttribute('data-smkit-explorer-copied'), null)
   } finally {
     view.dispose()
   }
@@ -454,8 +454,8 @@ it('shows no label when the clipboard refuses the write', async () => {
     view.select('absolute')
     await settle()
     assert.deepEqual(view.clipboard.texts, ['/ws/src/a.ts'], 'the write was attempted')
-    assert.equal(view.file.querySelector('[data-smkit-path-copy-label]'), null)
-    assert.equal(view.file.getAttribute('data-smkit-path-copied'), null)
+    assert.equal(view.file.querySelector('[data-smkit-explorer-label]'), null)
+    assert.equal(view.file.getAttribute('data-smkit-explorer-copied'), null)
   } finally {
     view.dispose()
   }
@@ -507,7 +507,7 @@ it('unmounts its root and leaves the body clean when disposed', () => {
   assert.equal(view.roots[0].unmounted, true)
   const host = view.tree.parentNode
   assert.equal(
-    host.children.filter((child) => child.hasAttribute('data-smkit-path-menu-root')).length,
+    host.children.filter((child) => child.hasAttribute('data-smkit-explorer-menu-root')).length,
     0,
     'the menu host div is gone',
   )

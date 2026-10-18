@@ -9,4 +9,4 @@
 import labelCss from './style/label.css'
 
 /** The feature's own rules. */
-export const PATH_COPY_CSS = labelCss
+export const EXPLORER_MENU_CSS = labelCss

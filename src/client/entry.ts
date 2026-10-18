@@ -18,7 +18,7 @@
  * `settingsFeature` (see `settings.ts`) — the composition layer above them.
  */
 
-import { filePathCopyFeature } from './features/file-path-copy/client'
+import { explorerMenuFeature } from './features/explorer-menu/client'
 import { fileReferenceFeature } from './features/file-reference/client'
 import { markdownOutlineFeature } from './features/markdown-outline/client'
 import { openSpecFeature } from './features/openspec/client'
@@ -66,7 +66,7 @@ const FEATURES: ClientFeature[] = [
   // host) is the one providing the affordance.
   markdownOutlineFeature,
   fileReferenceFeature,
-  filePathCopyFeature,
+  explorerMenuFeature,
 ]
 
 export function createPlugin(): { apply(ctx: ClientContext): void; inject: string[] } {

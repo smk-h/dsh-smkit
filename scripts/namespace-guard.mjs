@@ -287,7 +287,7 @@ export const SCOPES = [
   ['client/platform', 'ui'],
   ['client/settings', 'shell'],
   ['client/features/custom-settings', 'cs'],
-  ['client/features/file-path-copy', 'path-copy'],
+  ['client/features/explorer-menu', 'explorer'],
   ['client/features/file-reference', 'file'],
   ['client/features/local-cache', 'cache'],
   ['client/features/markdown-outline', 'outline'],

@@ -1,5 +1,9 @@
 /**
- * The two "copy path" rows this plugin adds to the shell's file tree.
+ * The right-click menu this plugin draws on the shell's file tree.
+ *
+ * Today it holds the two "copy path" rows; this is the file every later row
+ * (new file / new folder / rename / delete) is added to, so they share one
+ * listener, one menu host and one open/close lifecycle.
  *
  * Ported from `dsh-better-sidebar` (`src/client/FileTree.tsx`), where the rows
  * sit in that plugin's own explorer menu:
@@ -31,9 +35,9 @@
  * (`ui-sidebar-files` renders none), so this feature is event-driven rather
  * than a decoration: one capture-phase `contextmenu` listener over the
  * document, no observers, and nothing added to the DOM until a menu is opened.
- * Consequently the menu holds these two rows only — the source menu's other
- * groups (open with, reveal, download, upload, rename, delete) are that
- * plugin's own actions, not something this plugin provides.
+ * The menu's rows are this plugin's own contributions — the copy rows today,
+ * the creating/renaming/deleting rows as they are ported — never a re-draw of
+ * the shell's absent menu.
  *
  * ## Only one of us is ever active
  *
@@ -52,10 +56,10 @@ const ROW = 'li[data-files-entry]'
 const TREE = '[data-files-state="tree"]'
 
 /** This feature's markers: the transient label, and the row that carries it. */
-const LABEL = 'data-smkit-path-copy-label'
-const COPIED = 'data-smkit-path-copied'
+const LABEL = 'data-smkit-explorer-label'
+const COPIED = 'data-smkit-explorer-copied'
 /** The label's namespaced class (see `style/label.css`). */
-const LABEL_CLASS = 'smkit-path-copy-label'
+const LABEL_CLASS = 'smkit-explorer-label'
 
 /** How long the row's "copied" label stays after a successful write, in ms. */
 const COPIED_MS = 1200
@@ -161,7 +165,7 @@ function iconElement(h: ElementFactory, spec: IconSpec): unknown {
  * @param t - the copy lookup bound to this feature's namespace.
  * @returns the effect's disposer, which closes the menu and unmounts its root.
  */
-export function watchFilePathCopy(
+export function watchExplorerMenu(
   ctx: ClientContext,
   deps: ClientDeps,
   t: Translator,
@@ -182,7 +186,7 @@ export function watchFilePathCopy(
   // The menu host: a zero-size div in the body. The card itself is portalled by
   // the Menu component, so this node only carries the anchor placeholder.
   const container = document.createElement('div')
-  container.setAttribute('data-smkit-path-menu-root', '')
+  container.setAttribute('data-smkit-explorer-menu-root', '')
   container.style.display = 'none'
   document.body.appendChild(container)
   const root = runtime.createRoot(container)

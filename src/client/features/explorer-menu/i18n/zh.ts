@@ -1,5 +1,5 @@
 /**
- * Simplified Chinese dictionary for the `path-copy` locale namespace.
+ * Simplified Chinese dictionary for the `explorer` locale namespace.
  *
  * The two rows read exactly as they do in `dsh-better-sidebar`'s explorer menu,
  * so a user switching between the two plugins sees the same words (the shipped
@@ -8,7 +8,7 @@
 
 import type { LocaleDict } from '../../../platform/types'
 
-export const PATH_COPY_LOCALE_ZH: LocaleDict = {
+export const EXPLORER_MENU_LOCALE_ZH: LocaleDict = {
   "copyRelative": "复制相对路径",
   "copyAbsolute": "复制绝对路径",
   "copied": "已复制",

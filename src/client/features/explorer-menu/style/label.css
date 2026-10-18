@@ -14,26 +14,26 @@
  * row's geometry is the shell's own.
  */
 
-li[data-smkit-path-copied] {
+li[data-smkit-explorer-copied] {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
 }
 
 /* The shell's row button, and its own nested list for an expanded directory. */
-li[data-smkit-path-copied] > button:not([data-smkit-path-copy-label]) {
+li[data-smkit-explorer-copied] > button:not([data-smkit-explorer-label]) {
   grid-area: 1 / 1;
 }
 
-li[data-smkit-path-copied] > ul {
+li[data-smkit-explorer-copied] > ul {
   grid-area: 2 / 1;
 }
 
 /* The copied label and the `@` chip share the seat: only the label shows. */
-li[data-smkit-path-copied] > [data-smkit-file-ref-button] {
+li[data-smkit-explorer-copied] > [data-smkit-file-ref-button] {
   display: none;
 }
 
-.smkit-path-copy-label {
+.smkit-explorer-label {
   grid-area: 1 / 1;
   align-self: center;
   justify-self: end;

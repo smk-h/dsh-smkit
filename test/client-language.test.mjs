@@ -209,7 +209,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'markdown-outline', 'file-reference', 'path-copy']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'markdown-outline', 'file-reference', 'explorer']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -274,8 +274,8 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'smkit: file-reference/dictionaries',
     // The tree's copy-path menu: its dictionary, then the contextmenu watch
     // that draws the shell's menu for the host's rows (see
-    // `features/file-path-copy`).
-    'smkit: path-copy/dictionaries',
+    // `features/explorer-menu`).
+    'smkit: explorer/dictionaries',
     'smkit: notify/heartbeat',
     // The web-delivery subscriber: the second notification path for remote
     // hosts, holding one event-stream open for the host's pushed decisions.
@@ -296,9 +296,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The explorer chip's watch: one document observer, one per tree, and a
     // capture-phase click that turns a press into an `@` reference.
     'smkit: file-reference/explorer',
-    // The tree's copy-path menu: one capture-phase contextmenu listener and the
-    // React root that draws the shell's own menu card.
-    'smkit: path-copy/explorer',
+    // The tree's right-click menu: one capture-phase contextmenu listener and
+    // the React root that draws the shell's own menu card.
+    'smkit: explorer/menu',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared
