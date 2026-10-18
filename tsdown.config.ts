@@ -54,10 +54,14 @@ import {
  * shell's own plugins resolve it) and only feeds `createPortal`, the mount for
  * the settings-header breadcrumb. `@deepseek-ai/dsh-client-ui-primitives` is a
  * platform module too (the web shell seeds it, `packages/client/web/src/seed.ts`)
- * and only feeds the header control's hover bubble, whose absence merely costs
- * the styled bubble.
+ * and feeds the header control's hover bubble, the file tree's context-menu card
+ * and its clipboard write — every one of them optional, so a host missing the
+ * module loses a control, never the bundle. `react-dom/client` is seeded with
+ * `react-dom` and feeds `createRoot`: the one React root this plugin mounts for
+ * itself, because the tree menu has to be the shell's own `Menu` component to
+ * look and behave like the menu it was ported from.
  */
-const CLIENT_EXTERNALS = ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives']
+const CLIENT_EXTERNALS = ['react', 'react-dom', 'react-dom/client', '@deepseek-ai/dsh-client-ui-primitives']
 
 /**
  * The package identity, read once: the ModuleLoader id and the `__PLUGIN_NAME__`

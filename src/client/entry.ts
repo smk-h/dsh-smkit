@@ -18,6 +18,7 @@
  * `settingsFeature` (see `settings.ts`) — the composition layer above them.
  */
 
+import { filePathCopyFeature } from './features/file-path-copy/client'
 import { fileReferenceFeature } from './features/file-reference/client'
 import { markdownOutlineFeature } from './features/markdown-outline/client'
 import { openSpecFeature } from './features/openspec/client'
@@ -59,12 +60,13 @@ const FEATURES: ClientFeature[] = [
   settingsFeature,
   openSpecFeature,
   themeCenterFeature,
-  // Both of these decorate surfaces another plugin may own (the explorer, the
-  // Markdown preview), so they register after every seat of this plugin — and
-  // the chip stands itself down when `dsh-better-sidebar` (or a future host) is
-  // the one providing it.
+  // These three decorate surfaces another plugin may own (the explorer, its
+  // rows, the Markdown preview), so they register after every seat of this
+  // plugin — and each stands itself down when `dsh-better-sidebar` (or a future
+  // host) is the one providing the affordance.
   markdownOutlineFeature,
   fileReferenceFeature,
+  filePathCopyFeature,
 ]
 
 export function createPlugin(): { apply(ctx: ClientContext): void; inject: string[] } {

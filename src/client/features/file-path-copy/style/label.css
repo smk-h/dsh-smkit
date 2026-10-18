@@ -1,0 +1,46 @@
+/**
+ * The transient "copied" label that follows a successful path copy.
+ *
+ * The label takes the row's trailing seat — the same seat the `@` chip occupies
+ * — exactly as `dsh-better-sidebar` swaps its chip for the label after a copy:
+ * same 11px tertiary text, same right inset, and the chip hidden while the
+ * label is up (one seat, one occupant). The label exists for 1.2 s, so the
+ * grid that parks it there is scoped to the marker the label sets, not to the
+ * row permanently: a tree that never copies is laid out by the shell alone.
+ *
+ * Both this grid and the `@` chip's grid (feature `file-reference`) describe
+ * the same two-row structure — the shell's row button on line 1, an expanded
+ * directory's children list on line 2 — so whichever feature is active, the
+ * row's geometry is the shell's own.
+ */
+
+li[data-smkit-path-copied] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The shell's row button, and its own nested list for an expanded directory. */
+li[data-smkit-path-copied] > button:not([data-smkit-path-copy-label]) {
+  grid-area: 1 / 1;
+}
+
+li[data-smkit-path-copied] > ul {
+  grid-area: 2 / 1;
+}
+
+/* The copied label and the `@` chip share the seat: only the label shows. */
+li[data-smkit-path-copied] > [data-smkit-file-ref-button] {
+  display: none;
+}
+
+.smkit-path-copy-label {
+  grid-area: 1 / 1;
+  align-self: center;
+  justify-self: end;
+  /* The shell's row pads its right edge by 10px; a trailing affordance inside
+     that row ends exactly this far from the row's border. */
+  margin-right: 10px;
+  font: var(--dsw-font-xxxs-11);
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
