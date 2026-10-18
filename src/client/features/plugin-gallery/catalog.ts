@@ -38,10 +38,11 @@ export interface CatalogEntry {
 }
 
 /**
- * The shortlist, in card order. One entry today — the sidebar workbench, the
- * base most other dsh pages hang off — and the list's shape is the point of
- * keeping it a list: the next plugin a reader should know about costs one entry
- * here and one line in each dictionary, and nothing in the panel changes.
+ * The shortlist, in card order. The sidebar workbench first — the base most
+ * other dsh pages hang off — then the session manager, and the list's shape is
+ * the point of keeping it a list: the next plugin a reader should know about
+ * costs one entry here and one line in each dictionary, and nothing in the
+ * panel changes.
  */
 export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
   {
@@ -49,5 +50,11 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
     name: 'dsh-better-sidebar',
     repo: 'https://github.com/omdsh-dev/DSH-better-sidebar',
     command: 'dsh plugin --profile web add dsh-better-sidebar@latest',
+  },
+  {
+    id: 'sessionsManager',
+    name: 'dsh-sessions-manager',
+    repo: 'https://github.com/TOBYCAI/dsh-sessions-manager',
+    command: 'dsh plugin --profile web add "github:TOBYCAI/dsh-sessions-manager"',
   },
 ]

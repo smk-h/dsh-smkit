@@ -19,4 +19,6 @@ export const PLUGIN_GALLERY_LOCALE_ZH: LocaleDict = {
   copyFailed: "复制失败",
   betterSidebarDesc:
     "侧边栏工作台：内置文件预览与编辑、终端、侧边对话、Git 与子代理页面，侧边栏本身还是其它插件注册新页面的底座。",
+  sessionsManagerDesc:
+    "会话管理：设置页里统一浏览全部 / 活动 / 已归档会话，支持搜索、收藏、标签、批量归档与跨工作区移动；侧栏会话行的 ⋯ 菜单多了标记未读、移动与删除，删除先进回收站，可恢复或按 7/30/90 天自动清理。",
 }

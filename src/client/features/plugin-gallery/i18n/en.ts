@@ -20,4 +20,6 @@ export const PLUGIN_GALLERY_LOCALE_EN: LocaleDict = {
   copyFailed: 'Copy failed',
   betterSidebarDesc:
     'The sidebar workbench: file preview and editing, a terminal, a side chat, Git and sub-agent pages are built in, and the sidebar itself is a base other plugins register pages onto.',
+  sessionsManagerDesc:
+    'Session management: one settings page for every active and archived session, with search, stars, tags, batch archive and cross-workspace moves; each sidebar row\'s ⋯ menu also gains mark-unread, move and delete, where delete goes to a trash bin you can restore from or empty after 7/30/90 days.',
 }
