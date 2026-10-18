@@ -13,9 +13,10 @@
  *   published `smkitFileReference` says which of the two answered;
  * - a host that grows the affordance itself is detected the same way: an
  *   `@`-labelled control on a row that is not ours stands the whole tree down;
- * - a press emits the host's structured insertion event with a workspace-root
- *   relative mention (never the session cwd), and a folder falls back to plain
- *   draft text with the trailing slash inside the quotes;
+ * - a press inserts the row as the shell's own reference chip (a workspace-root
+ *   relative mention, never the session cwd), at the composer's caret, with a
+ *   folder carrying `appearance: "folder"` and a slash-suffixed label; only a
+ *   host that takes no chip gets plain draft text instead;
  * - an unresolved workspace leaves the draft untouched and lets the row's own
  *   click through.
  *
@@ -234,25 +235,43 @@ function mount(options = {}) {
   let draftRev = 1
   /** Where the composer's caret sits: a textarea selection, or the shell's span. */
   let caret = options.caret ?? draft.length
-  /** Every `insertText` the shell stand-in took. */
+  /** Every call the input-shell stand-in took. */
   const shellCalls = []
   /**
-   * The input shell's action face, as the host's `SessionInputShell` publishes
-   * it: a detect-coordinate caret and one span-CAS'd text insert that moves the
-   * caret behind what it wrote. Only mounted when a test asks for it — its
-   * absence is the older host whose composer the feature cannot read.
+   * The input shell, as the host's `SessionInputShell` publishes it: the chip
+   * batch insert its own file picker uses (`addFiles` — a method on the shell,
+   * not on its action face), the action face with a detect-coordinate caret and
+   * one span-CAS'd text insert, and the editor projection. Only mounted when a
+   * test asks for it — its absence is the older host the event path exists for.
    */
-  const shell = options.shellInput === true ? {
-    captureInsertion: () => ({ start: caret, end: caret, draftRev }),
-    insertText: (text, span) => {
-      shellCalls.push({ text, span })
-      if (span.draftRev !== draftRev) return false
-      draft = `${draft.slice(0, span.start)}${text}${draft.slice(span.end)}`
-      caret = span.start + text.length
+  const shellAddFiles = options.shellInput === true
+    ? (references) => {
+      shellCalls.push({ kind: 'addFiles', references })
+      // A busy draft (adjudicating/submitting) is refused, like the host does.
+      if (options.addFilesRefuses === true) return false
+      // `insertFileReferences`: write at the live caret, one space after each
+      // chip, and one before the batch when the caret follows a word.
+      const lead = caret > 0 && !/\s/u.test(draft.slice(caret - 1, caret)) ? ' ' : ''
+      const text = `${lead}${references.map((reference) => `${reference.clipboardText} `).join('')}`
+      draft = `${draft.slice(0, caret)}${text}${draft.slice(caret)}`
+      caret += text.length
       draftRev += 1
       return true
-    },
-  } : undefined
+    }
+    : undefined
+  const shellActions = options.shellInput === true
+    ? {
+      captureInsertion: () => ({ start: caret, end: caret, draftRev }),
+      insertText: (text, span) => {
+        shellCalls.push({ kind: 'insertText', text, span })
+        if (span.draftRev !== draftRev) return false
+        draft = `${draft.slice(0, span.start)}${text}${draft.slice(span.end)}`
+        caret = span.start + text.length
+        draftRev += 1
+        return true
+      },
+    }
+    : undefined
   /**
    * The composer `<textarea>` stand-in. Its value follows the draft the way a
    * controlled textarea re-renders after `setDraft`, and its selection is where
@@ -285,6 +304,9 @@ function mount(options = {}) {
   const actx = {
     emit: (name, payload) => {
       emitted.push({ name, payload })
+      // A host that does not take the event (no listener, closed draft):
+      // nothing changes, and the feature has to notice and fall back.
+      if (options.emitRejects === true) return
       // The host's input machine replaces the span it was handed with the
       // occurrence's text, writes the space it puts after a file chip, and
       // moves the revision. The feature only reports success when that happened,
@@ -311,7 +333,8 @@ function mount(options = {}) {
         for: () => ({
           state: { getSnapshot: () => ({ draft, draftRev }) },
           setDraft: (text) => { draft = text; draftRev += 1 },
-          ...(shell === undefined ? {} : { actions: shell }),
+          ...(shellActions === undefined ? {} : { actions: shellActions }),
+          ...(shellAddFiles === undefined ? {} : { addFiles: shellAddFiles }),
           // The editor's text projection, which is what the feature reads to
           // decide whether a mention needs a separator. Plain text, no chips.
           projection: { get detectText() { return draft } },
@@ -481,10 +504,7 @@ it('replaces the composer selection, and leaves the rest of the draft alone', ()
   }
 })
 
-it('takes the caret from the input shell, which is the host composer we actually face', () => {
-  // The real composer is a Lexical contenteditable with no textarea in sight:
-  // only the shell's `captureInsertion` speaks the detect coordinates `span`
-  // uses, so the DOM probe must not be the primary source.
+it('inserts a file as a chip through the shell, at the caret', () => {
   const view = mount({
     rows: [entry('file', '/work/src/a.ts')],
     draft: 'second',
@@ -494,15 +514,28 @@ it('takes the caret from the input shell, which is the host composer we actually
   })
   try {
     view.press(view.chips()[0])
-    const span = view.emitted[0]?.payload?.span
-    assert.deepEqual({ start: span.start, end: span.end }, { start: 0, end: 0 })
+    assert.equal(view.shellCalls.length, 1)
+    assert.equal(view.shellCalls[0].kind, 'addFiles', 'the shell writes the chip, not this feature')
+    assert.deepEqual({ ...view.shellCalls[0].references[0] }, {
+      source: 'reference',
+      ref: '@src/a.ts',
+      // A file chip shows its name only; the tree already said where it lives.
+      label: 'a.ts',
+      appearance: 'file',
+      clipboardText: '@src/a.ts',
+    })
     assert.equal(view.draft(), '@src/a.ts second')
+    assert.equal(view.emitted.length, 0, 'no event fallback when the shell took the chip')
   } finally {
     view.dispose()
   }
 })
 
-it('inserts a folder through the shell instead of rewriting the draft', () => {
+it('inserts a folder as plain folder text at the caret, not as a chip', () => {
+  // The reference implementation keeps folders as text on purpose: `@docs/` is
+  // what DSH's own folder decoration and completion are built on, and a chip
+  // would take that away. The trailing separator is the folder's own — text has
+  // no chip to add one, and the next reference needs the boundary.
   const view = mount({
     rows: [entry('directory', '/work/my dir')],
     draft: 'second',
@@ -512,21 +545,20 @@ it('inserts a folder through the shell instead of rewriting the draft', () => {
   })
   try {
     view.press(view.chips()[0])
-    assert.equal(view.shellCalls.length, 1, 'one span-based insert')
+    assert.equal(view.shellCalls[0].kind, 'insertText')
     assert.equal(view.shellCalls[0].text, '@"my dir/" ')
-    assert.deepEqual({ ...view.shellCalls[0].span }, { start: 0, end: 0, draftRev: 1 })
     assert.equal(view.draft(), '@"my dir/" second')
   } finally {
     view.dispose()
   }
 })
 
-it('keeps a mention off the word before it, so DSH still sees one', () => {
-  // `asdf@lib/` is not a mention: the grammar needs a word boundary, so the
-  // folder has to be written as `asdf @lib/` — the separator belongs to the
-  // insert, exactly as the host's own batch path decides.
+it('lets the shell keep a chip off the word before it', () => {
+  // `asdf@lib/` is not a mention: the grammar needs a word boundary. The host's
+  // batch insert is the one that knows this, so the feature must not hand-roll
+  // the separator when that face exists.
   const view = mount({
-    rows: [entry('directory', '/work/lib')],
+    rows: [entry('directory', '/work/lib'), entry('file', '/work/src/a.ts')],
     draft: 'asdf',
     composer: false,
     caret: 4,
@@ -534,44 +566,43 @@ it('keeps a mention off the word before it, so DSH still sees one', () => {
   })
   try {
     view.press(view.chips()[0])
-    assert.equal(view.shellCalls[0].text, ' @lib/ ')
-    assert.equal(view.draft(), 'asdf @lib/ ')
+    assert.equal(view.draft(), 'asdf @lib/ ', 'folder chip, separated from the word')
+    view.press(view.chips()[1])
+    assert.equal(view.draft(), 'asdf @lib/ @src/a.ts ', 'file chip, same rule')
   } finally {
     view.dispose()
   }
 })
 
-it('separates a file chip from a word before committing it', () => {
+it('writes nothing when the host refuses the chip', () => {
+  // A busy draft is the host's answer to a pick, not a cue to fall back: the
+  // native picker leaves the composer alone, and writing `@path` text instead
+  // would put a token in a draft that is being submitted.
   const view = mount({
     rows: [entry('file', '/work/src/a.ts')],
-    draft: 'asdf',
+    draft: 'typing',
     composer: false,
-    caret: 4,
+    caret: 6,
     shellInput: true,
+    addFilesRefuses: true,
   })
   try {
     view.press(view.chips()[0])
-    assert.deepEqual(
-      view.shellCalls.map((call) => call.text),
-      [' '],
-      'the separator goes in first; the chip itself is the host event, not a text insert',
-    )
-    assert.equal(view.draft(), 'asdf @src/a.ts ')
-    const span = view.emitted[0]?.payload?.span
-    assert.deepEqual({ start: span.start, end: span.end }, { start: 5, end: 5 },
-      'the chip lands after the inserted separator')
-    assert.equal(span.draftRev, 2, 'and carries the revision that separator produced')
+    assert.equal(view.shellCalls.length, 1, 'the host was asked once')
+    assert.equal(view.draft(), 'typing', 'and its refusal stands')
   } finally {
     view.dispose()
   }
 })
 
-it('inserts a folder as plain draft text with the slash inside the quotes', () => {
+it('writes a folder as draft text when the host offers no text insert', () => {
+  // No shell face: the draft is rewritten through `setDraft`, and the folder is
+  // still quoted with its slash inside the quotes, so the grammar reads it as
+  // one folder mention.
   const view = mount({ rows: [entry('directory', '/work/my dir')] })
   try {
     const result = view.press(view.chips()[0])
     assert.equal(result.stopped, true)
-    assert.equal(view.emitted.length, 0, 'a folder is not a structured chip')
     assert.equal(view.draft(), 'before @"my dir/" ')
   } finally {
     view.dispose()

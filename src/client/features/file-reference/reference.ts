@@ -8,23 +8,27 @@
  * relative. A cwd-relative guess silently names a different file whenever the
  * two differ, so an unresolved root is a logged no-op rather than a fallback.
  *
- * The two insertion paths are the host's own, not an imitation:
+ * The two kinds are inserted differently, exactly as the reference
+ * implementation does it:
  *
- * - a FILE goes through `slash/input-insert-reference`, the event the shell's
- *   native `@` picker emits. The conversation input machine mints one
- *   occurrence that covers the whole reference, so the sent message carries a
- *   single link instead of decorating only the leading folder. The event is
- *   span-CAS'd (`draftRev`), which is also how success is detected: the draft
- *   revision only moves when the machine accepted the insert.
- * - a FOLDER is plain draft text through the conversation input service, and
- *   a FILE falls back to that same path when the host did not handle the
- *   event. Plain text keeps the shell's folder decoration and completion
- *   working, at the cost of the file name never being part of the chip.
+ * - a FILE becomes a structured chip (`source: 'reference'`, basename label,
+ *   `appearance: 'file'`, path in `ref`/`clipboardText`), so one reference is
+ *   one link on send instead of a decorated leading folder. It goes in through
+ *   the shell's own batch insert (`addFiles` → `insertFileReferences`); the
+ *   `slash/input-insert-reference` event the picker emits is the fallback for
+ *   hosts without that face.
+ * - a FOLDER stays plain draft text (`@docs/`, quoted with the slash inside
+ *   when the path has spaces): that text is what the shell's folder decoration
+ *   and its completion are built on, and a chip would take both away. A file
+ *   falls back to the same path when the host has no chip route at all.
  *
- * The draft store exposes no caret API — only the whole string — so the live
- * caret is read from the composer's `<textarea>` (guarded by a value-sync
- * check) and restored after the programmatic commit, which is the only way
- * stacked inserts stay at the running position.
+ * Deliberate deviation: the reference implementation appends everything at the
+ * end of the draft (its file chip is span-CAS'd onto `draft.length`, and the
+ * `<textarea>` caret probe never resolves on the real contenteditable
+ * composer). This port inserts at the live caret instead — the shell's
+ * `captureInsertion` is the one source that speaks the `span` coordinates — and
+ * keeps the `<textarea>` probe only as the fallback for hosts whose composer
+ * really is a textarea.
  *
  * Everything here degrades to a logged no-op: a missing conversation service,
  * an unready workspace snapshot, a session outside the workspace, or a path
@@ -38,6 +42,15 @@ import type { ClientContext } from '../../platform/types'
 interface DraftCaret {
   start: number
   end: number
+}
+
+/** One reference chip, in the shape the shell builds its node from. */
+interface ChipInsert {
+  source: 'reference'
+  ref: string
+  label: string
+  appearance: 'file' | 'folder'
+  clipboardText: string
 }
 
 /** The spliced draft plus the caret index (in that draft) right after the text. */
@@ -77,6 +90,12 @@ interface ConversationInput {
    * to a different length in the clipboard `draft`.
    */
   projection?: { detectText?: string }
+  /**
+   * Append reference chips at the live caret — the shell's own batch insert,
+   * and the call the host's file picker makes. False when the draft is busy
+   * (adjudicating/submitting) or the editor refused the edit.
+   */
+  addFiles?(references: readonly ChipInsert[], attachmentIds: readonly string[]): boolean
 }
 
 /**
@@ -406,84 +425,117 @@ export function mentionFor(
 }
 
 /**
- * Insert one FILE reference as a structured chip, exactly as the native `@`
- * picker does. The chip shows the basename but serializes to the workspace
- * relative path. False when the host did not take the event (or is too old to
- * have it), which the caller answers by falling back to plain draft text.
+ * Build the chip one FILE becomes: the native picker's shape, with the
+ * basename as its copy — the tree the row was clicked in already said where
+ * the file lives, and the path travels in `ref` / `clipboardText` instead.
  *
- * The event's span is the composer's LIVE caret, the same position the native
- * picker replaces: a reference belongs where the user is typing, not at the end
- * of the draft. The caret comes from the input shell's `captureInsertion` (see
- * `probeInsertion`); an unreadable composer degrades to the append the host
- * would have done without any caret information.
- *
- * A word boundary is part of the insert, not cosmetics: mid-word the host glues
- * the chip to the text before it and DSH's `@` grammar then sees no mention at
- * all. The separator is written first, as the host's own batch path does.
+ * Directories never come through here: they stay plain draft text (`@docs/`),
+ * which is what keeps the host's own folder decoration and completion working
+ * (`src/client/reference-in-chat.ts` in the reference implementation).
  */
-export function insertFileReference(ctx: ClientContext, sessionId: string, relativePath: string): boolean {
+function chipFor(relativePath: string): ChipInsert | undefined {
   const reference = mentionFor(relativePath, 'file')
-  if (reference === undefined) return false
+  if (reference === undefined) return undefined
+  return {
+    source: 'reference',
+    ref: reference.mention,
+    label: reference.label,
+    appearance: 'file',
+    clipboardText: reference.mention,
+  }
+}
+
+/**
+ * Insert one FILE reference as a structured chip, exactly as the native `@`
+ * picker does: the chip shows the basename but serializes to the workspace
+ * relative path — one link from trigger to basename instead of a decorated
+ * leading folder.
+ *
+ * The shell's `addFiles` is the host's own batch insert (the picker's
+ * `insertFileReferences`): it writes at the LIVE caret, appends the space a chip
+ * needs and prefixes one when the caret follows a word, so the caret and the
+ * word boundary are its business, not this feature's — and it answers with a
+ * boolean instead of a revision to compare. Hosts without it only have the
+ * insert event, which is why that path still exists (see `emitReferenceChip`).
+ *
+ * Three outcomes, because "no chip" and "refused" are different situations:
+ * `true` — the chip is in the draft; `false` — the host was asked and refused
+ * (a busy draft), so nothing else may be written, exactly as the native picker
+ * leaves the composer alone; `undefined` — this host has no chip route at all,
+ * and the caller is free to fall back to plain draft text.
+ */
+export function insertFileReference(
+  ctx: ClientContext,
+  sessionId: string,
+  relativePath: string,
+): boolean | undefined {
+  const chip = chipFor(relativePath)
+  if (chip === undefined) return undefined
   try {
     const actx = ctx.sessions?.scope?.(sessionId)
-    if (actx === undefined) return false
+    if (actx === undefined) return undefined
     const conversation = service<ConversationService>(ctx, 'conversation')
-    if (conversation === undefined) return false
+    if (conversation === undefined) return undefined
     const input = conversation.input.for(actx)
-    let inputDraft = input.state.getSnapshot()
-    if (inputDraft.draftRev === undefined) return false
-    let point = probeInsertion(input, inputDraft.draft)
-    // The host's reference insert writes the space AFTER the chip and never
-    // before it, so mid-word the chip would be glued to the word it follows —
-    // its own batch path treats that as a defect and writes the separator first
-    // (`insertFileReferences`). Same here: one plain-text edit, then the
-    // reference at the caret that edit left behind.
-    if (point !== null && point.source === 'host' && point.start === point.end
-      && needsLeadingSpace(input, point)) {
-      const spaced = input.actions?.insertText?.(' ', {
-        start: point.start,
-        end: point.end,
-        draftRev: inputDraft.draftRev,
-      })
-      if (spaced === true) {
-        inputDraft = input.state.getSnapshot()
-        if (inputDraft.draftRev === undefined) return false
-        point = probeInsertion(input, inputDraft.draft)
-      }
-    }
-    // The session-scope context's typed `emit` is keyed to the host's closed
-    // event map; this internal composer event is deliberately string-loose.
-    ;(actx as ScopeContext).emit('slash/input-insert-reference', {
-      reference: {
-        source: 'reference',
-        ref: reference.mention,
-        label: reference.label,
-        appearance: 'file',
-        clipboardText: reference.mention,
-      },
-      span: {
-        draftRev: inputDraft.draftRev,
-        start: point?.start ?? inputDraft.draft.length,
-        end: point?.end ?? inputDraft.draft.length,
-      },
-    })
-    const after = input.state.getSnapshot()
-    if (after.draftRev === inputDraft.draftRev) return false
-    if (point !== null && point.source === 'dom') {
-      // A DOM caret is a string index, so it has to be re-derived from the
-      // committed text: the host owns the token's spelling (quotes, the space
-      // after a chip), hence the length measured against the draft rather than
-      // the mention's own length. A host caret needs no help — the editor's
-      // own insert already leaves the selection after the new chip.
-      const replaced = point.end - point.start
-      const inserted = after.draft.length - inputDraft.draft.length + replaced
-      placeComposerCaretAfterInsert(after.draft, point.start + Math.max(0, inserted))
-    }
-    return true
+    const added = input.addFiles?.([chip], [])
+    if (added !== undefined) return added
+    // No batch face: the insert event is the only chip route left, and a host
+    // that does not take it has no chip route at all.
+    return emitReferenceChip(actx, input, chip) ? true : undefined
   } catch (error) {
     console.warn('[smkit] file-reference insert failed:', error)
-    return false
+    return undefined
   }
+}
+
+/**
+ * The older route: hand the chip to the composer's insert event.
+ *
+ * Only reached when the shell has no `addFiles`, so the caret's detect span and
+ * the word boundary become this feature's job — the event writes its trailing
+ * space but never a leading one, and a chip glued to a word is a chip the `@`
+ * grammar no longer sees.
+ */
+function emitReferenceChip(actx: unknown, input: ConversationInput, chip: ChipInsert): boolean {
+  let snapshot = input.state.getSnapshot()
+  if (snapshot.draftRev === undefined) return false
+  let point = probeInsertion(input, snapshot.draft)
+  if (point !== null && point.source === 'host' && point.start === point.end
+    && needsLeadingSpace(input, point)) {
+    const spaced = input.actions?.insertText?.(' ', {
+      start: point.start,
+      end: point.end,
+      draftRev: snapshot.draftRev,
+    })
+    if (spaced === true) {
+      snapshot = input.state.getSnapshot()
+      if (snapshot.draftRev === undefined) return false
+      point = probeInsertion(input, snapshot.draft)
+    }
+  }
+  // The session-scope context's typed `emit` is keyed to the host's closed
+  // event map; this internal composer event is deliberately string-loose.
+  ;(actx as ScopeContext).emit('slash/input-insert-reference', {
+    reference: chip,
+    span: {
+      draftRev: snapshot.draftRev,
+      start: point?.start ?? snapshot.draft.length,
+      end: point?.end ?? snapshot.draft.length,
+    },
+  })
+  const after = input.state.getSnapshot()
+  if (after.draftRev === snapshot.draftRev) return false
+  if (point !== null && point.source === 'dom') {
+    // A DOM caret is a string index, so it has to be re-derived from the
+    // committed text: the host owns the token's spelling (quotes, the space
+    // after a chip), hence the length measured against the draft rather than
+    // the mention's own length. A host caret needs no help — the editor's
+    // own insert already leaves the selection after the new chip.
+    const replaced = point.end - point.start
+    const inserted = after.draft.length - snapshot.draft.length + replaced
+    placeComposerCaretAfterInsert(after.draft, point.start + Math.max(0, inserted))
+  }
+  return true
 }
 
 /**
@@ -525,9 +577,16 @@ export function insertWorkspaceReference(
       console.warn('[smkit] reference insert skipped: path cannot be represented as a mention')
       return false
     }
-    if (!isDir && insertFileReference(ctx, sessionId, relative)) return true
-    // The host adds space after a file chip, but not before it: a complete
-    // folder insert needs its own separator for the next click.
+    // Files: a structured chip, so the reference stays one link. Folders: plain
+    // draft text, which is what keeps the host's folder decoration and its
+    // completion working — `@docs/` is a folder token to DSH, a chip is not.
+    if (!isDir) {
+      const inserted = insertFileReference(ctx, sessionId, relative)
+      if (inserted !== undefined) return inserted
+    }
+    // No chip (a folder, or a host without the chip route): plain draft text at
+    // the caret. A folder carries its own trailing separator — text has no chip
+    // to add one, and the next reference needs the boundary.
     return appendToDraft(ctx, sessionId, isDir ? `${mention} ` : mention)
   } catch (error) {
     console.warn('[smkit] workspace-reference insert failed:', error)
