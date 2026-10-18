@@ -209,7 +209,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'file-reference']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -265,6 +265,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'smkit: plugin-gallery/dictionaries',
     'smkit: openspec/dictionaries',
     'smkit: theme-center/dictionaries',
+    // The explorer's @-reference chip: its dictionary, then the watch that
+    // decorates the host's file rows (see `features/file-reference`).
+    'smkit: file-reference/dictionaries',
     'smkit: notify/heartbeat',
     // The web-delivery subscriber: the second notification path for remote
     // hosts, holding one event-stream open for the host's pushed decisions.
@@ -279,6 +282,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The other axis out: the card workbench skin, restored at mount onto an
     // attribute of its own so it survives whatever the theme does.
     'smkit: theme-center/workbench',
+    // The explorer chip's watch: one document observer, one per tree, and a
+    // capture-phase click that turns a press into an `@` reference.
+    'smkit: file-reference/explorer',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared

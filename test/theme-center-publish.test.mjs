@@ -257,11 +257,17 @@ it('publishes the API under the plugin’s own names', () => {
   boot()
 
   assert.ok(provided.length > 0, 'the mount must publish the API as a service')
-  for (const entry of provided) {
-    assert.equal(
-      entry.name,
-      'smkitTheme',
-      `published under "${entry.name}" — dsh-theme owns "dshTheme", and Cordis throws on the collision`,
+  const names = provided.map((entry) => entry.name)
+  assert.ok(names.includes('smkitTheme'), `the theme API is missing from ${JSON.stringify(names)}`)
+  // Every service this plugin publishes lives under its own root. Publishing
+  // one under the host's name (`dshTheme`) would throw in Cordis and take the
+  // sibling plugin's handle with it, so the check is the root, not the list:
+  // features publish beside the theme API (`smkitFileReference` is the
+  // explorer chip's decision).
+  for (const name of names) {
+    assert.ok(
+      name.startsWith('smkit'),
+      `published under "${name}" — services this plugin owns start with "smkit", or Cordis collides with the host's`,
     )
   }
   assert.ok(ctx, 'context survived the mount')

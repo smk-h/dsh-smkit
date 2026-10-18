@@ -63,11 +63,25 @@ export interface ClientSessionsLike {
   /** Re-pull the Host-authoritative session list. */
   refresh(): Promise<void>
   /**
+   * Resolve an Agent-scoped context view for one session (mirror of the
+   * runtime `ISessions.scope`). The explorer's `@`-reference button needs it
+   * because the conversation input service is keyed by that scope, not by the
+   * session id. Optional: a host without it only loses the reference insert,
+   * and the click degrades to a logged no-op.
+   */
+  scope?(id: string): unknown
+  /**
    * The host-authoritative session list (`ISessions.list`), read only to
    * predict whether a removal turns the main view absent or blank — the
    * condition the settings shell answers by closing itself (see
    * `platform/ui/settings-shell`). Optional on purpose: without it the restore
    * simply runs after every batch, which is a no-op while the dialog is open.
+   *
+   * The snapshot is `{ phase, ids, byId }` on every host version. There is no
+   * `current` field: the "current session" is expressed through
+   * `retainedBy.mainView` and resolved by the shell's own session store, so a
+   * reader that needs the session owning an element asks that element's
+   * container instead (see the reference feature's `sessionOfRow`).
    */
   list?: {
     getSnapshot(): {

@@ -1,0 +1,110 @@
+/**
+ * The hover `@` chip this plugin adds to the shell's file tree.
+ *
+ * The tree belongs to the host (`ui-sidebar-files`), so nothing here may
+ * restyle its rows beyond the one seat this feature takes. The decoration
+ * turns the `<li>` into a two-row grid — the shell's own children keep their
+ * stacked layout — and parks the chip in the row's cell, centred on that row:
+ *
+ *   row 1:  the shell's row button, and this chip over its right end
+ *   row 2:  the shell's nested `<ul>` for an expanded directory
+ *
+ * A grid cell rather than absolute coordinates on purpose. An expanded
+ * directory's `<li>` is as tall as its whole subtree, so anything anchored to
+ * the `<li>` (a percentage, `top: 3px`, …) either lands in the middle of the
+ * children or hard-codes the shell's row padding. Sharing the button's row
+ * makes the chip exactly as tall as that row, at every host padding and font
+ * size, with no measurement.
+ *
+ * Colours and the focus ring come from the shell's alias tokens, never from
+ * literal values: this chip has to read as part of the surface it sits on,
+ * in every theme that surface supports.
+ */
+
+li[data-smkit-file-ref] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The shell's own row, and the shell's own children list, keep their order. */
+li[data-smkit-file-ref] > button:not([data-smkit-file-ref-button]) {
+  grid-area: 1 / 1;
+}
+
+li[data-smkit-file-ref] > ul {
+  grid-area: 2 / 1;
+}
+
+.smkit-file-ref-button {
+  grid-area: 1 / 1;
+  align-self: center;
+  justify-self: end;
+  /* The shell's row pads its right edge by 10px; a trailing affordance inside
+     that row would end exactly this far from the row's border. */
+  margin-right: 10px;
+  display: none;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.smkit-file-ref-button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+li[data-smkit-file-ref]:hover > .smkit-file-ref-button,
+li[data-smkit-file-ref]:focus-within > .smkit-file-ref-button {
+  display: inline-flex;
+}
+
+/**
+ * The filename gives way while the chip is out.
+ *
+ * The reference implementation keeps the chip in the row's flex flow, so a name
+ * too long for the row is ellipsized before the chip. Here the chip is a
+ * sibling of the row button, so the row reserves its width with padding while
+ * the chip is visible: the name's flex box shrinks, the shell's own ellipsis
+ * kicks in, and the text never runs underneath the chip.
+ *
+ * The width comes from `--smkit-file-ref-chip`, measured once per tree (the
+ * chip's copy differs by locale); the `16px` is the chip's own 10px inset plus
+ * the 6px gap the shell's rows use between children. With the fallback the
+ * reservation still keeps the name clear of the chip, just less exactly.
+ */
+li[data-smkit-file-ref]:hover > button:not([data-smkit-file-ref-button]),
+li[data-smkit-file-ref]:focus-within > button:not([data-smkit-file-ref-button]) {
+  padding-right: calc(var(--smkit-file-ref-chip, 52px) + 16px);
+}
+
+/**
+ * Keep the row's hover highlight under the chip.
+ *
+ * The shell paints `row:hover` on the row BUTTON, and this chip is its sibling
+ * (a `<button>` cannot live inside a `<button>`). The moment the pointer moves
+ * from the row onto the chip, the button stops matching `:hover` and the
+ * highlight drops out from under the chip — the chip would look pasted onto a
+ * dead row. A row whose chip is hovered therefore re-applies the shell's own
+ * hover token to that button: same token, same radius, no new colour.
+ *
+ * `:not([data-smkit-file-ref-button])` keeps the chip itself out; `:has` is the
+ * only way to reach a sibling, and this rule stands alone so a parser without
+ * it loses nothing but the decoration.
+ */
+li[data-smkit-file-ref]:has(> .smkit-file-ref-button:hover) > button:not([data-smkit-file-ref-button]) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.smkit-file-ref-button:focus-visible {
+  outline: 2px solid var(--dsw-alias-interactive-bg-hover-accent);
+  outline-offset: 1px;
+}

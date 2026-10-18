@@ -184,6 +184,31 @@ export const FOREIGN_DATA_ATTRS = [
    * bubbles among the `[data-side]` elements. Read, never written.
    */
   'data-width-handle',
+  /**
+   * The shell's file tree (`ui-sidebar-files`) tags its own structure, and the
+   * reference feature decorates those rows instead of drawing its own tree:
+   * `data-files-state` marks the body (`tree` once a listing has arrived),
+   * `data-files-entry` the kind of one row (`file` / `directory` / `other`),
+   * `data-files-path` that row's absolute path, and `data-files-root` the root
+   * the listing was taken under. Read, never written — the plugin only adds
+   * its own `data-smkit-file-ref` marker beside them.
+   */
+  'data-files-state',
+  'data-files-entry',
+  'data-files-path',
+  'data-files-root',
+  /**
+   * The right sidebar's session owner (`ui-sidebar-right`): every panel inside
+   * it carries the session id, which is what the reference button reads to
+   * insert into the composer of the session the tree is showing. Read only.
+   */
+  'data-sidebar-right-session',
+  /**
+   * The composer's `<textarea>` marker (`ui-conversation`): the only way to
+   * find the input box for carets, since the draft store exposes no selection.
+   * Read only.
+   */
+  'data-phase',
 ]
 
 /**
@@ -250,6 +275,7 @@ export const SCOPES = [
   ['client/platform', 'ui'],
   ['client/settings', 'shell'],
   ['client/features/custom-settings', 'cs'],
+  ['client/features/file-reference', 'file'],
   ['client/features/local-cache', 'cache'],
   ['client/features/mcp', 'mcp'],
   ['client/features/openspec', 'spec'],
