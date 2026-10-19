@@ -1,11 +1,13 @@
 /**
- * The line-jump feature: Ctrl+G on the host's text preview.
+ * The line-jump feature: Ctrl+G on the host's text preview, and a click on one
+ * of its lines.
  *
  * Chrome on a surface the plugin does not own — the right sidebar's document
  * preview — so it takes no slot and registers no seat; it listens for the
- * keystroke and draws its own box (see `watch.ts`). The upstream reference this
- * plugin ports from has no equivalent for this surface: its go-to-line is
- * CodeMirror's own dialog inside its editor tab, behind Mod-Alt-g.
+ * keystroke and the click, and draws its own box (see `watch.ts`). The upstream
+ * reference this plugin ports from has no equivalent for this surface: its
+ * go-to-line is CodeMirror's own dialog inside its editor tab, behind Mod-Alt-g,
+ * and its read-only previews offer no mark either.
  *
  * Unlike the outline and the row menu, it does NOT yield to
  * `dsh-better-sidebar`: that plugin draws its own version of those surfaces but

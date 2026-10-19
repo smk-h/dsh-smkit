@@ -1,5 +1,6 @@
 /**
- * Ctrl+G for the right sidebar's file previews: name a line, land on it.
+ * Ctrl+G for the right sidebar's file previews, and a click on one of their
+ * lines: name a line, land on it, keep it marked.
  *
  * Two previews exist, depending on what the profile loaded:
  *
@@ -26,6 +27,25 @@
  * - a line the host has not rendered yet is reached by pressing the host's own
  *   "load more" until it appears (see "Pages" below); a line past the end of the
  *   document lands on the last line, as every editor's go-to-line does.
+ *
+ * ## The other half: a click marks the line it lands on
+ *
+ * The preview is read-only — there is no caret and nothing to click — so a
+ * reader who wants to keep their place has no way to say "this line". A click on
+ * a rendered line marks it with the very mark a jump leaves, and that mark is
+ * the reader's place: one line at a time, moved by the next click or jump, and
+ * put back if the host re-renders the block under it. Nothing scrolls and
+ * nothing is selected, so the click stays a click.
+ *
+ * Selecting text is the one thing that outranks the mark: a tint under a
+ * selection fights its colour, so the mark steps aside while a selection covers
+ * the surface and returns as soon as the selection is cleared.
+ *
+ * The preview only: with `dsh-better-sidebar` loaded the file is an editor, its
+ * own caret already says where the reader is, and this plugin stays out of it —
+ * the same division the keystroke follows. A click on the preview's own chrome
+ * (the header, "load more") is not a click on a line either, and a rendered
+ * Markdown document has no lines to name.
  *
  * ## Why this one does not yield to the neighbour
  *
@@ -107,6 +127,8 @@ const EDITOR_LINE = '.cm-line'
 const EDITOR_GUTTER = '.cm-lineNumbers'
 /** Every field the reader may already be typing in — Ctrl+G there is theirs. */
 const EDITABLE = 'input, textarea, [contenteditable="true"]'
+/** The preview's own controls: a click on one is not a click on a line. */
+const INTERACTIVE = 'button, a, input, textarea, select, [contenteditable="true"], [role="button"]'
 
 /** This feature's markers, all inside the plugin's own namespace. */
 const PANEL = 'data-smkit-line-jump'
@@ -130,6 +152,12 @@ const PANEL_WIDTH = 236
 interface Lines {
   /** The element whose `scrollTop` moves the document. */
   scroller: Element
+  /** Where the rows live: a click anywhere else on the preview is not a line. */
+  region: Element
+  /** Every rendered row, in document order. */
+  rows(): Element[]
+  /** The 1-based line one rendered row carries, or null when it carries none. */
+  numberOf(row: Element): number | null
   /** The rendered row for a 1-based line, or null while that line is not loaded. */
   at(line: number): Element | null
   /** How many lines are rendered right now. */
@@ -162,11 +190,13 @@ type Surface =
   | { kind: 'editor'; view: EditorView }
 
 /**
- * Watch for Ctrl+G and offer the go-to-line box on the surface it applies to.
+ * Watch for Ctrl+G — and for a click on a line — and answer on the surface the
+ * gesture applies to.
  *
  * The neighbours are read from the DOM rather than from the context: this
  * feature decorates nothing they own, it only answers a keystroke they have
- * already claimed (see the module doc), so there is no service to consult.
+ * already claimed and a click on a preview that has no caret of its own (see the
+ * module doc), so there is no service to consult.
  *
  * @param t - the copy lookup bound to this feature's namespace.
  * @returns the effect's disposer, which closes the box and clears the mark.
@@ -182,8 +212,10 @@ export function watchLineJump(t: Translator): () => void {
   let pointer: { x: number; y: number } | null = null
   /** The pending page-climb timer. */
   let climb: number | null = null
-  /** The line the reader last named: what keeps the mark, and where it belongs. */
+  /** The line the reader last named or clicked: what keeps the mark, and where. */
   let mark: { surface: Surface; line: number } | null = null
+  /** Whether the mark is currently held off by a selection in its surface. */
+  let concealed = false
   /**
    * Watches the marked surface for re-renders.
    *
@@ -218,15 +250,28 @@ export function watchLineJump(t: Translator): () => void {
     const code = body.querySelector(CODE)
     const scroll = code === null ? null : code.querySelector(CODE_SCROLL)
     if (scroll !== null) {
+      const rows = (): Element[] => Array.from(scroll.querySelectorAll(CODE_LINE))
       return {
         scroller: scroll,
-        at: (line) => scroll.querySelectorAll(CODE_LINE)[line - 1] ?? null,
-        count: () => scroll.querySelectorAll(CODE_LINE).length,
+        region: scroll,
+        rows,
+        numberOf: (row) => {
+          const index = rows().indexOf(row)
+          return index < 0 ? null : index + 1
+        },
+        at: (line) => rows()[line - 1] ?? null,
+        count: () => rows().length,
       }
     }
     if (body.querySelector(PLAIN_LINE) === null) return null
     return {
       scroller: body,
+      region: body,
+      rows: () => Array.from(body.querySelectorAll(PLAIN_LINE)),
+      numberOf: (row) => {
+        const number = Number(row.getAttribute('data-textpreview-line'))
+        return Number.isFinite(number) && number >= 1 ? number : null
+      },
       at: (line) => body.querySelector(`[data-textpreview-line="${line}"]`),
       count: () => {
         let last = 0
@@ -336,10 +381,41 @@ export function watchLineJump(t: Translator): () => void {
     return element?.closest(EDITOR_LINE) ?? null
   }
 
+  /** Whether one node, or the element it sits in, is inside a surface. */
+  const holds = (surface: Surface, node: Node | null): boolean => {
+    const element = node === null ? null : node.nodeType === 1 ? (node as Element) : node.parentElement
+    return element !== null && owns(surface, element)
+  }
+
+  /**
+   * Whether the reader has text selected inside one surface.
+   *
+   * A selection is the reader taking text out, and a tint under it fights the
+   * selection colour — so the mark steps aside while one is live and comes back
+   * once it is cleared. Read from the document rather than tracked through the
+   * events, so a selection made any way (drag, double click, keyboard, select
+   * all) counts the same. Both ends are asked: the one case worth catching is a
+   * selection that starts on one side of the surface and ends inside it.
+   */
+  const selected = (surface: Surface): boolean => {
+    if (typeof document.getSelection !== 'function') return false
+    const selection = document.getSelection()
+    if (selection === null || selection.isCollapsed === true || selection.rangeCount === 0) return false
+    const range = selection.getRangeAt(0)
+    return holds(surface, range.startContainer) || holds(surface, range.endContainer)
+  }
+
+  /** Put the mark on its line, unless the reader is selecting text there. */
+  const showMark = (): void => {
+    if (mark === null || selected(mark.surface)) return
+    rowOf(mark.surface, mark.line)?.setAttribute(MARK, '')
+  }
+
   /** Take the mark off, wherever it currently sits. */
   const clearMark = (): void => {
     if (mark !== null) rowOf(mark.surface, mark.line)?.removeAttribute(MARK)
     mark = null
+    concealed = false
     keep?.disconnect()
   }
 
@@ -350,6 +426,7 @@ export function watchLineJump(t: Translator): () => void {
    * document back would be worse than a mark that waits where it was put. If the
    * line is not rendered at the moment (the block is mid-replace, or CodeMirror
    * has virtualized it away), the mark waits for the paint that brings it back.
+   * A live selection holds it off — see `onSelectionChange`.
    */
   const repaint = (): void => {
     if (mark === null) return
@@ -359,15 +436,31 @@ export function watchLineJump(t: Translator): () => void {
       clearMark()
       return
     }
-    const row = rowOf(mark.surface, mark.line)
-    if (row !== null && !row.hasAttribute(MARK)) row.setAttribute(MARK, '')
+    showMark()
   }
 
-  /** Keep one line marked until the next jump, watching it against re-renders. */
+  /**
+   * Step the mark aside while text in its surface is selected, and back when the
+   * selection is cleared.
+   *
+   * Only the transition costs a lookup: `selectionchange` fires on every step of
+   * a drag, and the answer is the same until the selection appears or goes away.
+   */
+  const onSelectionChange = (): void => {
+    if (mark === null) return
+    const now = selected(mark.surface)
+    if (now === concealed) return
+    concealed = now
+    if (now) rowOf(mark.surface, mark.line)?.removeAttribute(MARK)
+    else repaint()
+  }
+
+  /** Keep one line marked until the next jump or click, watching it against re-renders. */
   const markLine = (surface: Surface, line: number): void => {
     clearMark()
     mark = { surface, line }
-    rowOf(surface, line)?.setAttribute(MARK, '')
+    concealed = selected(surface)
+    if (!concealed) rowOf(surface, line)?.setAttribute(MARK, '')
     const watched = watchNodeOf(surface)
     if (watched !== null) keep?.observe(watched, { childList: true, subtree: true })
   }
@@ -399,6 +492,58 @@ export function watchLineJump(t: Translator): () => void {
       view.requestMeasure()
     }
     markLine(surface, line)
+  }
+
+  /**
+   * The line a click means: the row it lands on, else the row it sits nearest.
+   *
+   * The highlighted renderer's rows are inline spans, so most of a row is empty
+   * space owned by no span — a click past the end of a short line would fall on
+   * the block itself. Rows are full-width bands on screen, so the click's
+   * vertical position names the line: the rule an editor applies when the reader
+   * clicks past the end of a line. A click on the scrollport itself is left out —
+   * that is its padding or its scrollbar, not a line.
+   */
+  const lineAt = (lines: Lines, target: Element, y: number): number | null => {
+    const rows = lines.rows()
+    const direct = rows.find((row) => row.contains(target))
+    if (direct !== undefined) return lines.numberOf(direct)
+    if (rows.length === 0 || target === lines.region) return null
+    let nearest: Element | null = null
+    let distance = Number.POSITIVE_INFINITY
+    for (const row of rows) {
+      if (typeof row.getBoundingClientRect !== 'function') continue
+      const box = row.getBoundingClientRect()
+      const gap = y < box.top ? box.top - y : y > box.bottom ? y - box.bottom : 0
+      if (gap < distance) {
+        distance = gap
+        nearest = row
+      }
+    }
+    return nearest === null ? null : lines.numberOf(nearest)
+  }
+
+  /**
+   * Mark the line the reader clicked, with the very mark a jump leaves.
+   *
+   * Capture phase, and no `preventDefault`: the click goes on doing whatever it
+   * already did (selecting text, following a link) — the line simply becomes the
+   * reader's place. Only the host's preview answers; the neighbour's editor is
+   * left alone, its own caret is the answer there (see the module doc).
+   */
+  const onClick = (event: MouseEvent): void => {
+    if (event.button !== 0) return
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const preview = target.closest(PREVIEW)
+    if (preview === null) return
+    // A control inside the preview (the host's "load more", a link in a document)
+    // is not a line, however close to one it sits.
+    if (target.closest(INTERACTIVE) !== null) return
+    const lines = linesOf(preview)
+    if (lines === null || !lines.region.contains(target)) return
+    const line = lineAt(lines, target, event.clientY)
+    if (line !== null) markLine({ kind: 'preview', preview }, line)
   }
 
   /**
@@ -543,10 +688,14 @@ export function watchLineJump(t: Translator): () => void {
 
   document.addEventListener('keydown', onKeyDown, true)
   document.addEventListener('pointermove', onPointerMove, true)
+  document.addEventListener('click', onClick, true)
+  document.addEventListener('selectionchange', onSelectionChange)
 
   return () => {
     document.removeEventListener('keydown', onKeyDown, true)
     document.removeEventListener('pointermove', onPointerMove, true)
+    document.removeEventListener('click', onClick, true)
+    document.removeEventListener('selectionchange', onSelectionChange)
     if (climb !== null) clearTimeout(climb)
     climb = null
     clearMark()

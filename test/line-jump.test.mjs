@@ -12,6 +12,11 @@
  *   more" and looking again, and a line past the end lands on the last line;
  * - the gesture is left alone inside a text field, on a preview with no line
  *   numbers (Markdown), and while `dsh-better-sidebar` owns the surface;
+ * - a click on a rendered line marks it with the same mark, one line at a time,
+ *   without moving the document — and does nothing on the preview's chrome, on
+ *   its controls, or inside the neighbour's editor;
+ * - a selection inside the marked surface takes the mark off, and clearing the
+ *   selection puts it back;
  * - disposing the effect closes the box, clears the flash and drops the
  *   listeners.
  *
@@ -374,6 +379,10 @@ function mount(options = {}) {
   const roots = []
   let nextTimer = 1
 
+  // The document's selection, as the feature reads it: collapsed, or one range
+  // whose ends are the node the reader selected.
+  let selection = { isCollapsed: true, rangeCount: 0, getRangeAt: () => { throw new Error('collapsed') } }
+
   const dom = {
     documentElement: html,
     body: shell,
@@ -384,6 +393,7 @@ function mount(options = {}) {
     querySelector: (selector) => html.querySelector(selector),
     querySelectorAll: (selector) => html.querySelectorAll(selector),
     elementFromPoint: () => null,
+    getSelection: () => selection,
     addEventListener: (type, handler) => {
       documentListeners.set(type, [...(documentListeners.get(type) ?? []), handler])
     },
@@ -499,6 +509,35 @@ function mount(options = {}) {
     }
   }
 
+  /** Click one element, as the browser delivers it to a document listener. */
+  const click = (target, point = {}) => {
+    const event = {
+      target,
+      button: 0,
+      clientX: point.x ?? 0,
+      clientY: point.y ?? 0,
+      // Other features in the same bundle read the path; this DOM has no tree
+      // walk of its own for the event to carry, so the target is the path.
+      composedPath: () => [target],
+      preventDefault() { event.prevented = true },
+      stopPropagation() { event.stopped = true },
+    }
+    for (const handler of documentListeners.get('click') ?? []) handler(event)
+    return event
+  }
+
+  /**
+   * Select one node, or nothing, as a drag or a click does — the document's
+   * selection changes and `selectionchange` reaches the listeners.
+   */
+  const select = (node = null) => {
+    selection = node === null
+      ? { isCollapsed: true, rangeCount: 0, getRangeAt: () => { throw new Error('collapsed') } }
+      : { isCollapsed: false, rangeCount: 1, getRangeAt: () => ({ startContainer: node, endContainer: node }) }
+    for (const handler of documentListeners.get('selectionchange') ?? []) handler({ type: 'selectionchange' })
+    return selection
+  }
+
   /** Type into the open box and press Enter, as the reader would. */
   const jump = (text) => {
     const field = box()?.querySelector('input')
@@ -513,6 +552,8 @@ function mount(options = {}) {
     body: shell,
     preview,
     scrollport,
+    /** The `<code>` element the highlighted renderer's rows hang from. */
+    block: codeBlock,
     dispatches,
     editorView,
     editorContent,
@@ -523,6 +564,8 @@ function mount(options = {}) {
     box,
     jump,
     press,
+    click,
+    select,
     drain,
     /** Point at one preview, so `pick` prefers it. */
     pointAt: (element) => { dom.elementFromPoint = () => element },
@@ -619,6 +662,161 @@ it('puts the mark back when the host re-renders the block under it', () => {
     view.flushMutations()
     assert.equal(view.rows[29].hasAttribute('data-smkit-line-jump-mark'), true, 'and the mark is repainted')
     assert.equal(view.scrollport.scrollTop, 380, 'without moving the document again')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('marks the line the reader clicks, with the same mark a jump leaves', () => {
+  const view = mount({ lines: 40 })
+  try {
+    const event = view.click(view.rows[9])
+    assert.equal(view.rows[9].hasAttribute('data-smkit-line-jump-mark'), true)
+    assert.equal(view.rows[8].hasAttribute('data-smkit-line-jump-mark'), false, 'one line at a time')
+    assert.equal(view.scrollport.scrollTop, 0, 'a click moves nothing')
+    assert.equal(view.box(), null, 'and opens nothing')
+    assert.equal(event.prevented, undefined, 'the click is not swallowed')
+
+    view.click(view.rows[19])
+    assert.equal(view.rows[19].hasAttribute('data-smkit-line-jump-mark'), true)
+    assert.equal(view.rows[9].hasAttribute('data-smkit-line-jump-mark'), false, 'the mark follows the reader')
+
+    // The two gestures share one mark: a jump moves a clicked one too.
+    view.press(view.body, 'g')
+    view.jump('4')
+    assert.equal(view.rows[3].hasAttribute('data-smkit-line-jump-mark'), true)
+    assert.equal(view.rows[19].hasAttribute('data-smkit-line-jump-mark'), false)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('names the nearest line when the click lands beside the text', () => {
+  const view = mount({ lines: 40 })
+  try {
+    // The highlighted renderer's rows are inline spans, so a click past the end
+    // of a short line lands on the block: line 26's band is 600–620 here.
+    view.click(view.block, { y: 610 })
+    assert.equal(view.rows[25].hasAttribute('data-smkit-line-jump-mark'), true)
+    // Past the last line: the last line, as clicking below a file does.
+    view.click(view.block, { y: 5000 })
+    assert.equal(view.rows[39].hasAttribute('data-smkit-line-jump-mark'), true)
+    assert.equal(view.rows[25].hasAttribute('data-smkit-line-jump-mark'), false)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('marks a plain-text row on click too, and keeps it through a re-render', () => {
+  const plain = mount({ mode: 'plain', lines: 20 })
+  try {
+    plain.click(plain.rows[4])
+    assert.equal(plain.rows[4].hasAttribute('data-smkit-line-jump-mark'), true)
+    assert.equal(plain.rows[3].hasAttribute('data-smkit-line-jump-mark'), false)
+    assert.equal(plain.scrollport.scrollTop, 0, 'no jump, no scroll')
+  } finally {
+    plain.dispose()
+  }
+
+  const view = mount({ lines: 40 })
+  try {
+    view.click(view.rows[9])
+    view.rerender(40)
+    assert.equal(view.rows[9].hasAttribute('data-smkit-line-jump-mark'), false, 'a fresh render drops it')
+    view.flushMutations()
+    assert.equal(view.rows[9].hasAttribute('data-smkit-line-jump-mark'), true, 'and it is put back')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('leaves clicks on the preview’s chrome, its controls and the editor alone', () => {
+  const header = mount({ lines: 20 })
+  try {
+    header.click(header.preview.firstChild)
+    assert.equal(header.preview.querySelectorAll('[data-smkit-line-jump-mark]').length, 0, 'the header names no line')
+  } finally {
+    header.dispose()
+  }
+
+  const paged = mount({ mode: 'plain', lines: 20, more: true })
+  try {
+    paged.click(paged.more)
+    assert.equal(paged.preview.querySelectorAll('[data-smkit-line-jump-mark]').length, 0, 'a control is not a line')
+  } finally {
+    paged.dispose()
+  }
+
+  const document_ = mount({ mode: 'markdown' })
+  try {
+    document_.click(document_.body.querySelector('[data-document-markdown]'))
+    assert.equal(document_.preview.querySelectorAll('[data-smkit-line-jump-mark]').length, 0, 'no lines to name')
+  } finally {
+    document_.dispose()
+  }
+
+  const editor = mount({ mode: 'editor', lines: 20 })
+  try {
+    editor.click(editor.editorLines[3])
+    assert.equal(editor.editorLines[3].hasAttribute('data-smkit-line-jump-mark'), false, 'the editor keeps its own caret')
+  } finally {
+    editor.dispose()
+  }
+})
+
+it('takes the mark off while text is selected, and puts it back when the selection clears', () => {
+  const view = mount({ lines: 40 })
+  try {
+    view.click(view.rows[9])
+    assert.equal(view.rows[9].hasAttribute('data-smkit-line-jump-mark'), true)
+
+    // The reader drags over a passage: the tint would fight the selection.
+    view.select(view.rows[9])
+    assert.equal(view.rows[9].hasAttribute('data-smkit-line-jump-mark'), false)
+
+    // A re-render under the selection does not paint it back.
+    view.rerender(40)
+    view.flushMutations()
+    assert.equal(view.rows[9].hasAttribute('data-smkit-line-jump-mark'), false, 'no repaint under a selection')
+
+    view.select()
+    assert.equal(view.rows[9].hasAttribute('data-smkit-line-jump-mark'), true, 'the mark comes back')
+    assert.equal(view.scrollport.scrollTop, 0, 'and nothing moved')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('steps the jump’s mark aside for a selection as well', () => {
+  const view = mount({ lines: 40 })
+  try {
+    view.press(view.body, 'g')
+    view.jump('12')
+    assert.equal(view.rows[11].hasAttribute('data-smkit-line-jump-mark'), true)
+    view.select(view.rows[11])
+    assert.equal(view.rows[11].hasAttribute('data-smkit-line-jump-mark'), false)
+    view.select()
+    assert.equal(view.rows[11].hasAttribute('data-smkit-line-jump-mark'), true)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('keeps the mark while the reader selects text somewhere else', () => {
+  const view = mount({ lines: 40 })
+  try {
+    view.click(view.rows[9])
+    view.select(view.body)
+    assert.equal(view.rows[9].hasAttribute('data-smkit-line-jump-mark'), true, 'only a selection in the preview counts')
+
+    // Clicking while a passage is selected moves the mark, still hidden.
+    view.select(view.rows[19])
+    view.click(view.rows[19])
+    assert.equal(view.rows[9].hasAttribute('data-smkit-line-jump-mark'), false, 'one mark at a time')
+    assert.equal(view.rows[19].hasAttribute('data-smkit-line-jump-mark'), false, 'hidden under the selection')
+
+    view.select()
+    assert.equal(view.rows[19].hasAttribute('data-smkit-line-jump-mark'), true)
   } finally {
     view.dispose()
   }
@@ -794,6 +992,8 @@ it('closes the box, clears every mark and drops the listener when disposed', () 
     const event = view.press(view.body, 'g')
     assert.equal(view.box(), null, 'and the gesture is gone')
     assert.equal(event.defaultPrevented, false)
+    view.click(view.rows[3])
+    assert.equal(view.rows[3].hasAttribute('data-smkit-line-jump-mark'), false, 'the click listener is gone too')
   } finally {
     view.dispose()
   }
