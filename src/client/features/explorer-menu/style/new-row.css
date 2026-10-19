@@ -1,0 +1,85 @@
+/**
+ * The inline "new folder / new file" editor the menu's creating rows open.
+ *
+ * The reference plugin types the name straight into its own tree: a 28px row
+ * (`explorerRow explorerRenaming`) holding a 14px glyph and a 22px input
+ * (`explorerRenameInput` — 1px business border, 3px radius, 12px text) at the
+ * top of the directory's level. This plugin does not own the tree it decorates,
+ * so the same row floats under the directory it belongs to — same height, same
+ * gap, same glyph seat, same input box — pinned to the row's own left edge and
+ * width. Its numbers are copied from that sheet rather than re-derived, so the
+ * two editors look and measure the same.
+ *
+ * The one addition the floating form needs: a surface behind the glyph and the
+ * input (the inline row had the tree's own background), and a refusal line that
+ * hangs under the card instead of in the tree's error strip.
+ */
+
+.smkit-explorer-new-row {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-layer-1);
+  font: var(--dsw-font-xxs-12);
+  color: var(--dsw-alias-label-primary);
+}
+
+.smkit-explorer-new-row-icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-explorer-new-row-input {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--dsw-alias-state-business-primary);
+  border-radius: 3px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xxs-12);
+}
+
+.smkit-explorer-new-row-input::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-explorer-new-row-input:focus {
+  outline: none;
+  border-color: var(--dsw-alias-state-business-primary);
+}
+
+/* The refusal line: hidden until the host turns the card invalid. It hangs
+   under the card rather than in the tree's error strip (this plugin has none),
+   and carries the card's own surface so it stays readable over the rows it
+   covers. */
+.smkit-explorer-new-row-error {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  padding: 2px 8px;
+  border-radius: 0 0 4px 4px;
+  background: var(--dsw-alias-bg-layer-1);
+  overflow: hidden;
+  font: var(--dsw-font-xxxs-11);
+  color: var(--dsw-alias-state-error-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smkit-explorer-new-row[data-smkit-explorer-new-invalid] .smkit-explorer-new-row-error {
+  display: block;
+}

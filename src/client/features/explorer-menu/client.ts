@@ -9,13 +9,14 @@
  * while `dsh-better-sidebar`'s `editor` type is enabled its explorer owns the
  * page and already carries the same rows, so this feature stays out of the way.
  *
- * Today the menu carries the two copy-path rows; the mutating rows (new file,
- * new folder, rename, delete) join the same menu here.
+ * Today the menu carries the two copy-path rows plus the two creating rows
+ * (new folder, new file) that open the inline editor in `create.ts`; the
+ * remaining mutating rows (rename, delete) join the same menu here.
  */
 
 import { EXPLORER_MENU_LOCALE_EN } from './i18n/en'
 import { EXPLORER_MENU_LOCALE_ZH } from './i18n/zh'
-import { EXPLORER_MENU_CSS } from './styles'
+import { EXPLORER_MENU_CSS, EXPLORER_NEW_ROW_CSS } from './styles'
 import { watchExplorerMenu } from './menu'
 import type { ClientContext, ClientDeps, ClientFeature } from '../../platform/types'
 
@@ -26,7 +27,10 @@ export const explorerMenuFeature: ClientFeature = {
     zh: EXPLORER_MENU_LOCALE_ZH,
     en: EXPLORER_MENU_LOCALE_EN,
   },
-  styles: [{ name: 'label', css: EXPLORER_MENU_CSS }],
+  styles: [
+    { name: 'explorer-menu/label', css: EXPLORER_MENU_CSS },
+    { name: 'explorer-menu/new-row', css: EXPLORER_NEW_ROW_CSS },
+  ],
 
   register(ctx: ClientContext, deps: ClientDeps, t): void {
     ctx.effect(

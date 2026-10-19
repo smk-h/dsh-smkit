@@ -12,6 +12,13 @@
  *   Escape, which the component itself handles);
  * - a successful write flips the row to "已复制" for 1.2 s; a refused write
  *   shows nothing at all;
+ * - a directory row LEADS with "new folder" and "new file"; a file row never
+ *   offers them, because it has nowhere to create in;
+ * - selecting either opens the inline editor pinned under that row, and Enter
+ *   sends `{ path, name }` to `/smkit/api/explorer/create-…` and closes it;
+ * - a refused name keeps the editor open with the reason beside the input; a
+ *   name that breaks the shape rule is refused here, without a round trip;
+ * - Escape and an empty name dismiss it without creating;
  * - a row without a path, and every row while `dsh-better-sidebar` owns the
  *   file page, keep the browser's own right-click behaviour;
  * - disposing the effect unmounts the menu root and leaves the body clean.
@@ -70,6 +77,9 @@ class SandboxElement {
     this.parentNode = null
     this.textContent = ''
     this.type = ''
+    this.value = ''
+    this.listeners = new Map()
+    this.focused = false
     this.offsetWidth = 0
     this.offsetHeight = 0
     /** Layout is not simulated; `display` is enough for the menu host. */
@@ -154,6 +164,42 @@ class SandboxElement {
       current = current.parentNode
     }
     return false
+  }
+
+  addEventListener(type, handler) {
+    this.listeners.set(type, [...(this.listeners.get(type) ?? []), handler])
+  }
+
+  removeEventListener(type, handler) {
+    this.listeners.set(type, (this.listeners.get(type) ?? []).filter((one) => one !== handler))
+  }
+
+  /** Deliver one event to this element's own listeners, as the browser would. */
+  dispatch(type, event = {}) {
+    const delivered = {
+      type,
+      key: '',
+      preventDefault() { delivered.prevented = true },
+      stopPropagation() { delivered.stopped = true },
+      ...event,
+    }
+    for (const handler of this.listeners.get(type) ?? []) handler(delivered)
+    return delivered
+  }
+
+  /** The shell's directory row toggles on a real click. */
+  click() {
+    this.dispatch('click')
+  }
+
+  focus() {
+    this.focused = true
+  }
+
+  /** Layout is not simulated: one row-sized rectangle is enough to pin to. */
+  getBoundingClientRect() {
+    const known = { x: 0, y: 0, left: 0, top: 0, right: 160, bottom: 20, width: 160, height: 20 }
+    return { ...known, toJSON: () => known }
   }
 
   matches(selector) {
@@ -260,6 +306,18 @@ function mount(options = {}) {
   }
   const Menu = (props) => { rendered = props; return null }
 
+  /**
+   * The creating routes' stand-in: every request the bundle makes, and the
+   * answer the next one receives. The client's `api` is a thin `fetch`, so this
+   * is the whole channel.
+   */
+  const requests = []
+  let reply = { ok: true, status: 200, body: {} }
+  const fetchStub = async (url, init) => {
+    requests.push({ url: String(url), method: init?.method, body: init?.body })
+    return { ok: reply.ok, status: reply.status, json: async () => reply.body }
+  }
+
   let exported
   runInNewContext(source, {
     window: {
@@ -296,6 +354,7 @@ function mount(options = {}) {
       },
     },
     document: dom,
+    fetch: fetchStub,
     Element: SandboxElement,
     Node: SandboxElement,
     DOMRect: class {
@@ -365,11 +424,15 @@ function mount(options = {}) {
 
   return {
     tree,
+    body: shell,
     noPath,
     file,
     dir,
     roots,
     clipboard,
+    requests,
+    /** What the next creating request answers. */
+    reply(next) { reply = next },
     contextMenu,
     /** The menu's props as of the last render (null before the first open). */
     menu: () => rendered,
@@ -513,4 +576,140 @@ it('unmounts its root and leaves the body clean when disposed', () => {
   )
   const event = view.contextMenu(view.file.children[0])
   assert.equal(event.prevented, false, 'the listener is gone too')
+})
+
+it('offers the two creating rows on a directory row, never on a file row', () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.dir.children[0])
+    assert.equal(
+      view.menu().items.map((item) => item.id).join(','),
+      'new-folder,new-file,relative,absolute',
+      'the creating rows lead, as the source’s menu does',
+    )
+    assert.equal(
+      view.menu().items.map((item) => item.label).join(','),
+      'newFolder,newFile,copyRelative,copyAbsolute',
+    )
+    view.contextMenu(view.file.children[0])
+    assert.equal(view.menu().items.map((item) => item.id).join(','), 'relative,absolute')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('opens the inline editor under the row and creates the file on Enter', async () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.dir.children[0])
+    view.select('new-file')
+    const editor = view.body.querySelector('[data-smkit-explorer-new-row]')
+    assert.notEqual(editor, null, 'the editor is mounted on the body')
+    assert.equal(editor.getAttribute('class'), 'smkit-explorer-new-row')
+    assert.equal(editor.getAttribute('data-smkit-explorer-new-kind'), 'file')
+    const input = editor.querySelector('input')
+    assert.equal(input.getAttribute('placeholder'), 'newFilePlaceholder')
+    // Pinned to the directory row: same left edge, same width, right under it.
+    assert.equal(editor.style.left, '0px')
+    assert.equal(editor.style.top, '20px')
+    assert.equal(editor.style.width, '160px')
+    assert.equal(input.focused, true, 'the editor takes the caret')
+
+    input.value = '  todo.md  '
+    input.dispatch('keydown', { key: 'Enter' })
+    await settle()
+    assert.equal(view.requests.length, 1)
+    assert.equal(view.requests[0].url, '/smkit/api/explorer/create-file')
+    assert.equal(view.requests[0].method, 'POST')
+    assert.deepEqual(JSON.parse(view.requests[0].body), { path: '/ws/src', name: 'todo.md' })
+    assert.equal(view.body.querySelector('[data-smkit-explorer-new-row]'), null, 'it closes on success')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('commits on blur, as the source does', async () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.dir.children[0])
+    view.select('new-folder')
+    const input = view.body.querySelector('[data-smkit-explorer-new-row]').querySelector('input')
+    input.value = 'made'
+    input.dispatch('blur')
+    await settle()
+    assert.equal(view.requests.length, 1)
+    assert.equal(view.requests[0].url, '/smkit/api/explorer/create-folder')
+    assert.equal(JSON.parse(view.requests[0].body).name, 'made')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('keeps the editor open with the reason when the host refuses the name', async () => {
+  const view = mount()
+  try {
+    view.reply({ ok: false, status: 409, body: { code: 'explorer/exists', error: '"a.ts" already exists' } })
+    view.contextMenu(view.dir.children[0])
+    view.select('new-folder')
+    const editor = view.body.querySelector('[data-smkit-explorer-new-row]')
+    const input = editor.querySelector('input')
+    input.value = 'a.ts'
+    input.dispatch('keydown', { key: 'Enter' })
+    await settle()
+    assert.equal(editor.hasAttribute('data-smkit-explorer-new-invalid'), true)
+    // A folder duplicate keeps the host's own sentence, as the source's does.
+    assert.equal(editor.children[2].textContent, '"a.ts" already exists')
+    assert.notEqual(view.body.querySelector('[data-smkit-explorer-new-row]'), null, 'and it stays open')
+
+    // A FILE duplicate has copy of its own (the source pre-checks it locally).
+    input.dispatch('keydown', { key: 'Escape' })
+    view.contextMenu(view.dir.children[0])
+    view.select('new-file')
+    const fileEditor = view.body.querySelector('[data-smkit-explorer-new-row]')
+    const fileInput = fileEditor.querySelector('input')
+    fileInput.value = 'a.ts'
+    fileInput.dispatch('keydown', { key: 'Enter' })
+    await settle()
+    assert.equal(fileEditor.children[2].textContent, 'fileNameExists')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('refuses a broken name without a round trip, and dismisses on Escape or an empty name', async () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.dir.children[0])
+    view.select('new-folder')
+    const editor = view.body.querySelector('[data-smkit-explorer-new-row]')
+    const input = editor.querySelector('input')
+    for (const name of ['a/b', 'a\\b', 'a:b', '..']) {
+      input.value = name
+      input.dispatch('keydown', { key: 'Enter' })
+      await settle()
+      assert.equal(view.requests.length, 0, `${name} never reaches the host`)
+      assert.equal(editor.children[2].textContent, 'folderNameInvalid')
+    }
+    input.dispatch('keydown', { key: 'Escape' })
+    assert.equal(view.body.querySelector('[data-smkit-explorer-new-row]'), null, 'Escape closes it')
+
+    view.contextMenu(view.dir.children[0])
+    view.select('new-file')
+    const second = view.body.querySelector('[data-smkit-explorer-new-row]')
+    second.querySelector('input').dispatch('keydown', { key: 'Enter' })
+    await settle()
+    assert.equal(view.requests.length, 0)
+    assert.equal(view.body.querySelector('[data-smkit-explorer-new-row]'), null, 'an empty name just closes')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('closes the inline editor when the effect is disposed', () => {
+  const view = mount()
+  view.contextMenu(view.dir.children[0])
+  view.select('new-file')
+  assert.notEqual(view.body.querySelector('[data-smkit-explorer-new-row]'), null)
+  view.dispose()
+  assert.equal(view.body.querySelector('[data-smkit-explorer-new-row]'), null, 'the editor goes with the effect')
 })

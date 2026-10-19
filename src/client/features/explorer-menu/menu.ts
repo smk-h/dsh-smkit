@@ -1,8 +1,8 @@
 /**
  * The right-click menu this plugin draws on the shell's file tree.
  *
- * Today it holds the two "copy path" rows; this is the file every later row
- * (new file / new folder / rename / delete) is added to, so they share one
+ * Today it holds the two creating rows and the two "copy path" rows; this is
+ * the file every later row (rename / delete) is added to, so they share one
  * listener, one menu host and one open/close lifecycle.
  *
  * Ported from `dsh-better-sidebar` (`src/client/FileTree.tsx`), where the rows
@@ -10,8 +10,10 @@
  *
  * - right-clicking a row opens one menu at the cursor, portalled so the tree's
  *   overflow clip cannot crop it;
- * - the two rows are "copy relative path" and "copy absolute path", in that
- *   order, each with the same copy glyph;
+ * - a DIRECTORY row leads with "new folder" and "new file" (the shell's menu
+ *   cannot create anything by itself; see `create.ts` for the inline editor);
+ * - the two copy rows are "copy relative path" and "copy absolute path", in
+ *   that order, each with the same copy glyph, and every row carries them;
  * - the relative row copies the path projected against the tree's root
  *   (`relativeTo`), the absolute row copies the row's own path;
  * - a successful write replaces the row's trailing `@` chip with a "copied"
@@ -49,6 +51,9 @@
 import type { ClientContext, ClientDeps, Translator } from '../../platform/types'
 import type { IconSpec } from '../../platform/icons/Icon'
 import { COPY_ICON } from './icons/CopyIcon'
+import { NEW_FILE_ICON } from './icons/NewFileIcon'
+import { PLUS_ICON } from './icons/PlusIcon'
+import { openCreateEditor, type CreateEditorHandle } from './create'
 import { relativeTo } from './paths'
 
 /** One tree row, and the tree's root anchor (which carries the cwd). */
@@ -75,7 +80,16 @@ interface MenuRuntime {
   writeClipboard: (text: string) => Promise<boolean>
   /** React root for the (single) menu host. */
   createRoot: (container: Element) => { render(node: unknown): void; unmount(): void }
+  /**
+   * The shell's per-extension glyph and classifier — optional, because an older
+   * shell may not seed them; the editor then keeps its own generic glyph.
+   */
+  FileTypeIcon?: (props: { kind: string; size: number }) => unknown
+  classifyFileType?: (name: string) => string
 }
+
+/** What the row behind the menu is, as the shell published it. */
+type RowKind = 'file' | 'directory' | 'other'
 
 /** One open menu: the row it belongs to, where it opened, and its paths. */
 interface MenuTarget {
@@ -84,6 +98,8 @@ interface MenuTarget {
   path: string
   /** The tree's root, for the relative projection ('' when the host hides it). */
   root: string
+  /** The row's own kind — the creating rows belong to directories only. */
+  kind: RowKind
   x: number
   y: number
 }
@@ -124,6 +140,8 @@ function loadRuntime(h: ElementFactory | undefined): MenuRuntime | undefined {
     const primitives = require('@deepseek-ai/dsh-client-ui-primitives') as {
       Menu?: unknown
       writeClipboard?: unknown
+      FileTypeIcon?: unknown
+      classifyFileType?: unknown
     }
     const client = require('react-dom/client') as { createRoot?: unknown }
     if (typeof primitives.Menu !== 'function') return undefined
@@ -133,6 +151,12 @@ function loadRuntime(h: ElementFactory | undefined): MenuRuntime | undefined {
       Menu: primitives.Menu as MenuRuntime['Menu'],
       writeClipboard: primitives.writeClipboard as MenuRuntime['writeClipboard'],
       createRoot: client.createRoot as MenuRuntime['createRoot'],
+      FileTypeIcon: typeof primitives.FileTypeIcon === 'function'
+        ? primitives.FileTypeIcon as MenuRuntime['FileTypeIcon']
+        : undefined,
+      classifyFileType: typeof primitives.classifyFileType === 'function'
+        ? primitives.classifyFileType as MenuRuntime['classifyFileType']
+        : undefined,
     }
   } catch {
     // An older shell may not seed one of them; the tree then keeps the host's
@@ -182,6 +206,14 @@ export function watchExplorerMenu(
   let menu: MenuTarget | null = null
   /** Pending "copied" labels, one per row, so a second copy restarts the clock. */
   const timers = new Map<Element, number>()
+  /** The one inline editor open, if any (the source opens one at a time). */
+  let createEditor: CreateEditorHandle | null = null
+
+  /** Dismiss whichever creating editor is open, creating nothing. */
+  const closeCreateEditor = (): void => {
+    createEditor?.close()
+    createEditor = null
+  }
 
   // The menu host: a zero-size div in the body. The card itself is portalled by
   // the Menu component, so this node only carries the anchor placeholder.
@@ -235,7 +267,7 @@ export function watchExplorerMenu(
 
   /** Draw the menu's current state through the host component. */
   const draw = (): void => {
-    const icon = iconElement(h, COPY_ICON)
+    const copyIcon = iconElement(h, COPY_ICON)
     const open = menu
     root.render(
       h(runtime.Menu, {
@@ -244,8 +276,16 @@ export function watchExplorerMenu(
         items: open === null
           ? []
           : [
-              { id: 'relative', label: t('copyRelative'), icon },
-              { id: 'absolute', label: t('copyAbsolute'), icon },
+              // The creating rows lead, as the source's do, and belong to a
+              // directory row only — a file row has nowhere to create in.
+              ...(open.kind === 'directory'
+                ? [
+                    { id: 'new-folder', label: t('newFolder'), icon: iconElement(h, PLUS_ICON) },
+                    { id: 'new-file', label: t('newFile'), icon: iconElement(h, NEW_FILE_ICON) },
+                  ]
+                : []),
+              { id: 'relative', label: t('copyRelative'), icon: copyIcon },
+              { id: 'absolute', label: t('copyAbsolute'), icon: copyIcon },
             ],
         onSelect: (id: string) => { select(id) },
         onClose: () => { setMenu(null) },
@@ -272,6 +312,28 @@ export function watchExplorerMenu(
     const target = menu
     setMenu(null)
     if (target === null) return
+    if (id === 'new-folder' || id === 'new-file') {
+      // One editor at a time: a second "new …" gesture replaces the first.
+      closeCreateEditor()
+      createEditor = openCreateEditor({
+        api: deps.api,
+        t,
+        kind: id === 'new-file' ? 'file' : 'folder',
+        dir: target.path,
+        row: target.row,
+        // The source draws the typed name's own file glyph in that row
+        // (`service.fileIcon(probe, 14)`); this is the shell's twin of it.
+        typeIcon: runtime.FileTypeIcon === undefined || runtime.classifyFileType === undefined
+          ? undefined
+          : {
+              h,
+              FileTypeIcon: runtime.FileTypeIcon,
+              classifyFileType: runtime.classifyFileType,
+              createRoot: runtime.createRoot,
+            },
+      })
+      return
+    }
     void runtime.writeClipboard(textOf(target, id)).then((ok) => {
       if (ok === true) flashCopied(target)
     })
@@ -291,16 +353,18 @@ export function watchExplorerMenu(
     if (path === null || path === '') return
     if (betterSidebarOwnsExplorer(ctx)) return
     const rootPath = row.closest(TREE)?.getAttribute('data-files-root') ?? ''
+    const kind = (row.getAttribute('data-files-entry') ?? 'other') as RowKind
     // Only claim the gesture once a menu can actually be shown.
     event.preventDefault()
     event.stopPropagation()
-    setMenu({ row, path, root: rootPath, x: event.clientX, y: event.clientY })
+    setMenu({ row, path, root: rootPath, kind, x: event.clientX, y: event.clientY })
   }
 
   document.addEventListener('contextmenu', onContextMenu, true)
 
   return () => {
     document.removeEventListener('contextmenu', onContextMenu, true)
+    closeCreateEditor()
     for (const timer of timers.values()) clearTimeout(timer)
     timers.clear()
     for (const label of Array.from(document.querySelectorAll(`[${LABEL}]`))) label.remove()
