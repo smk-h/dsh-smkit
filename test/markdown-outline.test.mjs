@@ -12,6 +12,8 @@
  *   stylesheet's indent ladder reads that);
  * - the popover opens on the section being read, with that row lit and centred,
  *   and the mark follows the reader while it stays open;
+ * - the toggle rides the preview header just before reload, comes back if a
+ *   host re-render drops it, and stays in the bar on a host without that row;
  * - a click on an entry scrolls the heading to the top, flashes it for 1.2 s
  *   and closes the popover;
  * - Escape and a press outside the bar close it; a press inside does not;
@@ -155,6 +157,12 @@ class SandboxElement {
     return node.root === true
   }
 
+  get nextSibling() {
+    const siblings = this.parentNode?.childNodes ?? []
+    const at = siblings.indexOf(this)
+    return at < 0 ? null : siblings[at + 1] ?? null
+  }
+
   get clientHeight() {
     return placementOf(this)?.height ?? 0
   }
@@ -276,30 +284,55 @@ function markdownDocument(headings, paddingTop = '10px') {
   return doc
 }
 
-/** A host preview body holding one Markdown document. */
-function previewBody(headings, paddingTop) {
+/**
+ * A host preview: the header row (path, wrap, reload) over the scroll body.
+ *
+ * `withHeader: false` stands in for a host that draws no tool row, where the
+ * toggle has to stay in the bar.
+ */
+function previewBody(headings, paddingTop, withHeader = true) {
+  const preview = new SandboxElement('div')
+  preview.setAttribute('data-textpreview-state', 'text')
+  const header = new SandboxElement('div')
+  let reload = null
+  if (withHeader) {
+    const path = new SandboxElement('span')
+    path.textContent = '/work/README.md'
+    header.appendChild(path)
+    const wrap = new SandboxElement('button')
+    wrap.setAttribute('data-textpreview-tool', 'wrap')
+    header.appendChild(wrap)
+    reload = new SandboxElement('button')
+    reload.setAttribute('data-textpreview-tool', 'reload')
+    header.appendChild(reload)
+    preview.appendChild(header)
+  }
   const body = new SandboxElement('div')
   body.setAttribute('data-textpreview-body', '')
   const doc = markdownDocument(headings, paddingTop)
   body.appendChild(doc)
-  return { body, doc }
+  preview.appendChild(body)
+  return { preview, header, reload, body, doc }
 }
 
 /**
  * Mount the whole bundle once against one preview body and hand back what the
  * assertions need.
  * @param options - `headings` to render, the document's `paddingTop` (10px as
- *   the host sets it), the `betterSidebar` service the neighbour probe should
- *   find (`true` = published), and `computedStyle: false` to stand in for a
- *   harness with no layout.
+ *   the host sets it), `header: false` for a host that draws no tool row, the
+ *   `betterSidebar` service the neighbour probe should find (`true` =
+ *   published), and `computedStyle: false` to stand in for a harness with no
+ *   layout.
  */
 function mount(options = {}) {
   const html = new SandboxElement('html')
   html.root = true
   const shell = new SandboxElement('body')
   html.appendChild(shell)
-  const { body, doc } = previewBody(options.headings ?? [], options.paddingTop)
-  shell.appendChild(body)
+  const { preview, header, reload, body, doc } = previewBody(
+    options.headings ?? [], options.paddingTop, options.header !== false,
+  )
+  shell.appendChild(preview)
 
   /** Timers the flash schedules, so the test can see the class both ways. */
   const timers = []
@@ -429,7 +462,8 @@ function mount(options = {}) {
   exported.apply(ctx)
 
   const bar = () => body.querySelector('[data-smkit-md-toc]')
-  const toggle = () => body.querySelector('[data-smkit-md-toc-toggle]')
+  // The toggle may live in the preview header, outside the body being watched.
+  const toggle = () => shell.querySelector('[data-smkit-md-toc-toggle]')
   const panel = () => body.querySelector('[data-smkit-md-toc-panel]')
   const items = () => body.querySelectorAll('[data-smkit-md-toc-item]')
   /** Fire one document-level event at the nodes the feature listens for. */
@@ -437,6 +471,9 @@ function mount(options = {}) {
     for (const handler of documentListeners.get(type) ?? []) handler(event)
   }
   return {
+    preview,
+    header,
+    reload,
     body,
     doc,
     shell,
@@ -517,6 +554,65 @@ it('draws the toggle once the document has three headings, closed', () => {
     assert.equal(toggle.children.length, 1, 'the glyph is the toggle’s only child')
     assert.equal(toggle.children[0].tagName, 'SVG')
     assert.equal(view.panel(), null, 'a closed outline has no panel')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('rides the preview header, just before the reload control', () => {
+  const view = mount({ headings: [heading(1, '一'), heading(2, '1.1'), heading(2, '1.2')] })
+  try {
+    const toggle = view.toggle()
+    assert.equal(toggle.parentNode, view.header, 'the toggle joins the header row')
+    assert.equal(toggle.nextSibling, view.reload, 'and sits immediately before reload')
+    assert.equal(toggle.getAttribute('data-smkit-md-toc-in-header'), '')
+    assert.equal(
+      view.bar().getAttribute('data-smkit-md-toc-in-header'),
+      '',
+      'the bar knows the toggle left it, so the panel opens under the header',
+    )
+    assert.equal(view.bar().contains(toggle), false, 'the bar holds the panel alone')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('puts the toggle back when a host re-render drops it from the header', () => {
+  const view = mount({ headings: [heading(1, '一'), heading(2, '1.1'), heading(2, '1.2')] })
+  try {
+    view.toggle().remove()
+    // The next draw re-hangs it; a page arriving is the usual mutation while a
+    // long document is being read.
+    view.appendHeading(2, '1.3')
+    const toggle = view.toggle()
+    assert.ok(toggle !== null, 'the control comes back')
+    assert.equal(toggle.nextSibling, view.reload, 'in the same place')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('keeps the floating square when the host draws no tool row', () => {
+  const view = mount({
+    headings: [heading(1, '一'), heading(2, '1.1'), heading(2, '1.2')],
+    header: false,
+  })
+  try {
+    const toggle = view.toggle()
+    assert.equal(toggle.parentNode, view.bar(), 'no header to join, so it stays in the bar')
+    assert.equal(toggle.getAttribute('data-smkit-md-toc-in-header'), null)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('takes the toggle out of the header when the preview stops being Markdown', () => {
+  const view = mount({ headings: [heading(1, '一'), heading(2, '1.1'), heading(2, '1.2')] })
+  try {
+    const toggle = view.toggle()
+    view.toOtherPreview()
+    assert.equal(toggle.isConnected, false, 'a code file gets no outline control')
+    assert.equal(view.header.contains(toggle), false)
   } finally {
     view.dispose()
   }
@@ -671,7 +767,9 @@ it('closes on Escape and on a press outside the bar, but not inside it', () => {
 
     view.toggle().dispatch('click')
     view.pressOutside(view.toggle())
-    assert.ok(view.panel() !== null, 'a press inside the bar is not a dismiss')
+    assert.ok(view.panel() !== null, 'a press on the header toggle is not a dismiss')
+    view.pressOutside(view.panel())
+    assert.ok(view.panel() !== null, 'nor is a press inside the bar')
 
     view.pressOutside(view.doc)
     assert.equal(view.panel(), null, 'blank preview space dismisses the outline')

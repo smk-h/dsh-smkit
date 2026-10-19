@@ -5,8 +5,21 @@
  * offers no overlay seat inside its scroll body, so this feature decorates the
  * rendered document the way `file-reference` decorates the explorer: a
  * zero-height sticky bar is inserted as the rendered Markdown document's FIRST
- * child, with the outline toggle pinned to its top-right. Everything else is
- * behaviour.
+ * child, and the toggle rides the preview header — the row that already carries
+ * the viewer name and the reload control — immediately before reload. The bar
+ * then holds only the popover the toggle opens. Everything else is behaviour.
+ *
+ * ## Why the header and not the corner
+ *
+ * Upstream pins the toggle inside the document, floating over the first lines of
+ * prose. The shell already draws a header row for exactly this kind of control,
+ * directly above the body and beside the reload the reader uses on the same
+ * page, so a second floating square over the text competes with the prose it
+ * covers for no gain. The popover stays in the document's bar: it must not be
+ * clipped by the header, and it belongs under the header rather than inside it.
+ * A host that does not draw that row (`data-textpreview-tool="reload"` absent)
+ * keeps the floating square — the toggle then hangs in the bar, as upstream
+ * does.
  *
  * ## The port is deliberately literal
  *
@@ -99,6 +112,9 @@ const READING_LINE = 32
 /** The host's preview scroll body, its Markdown document, and its headings. */
 const PREVIEW_BODY = '[data-textpreview-body]'
 const MARKDOWN_DOCUMENT = '[data-document-markdown]'
+/** The preview's own root, its reload control: the tool row the toggle joins. */
+const PREVIEW = '[data-textpreview-state]'
+const RELOAD = '[data-textpreview-tool="reload"]'
 const HEADINGS = 'h1, h2, h3, h4, h5, h6'
 /**
  * A folded ancestor the jump unfolds first. The host's renderer emits raw HTML
@@ -115,6 +131,8 @@ const TOGGLE = 'data-smkit-md-toc-toggle'
 const ITEM = 'data-smkit-md-toc-item'
 const LEVEL = 'data-smkit-md-toc-level'
 const ACTIVE = 'data-smkit-md-toc-active'
+/** On the toggle and the bar while the toggle rides the preview header. */
+const IN_HEADER = 'data-smkit-md-toc-in-header'
 
 /** This feature's classes (see `style/toc.css`). */
 const BAR_CLASS = 'smkit-outline-toc-bar'
@@ -173,6 +191,23 @@ function glyph(spec: IconSpec): SVGSVGElement {
     svg.appendChild(child)
   }
   return svg
+}
+
+/**
+ * The preview header's reload control — the stable end of its tool row.
+ *
+ * The header belongs to `ui-sidebar-documentpreview` and its classes are
+ * build-time hashes; `data-textpreview-tool="reload"` is the anchor the host
+ * publishes for its own control, so the outline rides in just before it.
+ *
+ * @param body - the preview body this feature decorates.
+ * @returns the reload control, or null on a host that draws no header row.
+ */
+function reloadAnchor(body: Element): Element | null {
+  const preview = body.closest(PREVIEW)
+  if (preview === null) return null
+  const reload = preview.querySelector(RELOAD)
+  return reload !== null && reload.parentNode !== null ? reload : null
 }
 
 /**
@@ -259,9 +294,35 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
     return panel
   }
 
+  /**
+   * Hang the toggle where it belongs: beside the header's reload control when
+   * the host draws that row, else in the bar (upstream's floating square).
+   *
+   * Re-asserted on every draw: the header is React's, so a re-render may append
+   * a tool after ours and leave the button a place out of line, and a host that
+   * swaps the preview under us would otherwise strand it.
+   */
+  const hangToggle = (outline: Outline, toggle: HTMLButtonElement): void => {
+    const bar = outline.bar
+    const anchor = reloadAnchor(outline.body)
+    if (anchor === null || anchor.parentNode === null) {
+      toggle.removeAttribute(IN_HEADER)
+      bar?.removeAttribute(IN_HEADER)
+      if (bar !== null && !toggle.isConnected) bar.appendChild(toggle)
+      return
+    }
+    toggle.setAttribute(IN_HEADER, '')
+    bar?.setAttribute(IN_HEADER, '')
+    const row = anchor.parentNode
+    if (toggle.parentNode !== row || toggle.nextSibling !== anchor) row.insertBefore(toggle, anchor)
+  }
+
   /** Take the bar (and its state) out of one body, keeping the watch alive. */
   const clear = (outline: Outline): void => {
     outline.bar?.remove()
+    // The toggle lives in the host's header, not in the bar: it is this
+    // feature's node and nobody else takes it away.
+    outline.toggle?.remove()
     outline.doc = null
     outline.bar = null
     outline.toggle = null
@@ -303,7 +364,7 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
       toggle.title = label
     }
     toggle.setAttribute('aria-expanded', outline.open ? 'true' : 'false')
-    if (!toggle.isConnected) bar.appendChild(toggle)
+    hangToggle(outline, toggle)
     if (!outline.open) {
       outline.panel?.remove()
       outline.panel = null
@@ -318,9 +379,12 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
       // A fresh list carries no mark, whatever the last one ended on.
       outline.active = -1
     }
-    // The panel precedes the toggle, as upstream renders it.
+    // The panel precedes the toggle, as upstream renders it — where the toggle
+    // rides the header, the bar holds the panel alone.
     const panel = outline.panel
-    if (panel !== null && !panel.isConnected) bar.insertBefore(panel, toggle)
+    if (panel !== null && !panel.isConnected) {
+      bar.insertBefore(panel, toggle.parentNode === bar ? toggle : bar.firstChild)
+    }
     // Where the reader is: marked on every draw, centred only when the list has
     // just been built (a fresh open, or a rebuild after a page arrived), never
     // while the reader is moving around inside it.
@@ -537,9 +601,12 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
   }
 
   /**
-   * A press outside the bar dismisses it. The bar itself is exempt, so a second
-   * press on the toggle still toggles instead of being eaten by the dismiss —
-   * the same reason upstream listens at `pointerdown` rather than `click`.
+   * A press outside the bar dismisses it. The bar and the toggle are exempt, so
+   * a second press on the toggle still toggles instead of being eaten by the
+   * dismiss — the same reason upstream listens at `pointerdown` rather than
+   * `click`. The toggle needs naming separately now that it rides the preview
+   * header: without it the press would close the panel and the click that
+   * follows would reopen it, leaving the button dead.
    */
   const onPointerDown = (event: Event): void => {
     const target = event.target
@@ -548,6 +615,7 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
       if (!outline.open) continue
       const bar = outline.bar
       if (bar !== null && bar.contains(target)) continue
+      if (outline.toggle !== null && outline.toggle.contains(target)) continue
       setOpen(outline, false)
     }
   }

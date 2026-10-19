@@ -222,6 +222,15 @@ export const FOREIGN_DATA_ATTRS = [
   'data-textpreview-body',
   'data-document-markdown',
   /**
+   * The same preview's own root and tool row: `data-textpreview-state` marks the
+   * element the header and body hang from (the header is the body's sibling,
+   * found from the body upward), and `data-textpreview-tool="reload"` the reload
+   * control the outline toggle is inserted before. The host hashes the class
+   * names of that row, so this anchor is the only way to name it. Read only.
+   */
+  'data-textpreview-state',
+  'data-textpreview-tool',
+  /**
    * The deck's tab strip (`ui-dockkit`), where the tab menu's batch rows find
    * the tabs they close: `data-dockkit-strip-tabs` marks one pane's strip,
    * `data-dockkit-tab` one chip (its value is the tab id), and

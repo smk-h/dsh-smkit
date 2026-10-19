@@ -59,6 +59,26 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* In the preview header the toggle wears that row's tool metrics instead of the
+   floating square: 28px, no border, the same hover fill its neighbours use — it
+   sits between the wrap control and reload, and must read as one of them. The
+   marker is written by watch.ts when the header anchor is found; a host without
+   that row keeps the square above. */
+.smkit-outline-toc-toggle[data-smkit-md-toc-in-header] {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+}
+
+.smkit-outline-toc-toggle[data-smkit-md-toc-in-header]:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
 /* The popover, anchored under the toggle (the bar is the containing block; its
    height is 0, so the panel drops below the pinned toggle row). */
 .smkit-outline-toc-panel {
@@ -76,6 +96,13 @@
   background: var(--dsw-alias-bg-layer-2);
   box-shadow: var(--dsw-shadow-lv2);
   pointer-events: auto;
+}
+
+/* With the toggle in the header the panel opens from the top of the body, right
+   under the header row, rather than 32px down as it does under the floating
+   square. */
+.smkit-outline-toc-bar[data-smkit-md-toc-in-header] .smkit-outline-toc-panel {
+  top: 4px;
 }
 
 .smkit-outline-toc-item {
