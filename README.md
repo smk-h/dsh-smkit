@@ -18,7 +18,7 @@
 
 ### 2. 项目介绍
 
-dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供七个功能：MCP 管理、技能管理、会话删除、自定义配置、OpenSpec 管理、主题中心与完成通知。
+dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供九个功能：MCP 管理、技能管理、会话删除、自定义配置、OpenSpec 管理、主题中心、完成通知、跳转到行与添加到对话。
 
 #### 2.1 MCP 管理
 
@@ -152,6 +152,24 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 
 > [!NOTE]
 > 提示音取自 [ZCode](https://github.com/zcode-ai/zcode)（Apache-2.0）自带的任务通知音效 `task-notification-pop.mp3`，逐字节未改动地随插件分发（[`src/host/features/notify/assets/`](src/host/features/notify/assets/)，构建为 base64 内联的 [`sound-data.ts`](src/host/features/notify/sound-data.ts)，可由 [`scripts/generate-sound-data.mjs`](scripts/generate-sound-data.mjs) 重新生成），故 dsh 的通知听感与 ZCode 完全一致。
+
+#### 2.8 跳转到行
+
+右侧栏打开文件预览时，`Ctrl+G`（macOS 为 `Cmd+G`）在预览右上角弹出一个单行输入框，填行号回车即跳到该行，落点位于视口上下三分之一处，与编辑器自带的 go-to-line 一致；`120`、`:120`、`120:8` 都读作第 120 行，Esc、失焦或空输入原样关闭。实现见 [`src/client/features/line-jump/`](src/client/features/line-jump/)：
+
+- **分页长文件**：宿主一次只渲染一页长文件，目标行还没加载时替读者按宿主自己的「加载更多」逐页推进（每页都是宿主的请求，所以是等一拍再看，而不是一次问到底）；页数用尽或输入超出末行时，落在当前最后一页的最后一行。
+- **标记**：只读预览没有光标，跳转的目标行会常驻高亮作为「落点」；同一时刻只有一行带着它，下一次跳转或点击会把它移走，宿主重渲染该块（翻页替换整块行节点）后由观察者补回。选中文本时高亮让位，取消选中自动恢复。
+- **点击即标记**：鼠标点预览里任意一行同样高亮该行，效果与跳转一致，不滚动也不改变选区。高亮渲染器的行是内联 `span`，所以点在行尾空白、行号栏或行间空白时按纵向位置就近取行；预览自己的控件（「加载更多」、链接）、预览头部与渲染后的 Markdown 文档都不参与。
+- **与 `dsh-better-sidebar` 共存**：装了该插件时文件变成它的 CodeMirror 编辑器，`Ctrl+G` 依然可用——它的 `Mod-g` 是「查找下一个」，本插件在捕获阶段截获并阻止其 keymap。编辑器这一侧只放一个折叠光标并滚动，不画标记：编辑器有光标，而在 CodeMirror 的渲染行上挂属性会随视口重渲染闪烁。
+
+#### 2.9 添加到对话
+
+在右侧栏的只读文件预览或终端里选中文本，选区末端浮出一个「添加到对话」按钮，点一下就把这段内容写进当前会话的输入框草稿，不必先复制、再切到会话、再粘贴。实现见 [`src/client/features/selection-quote/`](src/client/features/selection-quote/)：
+
+- **文件预览**：插入一段围栏代码块，信息行是 `path:start-end`（单行只有 `path:12`，行区间未知时只有 `path`），正文是选中的原文。路径按会话 cwd 相对化，与预览头部显示的一致；cwd 读不到时保留绝对路径。行号从渲染 DOM 读出：高亮渲染器按行位置计数，纯文本渲染器读每行自带的编号，渲染后的 Markdown 文档没有源码行，因此只写路径。超过 500 字符的选区只写信息行——对文件而言「路径 + 行号」本身就能定位，整段正文只会灌满草稿。
+- **终端**：xterm 的选区存在模拟器自己的模型里（根元素不可选中，`window.getSelection()` 读不到），所以经它装在根元素上的 copy 通道读取——派发一个带 `clipboardData` 接收器的 `copy` 事件，xterm 会把选中文本回填进来；全程不碰真实剪贴板、不依赖快捷键，也与渲染器无关。终端选区没有路径和行号可标注，插入的是信息行为 `console` 的围栏块，并且**不设长度上限**：没有可回退的信息，截断就等于丢内容。
+- **位置与关闭**：按钮锚定鼠标松手的位置，而不是选区的外接矩形（选区比窗口还高时，用矩形会把按钮甩到窗口外）；贴近窗口上沿时自动下压，插入后按实测宽度横向夹紧。点别处、Esc、预览选区收起、滚动、表面离开视口、页面隐藏、窗口失焦或插件卸载都会收起。按钮自身按下时 `preventDefault`，保住选区直到点击落定；终端选区不是文档选区，所以单击不会让它重弹，只有拖动或多击才弹。
+- **与 `dsh-better-sidebar` 共存**：该插件在自己的编辑器里已提供同款弹窗，因此本功能在它加载时整体让位，避免同一选区出现两个按钮。
 
 ### 3. 图标来源
 
