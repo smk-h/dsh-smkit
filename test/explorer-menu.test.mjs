@@ -298,6 +298,8 @@ function mount(options = {}) {
   const clipboard = { texts: [], accept: true }
   /** The menu component's last props, as the stub root saw them. */
   let rendered = null
+  /** The confirm dialog's last props, when one is open. */
+  let dialog = null
   const react = {
     createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }),
     useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
@@ -330,8 +332,19 @@ function mount(options = {}) {
               return {
                 createRoot: () => {
                   const root = {
-                    render: (node) => { if (node !== null && node !== undefined) rendered = node.props },
-                    unmount: () => { root.unmounted = true },
+                    /** What this root last rendered, so its unmount can retract it. */
+                    current: null,
+                    render: (node) => {
+                      if (node === null || node === undefined) return
+                      root.current = node.props ?? {}
+                      if (Array.isArray(root.current.items)) rendered = root.current
+                      else if (typeof root.current.title === 'string') dialog = root.current
+                    },
+                    unmount: () => {
+                      if (root.current !== null && dialog === root.current) dialog = null
+                      root.current = null
+                      root.unmounted = true
+                    },
                     unmounted: false,
                   }
                   roots.push(root)
@@ -431,6 +444,8 @@ function mount(options = {}) {
     roots,
     clipboard,
     requests,
+    /** The confirm dialog's props, or null when none is open. */
+    dialog: () => dialog,
     /** What the next creating request answers. */
     reply(next) { reply = next },
     contextMenu,
@@ -454,7 +469,7 @@ function mount(options = {}) {
 /** Let the clipboard promise's `.then` run. */
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
-it('opens the shell’s menu at the cursor, with the source’s two rows', () => {
+it('opens the shell’s menu at the cursor, with the source’s rows', () => {
   const view = mount()
   try {
     const event = view.contextMenu(view.file.children[0], 120, 240)
@@ -467,8 +482,11 @@ it('opens the shell’s menu at the cursor, with the source’s two rows', () =>
     assert.equal(menu.align, 'start')
     // Joined, not deep-compared: the rows are built inside the VM, so their
     // array carries that realm's prototype.
-    assert.equal(menu.items.map((item) => item.id).join(','), 'relative,absolute')
-    assert.equal(menu.items.map((item) => item.label).join(','), 'copyRelative,copyAbsolute')
+    assert.equal(menu.items.map((item) => item.id).join(','), 'relative,absolute,mutate-sep,rename,delete')
+    assert.equal(
+      menu.items.map((item) => (item.type === 'separator' ? '—' : item.label)).join(','),
+      'copyRelative,copyAbsolute,—,rename,delete',
+    )
     const rect = menu.getAnchorRect()
     assert.equal(rect.x, 120, 'anchored at the right-click point')
     assert.equal(rect.y, 240)
@@ -584,15 +602,15 @@ it('offers the two creating rows on a directory row, never on a file row', () =>
     view.contextMenu(view.dir.children[0])
     assert.equal(
       view.menu().items.map((item) => item.id).join(','),
-      'new-folder,new-file,relative,absolute',
-      'the creating rows lead, as the source’s menu does',
+      'new-folder,new-file,relative,absolute,mutate-sep,rename,delete',
+      'the creating rows lead and the mutations close, as in the source’s menu',
     )
     assert.equal(
-      view.menu().items.map((item) => item.label).join(','),
-      'newFolder,newFile,copyRelative,copyAbsolute',
+      view.menu().items.map((item) => (item.type === 'separator' ? '—' : item.label)).join(','),
+      'newFolder,newFile,copyRelative,copyAbsolute,—,rename,delete',
     )
     view.contextMenu(view.file.children[0])
-    assert.equal(view.menu().items.map((item) => item.id).join(','), 'relative,absolute')
+    assert.equal(view.menu().items.map((item) => item.id).join(','), 'relative,absolute,mutate-sep,rename,delete')
   } finally {
     view.dispose()
   }
@@ -712,4 +730,145 @@ it('closes the inline editor when the effect is disposed', () => {
   assert.notEqual(view.body.querySelector('[data-smkit-explorer-new-row]'), null)
   view.dispose()
   assert.equal(view.body.querySelector('[data-smkit-explorer-new-row]'), null, 'the editor goes with the effect')
+})
+
+it('renames in place: the editor replaces the row, prefilled with its own name', () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.file.children[0])
+    view.select('rename')
+    const editor = view.body.querySelector('[data-smkit-explorer-new-row]')
+    assert.notEqual(editor, null, 'the editor is mounted')
+    assert.equal(editor.getAttribute('data-smkit-explorer-editor-mode'), 'rename')
+    assert.equal(editor.getAttribute('data-smkit-explorer-new-kind'), 'file')
+    const input = editor.querySelector('input')
+    assert.equal(input.value, 'a.ts', 'the current name is the starting buffer')
+    assert.equal(input.getAttribute('aria-label'), 'rename')
+    // A rename sits OVER its row; a creation sits in the gap below one.
+    assert.equal(editor.style.top, '0px')
+    assert.equal(editor.style.left, '0px')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('sends the new name, and treats the unchanged one as a no-op', async () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.file.children[0])
+    view.select('rename')
+    view.body.querySelector('[data-smkit-explorer-new-row]').querySelector('input').dispatch('keydown', { key: 'Enter' })
+    await settle()
+    assert.equal(view.requests.length, 0, 'the same name is not a rename')
+    assert.equal(view.body.querySelector('[data-smkit-explorer-new-row]'), null, 'and the editor just closes')
+
+    view.contextMenu(view.file.children[0])
+    view.select('rename')
+    const input = view.body.querySelector('[data-smkit-explorer-new-row]').querySelector('input')
+    input.value = ' b.ts '
+    input.dispatch('keydown', { key: 'Enter' })
+    await settle()
+    assert.equal(view.requests.length, 1)
+    assert.equal(view.requests[0].url, '/smkit/api/explorer/rename')
+    assert.deepEqual(JSON.parse(view.requests[0].body), { path: '/ws/src/a.ts', name: 'b.ts' })
+    assert.equal(view.body.querySelector('[data-smkit-explorer-new-row]'), null)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('keeps the rename editor open when the host refuses it', async () => {
+  const view = mount()
+  try {
+    view.reply({ ok: false, status: 409, body: { code: 'explorer/exists', error: '"b.ts" already exists' } })
+    view.contextMenu(view.file.children[0])
+    view.select('rename')
+    const editor = view.body.querySelector('[data-smkit-explorer-new-row]')
+    const input = editor.querySelector('input')
+    input.value = 'b.ts'
+    input.dispatch('keydown', { key: 'Enter' })
+    await settle()
+    assert.equal(editor.children[2].textContent, '"b.ts" already exists', 'the host’s own words, as the source shows')
+    assert.notEqual(view.body.querySelector('[data-smkit-explorer-new-row]'), null, 'and it stays open')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('refuses a rename name with a separator, without a round trip', async () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.file.children[0])
+    view.select('rename')
+    const editor = view.body.querySelector('[data-smkit-explorer-new-row]')
+    const input = editor.querySelector('input')
+    input.value = 'a/b.ts'
+    input.dispatch('keydown', { key: 'Enter' })
+    await settle()
+    assert.equal(view.requests.length, 0)
+    assert.equal(editor.children[2].textContent, 'renameInvalid')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('asks before deleting, naming the entry and what goes with it', async () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.file.children[0])
+    view.select('delete')
+    const dialog = view.dialog()
+    assert.notEqual(dialog, null, 'the confirmation opens')
+    assert.equal(dialog.title, 'deleteTitle')
+    assert.equal(dialog.body, 'deleteDescFile')
+    assert.equal(view.requests.length, 0, 'nothing is deleted before the confirm')
+
+    dialog.onConfirm()
+    await settle()
+    assert.equal(view.requests.length, 1)
+    assert.equal(view.requests[0].url, '/smkit/api/explorer/delete')
+    assert.deepEqual(JSON.parse(view.requests[0].body), { path: '/ws/src/a.ts' })
+    assert.equal(view.dialog(), null, 'and the dialog closes on success')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('promises the directory’s contents, and stays open with the failure', async () => {
+  const view = mount()
+  try {
+    view.reply({ ok: false, status: 500, body: { code: 'explorer/unavailable', error: 'EBUSY: resource busy' } })
+    view.contextMenu(view.dir.children[0])
+    view.select('delete')
+    assert.equal(view.dialog().body, 'deleteDescDir')
+    view.dialog().onConfirm()
+    await settle()
+    assert.equal(view.dialog().error, 'EBUSY: resource busy')
+    assert.notEqual(view.dialog(), null, 'the dialog keeps the reason on screen')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('cancelling the confirmation deletes nothing', async () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.file.children[0])
+    view.select('delete')
+    view.dialog().onCancel()
+    await settle()
+    assert.equal(view.requests.length, 0)
+    assert.equal(view.dialog(), null)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('closes an open confirmation when the effect is disposed', () => {
+  const view = mount()
+  view.contextMenu(view.file.children[0])
+  view.select('delete')
+  assert.notEqual(view.dialog(), null)
+  view.dispose()
+  assert.equal(view.dialog(), null, 'the dialog goes with the effect')
 })

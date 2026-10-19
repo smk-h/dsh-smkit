@@ -51,10 +51,13 @@
 import type { ClientContext, ClientDeps, Translator } from '../../platform/types'
 import type { IconSpec } from '../../platform/icons/Icon'
 import { COPY_ICON } from './icons/CopyIcon'
+import { DELETE_ICON } from './icons/DeleteIcon'
 import { NEW_FILE_ICON } from './icons/NewFileIcon'
 import { PLUS_ICON } from './icons/PlusIcon'
-import { openCreateEditor, type CreateEditorHandle } from './create'
-import { relativeTo } from './paths'
+import { RENAME_ICON } from './icons/RenameIcon'
+import { baseName, relativeTo } from './paths'
+import { openDeleteDialog, type DeleteDialogHandle } from './delete'
+import { openRowEditor, type RowEditorHandle } from './row-editor'
 
 /** One tree row, and the tree's root anchor (which carries the cwd). */
 const ROW = 'li[data-files-entry]'
@@ -207,12 +210,20 @@ export function watchExplorerMenu(
   /** Pending "copied" labels, one per row, so a second copy restarts the clock. */
   const timers = new Map<Element, number>()
   /** The one inline editor open, if any (the source opens one at a time). */
-  let createEditor: CreateEditorHandle | null = null
+  let rowEditor: RowEditorHandle | null = null
+  /** The one delete confirmation open, if any. */
+  let deleteDialog: DeleteDialogHandle | null = null
 
-  /** Dismiss whichever creating editor is open, creating nothing. */
-  const closeCreateEditor = (): void => {
-    createEditor?.close()
-    createEditor = null
+  /** Dismiss whichever inline editor is open, committing nothing. */
+  const closeRowEditor = (): void => {
+    rowEditor?.close()
+    rowEditor = null
+  }
+
+  /** Dismiss whichever delete confirmation is open, deleting nothing. */
+  const closeDeleteDialog = (): void => {
+    deleteDialog?.close()
+    deleteDialog = null
   }
 
   // The menu host: a zero-size div in the body. The card itself is portalled by
@@ -268,6 +279,8 @@ export function watchExplorerMenu(
   /** Draw the menu's current state through the host component. */
   const draw = (): void => {
     const copyIcon = iconElement(h, COPY_ICON)
+    const renameIcon = iconElement(h, RENAME_ICON)
+    const deleteIcon = iconElement(h, DELETE_ICON)
     const open = menu
     root.render(
       h(runtime.Menu, {
@@ -286,6 +299,12 @@ export function watchExplorerMenu(
                 : []),
               { id: 'relative', label: t('copyRelative'), icon: copyIcon },
               { id: 'absolute', label: t('copyAbsolute'), icon: copyIcon },
+              // The mutations close the source's menu as their own group, after
+              // a hairline. The host tree has no root row, so the reference's
+              // "never on the root" rule has nothing to exclude here.
+              { id: 'mutate-sep', type: 'separator' },
+              { id: 'rename', label: t('rename'), icon: renameIcon },
+              { id: 'delete', label: t('delete'), icon: deleteIcon, danger: true },
             ],
         onSelect: (id: string) => { select(id) },
         onClose: () => { setMenu(null) },
@@ -312,16 +331,21 @@ export function watchExplorerMenu(
     const target = menu
     setMenu(null)
     if (target === null) return
-    if (id === 'new-folder' || id === 'new-file') {
-      // One editor at a time: a second "new …" gesture replaces the first.
-      closeCreateEditor()
-      createEditor = openCreateEditor({
+    if (id === 'new-folder' || id === 'new-file' || id === 'rename') {
+      // One editor at a time: a second "new …" or "rename" replaces the first.
+      closeRowEditor()
+      const creating = id !== 'rename'
+      rowEditor = openRowEditor({
         api: deps.api,
         t,
-        kind: id === 'new-file' ? 'file' : 'folder',
-        dir: target.path,
+        mode: creating ? 'create' : 'rename',
+        kind: creating
+          ? (id === 'new-folder' ? 'folder' : 'file')
+          : (target.kind === 'directory' ? 'folder' : 'file'),
+        path: target.path,
+        name: baseName(target.path),
         row: target.row,
-        // The source draws the typed name's own file glyph in that row
+        // The source draws the name's own file glyph in that row
         // (`service.fileIcon(probe, 14)`); this is the shell's twin of it.
         typeIcon: runtime.FileTypeIcon === undefined || runtime.classifyFileType === undefined
           ? undefined
@@ -331,6 +355,19 @@ export function watchExplorerMenu(
               classifyFileType: runtime.classifyFileType,
               createRoot: runtime.createRoot,
             },
+      })
+      return
+    }
+    if (id === 'delete') {
+      closeRowEditor()
+      closeDeleteDialog()
+      deleteDialog = openDeleteDialog({
+        deps,
+        createRoot: runtime.createRoot,
+        t,
+        path: target.path,
+        name: baseName(target.path),
+        isDir: target.kind === 'directory',
       })
       return
     }
@@ -364,7 +401,8 @@ export function watchExplorerMenu(
 
   return () => {
     document.removeEventListener('contextmenu', onContextMenu, true)
-    closeCreateEditor()
+    closeRowEditor()
+    closeDeleteDialog()
     for (const timer of timers.values()) clearTimeout(timer)
     timers.clear()
     for (const label of Array.from(document.querySelectorAll(`[${LABEL}]`))) label.remove()

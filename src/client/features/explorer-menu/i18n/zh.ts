@@ -22,4 +22,12 @@ export const EXPLORER_MENU_LOCALE_ZH: LocaleDict = {
   "fileNameInvalid": "文件名称无效",
   "fileNameExists": "同名文件已存在",
   "createFailed": "创建失败",
+  "rename": "重命名",
+  "renameInvalid": "名称不能为空，且不能包含路径分隔符。",
+  "renameFailed": "重命名失败",
+  "delete": "删除",
+  "deleteTitle": "删除「{name}」？",
+  "deleteDescFile": "将永久删除该文件，此操作不可撤销。",
+  "deleteDescDir": "将永久删除该目录及其全部内容，此操作不可撤销。",
+  "deleteFailed": "删除失败",
 }

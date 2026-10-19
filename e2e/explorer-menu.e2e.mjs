@@ -76,12 +76,17 @@ function entryHtml(parent, name) {
 }
 
 /** The page: the shell's tree shape, the host tokens, and the module table. */
-function pageHtml() {
-  const rows = readdirSync(root)
+/** The root level's rows, as the harness tree shows them right now. */
+function treeRows() {
+  return readdirSync(root)
     .filter((name) => !name.startsWith('.'))
     .sort((a, b) => Number(statSync(join(root, b)).isDirectory()) - Number(statSync(join(root, a)).isDirectory()) || a.localeCompare(b))
     .map((name) => entryHtml(root, name))
     .join('')
+}
+
+function pageHtml() {
+  const rows = treeRows()
   return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <title>explorer menu e2e</title>
@@ -148,16 +153,51 @@ function pageHtml() {
                 stubMenu = null
                 window.__menu = null
               }
+              /* A plain renderer for everything the real React would mount: the
+                 confirm dialog is an ordinary component tree of DOM elements. */
+              const paint = (element, parent) => {
+                if (element === null || element === undefined || element === false) return
+                if (typeof element === 'string' || typeof element === 'number') {
+                  parent.appendChild(document.createTextNode(String(element)))
+                  return
+                }
+                if (Array.isArray(element)) {
+                  for (const child of element) paint(child, parent)
+                  return
+                }
+                const props = element.props ?? {}
+                if (typeof element.type === 'function') {
+                  paint(element.type(props), parent)
+                  return
+                }
+                const node = document.createElement(element.type)
+                for (const [name, value] of Object.entries(props)) {
+                  if (name === 'children' || value === undefined || value === null || value === false) continue
+                  if (name === 'className') node.setAttribute('class', String(value))
+                  else if (name.startsWith('on') && typeof value === 'function') node.addEventListener(name.slice(2).toLowerCase(), value)
+                  else if (name === 'style' && typeof value === 'object') Object.assign(node.style, value)
+                  else node.setAttribute(name, String(value))
+                }
+                paint(props.children, node)
+                paint(element.children, node)
+                parent.appendChild(node)
+              }
               return {
                 render(node) {
                   if (node === null || node === undefined || node.props === undefined) return
                   /* The editor's glyph slot: a second root of this same stub. */
-                  if (typeof node.props.kind === 'string' && node.props.items === undefined) {
+                  if (typeof node.props.kind === 'string' && node.props.items === undefined && node.props.title === undefined) {
                     container.replaceChildren()
                     const glyph = document.createElement('span')
                     glyph.setAttribute('data-stub-icon', node.props.kind)
                     glyph.textContent = node.props.kind.slice(0, 2).toUpperCase()
                     container.appendChild(glyph)
+                    return
+                  }
+                  /* Anything with a title is the confirm dialog: paint it whole. */
+                  if (typeof node.props.title === 'string') {
+                    container.replaceChildren()
+                    paint(node, container)
                     return
                   }
                   dismiss()
@@ -166,6 +206,13 @@ function pageHtml() {
                   menu.setAttribute('data-stub-menu', '')
                   menu.style.cssText = 'position:fixed;left:8px;top:8px;z-index:1001;background:#fff;border:1px solid #ccc;padding:4px;display:flex;flex-direction:column;gap:2px'
                   for (const item of node.props.items ?? []) {
+                    if (item.type === 'separator') {
+                      const line = document.createElement('div')
+                      line.setAttribute('data-stub-separator', '')
+                      line.style.cssText = 'height:1px;margin:2px 0;background:#ddd'
+                      menu.appendChild(line)
+                      continue
+                    }
                     const row = document.createElement('button')
                     row.type = 'button'
                     row.setAttribute('data-item', item.id)
@@ -207,6 +254,7 @@ function pageHtml() {
   /* A tree that expands the way the shell's does: children arrive on the first
      click, and the row reports its state — which is what the feature reads to
      decide whether it has to open a directory before creating inside it. */
+  function bindToggles() {
   for (const button of document.querySelectorAll('li[data-files-entry="directory"] > button[data-row-button]')) {
     button.addEventListener('click', () => {
       const item = button.parentElement
@@ -226,6 +274,16 @@ function pageHtml() {
       button.setAttribute('aria-expanded', 'true')
     })
   }
+  }
+  bindToggles()
+
+  /* The shell's directory watch, reduced to a helper: after a mutation lands,
+     the level is re-listed and its rows are new nodes. */
+  window.__reload = async () => {
+    const rows = await (await fetch('/rows')).text()
+    document.querySelector('#tree').innerHTML = rows
+    bindToggles()
+  }
 
   const dictionaries = {}
   const disposes = []
@@ -236,7 +294,12 @@ function pageHtml() {
     on: () => () => {},
     locale: {
       register(namespace, dicts) { dictionaries[namespace] = dicts; return () => { delete dictionaries[namespace] } },
-      bind(namespace) { return (key) => dictionaries[namespace]?.zh?.[key] ?? key },
+      bind(namespace) {
+        return (key, values) => {
+          const template = dictionaries[namespace]?.zh?.[key] ?? key
+          return template.replace(/\\{(\\w+)\\}/g, (match, name) => (values?.[name] === undefined ? match : String(values[name])))
+        }
+      },
     },
     slots: { inject(_name, setup) { setup() }, register() { return () => {} }, entries: () => [] },
     sessions: {},
@@ -244,6 +307,7 @@ function pageHtml() {
   }
   try {
     window.__client.apply(ctx)
+    window.__harness.ctx = ctx
     window.__harness.applied = true
   } catch (error) {
     window.__harness.error = String(error && error.stack || error)
@@ -269,6 +333,11 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/client.js') {
     res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' })
     createReadStream(bundle).pipe(res)
+    return
+  }
+  if (url.pathname === '/rows') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.end(treeRows())
     return
   }
   if (url.pathname === '/__calls') {
@@ -395,6 +464,8 @@ async function measure(path) {
       placeholder: input.getAttribute('placeholder'),
       label: input.getAttribute('aria-label'),
       kind: node.getAttribute('data-smkit-explorer-new-kind'),
+      mode: node.getAttribute('data-smkit-explorer-editor-mode'),
+      value: input.value,
     }
   }, row(path))
 }
@@ -412,6 +483,9 @@ async function refusal() {
 
 const callsNow = async () => (await fetch(`${base}/__calls`)).json()
 
+/** Re-list the tree, as the shell's directory watch does after a mutation. */
+const reload = async () => { await page.evaluate(() => window.__reload()) }
+
 try {
   await page.goto(base)
   await page.waitForFunction(() => window.__harness.applied === true || window.__harness.error !== null)
@@ -423,7 +497,7 @@ try {
   await openMenuOn(dirPath)
   const dirLabels = await page.locator('[data-stub-menu] [data-item]').allTextContents()
   check('a directory row offers 新建文件夹 / 新建文件 first, then the copy rows', () => {
-    assert.deepEqual(dirLabels, ['新建文件夹', '新建文件', '复制相对路径', '复制绝对路径'])
+    assert.deepEqual(dirLabels, ['新建文件夹', '新建文件', '复制相对路径', '复制绝对路径', '重命名', '删除'])
   })
   await page.screenshot({ path: join(tmpdir(), 'smkit-e2e-menu.png') })
   await page.evaluate(() => window.__menu?.onClose?.())
@@ -431,7 +505,7 @@ try {
   await openMenuOn(join(root, 'readme.md'))
   const fileLabels = await page.locator('[data-stub-menu] [data-item]').allTextContents()
   check('a file row never offers the creating rows', () => {
-    assert.deepEqual(fileLabels, ['复制相对路径', '复制绝对路径'])
+    assert.deepEqual(fileLabels, ['复制相对路径', '复制绝对路径', '重命名', '删除'])
   })
   await page.evaluate(() => window.__menu?.onClose?.())
 
@@ -648,6 +722,112 @@ try {
   check('Escape dismisses it without creating', () => {
     assert.equal(existsSync(join(dirPath, 'composed.txt')), false)
   })
+
+  /* ---------------------------------------------------------------- rename */
+  console.log('\nrename')
+  const readme = join(root, 'readme.md')
+  await openMenuOn(readme)
+  const fileMenu = await page.locator('[data-stub-menu] [data-item]').allTextContents()
+  const separators = await page.locator('[data-stub-menu] [data-stub-separator]').count()
+  check('a file row closes with 重命名 / 删除, after a hairline', () => {
+    assert.deepEqual(fileMenu, ['复制相对路径', '复制绝对路径', '重命名', '删除'])
+    assert.equal(separators, 1, 'the mutations are their own group, as in the source menu')
+  })
+  await pick('rename')
+  await card.waitFor()
+  await page.screenshot({ path: join(tmpdir(), 'smkit-e2e-rename.png') })
+  const renameAt = await measure(readme)
+  check('the rename editor replaces the row it edits, at that row’s own box', () => {
+    assert.equal(renameAt.cardStyle.height, '28px')
+    assert.equal(renameAt.inputStyle.height, '22px')
+    assert.equal(renameAt.inputStyle.borderColor, 'rgb(59, 130, 246)')
+    assert.equal(Math.round(renameAt.card.left), Math.round(renameAt.row.left))
+    assert.equal(Math.round(renameAt.card.top), Math.round(renameAt.row.top))
+    assert.equal(Math.round(renameAt.card.width), Math.round(renameAt.row.width))
+  })
+  check('and opens with the current name in the field', () => {
+    assert.equal(renameAt.mode, 'rename')
+    assert.equal(renameAt.value, 'readme.md')
+    assert.equal(renameAt.label, '重命名')
+  })
+
+  const beforeUnchanged = (await callsNow()).length
+  await card.locator('input').press('Enter')
+  await card.waitFor({ state: 'detached' })
+  await checkAsync('an unchanged name sends nothing and just closes', async () => {
+    assert.equal((await callsNow()).length, beforeUnchanged)
+    assert.equal(existsSync(readme), true)
+  })
+
+  await openMenuOn(readme)
+  await pick('rename')
+  await card.waitFor()
+  await card.locator('input').fill('readme-renamed.md')
+  await card.locator('input').press('Enter')
+  await card.waitFor({ state: 'detached' })
+  const renamed = join(root, 'readme-renamed.md')
+  check('Enter renames it on disk, bytes intact', () => {
+    assert.equal(existsSync(renamed), true)
+    assert.equal(existsSync(readme), false)
+    assert.equal(readFileSync(renamed, 'utf8'), '# readme\n')
+  })
+  await reload()
+
+  await openMenuOn(renamed)
+  await pick('rename')
+  await card.waitFor()
+  await card.locator('input').fill('src')
+  await card.locator('input').press('Enter')
+  await page.waitForTimeout(150)
+  const renameRefusal = await refusal()
+  check('a taken name keeps the editor open with the host’s own sentence', () => {
+    assert.equal(renameRefusal.visible, true)
+    assert.equal(renameRefusal.text, '"src" already exists')
+    assert.equal(renameRefusal.color, 'rgb(220, 38, 38)')
+  })
+  await card.locator('input').press('Escape')
+  await card.waitFor({ state: 'detached' })
+
+  /* ---------------------------------------------------------------- delete */
+  console.log('\ndelete')
+  const dialog = page.locator('.smkit-ui-dialog')
+  await openMenuOn(renamed)
+  await pick('delete')
+  await dialog.waitFor()
+  await page.screenshot({ path: join(tmpdir(), 'smkit-e2e-delete.png') })
+  await checkAsync('the confirmation names the file and says it is permanent', async () => {
+    assert.equal(await page.locator('.smkit-ui-dialog-title').textContent(), '删除「readme-renamed.md」？')
+    assert.equal(await page.locator('.smkit-ui-dialog-body').textContent(), '将永久删除该文件，此操作不可撤销。')
+  })
+  await page.locator('.smkit-ui-dialog-actions button').first().click()
+  await dialog.waitFor({ state: 'detached' })
+  check('cancelling keeps the file', () => {
+    assert.equal(existsSync(renamed), true)
+  })
+
+  await openMenuOn(renamed)
+  await pick('delete')
+  await dialog.waitFor()
+  await page.locator('.smkit-ui-dialog-actions button.danger').click()
+  await dialog.waitFor({ state: 'detached' })
+  check('confirming removes it from disk', () => {
+    assert.equal(existsSync(renamed), false)
+  })
+
+  await openMenuOn(draftPath)
+  await pick('delete')
+  await dialog.waitFor()
+  await checkAsync('a directory says its contents go too', async () => {
+    assert.equal(await page.locator('.smkit-ui-dialog-title').textContent(), '删除「draft」？')
+    assert.equal(await page.locator('.smkit-ui-dialog-body').textContent(), '将永久删除该目录及其全部内容，此操作不可撤销。')
+  })
+  await page.locator('.smkit-ui-dialog-actions button.danger').click()
+  await dialog.waitFor({ state: 'detached' })
+  check('and the whole directory goes with it', () => {
+    assert.equal(existsSync(draftPath), false)
+    assert.equal(existsSync(join(draftPath, 'inside.txt')), false)
+  })
+
   await page.screenshot({ path: join(tmpdir(), 'smkit-e2e-card.png') })
 } finally {
   await browser.close()
@@ -657,5 +837,5 @@ try {
 
 const failed = failures.length
 console.log(`\n${checks - failed}/${checks} checks passed${failed === 0 ? '' : `, ${failed} failed`}`)
-console.log(`screenshots: ${join(tmpdir(), 'smkit-e2e-menu.png')} (menu), ${join(tmpdir(), 'smkit-e2e-refused.png')} (refusal), ${join(tmpdir(), 'smkit-e2e-card.png')} (editor)`)
+console.log(`screenshots: ${join(tmpdir(), 'smkit-e2e-menu.png')} (menu), ${join(tmpdir(), 'smkit-e2e-card-open.png')} (create editor), ${join(tmpdir(), 'smkit-e2e-rename.png')} (rename editor), ${join(tmpdir(), 'smkit-e2e-delete.png')} (confirmation), ${join(tmpdir(), 'smkit-e2e-refused.png')} (refusal)`)
 process.exit(failed === 0 ? 0 : 1)

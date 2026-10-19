@@ -26,3 +26,27 @@ export function relativeTo(cwd: string, path: string): string {
   if (nPath.toLowerCase().startsWith(`${nBase.toLowerCase()}/`)) return nPath.slice(nBase.length + 1)
   return path
 }
+
+/**
+ * The last segment of a path, either separator ('' for a trailing separator).
+ * @param path - an absolute entry path from the file tree.
+ * @returns the entry's own name.
+ */
+export function baseName(path: string): string {
+  const trimmed = path.replace(/[\\/]+$/, '')
+  const cut = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'))
+  return cut === -1 ? trimmed : trimmed.slice(cut + 1)
+}
+
+/**
+ * The directory that contains `path`, either separator, keeping the root edge.
+ * @param path - an absolute entry path from the file tree.
+ * @returns the containing directory ('/' for a first-level entry on POSIX).
+ */
+export function parentOf(path: string): string {
+  const trimmed = path.replace(/[\\/]+$/, '')
+  const cut = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'))
+  if (cut === -1) return ''
+  if (cut === 0) return trimmed.slice(0, 1)
+  return trimmed.slice(0, cut)
+}

@@ -18,4 +18,12 @@ export const EXPLORER_MENU_LOCALE_EN: LocaleDict = {
   "fileNameInvalid": "That file name is not valid",
   "fileNameExists": "A file with that name already exists",
   "createFailed": "Could not create it",
+  "rename": "Rename",
+  "renameInvalid": "The name cannot be empty or contain path separators.",
+  "renameFailed": "Could not rename it",
+  "delete": "Delete",
+  "deleteTitle": "Delete \"{name}\"?",
+  "deleteDescFile": "This permanently deletes the file. This cannot be undone.",
+  "deleteDescDir": "This permanently deletes the directory and everything inside it. This cannot be undone.",
+  "deleteFailed": "Could not delete it",
 }
