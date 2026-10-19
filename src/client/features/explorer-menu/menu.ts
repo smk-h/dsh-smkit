@@ -18,7 +18,10 @@
  *   (`relativeTo`), the absolute row copies the row's own path;
  * - a successful write replaces the row's trailing `@` chip with a "copied"
  *   label for 1.2 s; a refused write shows nothing at all;
- * - the menu closes on selection, outside press and Escape.
+ * - the menu closes on selection, outside press and Escape;
+ * - while it is open the row it was opened on keeps the shell's hover fill:
+ *   the card is portalled away from that row, so the pointer leaving it would
+ *   otherwise drop the highlight (see `style/menu-row.css`).
  *
  * ## Why the shell's own `Menu` is rendered here
  *
@@ -66,6 +69,13 @@ const TREE = '[data-files-state="tree"]'
 /** This feature's markers: the transient label, and the row that carries it. */
 const LABEL = 'data-smkit-explorer-label'
 const COPIED = 'data-smkit-explorer-copied'
+/**
+ * The row the open menu belongs to. The shell paints `row:hover` on the row's
+ * button, so the fill drops out the moment the pointer leaves the row for the
+ * portalled menu card; this marker lets `style/menu-row.css` re-apply the same
+ * token for as long as the menu is up.
+ */
+const TARGET = 'data-smkit-explorer-target'
 /** The label's namespaced class (see `style/label.css`). */
 const LABEL_CLASS = 'smkit-explorer-label'
 
@@ -316,8 +326,23 @@ export function watchExplorerMenu(
     )
   }
 
-  /** Open or close the menu. */
+  /**
+   * Move the "kept lit" marker to the row of the menu being opened, and take it
+   * off every other row. A tree re-render can replace the row element between
+   * two menus, so the old marker is cleared by attribute rather than by the
+   * element this feature remembers.
+   */
+  const markTarget = (next: MenuTarget | null): void => {
+    const row = next === null ? null : next.row
+    for (const marked of Array.from(document.querySelectorAll(`[${TARGET}]`))) {
+      if (marked !== row) marked.removeAttribute(TARGET)
+    }
+    if (row !== null) row.setAttribute(TARGET, '')
+  }
+
+  /** Open or close the menu, keeping its row lit while it is up. */
   const setMenu = (next: MenuTarget | null): void => {
+    markTarget(next)
     menu = next
     draw()
   }
@@ -407,6 +432,7 @@ export function watchExplorerMenu(
     timers.clear()
     for (const label of Array.from(document.querySelectorAll(`[${LABEL}]`))) label.remove()
     for (const row of Array.from(document.querySelectorAll(`[${COPIED}]`))) row.removeAttribute(COPIED)
+    for (const row of Array.from(document.querySelectorAll(`[${TARGET}]`))) row.removeAttribute(TARGET)
     menu = null
     root.unmount()
     container.remove()

@@ -554,6 +554,39 @@ it('lets the host component close the menu (outside press, Escape)', () => {
   }
 })
 
+it('keeps the row lit while its menu is open, one row at a time', () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.file.children[0])
+    assert.equal(
+      view.file.getAttribute('data-smkit-explorer-target'),
+      '',
+      'the portalled card leaves the row, so the row has to be lit by its own marker',
+    )
+    assert.equal(view.dir.getAttribute('data-smkit-explorer-target'), null)
+
+    view.contextMenu(view.dir.children[0])
+    assert.equal(view.dir.getAttribute('data-smkit-explorer-target'), '', 'a second menu moves the light')
+    assert.equal(view.file.getAttribute('data-smkit-explorer-target'), null, 'and releases the first row')
+
+    view.close()
+    assert.equal(view.dir.getAttribute('data-smkit-explorer-target'), null, 'closing the menu releases the row')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('releases the lit row as soon as an action is chosen', () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.dir.children[0])
+    view.select('new-file')
+    assert.equal(view.dir.getAttribute('data-smkit-explorer-target'), null, 'the editor, not the menu, is up now')
+  } finally {
+    view.dispose()
+  }
+})
+
 it('keeps the browser’s right-click while dsh-better-sidebar owns the tree', () => {
   const view = mount({ betterSidebar: true })
   try {
@@ -584,6 +617,7 @@ it('unmounts its root and leaves the body clean when disposed', () => {
   const view = mount()
   view.contextMenu(view.file.children[0])
   view.dispose()
+  assert.equal(view.file.getAttribute('data-smkit-explorer-target'), null, 'the kept-lit marker goes with the effect')
   assert.equal(view.roots.length, 1)
   assert.equal(view.roots[0].unmounted, true)
   const host = view.tree.parentNode

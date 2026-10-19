@@ -1,0 +1,24 @@
+/**
+ * The row the open right-click menu belongs to.
+ *
+ * The shell paints a row's hover fill on the row BUTTON (`row:hover`), and the
+ * menu card is portalled to the body: the moment the pointer travels from the
+ * row onto the card, the row stops matching `:hover` and the fill drops out —
+ * the menu then sits beside a row that no longer looks like the one it was
+ * opened for. The reference plugin never shows this: its menu is drawn inside
+ * its own tree, so the row stays lit for the whole gesture.
+ *
+ * This sheet restores that look without touching the shell's classes: while the
+ * menu is open its row carries `data-smkit-explorer-target`, and its button
+ * keeps the shell's own hover token. Same token, same radius — the button's
+ * radius stays the shell's, only the colour is re-applied.
+ *
+ * Two exclusions are load-bearing. The `@` chip (`file-reference`) is a sibling
+ * button in the same row and paints its own surface, so it must not take the
+ * row's fill; and nested rows of an expanded directory are `> ul > li > button`,
+ * never direct children, so they are untouched by construction.
+ */
+
+li[data-smkit-explorer-target] > button:not([data-smkit-file-ref-button]) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}

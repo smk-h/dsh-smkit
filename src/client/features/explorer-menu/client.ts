@@ -16,7 +16,7 @@
 
 import { EXPLORER_MENU_LOCALE_EN } from './i18n/en'
 import { EXPLORER_MENU_LOCALE_ZH } from './i18n/zh'
-import { EXPLORER_MENU_CSS, EXPLORER_NEW_ROW_CSS } from './styles'
+import { EXPLORER_MENU_CSS, EXPLORER_MENU_ROW_CSS, EXPLORER_NEW_ROW_CSS } from './styles'
 import { watchExplorerMenu } from './menu'
 import type { ClientContext, ClientDeps, ClientFeature } from '../../platform/types'
 
@@ -30,6 +30,7 @@ export const explorerMenuFeature: ClientFeature = {
   styles: [
     { name: 'explorer-menu/label', css: EXPLORER_MENU_CSS },
     { name: 'explorer-menu/new-row', css: EXPLORER_NEW_ROW_CSS },
+    { name: 'explorer-menu/menu-row', css: EXPLORER_MENU_ROW_CSS },
   ],
 
   register(ctx: ClientContext, deps: ClientDeps, t): void {
