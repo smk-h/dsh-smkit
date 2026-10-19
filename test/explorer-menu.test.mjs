@@ -401,7 +401,7 @@ function mount(options = {}) {
     clearInterval: () => {},
   })
 
-  /** The neighbour service the feature probes; `true` = published, types on. */
+  /** The neighbour service the feature probes; `true` = published. */
   const services = {
     betterSidebar: options.betterSidebar === true
       ? { isTabEnabled: () => true }

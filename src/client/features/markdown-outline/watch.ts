@@ -40,14 +40,13 @@
  * ## Only one of the two outlines is ever on screen
  *
  * `dsh-better-sidebar` already draws this exact outline inside its own editor
- * tab. While that plugin's `editor` tab type is enabled it also takes the
- * host's file preview over, so the body this feature decorates is not rendered
- * at all — but the decision is still made explicitly, the same way the explorer
- * chip makes it (`file-reference/watch.ts`): a published `betterSidebar`
- * service means the neighbour owns the surface, and only an explicit
- * `isTabEnabled('editor') === false` hands it back. The check runs on every
- * scan and on every body re-render, so enabling or disabling that type takes
- * effect without a reload.
+ * tab. While that plugin is loaded it also takes the host's file preview over,
+ * so the body this feature decorates is not rendered at all — but the decision
+ * is still made explicitly, the same way the explorer chip makes it
+ * (`platform/neighbour.ts`): a published `betterSidebar` service means the
+ * neighbour owns the surface, and its own tab-type switches are not consulted.
+ * The check runs on every scan and on every body re-render, so loading or
+ * unloading that plugin takes effect without a reload.
  *
  * ## The one real gap: `text-pages`
  *
@@ -60,6 +59,7 @@
  */
 
 import type { ClientContext, Translator } from '../../platform/types'
+import { betterSidebarOwnsSurfaces } from '../../platform/neighbour'
 import type { IconSpec } from '../../platform/icons/Icon'
 import { LIST_PEN_ICON } from './icons/ListPenIcon'
 
@@ -167,38 +167,6 @@ function pinToDocumentPadding(bar: HTMLElement, doc: Element): void {
   if (styled.style === undefined) return
   const padding = getComputedStyle(doc).paddingTop
   if (padding !== '') styled.style.top = padding
-}
-
-/** The slice of `dsh-better-sidebar`'s client service this feature reads. */
-interface BetterSidebarFace {
-  /** Whether one of that plugin's tab types is enabled in its settings. */
-  isTabEnabled?(id: string): boolean
-}
-
-/**
- * Whether `dsh-better-sidebar` is the one drawing the file preview right now.
- *
- * Its service being published is not enough: that plugin registers its `editor`
- * tab type — the one whose `MdToc` is this feature's twin — only while the type
- * is enabled, and hands the file preview back to the shell when the user
- * switches it off. Asking the same question the other plugin asks itself keeps
- * exactly one outline on screen in both states (the explorer chip asks the same
- * question about the same switch, in `file-reference/watch.ts`).
- *
- * Read through reflection because it is an optional neighbour: declaring it
- * would make this bundle unloadable without it.
- */
-function betterSidebarOwnsPreview(ctx: ClientContext): boolean {
-  try {
-    const service = ctx.reflect?.get('betterSidebar') as BetterSidebarFace | undefined
-    if (service === undefined) return false
-    if (typeof service.isTabEnabled !== 'function') return true
-    return service.isTabEnabled('editor') !== false
-  } catch {
-    // A service that answers by throwing must not cost the decoration: if it
-    // does own the preview, the host's body is not rendered anyway.
-    return false
-  }
 }
 
 /**
@@ -338,7 +306,7 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
   const update = (outline: Outline): void => {
     // Checked here as well as in `scan`: a body that is already on screen can
     // see the neighbour take the surface over between two of its own renders.
-    if (betterSidebarOwnsPreview(ctx)) {
+    if (betterSidebarOwnsSurfaces(ctx)) {
       standDown()
       return
     }
@@ -390,7 +358,7 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
   /**
    * Give the surface back: `dsh-better-sidebar` owns it. The document observer
    * stays armed, so the shell's own preview body — rendered again the moment
-   * that plugin's editor type is switched off — starts a fresh scan.
+   * that plugin is unloaded — starts a fresh scan.
    */
   const standDown = (): void => {
     for (const outline of Array.from(outlines.values())) release(outline)
@@ -401,7 +369,7 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
   const scan = (): void => {
     scheduled = false
     frame = null
-    if (betterSidebarOwnsPreview(ctx)) {
+    if (betterSidebarOwnsSurfaces(ctx)) {
       standDown()
       return
     }

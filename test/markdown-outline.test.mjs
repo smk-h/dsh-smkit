@@ -248,8 +248,8 @@ function previewBody(headings, paddingTop) {
  * assertions need.
  * @param options - `headings` to render, the document's `paddingTop` (10px as
  *   the host sets it), the `betterSidebar` service the neighbour probe should
- *   find (`true` = published with every type on), and `computedStyle: false`
- *   to stand in for a harness with no layout.
+ *   find (`true` = published), and `computedStyle: false` to stand in for a
+ *   harness with no layout.
  */
 function mount(options = {}) {
   const html = new SandboxElement('html')
@@ -367,7 +367,7 @@ function mount(options = {}) {
     clearInterval: () => {},
   })
 
-  /** The neighbour service the feature probes; `true` is "published, nothing off". */
+  /** The neighbour service the feature probes; `true` is "published". */
   const services = {
     betterSidebar: options.betterSidebar === true
       ? { isTabEnabled: () => true }
@@ -630,8 +630,7 @@ it('takes the bar away when the preview stops being Markdown, and puts it back',
 
 it('stands down while dsh-better-sidebar owns the file preview', () => {
   // That plugin's own editor tab carries this exact outline, so a second one
-  // would be the defect — and its editor type being enabled is what puts the
-  // file preview in its hands.
+  // would be the defect — and it is loaded that puts the preview in its hands.
   const view = mount({ headings: [heading(1, '一'), heading(2, '二'), heading(2, '三')], betterSidebar: true })
   try {
     assert.equal(view.bar(), null, 'no bar, not merely no toggle')
@@ -643,25 +642,16 @@ it('stands down while dsh-better-sidebar owns the file preview', () => {
   }
 })
 
-it('assumes ownership when the neighbour cannot answer the switch', () => {
-  // A service published without `isTabEnabled` is a version that predates the
-  // switch; the editor type is then on, as it has always been.
-  const view = mount({ headings: [heading(1, '一'), heading(2, '二'), heading(2, '三')], betterSidebar: {} })
-  try {
-    assert.equal(view.bar(), null)
-  } finally {
-    view.dispose()
-  }
-})
-
-it('takes the seat back when dsh-better-sidebar hands the preview to the shell', () => {
+it('stands down for any published service, its own tab switches included', () => {
+  // Policy: loaded means yield. The neighbour's per-type switches are not
+  // consulted, so a service reporting every type off still owns the surface.
   const view = mount({
     headings: [heading(1, '一'), heading(2, '二'), heading(2, '三')],
-    betterSidebar: { isTabEnabled: (id) => id !== 'editor' },
+    betterSidebar: { isTabEnabled: () => false },
   })
   try {
-    assert.ok(view.bar() !== null, 'with the editor type off the shell draws the preview')
-    assert.ok(view.toggle() !== null)
+    assert.equal(view.bar(), null, 'no bar, not merely no toggle')
+    assert.equal(view.toggle(), null)
   } finally {
     view.dispose()
   }

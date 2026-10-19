@@ -620,17 +620,16 @@ it('stands down when dsh-better-sidebar owns the same affordance', () => {
   }
 })
 
-it('takes the seat back when dsh-better-sidebar hands the files page to the shell', () => {
-  // That plugin only registers the `files` takeover while its editor type is
-  // enabled; with the type off the host's tree is what is on screen, and it has
-  // no chip of its own.
+it('stands down for any published service, its own tab switches included', () => {
+  // Policy: loaded means yield. The neighbour's per-type switches are not
+  // consulted, so a service reporting every type off still owns the tree.
   const view = mount({
     rows: [entry('file', '/work/src/a.ts')],
-    betterSidebar: { isTabEnabled: (id) => id !== 'editor' },
+    betterSidebar: { isTabEnabled: () => false },
   })
   try {
-    assert.equal(view.chips().length, 1)
-    assert.equal(view.status().reason, 'active')
+    assert.equal(view.chips().length, 0)
+    assert.equal(view.status().reason, 'better-sidebar')
   } finally {
     view.dispose()
   }

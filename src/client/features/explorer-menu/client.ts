@@ -6,8 +6,8 @@
  * (`src/client/FileTree.tsx`). The shell's tree publishes no context menu of its
  * own, so this feature supplies one — the shell's own `Menu` component, one row
  * group per action — for the rows the shell draws. It yields to that neighbour:
- * while `dsh-better-sidebar`'s `editor` type is enabled its explorer owns the
- * page and already carries the same rows, so this feature stays out of the way.
+ * while `dsh-better-sidebar` is loaded its explorer owns the page and already
+ * carries the same rows, so this feature stays out of the way.
  *
  * Today the menu carries the two copy-path rows plus the two creating rows
  * (new folder, new file) that open the inline editor in `create.ts`; the

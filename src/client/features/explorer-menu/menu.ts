@@ -46,12 +46,13 @@
  *
  * ## Only one of us is ever active
  *
- * While `dsh-better-sidebar` owns the `files` page its explorer already offers
- * both rows, so this feature stands down — the same probe the `@` chip uses
- * (`file-reference/watch.ts`), asked at every right-click.
+ * While `dsh-better-sidebar` is loaded its explorer already offers these rows,
+ * so this feature stands down — the same probe the `@` chip uses
+ * (`platform/neighbour.ts`), asked at every right-click.
  */
 
 import type { ClientContext, ClientDeps, Translator } from '../../platform/types'
+import { betterSidebarOwnsSurfaces } from '../../platform/neighbour'
 import type { IconSpec } from '../../platform/icons/Icon'
 import { COPY_ICON } from './icons/CopyIcon'
 import { DELETE_ICON } from './icons/DeleteIcon'
@@ -115,35 +116,6 @@ interface MenuTarget {
   kind: RowKind
   x: number
   y: number
-}
-
-/** The slice of `dsh-better-sidebar`'s client service this feature reads. */
-interface BetterSidebarFace {
-  /** Whether one of that plugin's tab types is enabled in its settings. */
-  isTabEnabled?(id: string): boolean
-}
-
-/**
- * Whether `dsh-better-sidebar` is the one drawing the `files` page right now.
- *
- * Its service being published is not enough: that plugin registers the `files`
- * takeover only while its `editor` type is enabled, and hands the page back to
- * the shell when the user switches that type off. Its explorer's menu already
- * carries both copy rows, so this feature must not offer a second menu on rows
- * that are not the shell's — the same probe, and the same reason, as
- * `file-reference/watch.ts`.
- */
-function betterSidebarOwnsExplorer(ctx: ClientContext): boolean {
-  try {
-    const service = ctx.reflect?.get('betterSidebar') as BetterSidebarFace | undefined
-    if (service === undefined) return false
-    if (typeof service.isTabEnabled !== 'function') return true
-    return service.isTabEnabled('editor') !== false
-  } catch {
-    // A service that answers by throwing must not cost the feature: if it does
-    // own the page, its rows are not the host's, so no menu is shown either way.
-    return false
-  }
 }
 
 /** The host modules, resolved once; undefined makes the feature a no-op. */
@@ -413,7 +385,7 @@ export function watchExplorerMenu(
     if (row === null) return
     const path = row.getAttribute('data-files-path')
     if (path === null || path === '') return
-    if (betterSidebarOwnsExplorer(ctx)) return
+    if (betterSidebarOwnsSurfaces(ctx)) return
     const rootPath = row.closest(TREE)?.getAttribute('data-files-root') ?? ''
     const kind = (row.getAttribute('data-files-entry') ?? 'other') as RowKind
     // Only claim the gesture once a menu can actually be shown.

@@ -9,9 +9,9 @@
  * outline inside that plugin's own editor tab.
  *
  * Like the explorer chip, it yields to that neighbour: while
- * `dsh-better-sidebar`'s `editor` type is enabled, that plugin owns the file
- * preview and already shows its own outline, so this feature stands itself
- * down and takes the surface back only when the type is switched off.
+ * `dsh-better-sidebar` is loaded, that plugin owns the file preview and already
+ * shows its own outline, so this feature stands itself down and takes the
+ * surface back only when that plugin is unloaded.
  */
 
 import { MARKDOWN_OUTLINE_LOCALE_EN } from './i18n/en'

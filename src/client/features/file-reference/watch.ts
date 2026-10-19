@@ -12,17 +12,15 @@
  * ## Only one of us is ever active
  *
  * The same affordance exists in `dsh-better-sidebar`, which owns the `files`
- * page while installed. Two chips on one row would be a defect, so this watch
- * stands down in that case — and it re-checks on every scan, so a sidebar
- * installed after this bundle still wins. The test is not merely "the service
- * exists": that plugin registers its `files` takeover only while its `editor`
- * type is enabled, and hands the page back to the shell when it is switched
- * off — at which point the rows on screen are the host's and this feature is
- * the only one offering the chip. The same applies to a future host that grows
- * the affordance itself: a row carrying another `@`-labelled control (not
- * ours) marks the whole tree as already served. The decision is published
- * through the `smkitFileReference` service so a cooperating plugin can yield in
- * the other direction.
+ * page whenever it is loaded. Two chips on one row would be a defect, so this
+ * watch stands down in that case — and it re-checks on every scan, so a
+ * sidebar loaded after this bundle still wins. The test is whether that
+ * plugin's `betterSidebar` service is published (`platform/neighbour.ts`):
+ * loaded means yield, its own tab-type switches are not consulted. A future
+ * host that grows the affordance itself is handled separately: a row carrying
+ * another `@`-labelled control (not ours) marks the whole tree as already
+ * served. The decision is published through the `smkitFileReference` service
+ * so a cooperating plugin can yield in the other direction.
  *
  * ## Why it costs nothing while idle
  *
@@ -35,6 +33,7 @@
  */
 
 import type { ClientContext, Translator } from '../../platform/types'
+import { betterSidebarOwnsSurfaces } from '../../platform/neighbour'
 import { insertWorkspaceReference, sessionOfRow } from './reference'
 
 /** The tree body once a listing has arrived, and one row inside it. */
@@ -60,38 +59,6 @@ export interface FileReferenceStatus {
   active: boolean
   /** `active`, or why it stood down. */
   reason: 'active' | 'better-sidebar' | 'host-affordance' | 'no-dom'
-}
-
-/** The slice of `dsh-better-sidebar`'s client service this feature reads. */
-interface BetterSidebarFace {
-  /** Whether one of that plugin's tab types is enabled in its settings. */
-  isTabEnabled?(id: string): boolean
-}
-
-/**
- * Whether `dsh-better-sidebar` is the one drawing the `files` page right now.
- *
- * Its service being published is not enough: that plugin registers the `files`
- * takeover only while its `editor` type is enabled, and unregisters it — which
- * brings the host's built-in tree back — when the user switches that type off
- * (`src/client/native/index.ts`, `sync`). Asking the same question the other
- * plugin asks itself is what keeps exactly one chip on screen in both states.
- *
- * Read through reflection because it is an optional neighbour: declaring it
- * would make this bundle unloadable without it.
- */
-function betterSidebarOwnsExplorer(ctx: ClientContext): boolean {
-  try {
-    const service = ctx.reflect?.get('betterSidebar') as BetterSidebarFace | undefined
-    if (service === undefined) return false
-    if (typeof service.isTabEnabled !== 'function') return true
-    return service.isTabEnabled('editor') !== false
-  } catch {
-    // A service that answers by throwing must not cost the decoration: if it
-    // does own the page, its rows are not the host's, so nothing is injected
-    // either way.
-    return false
-  }
 }
 
 /** Whether one tree already carries an `@` affordance this plugin did not add. */
@@ -205,7 +172,7 @@ export function watchFileReferences(
   /** Add or update the chips of one tree. */
   const decorate = (tree: Element): void => {
     if (!tree.isConnected) return
-    if (betterSidebarOwnsExplorer(ctx)) {
+    if (betterSidebarOwnsSurfaces(ctx)) {
       standDown('better-sidebar')
       return
     }
@@ -248,7 +215,7 @@ export function watchFileReferences(
   const scan = (): void => {
     scheduled = false
     frame = null
-    if (betterSidebarOwnsExplorer(ctx)) {
+    if (betterSidebarOwnsSurfaces(ctx)) {
       standDown('better-sidebar')
     } else {
       for (const tree of Array.from(document.querySelectorAll(TREE))) {
@@ -311,7 +278,7 @@ export function watchFileReferences(
     const path = entry.getAttribute('data-files-path')
     const kind = entry.getAttribute('data-files-entry')
     if (path === null || path === '' || (kind !== 'file' && kind !== 'directory')) return
-    if (betterSidebarOwnsExplorer(ctx)) {
+    if (betterSidebarOwnsSurfaces(ctx)) {
       standDown('better-sidebar')
       return
     }

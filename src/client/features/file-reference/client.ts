@@ -4,12 +4,11 @@
  * This is the one affordance in this plugin that lives on a surface the plugin
  * does not own. It rides the host's file tree (`ui-sidebar-files`) instead of
  * replacing it, and it yields to anyone who already provides the same thing —
- * `dsh-better-sidebar` owns the `files` page while its editor type is enabled
- * and gives every row exactly this chip, so only one of the two may be active.
- * When that type is switched off the plugin hands the page back to the shell
- * and this feature takes the seat. That decision is made by the watcher (see
- * `watch.ts`) and published here as `smkitFileReference`, so a cooperating
- * plugin can yield in the other direction.
+ * while `dsh-better-sidebar` is loaded it owns the `files` page and gives every
+ * row exactly this chip, so only one of the two may be active. That feature
+ * takes the seat back only when that plugin is unloaded. The decision is made
+ * by the watcher (see `watch.ts`) and published here as `smkitFileReference`,
+ * so a cooperating plugin can yield in the other direction.
  */
 
 import { FILE_REFERENCE_LOCALE_EN } from './i18n/en'
