@@ -7,8 +7,11 @@
  * plugin ports from has no equivalent for this surface: its go-to-line is
  * CodeMirror's own dialog inside its editor tab, behind Mod-Alt-g.
  *
- * Like the outline, it yields to `dsh-better-sidebar`: while that plugin is
- * loaded it owns the file preview, so this feature leaves the keystroke alone.
+ * Unlike the outline and the row menu, it does NOT yield to
+ * `dsh-better-sidebar`: that plugin draws its own version of those surfaces but
+ * has no go-to-line of its own (its Mod-g is "find next"), so this feature
+ * answers the keystroke on the neighbour's CodeMirror editor as well — see
+ * `watch.ts` for how the view is reached without importing CodeMirror.
  */
 
 import { LINE_JUMP_LOCALE_EN } from './i18n/en'
@@ -28,7 +31,7 @@ export const lineJumpFeature: ClientFeature = {
 
   register(ctx: ClientContext, _deps: ClientDeps, t): void {
     ctx.effect(
-      () => watchLineJump(ctx, t),
+      () => watchLineJump(t),
       'smkit: line-jump/preview',
     )
   },

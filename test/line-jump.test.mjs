@@ -62,6 +62,7 @@ function matchesParsed(element, parsed) {
 class SandboxElement {
   constructor(tagName, owner) {
     this.tagName = String(tagName).toUpperCase()
+    this.nodeType = 1
     this.owner = owner
     this.attributes = new Map()
     this.childNodes = []
@@ -100,6 +101,11 @@ class SandboxElement {
     let node = this
     while (node.parentNode !== null) node = node.parentNode
     return node.root === true
+  }
+
+  /** Layout is a rectangle here; the editor path reads its viewport height. */
+  get clientHeight() {
+    return this.rect.height
   }
 
   getAttribute(name) {
@@ -252,6 +258,10 @@ function mount(options = {}) {
   let scrollport = null
   let codeBlock = null
   let rows = []
+  const dispatches = []
+  let editorView = null
+  let editorContent = null
+  let editorLines = []
   if (mode === 'code') {
     const code = new SandboxElement('div')
     code.setAttribute('data-code-preview', 'true')
@@ -281,6 +291,49 @@ function mount(options = {}) {
       page.appendChild(row)
       rows.push(row)
     }
+  } else if (mode === 'editor') {
+    // The neighbour's file editor: a CodeMirror view whose gutter numbers are
+    // inert, and whose content box is `contenteditable` (so it looks like a text
+    // field to the feature until the editor path claims it first).
+    const editor = new SandboxElement('div')
+    editor.setAttribute('class', 'cm-editor')
+    editor.rect = { top: 100, left: 800, right: 1440, bottom: 700, width: 640, height: 600 }
+    const gutters = new SandboxElement('div')
+    gutters.setAttribute('class', 'cm-gutters')
+    if (options.gutter !== false) {
+      const numbers = new SandboxElement('div')
+      numbers.setAttribute('class', 'cm-lineNumbers')
+      gutters.appendChild(numbers)
+    }
+    editor.appendChild(gutters)
+    const content = new SandboxElement('div')
+    content.setAttribute('class', 'cm-content')
+    content.setAttribute('contenteditable', 'true')
+    content.rect = editor.rect
+    for (let number = 1; number <= total; number += 1) {
+      const line = new SandboxElement('div')
+      line.setAttribute('class', 'cm-line')
+      line.textContent = `line ${number}`
+      line.rect = { top: 100 + (number - 1) * 20, left: 800, right: 1440, bottom: 120 + (number - 1) * 20, width: 640, height: 20 }
+      content.appendChild(line)
+    }
+    editor.appendChild(content)
+    shell.appendChild(editor)
+    editorView = {
+      dom: editor,
+      contentDOM: content,
+      scrollDOM: editor,
+      state: { doc: { lines: total, line: (number) => ({ from: (number - 1) * 10, to: number * 10 }) } },
+      viewport: { from: 0, to: total * 10 },
+      domAtPos: (position) => ({ node: content.children[Math.floor(position / 10)] ?? content }),
+      lineBlockAt: (position) => ({ top: Math.floor(position / 10) * 20 }),
+      dispatch: (spec) => { dispatches.push(spec) },
+      focus: () => { editor.focused = true },
+      requestMeasure: () => {},
+    }
+    content.cmTile = { root: { view: editorView } }
+    editorContent = content
+    editorLines = content.children
   } else {
     // A rendered document, with a fenced code block inside it: the block is a
     // `CodeBlock` with its own scrollport, and must not pass for the preview's
@@ -429,7 +482,7 @@ function mount(options = {}) {
       defaultPrevented: false,
       isComposing: false,
       preventDefault() { this.defaultPrevented = true },
-      stopPropagation() {},
+      stopPropagation() { this.stopped = true },
       ...mods,
     }
     for (const handler of documentListeners.get('keydown') ?? []) handler(event)
@@ -460,6 +513,10 @@ function mount(options = {}) {
     body: shell,
     preview,
     scrollport,
+    dispatches,
+    editorView,
+    editorContent,
+    editorLines,
     rows,
     more,
     composer: composers[0] ?? null,
@@ -477,6 +534,20 @@ function mount(options = {}) {
       rows.length = 0
       for (let number = 1; number <= total; number += 1) rows.push(codeLine(codeBlock, number, 100 + (number - 1) * 20))
     },
+    /** Replace every rendered editor line, as CodeMirror does when it scrolls. */
+    rerenderEditor(total) {
+      if (editorContent === null) return
+      editorContent.childNodes = []
+      editorLines.length = 0
+      for (let number = 1; number <= total; number += 1) {
+        const line = new SandboxElement('div')
+        line.setAttribute('class', 'cm-line')
+        line.textContent = `line ${number}`
+        line.rect = { top: 100 + (number - 1) * 20, left: 800, right: 1440, bottom: 120 + (number - 1) * 20, width: 640, height: 20 }
+        editorContent.appendChild(line)
+        editorLines.push(line)
+      }
+    },
     /**
      * Deliver the re-render the go-to-line watcher is waiting for. The outline
      * keeps observers of its own on the same document, so only the one watching
@@ -484,7 +555,8 @@ function mount(options = {}) {
      */
     flushMutations() {
       for (const observer of observers) {
-        if (observer.targets.some((target) => target.hasAttribute?.('data-textpreview-state') === true)) observer.flush()
+        if (observer.targets.some((target) => target.hasAttribute?.('data-textpreview-state') === true
+          || target.getAttribute?.('class') === 'cm-content')) observer.flush()
       }
     },
     setBetterSidebar(value) { services.betterSidebar = value },
@@ -652,6 +724,64 @@ it('lands on the last line when the document ends before the named line', () => 
   }
 })
 
+it('opens inside the neighbour’s editor and takes the keystroke before its keymap', () => {
+  const view = mount({ mode: 'editor', lines: 120 })
+  try {
+    const event = view.press(view.editorContent, 'g')
+    assert.equal(event.defaultPrevented, true)
+    assert.equal(event.stopped, true, 'CodeMirror never sees Mod-g, so its find-next does not run')
+    const box = view.box()
+    assert.notEqual(box, null, 'the box opens on the editor too')
+    assert.equal(box.querySelector('[data-smkit-line-jump-hint]').textContent, '1–120')
+    assert.equal(box.querySelector('input').focused, true)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('lands in the editor with a caret a third down, and keeps the line marked', () => {
+  const view = mount({ mode: 'editor', lines: 40 })
+  try {
+    view.press(view.editorContent, 'g')
+    view.jump('30')
+    assert.equal(view.box(), null, 'the box closes on Enter')
+    // Line 30 starts at (30 − 1) × 10 = 290, and sits 580 into a 600-tall editor.
+    assert.equal(view.dispatches.length, 1)
+    assert.equal(view.dispatches[0].selection.anchor, 290, 'a caret, not a selection')
+    assert.equal(view.editorView.scrollDOM.scrollTop, 380, '580 − 600 / 3')
+    assert.equal(view.editorLines[29].hasAttribute('data-smkit-line-jump-mark'), true)
+    view.drain(5000)
+    assert.equal(view.editorLines[29].hasAttribute('data-smkit-line-jump-mark'), true, 'the mark stays put')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('puts the editor mark back when CodeMirror re-renders its lines', () => {
+  const view = mount({ mode: 'editor', lines: 40 })
+  try {
+    view.press(view.editorContent, 'g')
+    view.jump('30')
+    view.rerenderEditor(40)
+    assert.equal(view.editorLines[29].hasAttribute('data-smkit-line-jump-mark'), false, 'a fresh render drops it')
+    view.flushMutations()
+    assert.equal(view.editorLines[29].hasAttribute('data-smkit-line-jump-mark'), true, 'and the mark is repainted')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('leaves a CodeMirror text box alone — no gutter, no line to name', () => {
+  const view = mount({ mode: 'editor', lines: 12, gutter: false })
+  try {
+    const event = view.press(view.editorContent, 'g')
+    assert.equal(view.box(), null)
+    assert.equal(event.defaultPrevented, false, 'the composer keeps its keystroke')
+  } finally {
+    view.dispose()
+  }
+})
+
 it('closes the box, clears every mark and drops the listener when disposed', () => {
   const view = mount({ lines: 40 })
   try {
@@ -660,7 +790,7 @@ it('closes the box, clears every mark and drops the listener when disposed', () 
     assert.equal(view.box(), null)
     view.dispose()
     assert.equal(view.rows[29].hasAttribute('data-smkit-line-jump-mark'), false)
-    assert.equal(view.pending(), 0, 'the flash timer is cancelled')
+    assert.equal(view.pending(), 0, 'no timer is left running')
     const event = view.press(view.body, 'g')
     assert.equal(view.box(), null, 'and the gesture is gone')
     assert.equal(event.defaultPrevented, false)
@@ -669,14 +799,26 @@ it('closes the box, clears every mark and drops the listener when disposed', () 
   }
 })
 
-it('stays out of the way while dsh-better-sidebar owns the preview', () => {
-  const view = mount({ lines: 40, betterSidebar: true })
+it('keeps answering the gesture while dsh-better-sidebar is loaded', () => {
+  // Not "yield to the neighbour": that plugin owns the surfaces the other
+  // features decorate, but it has no go-to-line of its own — its Mod-g is find
+  // next — so this keystroke stays this plugin's on both previews.
+  const host = mount({ lines: 40, betterSidebar: true })
   try {
-    const event = view.press(view.body, 'g')
-    assert.equal(view.box(), null)
-    assert.equal(event.defaultPrevented, false)
+    const event = host.press(host.body, 'g')
+    assert.notEqual(host.box(), null)
+    assert.equal(event.defaultPrevented, true)
   } finally {
-    view.dispose()
+    host.dispose()
+  }
+
+  const editor = mount({ mode: 'editor', lines: 40, betterSidebar: true })
+  try {
+    const event = editor.press(editor.editorContent, 'g')
+    assert.notEqual(editor.box(), null)
+    assert.equal(event.stopped, true, 'and CodeMirror’s own Mod-g never runs')
+  } finally {
+    editor.dispose()
   }
 })
 
