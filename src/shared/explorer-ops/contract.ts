@@ -22,6 +22,10 @@ export type ExplorerCreateRefusal =
   | 'explorer/exists'
   /** The target either does not exist or is not a directory. */
   | 'explorer/not-directory'
+  /** The entry is gone (renamed or deleted by something else since the menu). */
+  | 'explorer/missing'
+  /** The request names something this plugin never touches (a filesystem root). */
+  | 'explorer/refused'
   /** The filesystem refused the write (permissions, read-only mount, no space). */
   | 'explorer/unavailable'
 
@@ -35,5 +39,24 @@ export interface ExplorerCreateRequest {
 
 /** Receipt of a landed creation: the new entry's absolute path. */
 export interface ExplorerCreateReceipt {
+  path: string
+}
+
+/** Body of `POST /explorer/rename`. */
+export interface ExplorerRenameRequest {
+  /** Absolute path of the entry being renamed. */
+  path: string
+  /** Its new base name — one segment, never a path. */
+  name: string
+}
+
+/** Body of `POST /explorer/delete`. */
+export interface ExplorerDeleteRequest {
+  /** Absolute path of the entry being removed. */
+  path: string
+}
+
+/** Receipt of a landed rename: the entry's new absolute path. */
+export interface ExplorerRenameReceipt {
   path: string
 }

@@ -17,12 +17,12 @@
  *   success.
  */
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, it } from 'node:test'
 
-const { createEntry, nameProblem } = await import('../lib/host/features/explorer-ops/fs.js')
+const { createEntry, deleteEntry, nameProblem, renameEntry } = await import('../lib/host/features/explorer-ops/fs.js')
 const { createExplorerHandlers } = await import('../lib/host/features/explorer-ops/api.js')
 
 const root = mkdtempSync(join(tmpdir(), 'dsh-smkit-explorer-ops-'))
@@ -181,4 +181,139 @@ it('refuses a body without a path or a name, and leaves other routes alone', asy
   assert.equal(unnamed.status, 400)
   assert.equal((await call('POST', '/sessions/delete', {})).claimed, false)
   assert.equal((await call('GET', '/explorer/create-file', {})).claimed, false, 'creating is POST only')
+})
+
+/* ------------------------------------------------------------------ rename */
+
+it('renames a file in place, keeping its bytes', async () => {
+  const dir = scratch('rename-file')
+  writeFileSync(join(dir, 'notes.md'), '# notes\n')
+  const outcome = await renameEntry(join(dir, 'notes.md'), 'renamed.md')
+  assert.equal(outcome.ok, true)
+  assert.equal(outcome.path, join(dir, 'renamed.md'))
+  assert.equal(existsSync(join(dir, 'notes.md')), false)
+  assert.equal(readFileSync(join(dir, 'renamed.md'), 'utf8'), '# notes\n')
+})
+
+it('renames a directory with everything inside it', async () => {
+  const dir = scratch('rename-dir')
+  mkdirSync(join(dir, 'old', 'deep'), { recursive: true })
+  writeFileSync(join(dir, 'old', 'deep', 'inner.txt'), 'x')
+  const outcome = await renameEntry(join(dir, 'old'), 'new')
+  assert.equal(outcome.ok, true)
+  assert.equal(readFileSync(join(dir, 'new', 'deep', 'inner.txt'), 'utf8'), 'x')
+  assert.equal(existsSync(join(dir, 'old')), false)
+})
+
+it('treats the unchanged name as a no-op', async () => {
+  const dir = scratch('rename-same')
+  writeFileSync(join(dir, 'same.txt'), 'x')
+  const outcome = await renameEntry(join(dir, 'same.txt'), 'same.txt')
+  assert.equal(outcome.ok, true)
+  assert.equal(outcome.path, join(dir, 'same.txt'))
+  assert.equal(readFileSync(join(dir, 'same.txt'), 'utf8'), 'x')
+})
+
+it('changes only the letter case of a name', async () => {
+  const dir = scratch('rename-case')
+  writeFileSync(join(dir, 'case.txt'), 'x')
+  const outcome = await renameEntry(join(dir, 'case.txt'), 'CASE.txt')
+  assert.equal(outcome.ok, true)
+  assert.equal(outcome.path, join(dir, 'CASE.txt'))
+  // The stored spelling is the one asked for — on a case-insensitive volume the
+  // destination "exists" as the source itself, and that is not a conflict.
+  const names = readdirSync(dir)
+  assert.equal(names.includes('CASE.txt'), true)
+  assert.equal(names.filter((name) => name.toLowerCase() === 'case.txt').length, 1)
+})
+
+it('refuses a rename onto another entry, and onto a dangling link', { skip: !canSymlink }, async () => {
+  const dir = scratch('rename-exists')
+  writeFileSync(join(dir, 'a.txt'), 'a')
+  writeFileSync(join(dir, 'b.txt'), 'b')
+  symlinkSync(join(dir, 'missing.txt'), join(dir, 'dangling.txt'))
+  for (const name of ['b.txt', 'dangling.txt']) {
+    const outcome = await renameEntry(join(dir, 'a.txt'), name)
+    assert.equal(outcome.ok, false, `${name} is taken`)
+    assert.equal(outcome.code, 'explorer/exists')
+  }
+  assert.equal(readFileSync(join(dir, 'a.txt'), 'utf8'), 'a', 'the source was not touched')
+  assert.equal(readFileSync(join(dir, 'b.txt'), 'utf8'), 'b', 'nor was the entry in the way')
+})
+
+it('refuses a rename of something that is gone, of a bad name, and of a root', async () => {
+  const dir = scratch('rename-refusals')
+  const missing = await renameEntry(join(dir, 'missing.txt'), 'x.txt')
+  assert.equal(missing.code, 'explorer/missing')
+  writeFileSync(join(dir, 'a.txt'), 'a')
+  const shape = await renameEntry(join(dir, 'a.txt'), 'x/y.txt')
+  assert.equal(shape.code, 'explorer/invalid-name')
+  const relative = await renameEntry('relative/a.txt', 'b.txt')
+  assert.equal(relative.code, 'explorer/refused')
+  const filesystemRoot = await renameEntry('/', 'root-renamed')
+  assert.equal(filesystemRoot.code, 'explorer/refused')
+})
+
+/* ------------------------------------------------------------------ delete */
+
+it('deletes a file', async () => {
+  const dir = scratch('delete-file')
+  writeFileSync(join(dir, 'gone.txt'), 'x')
+  const outcome = await deleteEntry(join(dir, 'gone.txt'))
+  assert.equal(outcome.ok, true)
+  assert.equal(existsSync(join(dir, 'gone.txt')), false)
+})
+
+it('deletes a directory with everything inside it', async () => {
+  const dir = scratch('delete-dir')
+  mkdirSync(join(dir, 'tree', 'deep'), { recursive: true })
+  writeFileSync(join(dir, 'tree', 'deep', 'inner.txt'), 'x')
+  const outcome = await deleteEntry(join(dir, 'tree'))
+  assert.equal(outcome.ok, true)
+  assert.equal(existsSync(join(dir, 'tree')), false)
+})
+
+it('deletes the link, not what it points at', { skip: !canSymlink }, async () => {
+  const dir = scratch('delete-link')
+  writeFileSync(join(dir, 'target.txt'), 'keep me')
+  symlinkSync(join(dir, 'target.txt'), join(dir, 'link.txt'))
+  const outcome = await deleteEntry(join(dir, 'link.txt'))
+  assert.equal(outcome.ok, true)
+  assert.equal(existsSync(join(dir, 'link.txt')), false)
+  assert.equal(readFileSync(join(dir, 'target.txt'), 'utf8'), 'keep me', 'the target survives')
+})
+
+it('refuses to delete something gone, a relative path, and a filesystem root', async () => {
+  const dir = scratch('delete-refusals')
+  assert.equal((await deleteEntry(join(dir, 'missing'))).code, 'explorer/missing')
+  assert.equal((await deleteEntry('relative/x')).code, 'explorer/refused')
+  assert.equal((await deleteEntry('/')).code, 'explorer/refused')
+})
+
+/* ------------------------------------------------------------------ routes */
+
+it('renames and deletes over the wire, with the receipt and the refusals', async () => {
+  const dir = scratch('route-mutations')
+  writeFileSync(join(dir, 'from.txt'), 'x')
+  writeFileSync(join(dir, 'taken.txt'), 'x')
+
+  const renamed = await call('POST', '/explorer/rename', { path: join(dir, 'from.txt'), name: 'to.txt' })
+  assert.equal(renamed.status, 200)
+  assert.equal(renamed.body.path, join(dir, 'to.txt'))
+
+  const conflict = await call('POST', '/explorer/rename', { path: join(dir, 'to.txt'), name: 'taken.txt' })
+  assert.equal(conflict.status, 409)
+  assert.equal(conflict.body.code, 'explorer/exists')
+
+  const removed = await call('POST', '/explorer/delete', { path: join(dir, 'to.txt') })
+  assert.equal(removed.status, 200)
+  assert.equal(existsSync(join(dir, 'to.txt')), false)
+
+  const gone = await call('POST', '/explorer/delete', { path: join(dir, 'to.txt') })
+  assert.equal(gone.status, 404)
+  assert.equal(gone.body.code, 'explorer/missing')
+
+  const noName = await call('POST', '/explorer/rename', { path: join(dir, 'taken.txt'), name: '  ' })
+  assert.equal(noName.status, 400)
+  assert.equal(noName.body.code, 'explorer/invalid-name')
 })

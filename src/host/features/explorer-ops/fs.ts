@@ -16,17 +16,29 @@
  *   and a new file is written with `wx`, so a name that appears between the
  *   check and the write is refused rather than truncated;
  * - the parent must be a directory; nothing is created recursively.
+ *
+ * The other two rows, renamed and deleted here too:
+ *
+ * - `renameEntry` refuses a name that is not one segment, and refuses a
+ *   destination another entry already occupies — but ALLOWS the case-only
+ *   rename, where the destination is the entry's own name on a case-insensitive
+ *   volume (`a.ts` → `A.ts`). The reference refused that one by testing
+ *   existence instead of identity; the entry is the same entry, so nothing is
+ *   overwritten and the rename is the only way to change letter case;
+ * - `deleteEntry` never walks through a symlink: the link is unlinked, its
+ *   target is not touched. Directories go recursively, which is what the source
+ *   dialog's wording promises, and the filesystem root is refused outright.
  */
 
-import { lstat, mkdir, stat, writeFile } from 'node:fs/promises'
-import { isAbsolute, join, resolve } from 'node:path'
+import { lstat, mkdir, rename, rm, stat, unlink, writeFile } from 'node:fs/promises'
+import { dirname, isAbsolute, join, parse, resolve } from 'node:path'
 import type { ExplorerCreateRefusal } from '../../../shared/explorer-ops/contract.js'
 
 /** Which of the two rows asked. */
 export type CreateKind = 'file' | 'folder'
 
-/** What one creation came to, in the shape the route maps onto HTTP. */
-export type CreateOutcome =
+/** What one operation came to, in the shape the routes map onto HTTP. */
+export type EntryOutcome =
   | { readonly ok: true; readonly path: string }
   | { readonly ok: false; readonly code: ExplorerCreateRefusal; readonly message: string }
 
@@ -89,6 +101,35 @@ async function occupied(path: string): Promise<boolean> {
   }
 }
 
+/** One entry's filesystem identity (`dev` + `ino`), or undefined when absent. */
+async function identityOf(path: string): Promise<{ dev: bigint; ino: bigint } | undefined> {
+  try {
+    const info = await lstat(path, { bigint: true })
+    return { dev: info.dev, ino: info.ino }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    throw error
+  }
+}
+
+/** Whether two spellings name the same entry under this volume's rules. */
+function sameSpelling(left: string, right: string): boolean {
+  return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right
+}
+
+/** Map one failed filesystem call onto the refusal the browser understands. */
+function refusalOf(error: unknown, name?: string): { ok: false; code: ExplorerCreateRefusal; message: string } {
+  const code = (error as NodeJS.ErrnoException).code
+  const message = error instanceof Error ? error.message : String(error)
+  if (code === 'ENOENT') return { ok: false, code: 'explorer/missing', message }
+  if (code === 'EEXIST' || code === 'ENOTEMPTY') {
+    return { ok: false, code: 'explorer/exists', message: name === undefined ? message : `"${name}" already exists` }
+  }
+  if (code === 'ENAMETOOLONG' || code === 'EINVAL') return { ok: false, code: 'explorer/invalid-name', message }
+  if (code === 'EISDIR' || code === 'ENOTDIR') return { ok: false, code: 'explorer/not-directory', message }
+  return { ok: false, code: 'explorer/unavailable', message }
+}
+
 /**
  * Create one entry inside `directory`.
  * @param kind - file (empty, `wx`) or folder (one level, no recursion).
@@ -96,7 +137,7 @@ async function occupied(path: string): Promise<boolean> {
  * @param name - one path segment, already trimmed by the caller.
  * @returns the new entry's absolute path, or the refusal to map onto HTTP.
  */
-export async function createEntry(kind: CreateKind, directory: string, name: string): Promise<CreateOutcome> {
+export async function createEntry(kind: CreateKind, directory: string, name: string): Promise<EntryOutcome> {
   const problem = nameProblem(name)
   if (problem !== undefined) return { ok: false, code: 'explorer/invalid-name', message: problem }
 
@@ -133,4 +174,83 @@ export async function createEntry(kind: CreateKind, directory: string, name: str
   }
 
   return { ok: true, path: destination }
+}
+
+/**
+ * Rename one entry inside its own directory.
+ *
+ * The name replaces the last segment only — a rename never moves an entry
+ * between directories, which is what the inline editor's single field means.
+ * A case-only rename is allowed: the destination is the SAME entry on a
+ * case-insensitive volume, so nothing is overwritten.
+ * @param source - absolute path of the entry being renamed.
+ * @param name - the new base name, already trimmed by the caller.
+ * @returns the new absolute path, or the refusal to map onto HTTP.
+ */
+export async function renameEntry(source: string, name: string): Promise<EntryOutcome> {
+  const problem = nameProblem(name)
+  if (problem !== undefined) return { ok: false, code: 'explorer/invalid-name', message: problem }
+  if (!isAbsolute(source)) {
+    return { ok: false, code: 'explorer/refused', message: `"${source}" is not an absolute path` }
+  }
+
+  const absolute = resolve(source)
+  if (dirname(absolute) === absolute) {
+    return { ok: false, code: 'explorer/refused', message: 'a filesystem root cannot be renamed' }
+  }
+  try {
+    await lstat(absolute)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { ok: false, code: 'explorer/missing', message: `"${absolute}" no longer exists` }
+    }
+    return refusalOf(error)
+  }
+
+  const destination = join(dirname(absolute), name)
+  if (destination === absolute) return { ok: true, path: absolute }
+
+  try {
+    const taken = await identityOf(destination)
+    if (taken !== undefined) {
+      const self = await identityOf(absolute)
+      const same = self !== undefined && (
+        // FAT/exFAT and some network shares answer `ino: 0` for everything; the
+        // spelling is the only identity left, and it is what Windows uses too.
+        taken.ino === 0n || self.ino === 0n
+          ? sameSpelling(absolute, destination)
+          : taken.dev === self.dev && taken.ino === self.ino
+      )
+      if (!same) return { ok: false, code: 'explorer/exists', message: `"${name}" already exists` }
+    }
+    await rename(absolute, destination)
+  } catch (error) {
+    return refusalOf(error, name)
+  }
+  return { ok: true, path: destination }
+}
+
+/**
+ * Remove one entry: a file, a directory with everything inside it, or the link
+ * itself when the entry is a symlink.
+ * @param target - absolute path of the entry.
+ * @returns the removed path, or the refusal to map onto HTTP.
+ */
+export async function deleteEntry(target: string): Promise<EntryOutcome> {
+  if (!isAbsolute(target)) {
+    return { ok: false, code: 'explorer/refused', message: `"${target}" is not an absolute path` }
+  }
+  const absolute = resolve(target)
+  if (parse(absolute).root === absolute) {
+    return { ok: false, code: 'explorer/refused', message: 'a filesystem root cannot be deleted' }
+  }
+  try {
+    const info = await lstat(absolute)
+    // `lstat`, so a symlink is the entry: the link goes, its target stays.
+    if (info.isSymbolicLink() || !info.isDirectory()) await unlink(absolute)
+    else await rm(absolute, { recursive: true, force: false })
+  } catch (error) {
+    return refusalOf(error)
+  }
+  return { ok: true, path: absolute }
 }
