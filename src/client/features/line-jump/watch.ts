@@ -1,6 +1,7 @@
 /**
  * Ctrl+G for the right sidebar's file previews, and a click on one of their
- * lines: name a line, land on it, keep it marked.
+ * lines: name a line and land on it. On the host's preview the landing is kept
+ * marked; in the neighbour's editor the caret is the mark.
  *
  * Two previews exist, depending on what the profile loaded:
  *
@@ -19,11 +20,11 @@
  *   surface the reader is looking at, carrying the line range there (`1–471`,
  *   or `1–471+` while the host has pages left);
  * - Enter lands on that line — a third of the way down the viewport, the way an
- *   editor's go-to-line leaves it — marks it, and closes the box; Escape, blur
- *   and an empty box close it without moving anything;
- * - the mark stays until the next jump, and is repainted if the surface
- *   re-renders under it (a new page replaces every line node; CodeMirror
- *   replaces its rendered lines as the reader scrolls);
+ *   editor's go-to-line leaves it — closes the box, and marks the line on the
+ *   host's preview; Escape, blur and an empty box close it without moving
+ *   anything;
+ * - that mark stays until the next jump or click, and is repainted if the host
+ *   re-renders the block under it (a new page replaces every line node);
  * - a line the host has not rendered yet is reached by pressing the host's own
  *   "load more" until it appears (see "Pages" below); a line past the end of the
  *   document lands on the last line, as every editor's go-to-line does.
@@ -66,13 +67,15 @@
  * CodeMirror-backed text box (the chat composer) — the latter has no line
  * numbers to name and must keep its keystrokes.
  *
- * Known gap, parked: in that editor the mark is an attribute on a RENDERED
- * line, and CodeMirror replaces those lines as the viewport moves. The observer
- * puts the mark back, but a repaint that lands between two of those passes can
- * lose it, so the tint sometimes disappears there. The jump itself (caret and
- * scroll) is unaffected, and the host preview's mark is stable — the follow-up
- * is to carry the mark as an editor decoration once the view is reachable
- * without a second copy of CodeMirror.
+ * ## Why the editor gets no mark
+ *
+ * It does not need one: the jump places a collapsed caret on the line and
+ * focuses the view, and that caret is the answer there — the same thing the
+ * editor's own go-to-line leaves behind. Painting the attribute anyway was
+ * worse than redundant: CodeMirror replaces its rendered lines as the viewport
+ * moves, so the tint was removed and put back on the next mutation, which the
+ * reader saw as a flicker. The editor therefore only gets the caret and the
+ * scroll; the mark is the preview's, where there is no caret to rely on.
  *
  * ## Which surface the gesture means
  *
@@ -120,10 +123,9 @@ const CODE_LINE = '.line'
 const PLAIN_LINE = '[data-textpreview-line]'
 /** The host's "load more" control, drawn while the document has pages left. */
 const MORE = '[data-textpreview-more]'
-/** The neighbour's editor: its root, content box, rendered line and gutter. */
+/** The neighbour's editor: its root, content box and gutter. */
 const EDITOR = '.cm-editor'
 const EDITOR_CONTENT = '.cm-content'
-const EDITOR_LINE = '.cm-line'
 const EDITOR_GUTTER = '.cm-lineNumbers'
 /** Every field the reader may already be typing in — Ctrl+G there is theirs. */
 const EDITABLE = 'input, textarea, [contenteditable="true"]'
@@ -212,18 +214,17 @@ export function watchLineJump(t: Translator): () => void {
   let pointer: { x: number; y: number } | null = null
   /** The pending page-climb timer. */
   let climb: number | null = null
-  /** The line the reader last named or clicked: what keeps the mark, and where. */
-  let mark: { surface: Surface; line: number } | null = null
-  /** Whether the mark is currently held off by a selection in its surface. */
+  /** The preview line the reader last named or clicked: what keeps the mark, where. */
+  let mark: { preview: Element; line: number } | null = null
+  /** Whether the mark is currently held off by a selection in its preview. */
   let concealed = false
   /**
-   * Watches the marked surface for re-renders.
+   * Watches the marked preview for re-renders.
    *
-   * A page arriving replaces the whole highlighted block, line nodes included,
-   * and CodeMirror replaces the lines it renders as the viewport moves, so an
-   * attribute put on one of them survives only until the next paint. The reader
-   * asked for this line; the mark is put back on it as long as the surface lives
-   * (attributes are not observed, so a repaint cannot loop).
+   * A page arriving replaces the whole highlighted block, line nodes included, so
+   * an attribute put on one of them survives only until the next paint. The
+   * reader asked for this line; the mark is put back on it as long as the preview
+   * lives (attributes are not observed, so a repaint cannot loop).
    */
   const keep = typeof MutationObserver === 'function'
     ? new MutationObserver(() => { repaint() })
@@ -340,10 +341,6 @@ export function watchLineJump(t: Translator): () => void {
   const anchorOf = (surface: Surface): Element | null =>
     surface.kind === 'preview' ? surface.preview.querySelector(BODY) : surface.view.dom
 
-  /** What the mark's observer watches: the whole preview, or the editor's lines. */
-  const watchNodeOf = (surface: Surface): Element | null =>
-    surface.kind === 'preview' ? surface.preview : surface.view.contentDOM
-
   /** The rendered range, as the box's hint. */
   const rangeOf = (surface: Surface): string => {
     if (surface.kind === 'editor') return `1–${surface.view.state.doc.lines}`
@@ -354,83 +351,67 @@ export function watchLineJump(t: Translator): () => void {
   }
 
   /**
-   * The rendered node for one line, on either surface.
+   * The rendered node for one preview line.
    *
-   * CodeMirror renders only its viewport, so a line outside it has no node — and
-   * `domAtPos` would answer with the nearest rendered position, marking the
-   * wrong line. The viewport check keeps the mark honest; the observer paints it
-   * once the line scrolls back in.
+   * The host pages a long document and a scrolled-out block may be mid-replace,
+   * so the row simply may not exist yet; the observer paints the mark once the
+   * paint that carries it arrives (see `repaint`).
    */
-  const rowOf = (surface: Surface, line: number): Element | null => {
-    if (surface.kind === 'preview') {
-      const lines = linesOf(surface.preview)
-      return lines === null ? null : lines.at(line)
-    }
-    const view = surface.view
-    const doc = view.state.doc
-    if (line < 1 || line > doc.lines) return null
-    const target = doc.line(line)
-    if (target.to < view.viewport.from || target.from > view.viewport.to) return null
-    const at = view.domAtPos(target.from)
-    const node = at.node as Node | null
-    const element = node === null || node === undefined
-      ? null
-      : node.nodeType === 1
-        ? (node as Element)
-        : node.parentElement
-    return element?.closest(EDITOR_LINE) ?? null
+  const rowOf = (preview: Element, line: number): Element | null => {
+    const lines = linesOf(preview)
+    return lines === null ? null : lines.at(line)
   }
 
-  /** Whether one node, or the element it sits in, is inside a surface. */
-  const holds = (surface: Surface, node: Node | null): boolean => {
+  /** Whether one node, or the element it sits in, is inside a preview. */
+  const holds = (preview: Element, node: Node | null): boolean => {
     const element = node === null ? null : node.nodeType === 1 ? (node as Element) : node.parentElement
-    return element !== null && owns(surface, element)
+    return element !== null && preview.contains(element)
   }
 
   /**
-   * Whether the reader has text selected inside one surface.
+   * Whether the reader has text selected inside one preview.
    *
    * A selection is the reader taking text out, and a tint under it fights the
    * selection colour — so the mark steps aside while one is live and comes back
    * once it is cleared. Read from the document rather than tracked through the
    * events, so a selection made any way (drag, double click, keyboard, select
    * all) counts the same. Both ends are asked: the one case worth catching is a
-   * selection that starts on one side of the surface and ends inside it.
+   * selection that starts on one side of the preview and ends inside it.
    */
-  const selected = (surface: Surface): boolean => {
+  const selected = (preview: Element): boolean => {
     if (typeof document.getSelection !== 'function') return false
     const selection = document.getSelection()
     if (selection === null || selection.isCollapsed === true || selection.rangeCount === 0) return false
     const range = selection.getRangeAt(0)
-    return holds(surface, range.startContainer) || holds(surface, range.endContainer)
+    return holds(preview, range.startContainer) || holds(preview, range.endContainer)
   }
 
   /** Put the mark on its line, unless the reader is selecting text there. */
   const showMark = (): void => {
-    if (mark === null || selected(mark.surface)) return
-    rowOf(mark.surface, mark.line)?.setAttribute(MARK, '')
+    if (mark === null || selected(mark.preview)) return
+    rowOf(mark.preview, mark.line)?.setAttribute(MARK, '')
   }
 
   /** Take the mark off, wherever it currently sits. */
   const clearMark = (): void => {
-    if (mark !== null) rowOf(mark.surface, mark.line)?.removeAttribute(MARK)
+    if (mark !== null) rowOf(mark.preview, mark.line)?.removeAttribute(MARK)
     mark = null
     concealed = false
     keep?.disconnect()
   }
 
   /**
-   * Put the mark back on the line it names, after the surface re-rendered over it.
+   * Put the mark back on the line it names, after the preview re-rendered over it.
    *
    * Nothing is scrolled here: the reader may have moved on, and yanking the
    * document back would be worse than a mark that waits where it was put. If the
-   * line is not rendered at the moment (the block is mid-replace, or CodeMirror
-   * has virtualized it away), the mark waits for the paint that brings it back.
-   * A live selection holds it off — see `onSelectionChange`.
+   * line is not rendered at the moment (the block is mid-replace, or the line
+   * sits on a page the host has not loaded), the mark waits for the paint that
+   * brings it back. A live selection holds it off — see `onSelectionChange`.
    */
   const repaint = (): void => {
     if (mark === null) return
-    if (mark.surface.kind === 'preview' && linesOf(mark.surface.preview) === null) {
+    if (linesOf(mark.preview) === null) {
       // The preview stopped being something with lines (a rendered document took
       // the tab): the line the mark names is gone, and so is the mark's reason.
       clearMark()
@@ -440,7 +421,7 @@ export function watchLineJump(t: Translator): () => void {
   }
 
   /**
-   * Step the mark aside while text in its surface is selected, and back when the
+   * Step the mark aside while text in the preview is selected, and back when the
    * selection is cleared.
    *
    * Only the transition costs a lookup: `selectionchange` fires on every step of
@@ -448,24 +429,31 @@ export function watchLineJump(t: Translator): () => void {
    */
   const onSelectionChange = (): void => {
     if (mark === null) return
-    const now = selected(mark.surface)
+    const now = selected(mark.preview)
     if (now === concealed) return
     concealed = now
-    if (now) rowOf(mark.surface, mark.line)?.removeAttribute(MARK)
+    if (now) rowOf(mark.preview, mark.line)?.removeAttribute(MARK)
     else repaint()
   }
 
-  /** Keep one line marked until the next jump or click, watching it against re-renders. */
-  const markLine = (surface: Surface, line: number): void => {
+  /** Keep one preview line marked until the next jump or click, against re-renders. */
+  const markLine = (preview: Element, line: number): void => {
     clearMark()
-    mark = { surface, line }
-    concealed = selected(surface)
-    if (!concealed) rowOf(surface, line)?.setAttribute(MARK, '')
-    const watched = watchNodeOf(surface)
-    if (watched !== null) keep?.observe(watched, { childList: true, subtree: true })
+    mark = { preview, line }
+    concealed = selected(preview)
+    if (!concealed) rowOf(preview, line)?.setAttribute(MARK, '')
+    keep?.observe(preview, { childList: true, subtree: true })
   }
 
-  /** Land on one line: a third of the viewport down, then keep it marked. */
+  /**
+   * Land on one line: a third of the viewport down.
+   *
+   * The preview is marked, because it has no caret to say where the reader
+   * landed. The neighbour's editor is not: its caret is the answer there, and a
+   * painted mark only flickered as CodeMirror replaced the rendered lines under
+   * it (see the module doc). Either way an earlier preview mark is dropped, so
+   * one line at most ever carries it.
+   */
   const land = (surface: Surface, line: number): void => {
     if (surface.kind === 'preview') {
       const lines = linesOf(surface.preview)
@@ -477,21 +465,22 @@ export function watchLineJump(t: Translator): () => void {
         const offset = row.getBoundingClientRect().top - box.top + scroller.scrollTop
         scroller.scrollTop = Math.max(0, offset - box.height / 3)
       }
-    } else {
-      const view = surface.view
-      const doc = view.state.doc
-      const target = Math.min(Math.max(line, 1), doc.lines)
-      const start = doc.line(target).from
-      // A collapsed caret, not a selection: the neighbour's editor grows a
-      // floating "add to conversation" button over any non-empty selection, and
-      // the mark below already says where the line is.
-      view.dispatch({ selection: { anchor: start } })
-      view.focus()
-      const block = view.lineBlockAt(start)
-      view.scrollDOM.scrollTop = Math.max(0, block.top - view.scrollDOM.clientHeight / 3)
-      view.requestMeasure()
+      markLine(surface.preview, line)
+      return
     }
-    markLine(surface, line)
+    clearMark()
+    const view = surface.view
+    const doc = view.state.doc
+    const target = Math.min(Math.max(line, 1), doc.lines)
+    const start = doc.line(target).from
+    // A collapsed caret, not a selection: the neighbour's editor grows a
+    // floating "add to conversation" button over any non-empty selection, and
+    // the caret already says where the reader is.
+    view.dispatch({ selection: { anchor: start } })
+    view.focus()
+    const block = view.lineBlockAt(start)
+    view.scrollDOM.scrollTop = Math.max(0, block.top - view.scrollDOM.clientHeight / 3)
+    view.requestMeasure()
   }
 
   /**
@@ -543,7 +532,7 @@ export function watchLineJump(t: Translator): () => void {
     const lines = linesOf(preview)
     if (lines === null || !lines.region.contains(target)) return
     const line = lineAt(lines, target, event.clientY)
-    if (line !== null) markLine({ kind: 'preview', preview }, line)
+    if (line !== null) markLine(preview, line)
   }
 
   /**

@@ -1,12 +1,16 @@
 /**
  * The one probe for the optional `dsh-better-sidebar` neighbour.
  *
- * Three features decorate surfaces that plugin also draws: the Markdown
- * preview's outline, the explorer's `@` reference chip, and the explorer's row
- * menu (copy path, rename, delete, new file/folder). That plugin's client half
- * publishes a `betterSidebar` service while it is active, and its own versions
- * of all three ride on it — so a published service means the surfaces are the
- * neighbour's, and this plugin's copy would be a second one on the same rows.
+ * Four features decorate surfaces that plugin also draws: the Markdown
+ * preview's outline, the explorer's `@` reference chip, the explorer's row menu
+ * (copy path, rename, delete, new file/folder), and the floating popup that
+ * quotes a preview or terminal selection into the draft. That plugin's client
+ * half publishes a `betterSidebar` service while it is active, and its own
+ * versions of all four ride on it — so a published service means the surfaces
+ * are the neighbour's, and this plugin's copy would be a second one on the same
+ * rows. Line-jump is the deliberate exception: that plugin has no go-to-line of
+ * its own, so this plugin answers Ctrl+G on the neighbour's editor too (see
+ * `features/line-jump`).
  *
  * ## Policy: loaded means yield
  *

@@ -5,19 +5,22 @@
  *
  * - Ctrl+G (Cmd+G on macOS) opens one small box on the preview the reader is in,
  *   carrying the range the host has paged in so far (`1–8`, `1–8+`);
- * - Enter lands on the named line a third of the way down the scrollport, flashes
- *   it for 1.2 s, and closes the box; `:120` and `120:8` name line 120 too;
+ * - Enter lands on the named line a third of the way down the scrollport, marks
+ *   it, and closes the box; `:120` and `120:8` name line 120 too;
  * - Escape, blur and an empty box close it without moving the document;
  * - a line the host has not paged in yet is reached by pressing its own "load
  *   more" and looking again, and a line past the end lands on the last line;
- * - the gesture is left alone inside a text field, on a preview with no line
- *   numbers (Markdown), and while `dsh-better-sidebar` owns the surface;
+ * - the gesture is left alone inside a text field, and on a preview with no line
+ *   numbers (Markdown);
+ * - with `dsh-better-sidebar` loaded the gesture also answers on its CodeMirror
+ *   editor, where the jump places a collapsed caret and scrolls — and paints no
+ *   mark, because a painted one flickered as CodeMirror replaced its lines;
  * - a click on a rendered line marks it with the same mark, one line at a time,
  *   without moving the document — and does nothing on the preview's chrome, on
  *   its controls, or inside the neighbour's editor;
  * - a selection inside the marked surface takes the mark off, and clearing the
  *   selection puts it back;
- * - disposing the effect closes the box, clears the flash and drops the
+ * - disposing the effect closes the box, clears the mark and drops the
  *   listeners.
  *
  * The DOM below is the smallest one the bundle's whole mount can run against:
@@ -937,7 +940,7 @@ it('opens inside the neighbour’s editor and takes the keystroke before its key
   }
 })
 
-it('lands in the editor with a caret a third down, and keeps the line marked', () => {
+it('lands in the editor with a caret a third down, and paints no mark', () => {
   const view = mount({ mode: 'editor', lines: 40 })
   try {
     view.press(view.editorContent, 'g')
@@ -947,23 +950,26 @@ it('lands in the editor with a caret a third down, and keeps the line marked', (
     assert.equal(view.dispatches.length, 1)
     assert.equal(view.dispatches[0].selection.anchor, 290, 'a caret, not a selection')
     assert.equal(view.editorView.scrollDOM.scrollTop, 380, '580 − 600 / 3')
-    assert.equal(view.editorLines[29].hasAttribute('data-smkit-line-jump-mark'), true)
-    view.drain(5000)
-    assert.equal(view.editorLines[29].hasAttribute('data-smkit-line-jump-mark'), true, 'the mark stays put')
+    // The caret is the mark here: painting one flickered as CodeMirror replaced
+    // its rendered lines, so the editor gets none at all.
+    assert.equal(view.editorLines[29].hasAttribute('data-smkit-line-jump-mark'), false)
+    assert.equal(view.editorView.dom.querySelectorAll('[data-smkit-line-jump-mark]').length, 0)
   } finally {
     view.dispose()
   }
 })
 
-it('puts the editor mark back when CodeMirror re-renders its lines', () => {
+it('has nothing to repaint in the editor when CodeMirror re-renders its lines', () => {
   const view = mount({ mode: 'editor', lines: 40 })
   try {
     view.press(view.editorContent, 'g')
     view.jump('30')
     view.rerenderEditor(40)
-    assert.equal(view.editorLines[29].hasAttribute('data-smkit-line-jump-mark'), false, 'a fresh render drops it')
     view.flushMutations()
-    assert.equal(view.editorLines[29].hasAttribute('data-smkit-line-jump-mark'), true, 'and the mark is repainted')
+    assert.equal(view.editorLines[29].hasAttribute('data-smkit-line-jump-mark'), false, 'no mark to put back')
+    assert.equal(view.editorView.dom.querySelectorAll('[data-smkit-line-jump-mark]').length, 0)
+    // The caret is untouched by the repaint: it is what the reader follows.
+    assert.equal(view.dispatches.length, 1, 'no second dispatch')
   } finally {
     view.dispose()
   }
