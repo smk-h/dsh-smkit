@@ -221,6 +221,18 @@ export const FOREIGN_DATA_ATTRS = [
    */
   'data-textpreview-body',
   'data-document-markdown',
+  /**
+   * The deck's tab strip (`ui-dockkit`), where the tab menu's batch rows find
+   * the tabs they close: `data-dockkit-strip-tabs` marks one pane's strip,
+   * `data-dockkit-tab` one chip (its value is the tab id), and
+   * `data-dockkit-tab-close` the × the kit draws only for a tab it will let go.
+   * The ids and that closability are what the rows act on; the menu itself is
+   * the kit's own — this plugin only fills its `sidebar.right.tab.menu.item`
+   * seat. Read only.
+   */
+  'data-dockkit-strip-tabs',
+  'data-dockkit-tab',
+  'data-dockkit-tab-close',
 ]
 
 /**
@@ -245,6 +257,13 @@ export const FOREIGN_PROPERTIES = [
    * `style/workbench.css`). Read, never written.
    */
   '--dsh-windows-titlebar-height',
+  /**
+   * The host's content font scale, written on the root by the shell's theme
+   * layer. The tab menu's rows are sized off it exactly as the kit's own row
+   * is (`calc(size - 1px)`), so the batch rows appended beside "close" keep
+   * its height and weight instead of pinning a number. Read only.
+   */
+  '--dsh-content-font-size-secondary',
 ]
 
 /**

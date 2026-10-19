@@ -209,7 +209,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'markdown-outline', 'file-reference', 'explorer']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'tab-menu', 'markdown-outline', 'file-reference', 'explorer']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -265,6 +265,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'smkit: plugin-gallery/dictionaries',
     'smkit: openspec/dictionaries',
     'smkit: theme-center/dictionaries',
+    // The right sidebar's tab menu: its dictionary only — the batch rows are
+    // built when the seat opens the card (see `features/tab-menu`).
+    'smkit: tab-menu/dictionaries',
     // The Markdown outline: its dictionary, then the watch that hangs the
     // table of contents on each host preview body (see
     // `features/markdown-outline`).

@@ -1,0 +1,27 @@
+/* Rows this plugin appends to the shell's tab menu (`ui-dockkit`'s `TabMenu`).
+   That menu is a 4px-padded flex column of `role="menuitem"` buttons, and its
+   own "close" row uses the metrics copied below — the extension seat renders
+   inside the same card, so rows that miss these values read as a different
+   list. The separator matches the primitive menu's hairline (0.5px l2), since
+   the kit's menu has no separators of its own to copy. */
+
+.smkit-tab-menu-item {
+  padding: 4px 7px;
+  color: var(--dsw-alias-label-primary);
+  font-size: calc(var(--dsh-content-font-size-secondary, 13px) - 1px);
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--dsw-radius-md);
+  cursor: pointer;
+}
+
+.smkit-tab-menu-item:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.smkit-tab-menu-separator {
+  height: 0.5px;
+  margin: 3px 2px;
+  background: var(--dsw-alias-border-l2);
+}

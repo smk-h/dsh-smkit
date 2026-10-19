@@ -23,6 +23,7 @@ import { fileReferenceFeature } from './features/file-reference/client'
 import { markdownOutlineFeature } from './features/markdown-outline/client'
 import { openSpecFeature } from './features/openspec/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
+import { tabMenuFeature } from './features/tab-menu/client'
 import { themeCenterFeature } from './features/theme-center/client'
 import { notifyFeature } from './features/notify/client'
 import { settingsFeature } from './settings'
@@ -60,6 +61,7 @@ const FEATURES: ClientFeature[] = [
   settingsFeature,
   openSpecFeature,
   themeCenterFeature,
+  tabMenuFeature,
   // These three decorate surfaces another plugin may own (the explorer, its
   // rows, the Markdown preview), so they register after every seat of this
   // plugin — and each stands itself down when `dsh-better-sidebar` (or a future
