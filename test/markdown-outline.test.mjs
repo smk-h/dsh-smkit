@@ -13,6 +13,8 @@
  * - a click on an entry scrolls the heading to the top, flashes it for 1.2 s
  *   and closes the popover;
  * - Escape and a press outside the bar close it; a press inside does not;
+ * - the bar pins itself where the document's prose padding rests it, so the
+ *   toggle does not rise when the reader starts scrolling;
  * - a page the host appends later is picked up through the body observer, and
  *   an unchanged document never gains a second bar;
  * - a body that stops showing Markdown loses the bar, and gets it back when the
@@ -72,6 +74,9 @@ class SandboxElement {
     this.textContent = ''
     this.type = ''
     this.listeners = new Map()
+    // A real element always carries a style object; the feature writes the
+    // bar's sticky offset into it.
+    this.style = {}
     Object.defineProperty(this, 'className', {
       get: () => this.getAttribute('class') ?? '',
       set: (value) => this.setAttribute('class', value),
@@ -220,13 +225,20 @@ function heading(level, text) {
   return el
 }
 
-/** A host preview body holding one Markdown document. */
-function previewBody(headings) {
-  const body = new SandboxElement('div')
-  body.setAttribute('data-textpreview-body', '')
+/** One Markdown document, carrying the host's prose padding the stub answers. */
+function markdownDocument(headings, paddingTop = '10px') {
   const doc = new SandboxElement('div')
   doc.setAttribute('data-document-markdown', '')
+  doc.computedPaddingTop = paddingTop
   for (const node of headings) doc.appendChild(node)
+  return doc
+}
+
+/** A host preview body holding one Markdown document. */
+function previewBody(headings, paddingTop) {
+  const body = new SandboxElement('div')
+  body.setAttribute('data-textpreview-body', '')
+  const doc = markdownDocument(headings, paddingTop)
   body.appendChild(doc)
   return { body, doc }
 }
@@ -234,15 +246,17 @@ function previewBody(headings) {
 /**
  * Mount the whole bundle once against one preview body and hand back what the
  * assertions need.
- * @param options - `headings` to render, and the `betterSidebar` service the
- *   neighbour probe should find (`true` = published with every type on).
+ * @param options - `headings` to render, the document's `paddingTop` (10px as
+ *   the host sets it), the `betterSidebar` service the neighbour probe should
+ *   find (`true` = published with every type on), and `computedStyle: false`
+ *   to stand in for a harness with no layout.
  */
 function mount(options = {}) {
   const html = new SandboxElement('html')
   html.root = true
   const shell = new SandboxElement('body')
   html.appendChild(shell)
-  const { body, doc } = previewBody(options.headings ?? [])
+  const { body, doc } = previewBody(options.headings ?? [], options.paddingTop)
   shell.appendChild(body)
 
   /** Timers the flash schedules, so the test can see the class both ways. */
@@ -314,6 +328,19 @@ function mount(options = {}) {
     document: dom,
     Element: SandboxElement,
     Node: SandboxElement,
+    // The host pads the rendered document (10px top, 12px sides) and the
+    // feature reads that padding to place the bar's sticky offset. The rest of
+    // the answer keeps other bundle features that probe styles at load awake
+    // but harmless; `computedStyle: false` stands in for a bare harness.
+    ...(options.computedStyle === false ? {} : {
+      getComputedStyle: (element) => ({
+        paddingTop: element?.computedPaddingTop ?? '0px',
+        paddingRight: '12px',
+        paddingBottom: '0px',
+        paddingLeft: '12px',
+        color: 'rgb(0, 0, 0)',
+      }),
+    }),
     localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
     console: { warn: () => {} },
     MutationObserver: class {
@@ -401,12 +428,11 @@ function mount(options = {}) {
       mutate(body, false)
     },
     /** Put a Markdown document back into the same body (the next tab). */
-    backToMarkdown(headings) {
-      const next = new SandboxElement('div')
-      next.setAttribute('data-document-markdown', '')
-      for (const node of headings) next.appendChild(node)
+    backToMarkdown(headings, paddingTop) {
+      const next = markdownDocument(headings, paddingTop)
       body.appendChild(next)
       mutate(next)
+      return next
     },
     pressOutside(target = shell) {
       fireDocument('pointerdown', { target })
@@ -545,6 +571,44 @@ it('picks up a page the host appends later, without drawing a second bar', () =>
     view.appendHeading(2, '四')
     assert.equal(view.items().length, 4, 'the open popover follows the new page')
     assert.equal(view.body.querySelectorAll('[data-smkit-md-toc]').length, 1)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('pins the bar at the document’s own padding, so the toggle never rises on scroll', () => {
+  // The bar leads the document, so at rest the host's prose padding insets it;
+  // pinning to the bare scrollport edge instead lifted the toggle by exactly
+  // that padding the moment scrolling began (upstream mounts the bar on the
+  // scroll container itself, where the resting and pinned positions coincide).
+  const view = mount({ headings: [heading(1, '一'), heading(2, '二'), heading(2, '三')] })
+  try {
+    assert.equal(view.bar().style.top, '10px', 'the sticky offset is the document’s padding, not 0')
+    assert.equal(view.doc.firstChild, view.bar(), 'the bar leads the document')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('re-reads the inset from the next document', () => {
+  const view = mount({ headings: [heading(1, '一'), heading(2, '二'), heading(2, '三')] })
+  try {
+    view.toOtherPreview()
+    view.backToMarkdown([heading(1, 'A'), heading(2, 'B'), heading(2, 'C')], '12px')
+    assert.equal(view.bar().style.top, '12px', 'a swapped document brings its own prose padding')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('leaves the stylesheet’s top in place when the host answers no computed style', () => {
+  const view = mount({
+    headings: [heading(1, '一'), heading(2, '二'), heading(2, '三')],
+    computedStyle: false,
+  })
+  try {
+    assert.ok(view.bar() !== null, 'the bar still mounts')
+    assert.equal(view.bar().style.top, undefined, 'no layout, no offset written')
   } finally {
     view.dispose()
   }

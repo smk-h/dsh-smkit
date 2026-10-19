@@ -18,10 +18,15 @@
 
 /* The zero-height sticky bar: occupies no layout, keeps the toggle visible
    while the preview scrolls, and lets pointer events pass through the bar
-   itself (only the interactive children re-enable them). The bar's stacking
-   context also frames the popover, so its z-index clears the host's code-block
-   banner (z-index 6) — 7 sits just above that banner and below the portalled
-   selection popup (60) / mermaid modal (1000). */
+   itself (only the interactive children re-enable them). `top` is the host
+   document's own prose padding, written inline by watch.ts: the bar's resting
+   position inside that padded document is exactly that far below the
+   scrollport edge, so pinning at the same distance keeps the toggle from
+   rising when the reader starts scrolling. The `0` here is the fallback for a
+   host that answers no computed style. The bar's stacking context also frames
+   the popover, so its z-index clears the host's code-block banner (z-index 6)
+   — 7 sits just above that banner and below the portalled selection popup
+   (60) / mermaid modal (1000). */
 .smkit-outline-toc-bar {
   position: sticky;
   top: 0;

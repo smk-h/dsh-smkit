@@ -143,6 +143,32 @@ function glyph(spec: IconSpec): SVGSVGElement {
   return svg
 }
 
+/**
+ * Move the bar's sticky offset onto the document's own top padding.
+ *
+ * The bar is the document's first in-flow child, so its static position sits
+ * one prose padding (10px) below the scrollport edge — while `top: 0` pins it
+ * to the edge itself. The toggle therefore rose by exactly that padding the
+ * moment the reader scrolled, and dropped back when the document returned to
+ * the top. Upstream never shows this: its bar is mounted on the scroll
+ * container itself, where the resting and pinned positions coincide. Reading
+ * the padding keeps the two together here as well, and follows a host that
+ * re-tunes its prose inset.
+ *
+ * Only a document swap needs the read: the inline value rides the bar through
+ * every later re-hang, and a fresh bar (a non-Markdown preview in between, or
+ * a remount) is attached to a document it has not measured yet.
+ */
+function pinToDocumentPadding(bar: HTMLElement, doc: Element): void {
+  // A harness with no layout answers nothing: the stylesheet's `top: 0` stays
+  // in force instead of this throwing.
+  if (typeof getComputedStyle !== 'function') return
+  const styled = bar as unknown as { style?: CSSStyleDeclaration }
+  if (styled.style === undefined) return
+  const padding = getComputedStyle(doc).paddingTop
+  if (padding !== '') styled.style.top = padding
+}
+
 /** The slice of `dsh-better-sidebar`'s client service this feature reads. */
 interface BetterSidebarFace {
   /** Whether one of that plugin's tab types is enabled in its settings. */
@@ -334,11 +360,15 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
     // The bar rides the DOCUMENT, not the scroll body: upstream's contract is
     // "a direct child of the scroll container", and this document is the host's
     // equivalent — it carries the same 10/12px prose padding the upstream
-    // editor had (12/16), which is what insets the toggle at rest. A re-render
-    // that dropped the bar, or a tab that swapped the document, re-hangs it at
-    // the top of whatever document is on screen now.
+    // editor had (12/16), so the toggle rests on the same inset. That padding
+    // is also why the sticky offset is measured from it: pinned at the bare
+    // scrollport edge the toggle sat 10px higher than at rest, and rose the
+    // moment scrolling began. A re-render that dropped the bar, or a tab that
+    // swapped the document, re-hangs it at the top of whatever document is on
+    // screen now.
     if (outline.doc !== doc || outline.bar.parentNode !== doc || doc.firstChild !== outline.bar) {
       doc.insertBefore(outline.bar, doc.firstChild)
+      if (outline.doc !== doc) pinToDocumentPadding(outline.bar, doc)
       outline.doc = doc
     }
     const found = collect(doc)
