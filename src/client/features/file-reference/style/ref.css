@@ -62,8 +62,25 @@ li[data-smkit-file-ref] > ul {
   color: var(--dsw-alias-label-primary);
 }
 
-li[data-smkit-file-ref]:hover > .smkit-file-ref-button,
-li[data-smkit-file-ref]:focus-within > .smkit-file-ref-button {
+/**
+ * The chip belongs to the row the pointer is actually over.
+ *
+ * `li:hover` cannot answer that: an expanded directory's `<li>` wraps its
+ * children's `<ul>`, so hovering any row matches `:hover` on every ancestor
+ * on the way up, and a whole nested chain lights up at once — every level
+ * showing a chip, none of which the pointer is on. The row BUTTON is the
+ * element the shell itself hovers, and a button is never an ancestor of
+ * another row, so the question is asked of it instead. The chip is asked too:
+ * it is a sibling button, and moving the pointer onto it must not hide it.
+ *
+ * `:has` is required to reach a child from the `<li>`; the hover-fill rule
+ * below already relies on it. `:focus-visible` answers the keyboard half —
+ * `:focus-within` would bring the same ancestor problem straight back.
+ */
+li[data-smkit-file-ref]:has(> button:not([data-smkit-file-ref-button]):hover) > .smkit-file-ref-button,
+li[data-smkit-file-ref]:has(> .smkit-file-ref-button:hover) > .smkit-file-ref-button,
+li[data-smkit-file-ref]:has(> button:not([data-smkit-file-ref-button]):focus-visible) > .smkit-file-ref-button,
+li[data-smkit-file-ref]:has(> .smkit-file-ref-button:focus-visible) > .smkit-file-ref-button {
   display: inline-flex;
 }
 
@@ -81,8 +98,10 @@ li[data-smkit-file-ref]:focus-within > .smkit-file-ref-button {
  * the 6px gap the shell's rows use between children. With the fallback the
  * reservation still keeps the name clear of the chip, just less exactly.
  */
-li[data-smkit-file-ref]:hover > button:not([data-smkit-file-ref-button]),
-li[data-smkit-file-ref]:focus-within > button:not([data-smkit-file-ref-button]) {
+li[data-smkit-file-ref]:has(> button:not([data-smkit-file-ref-button]):hover) > button:not([data-smkit-file-ref-button]),
+li[data-smkit-file-ref]:has(> .smkit-file-ref-button:hover) > button:not([data-smkit-file-ref-button]),
+li[data-smkit-file-ref]:has(> button:not([data-smkit-file-ref-button]):focus-visible) > button:not([data-smkit-file-ref-button]),
+li[data-smkit-file-ref]:has(> .smkit-file-ref-button:focus-visible) > button:not([data-smkit-file-ref-button]) {
   padding-right: calc(var(--smkit-file-ref-chip, 52px) + 16px);
 }
 
