@@ -1,0 +1,48 @@
+/**
+ * The floating "add to conversation" action over a preview selection.
+ *
+ * Portaled to `document.body` and `position: fixed`, so it is anchored to the
+ * selection's viewport rectangle rather than to any scrollport: the preview
+ * body clips its own children, and the button must sit outside it.
+ *
+ * The look is the shell's own small menu card — `--dsw-specific-menu`, a
+ * hairline border, the 6px radius its floating buttons use, the 11px strong
+ * font — so the button reads as part of DSH rather than as a plugin overlay,
+ * and a theme switch carries it. Upstream (`dsh-better-sidebar`) uses the same
+ * tokens and the same 28px height; the only addition is the level-2 shadow,
+ * which keeps the card legible over the code it covers.
+ *
+ * The press is prevented at `mousedown` in `watch.ts` to keep the selection
+ * alive; `cursor: pointer` and the hover fill are what tell the reader it is
+ * pressable at all.
+ */
+
+.smkit-quote-action {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  /* Above the selection, centred on it: the left/top the watcher writes is the
+     selection's own midpoint and top edge. */
+  transform: translate(-50%, calc(-100% - 8px));
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  background: var(--dsw-specific-menu);
+  box-shadow: var(--dsw-shadow-lv2);
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xxxs-strong-11);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.smkit-quote-action:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+
+.smkit-quote-action:focus-visible {
+  outline: 2px solid var(--dsw-alias-interactive-bg-hover-accent);
+  outline-offset: 1px;
+}

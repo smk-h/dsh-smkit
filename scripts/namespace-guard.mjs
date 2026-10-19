@@ -254,6 +254,14 @@ export const FOREIGN_DATA_ATTRS = [
   'data-code-block-content',
   'data-code-preview',
   /**
+   * The same header's path label (`PathLabel` in ui-primitives): the element
+   * carries the complete path in its `title`, which is how the selection popup
+   * names the file a quoted passage came from. The visible text is split into
+   * directory and file name and may be clipped, so `title` is the read; never
+   * written.
+   */
+  'data-textpreview-path',
+  /**
    * The deck's tab strip (`ui-dockkit`), where the tab menu's batch rows find
    * the tabs they close: `data-dockkit-strip-tabs` marks one pane's strip,
    * `data-dockkit-tab` one chip (its value is the tab id), and
@@ -346,6 +354,7 @@ export const SCOPES = [
   ['client/features/mcp', 'mcp'],
   ['client/features/openspec', 'spec'],
   ['client/features/plugin-gallery', 'gallery'],
+  ['client/features/selection-quote', 'quote'],
   ['client/features/session-delete', 'del'],
   ['client/features/session-manager', 'sess'],
   ['client/features/skills', 'skill'],

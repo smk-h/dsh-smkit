@@ -34,7 +34,8 @@
 
 import type { ClientContext, Translator } from '../../platform/types'
 import { betterSidebarOwnsSurfaces } from '../../platform/neighbour'
-import { insertWorkspaceReference, sessionOfRow } from './reference'
+import { sessionOfRow } from '../../platform/session'
+import { insertWorkspaceReference } from './reference'
 
 /** The tree body once a listing has arrived, and one row inside it. */
 const TREE = '[data-files-state="tree"]'

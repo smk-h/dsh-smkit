@@ -81,7 +81,7 @@ export interface ClientSessionsLike {
    * `current` field: the "current session" is expressed through
    * `retainedBy.mainView` and resolved by the shell's own session store, so a
    * reader that needs the session owning an element asks that element's
-   * container instead (see the reference feature's `sessionOfRow`).
+   * container instead (see `platform/session`'s `sessionOfRow`).
    */
   list?: {
     getSnapshot(): {

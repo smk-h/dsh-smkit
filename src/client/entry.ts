@@ -23,6 +23,7 @@ import { fileReferenceFeature } from './features/file-reference/client'
 import { lineJumpFeature } from './features/line-jump/client'
 import { markdownOutlineFeature } from './features/markdown-outline/client'
 import { openSpecFeature } from './features/openspec/client'
+import { selectionQuoteFeature } from './features/selection-quote/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
 import { tabMenuFeature } from './features/tab-menu/client'
 import { themeCenterFeature } from './features/theme-center/client'
@@ -69,6 +70,7 @@ const FEATURES: ClientFeature[] = [
   // host) is the one providing the affordance.
   markdownOutlineFeature,
   lineJumpFeature,
+  selectionQuoteFeature,
   fileReferenceFeature,
   explorerMenuFeature,
 ]

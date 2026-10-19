@@ -209,7 +209,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'tab-menu', 'markdown-outline', 'line-jump', 'file-reference', 'explorer']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'tab-menu', 'markdown-outline', 'line-jump', 'selection-quote', 'file-reference', 'explorer']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -275,6 +275,10 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The go-to-line box: its dictionary only — the keystroke and the box are
     // armed by the watch registered below (see `features/line-jump`).
     'smkit: line-jump/dictionaries',
+    // The preview's selection popup: its dictionary only — the gesture and the
+    // floating button are armed by the watch registered below (see
+    // `features/selection-quote`).
+    'smkit: selection-quote/dictionaries',
     // The explorer's @-reference chip: its dictionary, then the watch that
     // decorates the host's file rows (see `features/file-reference`).
     'smkit: file-reference/dictionaries',
@@ -302,6 +306,10 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The go-to-line watch: one capture-phase keydown, one pointermove for
     // picking the preview, and the box it draws on Ctrl+G.
     'smkit: line-jump/preview',
+    // The selection popup's watch: a mouse-up that ends a selection, the
+    // dispatch table that dismisses the button, and the press that writes the
+    // quoted block into the composer draft.
+    'smkit: selection-quote/preview',
     // The explorer chip's watch: one document observer, one per tree, and a
     // capture-phase click that turns a press into an `@` reference.
     'smkit: file-reference/explorer',
