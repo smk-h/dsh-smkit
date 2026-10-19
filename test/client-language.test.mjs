@@ -209,7 +209,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'tab-menu', 'markdown-outline', 'file-reference', 'explorer']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'tab-menu', 'markdown-outline', 'line-jump', 'file-reference', 'explorer']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -272,6 +272,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // table of contents on each host preview body (see
     // `features/markdown-outline`).
     'smkit: markdown-outline/dictionaries',
+    // The go-to-line box: its dictionary only — the keystroke and the box are
+    // armed by the watch registered below (see `features/line-jump`).
+    'smkit: line-jump/dictionaries',
     // The explorer's @-reference chip: its dictionary, then the watch that
     // decorates the host's file rows (see `features/file-reference`).
     'smkit: file-reference/dictionaries',
@@ -296,6 +299,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The outline's watch: one document observer for preview bodies, one per
     // body for its own re-renders, and the outline bar each of them carries.
     'smkit: markdown-outline/preview',
+    // The go-to-line watch: one capture-phase keydown, one pointermove for
+    // picking the preview, and the box it draws on Ctrl+G.
+    'smkit: line-jump/preview',
     // The explorer chip's watch: one document observer, one per tree, and a
     // capture-phase click that turns a press into an `@` reference.
     'smkit: file-reference/explorer',

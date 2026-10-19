@@ -1,0 +1,77 @@
+/**
+ * The go-to-line box and the line it lands on.
+ *
+ * The box is the same floating card the shell uses for its own small panels —
+ * `--dsw-alias-bg-layer-2`, a hairline border, the level-2 shadow, an 8px
+ * radius — so it reads as part of the preview rather than as a plugin surface,
+ * and it is painted from the shell's tokens so a theme switch carries it.
+ *
+ * The landed-on line keeps its mark until the next jump (`watch.ts` sets the
+ * attribute and leaves it, repainting it if the host re-renders the block). On a
+ * plain text row that covers the row; on a highlighted code line the span is
+ * inline, so the tint sits behind the text of that line — the same way the
+ * host's own selection paints a code line.
+ */
+
+.smkit-line-jump-panel {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 236px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-shadow-lv2);
+  font: var(--dsw-font-xxs-12);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.smkit-line-jump-input {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--dsw-alias-state-business-primary);
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xxs-12);
+}
+
+.smkit-line-jump-input::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-line-jump-input:focus {
+  outline: none;
+  border-color: var(--dsw-alias-state-business-primary);
+}
+
+/* The rendered range: how far the host has paged the document in. */
+.smkit-line-jump-hint {
+  flex: none;
+  font: var(--dsw-font-xxxs-11);
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The line the reader named, kept marked until the next jump.
+ *
+ * The hover fill the rest of the shell uses for a row is too faint to find again
+ * on a wall of code, so the mark is mixed from the accent: a quiet tint on both
+ * themes, but one the eye picks up a screen later without reading the line. It
+ * never takes a border or a selection color — it is where the reader asked to
+ * go, not a state to act on.
+ */
+[data-smkit-line-jump-mark] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 20%, transparent);
+  border-radius: 3px;
+  box-decoration-break: clone;
+}

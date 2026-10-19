@@ -238,6 +238,22 @@ export const FOREIGN_DATA_ATTRS = [
   'data-textpreview-state',
   'data-textpreview-tool',
   /**
+   * The two renderers' line anchors, which the go-to-line feature names to move
+   * a reader to one line. `data-textpreview-line` is one plain-text row (its
+   * value the 1-based number), `data-textpreview-more` the host's own "load
+   * more" control — pressing it is the same call its scroll handler makes, which
+   * is how a jump reaches a line the host has not paged in yet. For highlighted
+   * code there is no number in the DOM at all (the gutter is a CSS counter), so
+   * the block's own scrollport is named instead: `data-code-block-content`
+   * (ui-primitives' `CodeBlock`) scrolls, `data-code-preview` marks the
+   * renderer around it. All read only; the jump presses the host's button and
+   * never writes one of these.
+   */
+  'data-textpreview-line',
+  'data-textpreview-more',
+  'data-code-block-content',
+  'data-code-preview',
+  /**
    * The deck's tab strip (`ui-dockkit`), where the tab menu's batch rows find
    * the tabs they close: `data-dockkit-strip-tabs` marks one pane's strip,
    * `data-dockkit-tab` one chip (its value is the tab id), and
@@ -324,6 +340,7 @@ export const SCOPES = [
   ['client/features/custom-settings', 'cs'],
   ['client/features/explorer-menu', 'explorer'],
   ['client/features/file-reference', 'file'],
+  ['client/features/line-jump', 'line'],
   ['client/features/local-cache', 'cache'],
   ['client/features/markdown-outline', 'outline'],
   ['client/features/mcp', 'mcp'],

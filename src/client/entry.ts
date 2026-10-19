@@ -20,6 +20,7 @@
 
 import { explorerMenuFeature } from './features/explorer-menu/client'
 import { fileReferenceFeature } from './features/file-reference/client'
+import { lineJumpFeature } from './features/line-jump/client'
 import { markdownOutlineFeature } from './features/markdown-outline/client'
 import { openSpecFeature } from './features/openspec/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
@@ -67,6 +68,7 @@ const FEATURES: ClientFeature[] = [
   // plugin — and each stands itself down when `dsh-better-sidebar` (or a future
   // host) is the one providing the affordance.
   markdownOutlineFeature,
+  lineJumpFeature,
   fileReferenceFeature,
   explorerMenuFeature,
 ]
