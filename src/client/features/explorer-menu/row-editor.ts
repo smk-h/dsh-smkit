@@ -30,7 +30,9 @@
  *
  *   - create: in the gap under the directory row, at that level's indent and
  *     width — the level lends the height as padding while the editor is open, so
- *     the children are pushed down rather than covered;
+ *     the children are pushed down rather than covered. The tree's ROOT is the
+ *     one directory without a row: that create takes the header row's box and
+ *     borrows the listing's top level instead (see `anchor` / `list`);
  *   - rename: over the row it edits, at that row's own box — the same row the
  *     source's editor replaces in place.
  *
@@ -137,6 +139,21 @@ export interface RowEditorOptions {
   /** That row's element: expanded when collapsed, and the editor's anchor. */
   row: Element
   /**
+   * The box the editor aligns to, when that is not the row's own button.
+   *
+   * A create at the tree's root passes the header row instead: the root has no
+   * row of its own, and the entry it creates lands at the top of the listing,
+   * immediately under that header.
+   */
+  anchor?: Element
+  /**
+   * The level list the editor takes its one row of height from. Defaults to the
+   * row's own child list; a create at the root borrows the listing's top level,
+   * which belongs to the tree body rather than to any row. Resolved on every
+   * reposition, because a refresh replaces the list.
+   */
+  list?: () => Element | null
+  /**
    * The shell's file-type glyph, so the editor shows the glyph of the name it
    * holds (the source's `fileIcon(probe, 14)`). Optional: an older shell
    * without it keeps this feature's own generic glyph.
@@ -178,7 +195,7 @@ function iconElement(spec: IconSpec): Element {
 export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
   const { api, t, kind, row } = options
   const renaming = options.mode === 'rename'
-  const anchor = (row.querySelector(':scope > button') ?? row) as HTMLElement
+  const anchor = (options.anchor ?? row.querySelector(':scope > button') ?? row) as HTMLElement
 
   /** The directory a creation lands in, and the directory the editor indents to. */
   const directory = renaming ? parentOf(options.path) : options.path
@@ -274,7 +291,7 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
   /** Take (or re-take) the card's height from the children list. */
   const reserveList = (): void => {
     if (renaming) return
-    const next = row.querySelector(':scope > ul')
+    const next = options.list === undefined ? row.querySelector(':scope > ul') : options.list()
     if (next === null || !(next instanceof Element)) return
     const element = next as HTMLElement
     if (element !== list) {

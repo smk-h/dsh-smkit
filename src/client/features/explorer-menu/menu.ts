@@ -12,6 +12,10 @@
  *   overflow clip cannot crop it;
  * - a DIRECTORY row leads with "new folder" and "new file" (the shell's menu
  *   cannot create anything by itself; see `create.ts` for the inline editor);
+ * - the tree's ROOT is a directory with no row of its own, so the header row
+ *   above the listing and the blank space under it answer for it — with the two
+ *   creating rows only, because the root has no path of its own to copy, no
+ *   sibling to be renamed beside, and no parent to be deleted out of;
  * - the two copy rows are "copy relative path" and "copy absolute path", in
  *   that order, each with the same copy glyph, and every row carries them;
  * - the relative row copies the path projected against the tree's root
@@ -66,6 +70,8 @@ import { openRowEditor, type RowEditorHandle } from './row-editor'
 /** One tree row, and the tree's root anchor (which carries the cwd). */
 const ROW = 'li[data-files-entry]'
 const TREE = '[data-files-state="tree"]'
+/** The listing's scroll body — the level sits directly inside it. */
+const BODY = '[data-files-body]'
 
 /** This feature's markers: the transient label, and the row that carries it. */
 const LABEL = 'data-smkit-explorer-label'
@@ -102,8 +108,11 @@ interface MenuRuntime {
   classifyFileType?: (name: string) => string
 }
 
-/** What the row behind the menu is, as the shell published it. */
-type RowKind = 'file' | 'directory' | 'other'
+/**
+ * What the row behind the menu is, as the shell published it. `root` is not a
+ * row: it is the tree's own directory, which the shell gives no row.
+ */
+type RowKind = 'file' | 'directory' | 'other' | 'root'
 
 /** One open menu: the row it belongs to, where it opened, and its paths. */
 interface MenuTarget {
@@ -272,21 +281,29 @@ export function watchExplorerMenu(
           ? []
           : [
               // The creating rows lead, as the source's do, and belong to a
-              // directory row only — a file row has nowhere to create in.
-              ...(open.kind === 'directory'
+              // directory — the tree's root included, which is a directory the
+              // shell draws no row for.
+              ...(open.kind === 'directory' || open.kind === 'root'
                 ? [
                     { id: 'new-folder', label: t('newFolder'), icon: iconElement(h, PLUS_ICON) },
                     { id: 'new-file', label: t('newFile'), icon: iconElement(h, NEW_FILE_ICON) },
                   ]
                 : []),
-              { id: 'relative', label: t('copyRelative'), icon: copyIcon },
-              { id: 'absolute', label: t('copyAbsolute'), icon: copyIcon },
-              // The mutations close the source's menu as their own group, after
-              // a hairline. The host tree has no root row, so the reference's
-              // "never on the root" rule has nothing to exclude here.
-              { id: 'mutate-sep', type: 'separator' },
-              { id: 'rename', label: t('rename'), icon: renameIcon },
-              { id: 'delete', label: t('delete'), icon: deleteIcon, danger: true },
+              // Everything below names the entry itself: the root has no path of
+              // its own to copy, nothing above it to rename it into, and deleting
+              // it would be deleting the workspace, not an entry — its menu stops
+              // at the two creating rows.
+              ...(open.kind === 'root'
+                ? []
+                : [
+                    { id: 'relative', label: t('copyRelative'), icon: copyIcon },
+                    { id: 'absolute', label: t('copyAbsolute'), icon: copyIcon },
+                    // The mutations close the source's menu as their own group,
+                    // after a hairline.
+                    { id: 'mutate-sep', type: 'separator' },
+                    { id: 'rename', label: t('rename'), icon: renameIcon },
+                    { id: 'delete', label: t('delete'), icon: deleteIcon, danger: true },
+                  ]),
             ],
         onSelect: (id: string) => { select(id) },
         onClose: () => { setMenu(null) },
@@ -309,7 +326,9 @@ export function watchExplorerMenu(
     for (const marked of Array.from(document.querySelectorAll(`[${TARGET}]`))) {
       if (marked !== row) marked.removeAttribute(TARGET)
     }
-    if (row !== null) row.setAttribute(TARGET, '')
+    // Only a tree row has a hover fill to keep: the root's target is the header,
+    // which paints none — the marker there would name nothing.
+    if (row !== null && row.getAttribute('data-files-entry') !== null) row.setAttribute(TARGET, '')
   }
 
   /** Open or close the menu, keeping its row lit while it is up. */
@@ -332,6 +351,7 @@ export function watchExplorerMenu(
       // One editor at a time: a second "new …" or "rename" replaces the first.
       closeRowEditor()
       const creating = id !== 'rename'
+      const root = target.kind === 'root'
       rowEditor = openRowEditor({
         api: deps.api,
         t,
@@ -342,6 +362,11 @@ export function watchExplorerMenu(
         path: target.path,
         name: baseName(target.path),
         row: target.row,
+        // The root has no directory row to hang the editor under: it takes the
+        // header row's box instead, and borrows the listing's top level for the
+        // one row of height the create needs.
+        anchor: root ? target.row : undefined,
+        list: root ? () => rootLevel(target.row) : undefined,
         // The source draws the name's own file glyph in that row
         // (`service.fileIcon(probe, 14)`); this is the shell's twin of it.
         typeIcon: runtime.FileTypeIcon === undefined || runtime.classifyFileType === undefined
@@ -373,25 +398,59 @@ export function watchExplorerMenu(
     })
   }
 
+  /** The listing's top level: the list a create at the root lands in. */
+  const rootLevel = (row: Element): Element | null =>
+    row.closest(TREE)?.querySelector(BODY)?.querySelector(':scope > ul') ?? null
+
   /**
-   * The one listener. It answers a row right-click and nothing else: the row's
-   * path is the tree's own absolute spelling, and the tree's `data-files-root`
-   * is the base the relative row projects against.
+   * The row under the pointer: its path is the tree's own absolute spelling,
+   * and the tree's `data-files-root` is the base the relative row projects
+   * against.
+   */
+  const rowTarget = (row: Element, event: MouseEvent): MenuTarget | null => {
+    const path = row.getAttribute('data-files-path')
+    if (path === null || path === '') return null
+    const rootPath = row.closest(TREE)?.getAttribute('data-files-root') ?? ''
+    const kind = (row.getAttribute('data-files-entry') ?? 'other') as RowKind
+    return { row, path, root: rootPath, kind, x: event.clientX, y: event.clientY }
+  }
+
+  /**
+   * The tree's own root, which the shell gives no row.
+   *
+   * `ui-sidebar-files` draws a header row above the listing (`/workspace`, the
+   * reload control) and rows only for the entries INSIDE the root — so the one
+   * directory every session starts in was the one directory this menu could not
+   * create in: there was nothing to right-click. The header row, and the blank
+   * space the tree leaves under a short listing, stand in for it. Both sit
+   * inside `data-files-state="tree"`, and the listing they belong to is named by
+   * `data-files-root`.
+   */
+  const rootTarget = (node: Element, event: MouseEvent): MenuTarget | null => {
+    const tree = node.closest(TREE)
+    if (tree === null) return null
+    const path = tree.getAttribute('data-files-root') ?? ''
+    const body = tree.querySelector(BODY)
+    const header = body?.previousElementSibling ?? null
+    if (path === '' || body === null || header === null) return null
+    return { row: header, path, root: path, kind: 'root', x: event.clientX, y: event.clientY }
+  }
+
+  /**
+   * The one listener. A right-click on a row answers that row; anywhere else in
+   * the tree answers the root, which has no row to be right-clicked.
    */
   const onContextMenu = (event: MouseEvent): void => {
     const node = event.target
     if (!(node instanceof Element)) return
-    const row = node.closest(ROW)
-    if (row === null) return
-    const path = row.getAttribute('data-files-path')
-    if (path === null || path === '') return
     if (betterSidebarOwnsSurfaces(ctx)) return
-    const rootPath = row.closest(TREE)?.getAttribute('data-files-root') ?? ''
-    const kind = (row.getAttribute('data-files-entry') ?? 'other') as RowKind
+    const row = node.closest(ROW)
+    const target = row === null ? rootTarget(node, event) : rowTarget(row, event)
+    if (target === null) return
     // Only claim the gesture once a menu can actually be shown.
     event.preventDefault()
     event.stopPropagation()
-    setMenu({ row, path, root: rootPath, kind, x: event.clientX, y: event.clientY })
+    setMenu(target)
   }
 
   document.addEventListener('contextmenu', onContextMenu, true)

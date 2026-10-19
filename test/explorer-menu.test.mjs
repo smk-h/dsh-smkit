@@ -114,6 +114,13 @@ class SandboxElement {
     return this.childNodes[0] ?? null
   }
 
+  /** The shell's body sits under the header row; the root target reads it. */
+  get previousElementSibling() {
+    const siblings = this.parentNode === null ? [] : this.parentNode.children
+    const at = siblings.indexOf(this)
+    return at > 0 ? siblings[at - 1] : null
+  }
+
   get isConnected() {
     let node = this
     while (node.parentNode !== null) node = node.parentNode
@@ -255,11 +262,24 @@ function mount(options = {}) {
   const shell = new SandboxElement('body')
   html.appendChild(shell)
 
+  // The shell's shape: `div[data-files-state=tree]` holds the header row (the
+  // root's breadcrumb and its tools) and, under it, the scrolling body whose
+  // first child is the top level. The tree's own root has no row in that level.
   const tree = new SandboxElement('div')
   tree.setAttribute('data-files-state', 'tree')
   tree.setAttribute('data-files-root', options.root ?? '/ws')
+  const header = new SandboxElement('div')
+  const rootPath = new SandboxElement('span')
+  rootPath.setAttribute('data-files-path', 'true')
+  rootPath.setAttribute('data-path-label', 'true')
+  rootPath.textContent = options.root ?? '/ws'
+  header.appendChild(rootPath)
+  const body = new SandboxElement('div')
+  body.setAttribute('data-files-body', '')
   const level = new SandboxElement('ul')
-  tree.appendChild(level)
+  body.appendChild(level)
+  tree.appendChild(header)
+  tree.appendChild(body)
   shell.appendChild(tree)
   const noPath = row('file', undefined)
   const file = row('file', '/ws/src/a.ts')
@@ -437,6 +457,8 @@ function mount(options = {}) {
 
   return {
     tree,
+    header,
+    treeBody: body,
     body: shell,
     noPath,
     file,
@@ -645,6 +667,58 @@ it('offers the two creating rows on a directory row, never on a file row', () =>
     )
     view.contextMenu(view.file.children[0])
     assert.equal(view.menu().items.map((item) => item.id).join(','), 'relative,absolute,mutate-sep,rename,delete')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('offers the creating rows on the tree’s root, which the shell draws no row for', () => {
+  const view = mount()
+  try {
+    // The header row above the listing: "/workspace", and no row of its own.
+    const event = view.contextMenu(view.header.children[0], 300, 200)
+    assert.equal(event.prevented, true, 'the browser menu is suppressed')
+    assert.equal(
+      view.menu().items.map((item) => item.id).join(','),
+      'new-folder,new-file',
+      'the root has no path of its own to copy, no sibling to rename beside, and no parent to delete out of',
+    )
+    assert.equal(
+      view.header.getAttribute('data-smkit-explorer-target'),
+      null,
+      'the header paints no hover fill, so nothing has to be kept lit',
+    )
+
+    // The blank space under a short listing answers the same way.
+    view.contextMenu(view.treeBody, 300, 700)
+    assert.equal(view.menu().items.map((item) => item.id).join(','), 'new-folder,new-file')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('creates at the root, seated under the header row', async () => {
+  const view = mount()
+  try {
+    view.contextMenu(view.header.children[0], 300, 200)
+    view.select('new-folder')
+    const editor = view.body.querySelector('[data-smkit-explorer-new-row]')
+    assert.notEqual(editor, null, 'the editor is mounted on the body')
+    assert.equal(editor.style.left, '0px')
+    assert.equal(editor.style.top, '20px', 'the header box ends where the listing begins')
+    assert.equal(editor.style.width, '160px')
+    assert.equal(
+      view.treeBody.children[0].style.paddingTop,
+      '28px',
+      'the top level lends the editor its one row of height',
+    )
+    const input = editor.querySelector('input')
+    input.value = 'docs'
+    input.dispatch('keydown', { key: 'Enter' })
+    await settle()
+    assert.equal(view.requests.length, 1)
+    assert.equal(view.requests[0].url, '/smkit/api/explorer/create-folder')
+    assert.deepEqual(JSON.parse(view.requests[0].body), { path: '/ws', name: 'docs' })
   } finally {
     view.dispose()
   }

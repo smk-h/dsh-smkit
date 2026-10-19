@@ -198,6 +198,13 @@ export const FOREIGN_DATA_ATTRS = [
   'data-files-path',
   'data-files-root',
   /**
+   * The listing's scroll body (`FilesBody`): the header row above it is where a
+   * create at the root seats its editor, and the level inside it is the list
+   * that entry lands in. The tree root has no row of its own to right-click, so
+   * these two are how the explorer menu finds the root at all. Read only.
+   */
+  'data-files-body',
+  /**
    * The right sidebar's session owner (`ui-sidebar-right`): every panel inside
    * it carries the session id, which is what the reference button reads to
    * insert into the composer of the session the tree is showing. Read only.
