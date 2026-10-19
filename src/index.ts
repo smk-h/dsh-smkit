@@ -14,6 +14,7 @@
 import { API_PREFIX, ROUTE_PATH } from './host/platform/constants.js'
 import { createPrefixRoute } from './host/platform/routes.js'
 import { customSettingsFeature } from './host/features/custom-settings/host.js'
+import { explorerOpsFeature } from './host/features/explorer-ops/host.js'
 import { mcpFeature } from './host/features/mcp/host.js'
 import { notifyFeature } from './host/features/notify/host.js'
 import { openSpecFeature } from './host/features/openspec/host.js'
@@ -41,6 +42,7 @@ const FEATURES: HostFeature[] = [
   openSpecFeature,
   notifyFeature,
   themeCenterFeature,
+  explorerOpsFeature,
 ]
 
 export function apply(ctx: PluginContext): void {
