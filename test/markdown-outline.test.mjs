@@ -674,6 +674,49 @@ it('opens on the section being read, with its row lit', () => {
   }
 })
 
+it('moves the mark on once the next heading owns the top of the screen', () => {
+  // Reported: "2.1" had scrolled away leaving two lines at the top edge, while
+  // "2.1.1" already sat a fifth of the way down — the list still lit "2.1".
+  const gone = heading(4, '2.1 MCP 管理')
+  const next = heading(5, '2.1.1 工具清单')
+  const later = heading(5, '2.1.2 按需工具代理')
+  const view = mount({ headings: [gone, next, later] })
+  try {
+    place(view.body, 100, 600)
+    place(gone, 40, 40)
+    place(next, 220, 40)
+    place(later, 900, 40)
+    view.toggle().dispatch('click')
+    assert.equal(
+      view.items()[1].getAttribute('data-smkit-md-toc-active'),
+      '',
+      'the section filling the screen holds the mark, not the one that left it',
+    )
+    assert.equal(view.items()[0].getAttribute('data-smkit-md-toc-active'), null)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('keeps a 32px reading inset on a scrollport too short for a quarter', () => {
+  const first = heading(2, '一')
+  const second = heading(2, '二')
+  const third = heading(2, '三')
+  const view = mount({ headings: [first, second, third] })
+  try {
+    // A 40px scrollport has no quarter to give: the floor is what decides that
+    // a heading 28px down it has been reached.
+    place(view.body, 100, 40)
+    place(first, 40, 40)
+    place(second, 128, 40)
+    place(third, 400, 40)
+    view.toggle().dispatch('click')
+    assert.equal(view.items()[1].getAttribute('data-smkit-md-toc-active'), '')
+  } finally {
+    view.dispose()
+  }
+})
+
 it('centres the lit row in the popover, without moving the preview', () => {
   const headings = Array.from({ length: 12 }, (_, index) => heading(2, `第 ${index + 1} 节`))
   const view = mount({ headings })

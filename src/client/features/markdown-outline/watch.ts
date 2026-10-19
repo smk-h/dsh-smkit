@@ -101,13 +101,26 @@ export const TOC_MIN_HEADINGS = 3
 const FLASH_MS = 1200
 
 /**
- * How far below the scrollport's top edge a heading counts as "being read".
+ * How far below the scrollport's top edge the reader's eye sits, as a share of
+ * the scrollport's own height.
  *
- * A heading whose top has passed this line is the section the reader is in —
- * the same line `jump` leaves a heading at (`block: 'start'` plus the document
- * padding), so a section clicked in the list stays the marked one.
+ * The mark follows this line rather than the edge itself. Pinned to the edge, a
+ * section kept the mark until its heading had left the screen altogether: with
+ * only the last lines of "2.1" still on view and the "2.1.1" heading already a
+ * few lines down, the list still lit "2.1" — the section the reader had left,
+ * not the one filling the screen. A quarter down is where the eye rests while
+ * reading, so a heading that has carried that much of the scrollport is the
+ * section being read, and the next section takes the mark as soon as it reaches
+ * this line instead of waiting for the top edge.
+ *
+ * `jump` still leaves a heading at the very top: a section clicked in the list
+ * stays marked unless its own successor starts within this quarter, in which
+ * case the successor already fills what the reader is looking at.
  */
-const READING_LINE = 32
+const READING_SHARE = 0.25
+
+/** The floor of that inset, for a scrollport too short to give a quarter. */
+const READING_MIN = 32
 
 /** The host's preview scroll body, its Markdown document, and its headings. */
 const PREVIEW_BODY = '[data-textpreview-body]'
@@ -410,9 +423,10 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
 
   /**
    * The entry the reader is in: the last heading whose top has passed the
-   * reading line. Before any heading reaches it — the very top of a document —
-   * the first entry is the section about to be read. A body that reports no
-   * height has not been laid out (the hook harness), and nothing is marked.
+   * reading line (a {@link READING_SHARE} of the scrollport down from its edge).
+   * Before any heading reaches it — the very top of a document — the first entry
+   * is the section about to be read. A body that reports no height has not been
+   * laid out (the hook harness), and nothing is marked.
    */
   const activeIndex = (outline: Outline): number => {
     if (outline.entries.length === 0) return -1
@@ -420,7 +434,7 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
     if (typeof body.getBoundingClientRect !== 'function') return -1
     const view = body.getBoundingClientRect()
     if (!(view.height > 0)) return -1
-    const line = view.top + READING_LINE
+    const line = view.top + Math.max(READING_MIN, view.height * READING_SHARE)
     let active = 0
     for (const [index, entry] of outline.entries.entries()) {
       if (!entry.el.isConnected || typeof entry.el.getBoundingClientRect !== 'function') continue
