@@ -1,5 +1,6 @@
 /**
- * The floating "add to conversation" action over a preview selection.
+ * The floating "add to conversation" action over a selection in a preview or a
+ * terminal.
  *
  * Portaled to `document.body` and `position: fixed`, so it is anchored to the
  * selection's viewport rectangle rather than to any scrollport: the preview

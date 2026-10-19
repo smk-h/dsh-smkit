@@ -1,10 +1,11 @@
 /**
- * The selection-quote feature: "add to conversation" on the host's previews.
+ * The selection-quote feature: "add to conversation" on the host's read-only
+ * surfaces.
  *
- * Chrome on a surface the plugin does not own — the right sidebar's read-only
- * document preview — so it takes no slot and registers no seat; it listens for
- * the selection gesture and draws its own button (see `watch.ts`). The
- * upstream reference this plugin ports from (`dsh-better-sidebar`,
+ * Chrome on surfaces the plugin does not own — the right sidebar's document
+ * preview and its terminal tab — so it takes no slot and registers no seat; it
+ * listens for the selection gesture and draws its own button (see `watch.ts`).
+ * The upstream reference this plugin ports from (`dsh-better-sidebar`,
  * `src/client/selection-popup.ts`) draws the same button inside its own editor,
  * which is why the watcher stands down while that plugin is loaded: one
  * affordance on one surface, never two.

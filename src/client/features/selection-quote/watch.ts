@@ -1,18 +1,20 @@
 /**
- * "Add to conversation" for the host's read-only file previews.
+ * "Add to conversation" for the host's read-only surfaces: file previews and
+ * terminals.
  *
  * The previews (`ui-sidebar-documentpreview`) render a file as text that can be
- * selected and nothing else: no editor, no way to hand a passage to the
- * conversation. `dsh-better-sidebar` grows exactly this affordance inside its own
- * viewer — a floating button over the selection whose press drops a fenced code
- * block into the composer draft — and this feature is that behaviour for the
- * host's preview, so a profile without the neighbour is not a downgrade.
+ * selected and nothing else, and the sidebar terminal (`ui-sidebar-terminal`)
+ * gives a screen the reader can select with no way out either: neither can hand
+ * a passage to the conversation. `dsh-better-sidebar` grows this affordance
+ * inside its own viewer — a floating button over the selection whose press drops
+ * a fenced block into the composer draft — and this feature is that behaviour for
+ * the host's surfaces, so a profile without the neighbour is not a downgrade.
  *
  * ## The gesture
  *
- * A mouse-up with a live selection inside a preview anchors one small button
+ * A mouse-up with a live selection inside a surface anchors one small button
  * just above the point the gesture ended at (`position: fixed`, portaled to
- * `document.body` so no scrollport can clip it). The press commits:
+ * `document.body` so no scrollport can clip it). On a preview the press commits:
  *
  *     ```src/a.ts:12-15
  *     <the selected lines>
@@ -25,36 +27,55 @@
  * rendered Markdown document — whose blocks are prose, not source lines — is
  * the path alone (see `payload.ts`).
  *
+ * ## Terminals
+ *
+ * The sidebar's terminal tab is xterm.js: its selection lives in the emulator's
+ * own model, not in the document — the screen is a renderer and the root is
+ * `user-select: none`, so `window.getSelection()` never sees it. The way out is
+ * the copy path xterm installs on its own root: a dispatched `copy` event that
+ * carries a `clipboardData` sink is answered with the selection text, without
+ * touching the real clipboard, without a keyboard shortcut, and without the
+ * `Terminal` instance (which xterm keeps private and the host exposes no
+ * selection face for).
+ *
+ * A terminal selection names no path and no line numbers, so its payload is the
+ * text alone in a fenced `console` block — at every length: a header would point
+ * at nothing, and the reader chose those lines deliberately. Its session comes
+ * from the same right-sidebar container as a preview's, because the terminal tab
+ * lives in that sidebar.
+ *
  * ## Why the pointer, not the selection's box
  *
  * The button is anchored to where the gesture ended, never to the selection's
- * bounding rectangle: a selection taller than the preview (the reader drags to
+ * bounding rectangle: a selection taller than the surface (the reader drags to
  * the bottom edge, the surface auto-scrolls, the block keeps growing) has a box
  * whose top is at best at the viewport's edge and at worst far above it — the
  * button would be placed off-screen above the window, which is exactly how a
  * large selection used to lose its button. The pointer is on screen by
  * construction, and it sits at the end of the selection the reader just made,
- * which is also where their eye is. The surface is still named by the selection
+ * which is also where their eye is. A preview is still named by the selection
  * (its endpoints), not by the mouse-up's target, so a drag released a few pixels
  * past the preview's edge keeps its button.
  *
- * ## Only the host's preview
+ * ## Only the host's surfaces
  *
- * While `dsh-better-sidebar` is loaded it owns the file previews and draws this
- * very popup in its own editor, so this watch stands down on every gesture
- * (the same rule the outline and the explorer chip follow, see
- * `platform/neighbour`). The host's Markdown preview, which that plugin does not
- * take over, still answers here — one popup, never two.
+ * While `dsh-better-sidebar` is loaded it owns both the file previews and the
+ * terminal, and draws this very popup in its own editor, so this watch stands
+ * down on every gesture (the same rule the outline and the explorer chip follow,
+ * see `platform/neighbour`). The host's Markdown preview, which that plugin does
+ * not take over, still answers here — one popup, never two.
  *
  * ## When the button goes away
  *
  * The button is anchored to a live selection, so it dies with it: an outside
- * press, Escape, a collapsed selection, the preview scrolling under the anchor,
- * the surface leaving the viewport, the document being hidden or the window
- * losing focus all remove it. Its own press is exempt from the outside-press
- * rule and preventDefaults its `mousedown`: moving focus would collapse the
- * selection and take the anchor (and the payload) with it before the click
- * lands — the same contract the reference implementation documents.
+ * press, Escape, a collapsed preview selection, the surface scrolling under the
+ * anchor, the surface leaving the viewport, the document being hidden or the
+ * window losing focus all remove it. Its own press is exempt from the
+ * outside-press rule and preventDefaults its `mousedown`: moving focus would
+ * collapse the selection and take the anchor (and the payload) with it before the
+ * click lands — the same contract the reference implementation documents. A
+ * terminal's selection is not a document selection, so there is nothing to watch
+ * collapse there: a press anywhere else is what closes its button.
  *
  * ## Where the path and the lines come from
  *
@@ -93,6 +114,18 @@ const CODE_LINE = '.line'
 const PLAIN_LINE_ATTR = 'data-textpreview-line'
 const PLAIN_LINE = `[${PLAIN_LINE_ATTR}]`
 
+/** The sidebar terminal's root: xterm's own class, and the surface that copies. */
+const TERMINAL = '.xterm'
+
+/**
+ * The fence info line a terminal passage goes into.
+ *
+ * There is no path and no language to name — the output may be anything — so
+ * the conventional `console` is the honest label. It tells the model the block
+ * is a session transcript rather than source to read from a file.
+ */
+const TERMINAL_INFO = 'console'
+
 /** This feature's marker and class (see `style/action.css`). */
 const ACTION = 'data-smkit-quote-action'
 const ACTION_CLASS = 'smkit-quote-action'
@@ -115,17 +148,38 @@ const ABOVE_ROOM = 44
  */
 const SCROLL_GRACE_MS = 300
 
+/**
+ * One quote, ready to press: what would be inserted, and the surface it came
+ * from.
+ */
+interface Quote {
+  /** The text the press writes into the composer draft. */
+  insert: string
+  /** The surface's session, where the draft lives. */
+  sessionId: string
+  /** The element the button is attached to (leaving the viewport closes it). */
+  surface: Element
+  /**
+   * The preview body whose DOM selection keeps the button alive, or null for a
+   * terminal (whose selection is the emulator's, not the document's).
+   */
+  selectionBody: Element | null
+  /** Where the gesture ended, in viewport coordinates. */
+  point: { x: number; y: number }
+}
+
 /** The open button, and the selection it belongs to. */
 interface Open {
   button: HTMLButtonElement
-  /** The preview body the selection lives in: the button dies with it. */
-  body: Element
+  /** The surface's selection body, when it has one: the button dies with it. */
+  selectionBody: Element | null
   /** Watches the surface until it leaves the viewport (null on a host without one). */
   observer: IntersectionObserver | null
 }
 
 /**
- * Watch the host's previews for selections and offer to add them to the draft.
+ * Watch the host's read-only surfaces (previews and terminals) for selections
+ * and offer to add them to the draft.
  *
  * @param ctx - the client context (services are resolved at gesture time).
  * @param t - the copy lookup bound to this feature's namespace.
@@ -140,6 +194,8 @@ export function watchSelectionQuote(ctx: ClientContext, t: Translator): () => vo
   let open: Open | null = null
   /** When the open button stops ignoring scrolls (see `onScroll`). */
   let settleUntil = 0
+  /** Where the last press landed: a terminal's selection is a drag (see `onMouseUp`). */
+  let pressAt: { x: number; y: number } | null = null
 
   /** The document's selection, read through the one call that may be absent. */
   const selectionOf = (): Selection | null => {
@@ -249,15 +305,15 @@ export function watchSelectionQuote(ctx: ClientContext, t: Translator): () => vo
     current.button.remove()
   }
 
-  /** Close the button as soon as its preview leaves the viewport (a tab swap hides one). */
-  const watchSurface = (preview: Element): IntersectionObserver | null => {
+  /** Close the button as soon as its surface leaves the viewport (a tab swap hides one). */
+  const watchSurface = (surface: Element): IntersectionObserver | null => {
     if (typeof IntersectionObserver !== 'function') return null
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (!entry.isIntersecting) hide()
       }
     }, { threshold: 0 })
-    observer.observe(preview)
+    observer.observe(surface)
     return observer
   }
 
@@ -285,41 +341,87 @@ export function watchSelectionQuote(ctx: ClientContext, t: Translator): () => vo
    *
    * The pointer when the host reports one — it is where the reader's eye is, and
    * it sits at the end of the selection they just made — and otherwise the end
-   * of the selection itself, which is the same place for a synthetic mouse-up
-   * that carried no coordinates (a pointer at 0,0 is that spelling too).
+   * of the selection (or, for a terminal, the surface's own top), which is the
+   * same place for a synthetic mouse-up that carried no coordinates. A pointer
+   * at 0,0 is that spelling too.
    */
-  const pointOf = (event: MouseEvent, range: Range): { x: number; y: number } => {
+  const pointOf = (event: MouseEvent, range: Range | null, surface: Element): { x: number; y: number } => {
     const x = event.clientX
     const y = event.clientY
     if (Number.isFinite(x) && Number.isFinite(y) && (x > 0 || y > 0)) return { x, y }
-    if (typeof range.getClientRects === 'function') {
-      const rects = range.getClientRects()
-      const last = rects.length > 0 ? rects[rects.length - 1] : null
-      if (last !== null && last !== undefined) return { x: last.left + last.width / 2, y: Math.max(last.top, 0) }
+    if (range !== null) {
+      if (typeof range.getClientRects === 'function') {
+        const rects = range.getClientRects()
+        const last = rects.length > 0 ? rects[rects.length - 1] : null
+        if (last !== null && last !== undefined) return { x: last.left + last.width / 2, y: Math.max(last.top, 0) }
+      }
+      const box = range.getBoundingClientRect()
+      return { x: box.left + box.width / 2, y: Math.max(box.top, 0) }
     }
-    const box = range.getBoundingClientRect()
-    return { x: box.left + box.width / 2, y: Math.max(box.top, 0) }
+    const box = surface.getBoundingClientRect()
+    return { x: box.left + box.width / 2, y: Math.max(box.top + 8, 8) }
   }
 
   /**
-   * Open the button for one selection: build the payload, anchor the button to
-   * the point the gesture ended at, and arm its press.
+   * The text one terminal holds selected.
+   *
+   * Read through xterm's own copy path (see the module doc): a synthetic `copy`
+   * event with a `clipboardData` sink on the terminal's root is answered with
+   * the selection, no clipboard and no keyboard needed. It does not bubble, so
+   * the shell's own copy handlers never see the probe, and xterm's handler only
+   * asks its selection service — the renderer in use makes no difference.
+   */
+  const terminalText = (root: Element): string => {
+    if (typeof Event !== 'function' || typeof root.dispatchEvent !== 'function') return ''
+    let text: string | undefined
+    try {
+      const probe = new Event('copy', { cancelable: true })
+      Object.defineProperty(probe, 'clipboardData', {
+        configurable: true,
+        value: { setData: (_type: string, value: string) => { text = value } },
+      })
+      root.dispatchEvent(probe)
+    } catch (error) {
+      console.warn('[smkit] terminal selection unreadable:', error)
+    }
+    return text ?? ''
+  }
+
+  /**
+   * The quote one terminal mouse-up means, or null when it selected nothing.
+   *
+   * The terminal's session comes from the sidebar container it lives in, like a
+   * preview's; the payload is the text in a fenced `console` block, with no
+   * length cap — a terminal passage has no path or line span to fall back to, so
+   * a header-only quote would say nothing at all (see the module doc).
+   */
+  const terminalQuote = (root: Element, event: MouseEvent): Quote | null => {
+    const text = terminalText(root)
+    if (text.trim() === '') return null
+    const sessionId = sessionOfRow(ctx, root)
+    if (sessionId === undefined) {
+      console.warn('[smkit] selection quote skipped: the terminal names no session')
+      return null
+    }
+    return {
+      insert: `\`\`\`${TERMINAL_INFO}\n${text}\n\`\`\``,
+      sessionId,
+      surface: root,
+      selectionBody: null,
+      point: pointOf(event, null, root),
+    }
+  }
+
+  /**
+   * Open the button for one quote: anchor it to the point the gesture ended at
+   * and arm its press.
    *
    * The button is a fresh element every time, so its listener can close over
    * the payload that is current: reusing one node would mean mutating what its
    * listener inserts, and the winner of that race would be invisible.
    */
-  const openAt = (
-    preview: Element,
-    body: Element,
-    range: Range,
-    text: string,
-    sessionId: string,
-    point: { x: number; y: number },
-  ): void => {
-    const path = pathOf(preview)
-    if (path === undefined) return
-    const insert = buildQuote(path, cwdOf(sessionId), linesOf(body, range), text)
+  const openButton = (quote: Quote): void => {
+    const { insert, sessionId, point } = quote
 
     const button = document.createElement('button')
     button.type = 'button'
@@ -350,16 +452,27 @@ export function watchSelectionQuote(ctx: ClientContext, t: Translator): () => vo
     document.body.appendChild(button)
     clampIntoViewport(button)
     settleUntil = Date.now() + SCROLL_GRACE_MS
-    open = { button, body, observer: watchSurface(preview) }
+    open = { button, selectionBody: quote.selectionBody, observer: watchSurface(quote.surface) }
+  }
+
+  /** How far the pointer travelled between the press and the release, in CSS pixels. */
+  const travel = (to: MouseEvent): number => {
+    if (pressAt === null) return Number.POSITIVE_INFINITY
+    const dx = to.clientX - pressAt.x
+    const dy = to.clientY - pressAt.y
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return 0
+    return Math.hypot(dx, dy)
   }
 
   /**
-   * A mouse-up that leaves a live selection inside a preview offers the button.
+   * A mouse-up that leaves a live selection offers the button.
    *
-   * The selection names the surface, not the release point: a drag that ends a
+   * A terminal is asked first and by target: its selection never reaches the
+   * document (see the module doc), so the target is the only witness, and a
+   * stale preview selection must not answer for it. A preview is then named by
+   * its selection's endpoints, not by the release point, so a drag that ends a
    * few pixels past the block's edge (the usual end of a long selection) keeps
-   * its button. A click elsewhere has already collapsed the selection, so it
-   * still shows nothing.
+   * its button; a click elsewhere has already collapsed that selection.
    */
   const onMouseUp = (event: MouseEvent): void => {
     if (event.button !== 0) return
@@ -368,6 +481,18 @@ export function watchSelectionQuote(ctx: ClientContext, t: Translator): () => vo
     if (open !== null && target instanceof Node && (target === open.button || open.button.contains(target))) return
     hide()
     if (betterSidebarOwnsSurfaces(ctx)) return
+    const element = target instanceof Element ? target : null
+    const terminal = element === null ? null : element.closest(TERMINAL)
+    if (terminal !== null) {
+      // A plain click is not a selection: xterm can keep its old selection
+      // through one, and re-offering the button for it on every click would be
+      // noise. A drag (the pointer moved) or a multi-click (a word, a line) is
+      // what produced the text.
+      if (event.detail < 2 && travel(event) < 3) return
+      const quote = terminalQuote(terminal, event)
+      if (quote !== null) openButton(quote)
+      return
+    }
     const selection = selectionOf()
     if (selection === null || selection.isCollapsed === true || selection.rangeCount === 0) return
     const range = selection.getRangeAt(0)
@@ -379,16 +504,25 @@ export function watchSelectionQuote(ctx: ClientContext, t: Translator): () => vo
     if (!inside(body, range.startContainer) || !inside(body, range.endContainer)) return
     const text = selection.toString()
     if (text.trim() === '') return
+    const path = pathOf(preview)
+    if (path === undefined) return
     const sessionId = sessionOfRow(ctx, preview)
     if (sessionId === undefined) {
       console.warn('[smkit] selection quote skipped: the preview names no session')
       return
     }
-    openAt(preview, body, range, text, sessionId, pointOf(event, range))
+    openButton({
+      insert: buildQuote(path, cwdOf(sessionId), linesOf(body, range), text),
+      sessionId,
+      surface: preview,
+      selectionBody: body,
+      point: pointOf(event, range, preview),
+    })
   }
 
   /** A press anywhere but the button closes it (the button exempts itself). */
   const onMouseDown = (event: MouseEvent): void => {
+    pressAt = { x: event.clientX, y: event.clientY }
     if (open === null) return
     const target = event.target
     if (target instanceof Node && (target === open.button || open.button.contains(target))) return
@@ -400,16 +534,20 @@ export function watchSelectionQuote(ctx: ClientContext, t: Translator): () => vo
     if (open !== null && event.key === 'Escape') hide()
   }
 
-  /** The button belongs to a live selection: a collapsed or moved-away one drops it. */
+  /**
+   * The button belongs to a live preview selection: a collapsed or moved-away
+   * one drops it. A terminal's selection is the emulator's own, invisible to
+   * this event — its button is closed by a press elsewhere instead.
+   */
   const onSelectionChange = (): void => {
-    if (open === null) return
+    if (open === null || open.selectionBody === null) return
     const selection = selectionOf()
     if (selection === null || selection.isCollapsed === true || selection.rangeCount === 0) {
       hide()
       return
     }
     const range = selection.getRangeAt(0)
-    if (!inside(open.body, range.startContainer) || !inside(open.body, range.endContainer)) hide()
+    if (!inside(open.selectionBody, range.startContainer) || !inside(open.selectionBody, range.endContainer)) hide()
   }
 
   const onVisibilityChange = (): void => {

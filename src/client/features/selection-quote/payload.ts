@@ -17,7 +17,14 @@
  * through the bundle's behaviour and the rules stay readable.
  */
 
-/** Max inserted selection length, in UTF-16 code units (i.e. JS `.length`). */
+/**
+ * Max inserted selection length for a PREVIEW quote, in UTF-16 code units (i.e.
+ * JS `.length`).
+ *
+ * A preview can drop the content because its header still names the file and the
+ * lines, which is actionable on its own. A terminal passage has no such
+ * fallback, so it is never cut: see `terminalQuote` in `watch.ts`.
+ */
 export const SELECTION_LIMIT = 500
 
 /** The source line span a selection covers (1-based, inclusive). */

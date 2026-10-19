@@ -14,6 +14,8 @@
  *   read from the rendered rows, never guessed;
  * - a rendered Markdown document has no source lines, so its payload is the
  *   path alone; a selection over 500 characters is the header alone;
+ * - a terminal is read through xterm's own copy path and quoted as a `console`
+ *   block at every length, with no document selection to die with;
  * - the path falls back to the absolute form when the session cwd is unknown,
  *   and the whole gesture is a no-op when the preview names no session;
  * - `dsh-better-sidebar` draws this same popup in its own viewer, so its
@@ -173,6 +175,12 @@ class SandboxElement {
     return delivered
   }
 
+  /** Deliver one real event object (the terminal probe uses this path). */
+  dispatchEvent(event) {
+    for (const handler of this.listeners.get(event.type) ?? []) handler(event)
+    return !event.defaultPrevented
+  }
+
   getBoundingClientRect() {
     return { ...this.rect }
   }
@@ -287,6 +295,19 @@ function mount(options = {}) {
     rows.push(paragraph)
   }
 
+  // The sidebar terminal: an xterm root whose own `copy` listener answers with
+  // the emulator's selection, exactly as xterm's `copyHandler` does on the real
+  // element. `terminalSelect` stands in for the drag that filled it.
+  const terminal = new SandboxElement('div')
+  terminal.setAttribute('class', 'xterm')
+  terminal.rect = { top: 100, left: 700, right: 1010, bottom: 620, width: 310, height: 520 }
+  sidebar.appendChild(terminal)
+  let terminalSelection = options.terminalText ?? ''
+  terminal.addEventListener('copy', (event) => {
+    event.clipboardData?.setData('text/plain', terminalSelection)
+    event.preventDefault()
+  })
+
   /** Something selectable outside the preview, for the endpoint check. */
   const outside = new SandboxElement('div')
   shell.appendChild(outside)
@@ -360,6 +381,18 @@ function mount(options = {}) {
   let exported
   runInNewContext(source, {
     Date: FakeDate,
+    // The terminal probe dispatches a `copy` event at xterm's root; the sandbox
+    // needs a constructor and an element that can dispatch it.
+    Event: class {
+      constructor(type, init = {}) {
+        this.type = type
+        this.bubbles = init.bubbles === true
+        this.cancelable = init.cancelable === true
+        this.defaultPrevented = false
+      }
+      preventDefault() { this.defaultPrevented = true }
+      stopPropagation() {}
+    },
     window: {
       innerWidth: 1600,
       addEventListener: () => {},
@@ -454,6 +487,9 @@ function mount(options = {}) {
     preview,
     bodyElement: body,
     rows,
+    terminal,
+    /** Stand in for dragging over terminal output (the emulator's selection). */
+    terminalSelect: (text) => { terminalSelection = text },
     outside,
     action,
     select,
@@ -465,8 +501,20 @@ function mount(options = {}) {
      * End a selection over `target`, as the browser's mouse-up does. Without a
      * point the event carries no usable pointer, which is the synthetic case.
      */
-    mouseUp: (target, point = {}) => fire('mouseup', { target, button: 0, clientX: point.x ?? 0, clientY: point.y ?? 0 }),
-    mouseDown: (target) => fire('mousedown', { target, button: 0 }),
+    mouseUp: (target, point = {}) => fire('mouseup', {
+      target,
+      button: 0,
+      detail: point.detail ?? 1,
+      clientX: point.x ?? 0,
+      clientY: point.y ?? 0,
+    }),
+    mouseDown: (target, point = {}) => fire('mousedown', {
+      target,
+      button: 0,
+      detail: point.detail ?? 1,
+      clientX: point.x ?? 0,
+      clientY: point.y ?? 0,
+    }),
     pressKey: (key) => fire('keydown', { key }),
     /** Press the button: mousedown first (the selection guard), then the click. */
     press() {
@@ -531,6 +579,74 @@ it('anchors the button to the pointer, not to the selection’s box', () => {
     // Against the top edge the lift is floored, so the button stays on screen.
     view.mouseUp(view.rows[39], { x: 400, y: 10 })
     assert.equal(view.action().style.top, '44px', 'the button cannot be lifted off the window')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('adds a terminal selection as a console block', () => {
+  const view = mount()
+  try {
+    view.terminalSelect('$ ls\nLICENSE  README.md  src')
+    view.mouseUp(view.terminal, { x: 900, y: 300 })
+    const button = view.action()
+    assert.notEqual(button, null, 'the terminal gets the same button')
+    assert.equal(button.style.left, '900px')
+    assert.equal(button.style.top, '300px')
+
+    view.press()
+    assert.equal(view.draft(), '```console\n$ ls\nLICENSE  README.md  src\n```')
+
+    // The terminal's selection is the emulator's, not the document's: a
+    // selection change elsewhere must not drop its button.
+    view.terminalSelect('npm test')
+    view.mouseUp(view.terminal, { x: 900, y: 320 })
+    view.select(null)
+    assert.notEqual(view.action(), null, 'a document selection says nothing about the terminal')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('offers nothing for an empty terminal selection, and keeps long ones whole', () => {
+  const view = mount()
+  try {
+    view.terminalSelect('   \n')
+    view.mouseUp(view.terminal, { x: 900, y: 300 })
+    assert.equal(view.action(), null, 'no selected text, no button')
+
+    // No path or line span to fall back to, so nothing is cut — not at the
+    // preview's 500 either, and not at any size a scrollback can hold.
+    const long = Array.from({ length: 400 }, (_unused, at) => `line ${at + 1}: 输出`).join('\n')
+    assert.ok(long.length > 5000, 'the fixture is well past the preview limit')
+    view.terminalSelect(long)
+    view.mouseUp(view.terminal, { x: 900, y: 300 })
+    view.press()
+    assert.equal(view.draft(), `\`\`\`console\n${long}\n\`\`\``)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('does not re-offer the terminal button for a plain click', () => {
+  const view = mount()
+  try {
+    view.terminalSelect('a selection the reader already used')
+    // xterm can keep its selection through a click; a click must not bring the
+    // button back for text the reader did not just select.
+    view.mouseDown(view.terminal, { x: 900, y: 300 })
+    view.mouseUp(view.terminal, { x: 900, y: 300 })
+    assert.equal(view.action(), null)
+
+    // A drag is what selects, so it offers the button.
+    view.mouseDown(view.terminal, { x: 900, y: 300 })
+    view.mouseUp(view.terminal, { x: 940, y: 330 })
+    assert.notEqual(view.action(), null)
+
+    // So does a multi-click, which selects a word or a line without moving.
+    view.mouseDown(view.terminal, { x: 900, y: 300 })
+    view.mouseUp(view.terminal, { x: 900, y: 300, detail: 2 })
+    assert.notEqual(view.action(), null)
   } finally {
     view.dispose()
   }
