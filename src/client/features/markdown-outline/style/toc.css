@@ -98,6 +98,16 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The section the reader is in — the row the panel opens centred on. It paints
+   like hover on purpose: the row is a place in the document, not a second kind
+   of entry, and the hovered row is the one about to be jumped to. The
+   attribute is also what `watch.ts` finds the row by, and it carries
+   `aria-current` for the same state. */
+.smkit-outline-toc-item[data-smkit-md-toc-active] {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
 /* Indent by heading level (h2 = one step, h3 = two steps…). */
 .smkit-outline-toc-item[data-smkit-md-toc-level='2'] { padding-left: 18px; }
 .smkit-outline-toc-item[data-smkit-md-toc-level='3'] { padding-left: 28px; }

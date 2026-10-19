@@ -23,7 +23,10 @@
  * - the toggle opens a popover of `level` + text; a click on an entry expands a
  *   collapsed `<details>` ancestor, smooth-scrolls the heading to the top,
  *   flashes it for 1.2 s, and closes the popover;
- * - Escape, or a pointer press outside the bar, closes the popover.
+ * - Escape, or a pointer press outside the bar, closes the popover;
+ * - (the one deliberate addition) the popover opens on the section being read:
+ *   the current heading is lit and brought into sight, instead of the list
+ *   always starting at the top.
  *
  * Every value here — the 3-heading threshold, the 1.2 s flash, the indents, the
  * ordering of panel and toggle — is upstream's, so the two plugins behave the
@@ -48,6 +51,21 @@
  * The check runs on every scan and on every body re-render, so loading or
  * unloading that plugin takes effect without a reload.
  *
+ * ## The one deliberate addition: it opens where the reader is
+ *
+ * Upstream opens at the top of the list every time. In a long document that
+ * turns the outline into a search: the reader has to scroll the panel to find
+ * which section they are in, and the list has no answer without that scroll.
+ * This port opens on the section being read instead — the current heading is
+ * marked, and the panel is scrolled so that row sits mid-panel. A scroll of the
+ * preview while the panel is open keeps the mark current; the panel is only
+ * re-centred when it is opened (or rebuilt), never while the reader is moving
+ * around inside it.
+ *
+ * `scrollIntoView` is deliberately not used for that: it scrolls every
+ * ancestor, so opening the outline would drag the preview to the heading as a
+ * side effect. The panel's own `scrollTop` is the only thing that moves.
+ *
  * ## The one real gap: `text-pages`
  *
  * The host's Markdown renderer loads a document in pages and appends the next
@@ -69,6 +87,15 @@ export const TOC_MIN_HEADINGS = 3
 /** How long the jumped-to heading keeps its flash, in ms. */
 const FLASH_MS = 1200
 
+/**
+ * How far below the scrollport's top edge a heading counts as "being read".
+ *
+ * A heading whose top has passed this line is the section the reader is in —
+ * the same line `jump` leaves a heading at (`block: 'start'` plus the document
+ * padding), so a section clicked in the list stays the marked one.
+ */
+const READING_LINE = 32
+
 /** The host's preview scroll body, its Markdown document, and its headings. */
 const PREVIEW_BODY = '[data-textpreview-body]'
 const MARKDOWN_DOCUMENT = '[data-document-markdown]'
@@ -87,6 +114,7 @@ const PANEL = 'data-smkit-md-toc-panel'
 const TOGGLE = 'data-smkit-md-toc-toggle'
 const ITEM = 'data-smkit-md-toc-item'
 const LEVEL = 'data-smkit-md-toc-level'
+const ACTIVE = 'data-smkit-md-toc-active'
 
 /** This feature's classes (see `style/toc.css`). */
 const BAR_CLASS = 'smkit-outline-toc-bar'
@@ -120,6 +148,10 @@ interface Outline {
   /** The text signature of the last scan (upstream's no-op guard). */
   signature: string
   open: boolean
+  /** The entry last marked in `panel`; -1 when nothing is (or a fresh panel). */
+  active: number
+  /** The body's scroll listener (kept in step until it is released). */
+  scroll: (() => void) | null
 }
 
 /** The signature used to skip no-op rescans (identity-safe re-render guard). */
@@ -238,6 +270,7 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
     outline.entries = []
     outline.signature = ''
     outline.open = false
+    outline.active = -1
   }
 
   /** Draw the bar's current state: toggle only when it earns its place. */
@@ -277,13 +310,22 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
       outline.panelSignature = ''
       return
     }
-    if (outline.panel === null || outline.panelSignature !== outline.signature) {
+    const rebuilt = outline.panel === null || outline.panelSignature !== outline.signature
+    if (rebuilt) {
       outline.panel?.remove()
       outline.panel = createPanel(outline)
       outline.panelSignature = outline.signature
+      // A fresh list carries no mark, whatever the last one ended on.
+      outline.active = -1
     }
     // The panel precedes the toggle, as upstream renders it.
-    if (!outline.panel.isConnected) bar.insertBefore(outline.panel, toggle)
+    const panel = outline.panel
+    if (panel !== null && !panel.isConnected) bar.insertBefore(panel, toggle)
+    // Where the reader is: marked on every draw, centred only when the list has
+    // just been built (a fresh open, or a rebuild after a page arrived), never
+    // while the reader is moving around inside it.
+    markActive(outline)
+    if (rebuilt) revealActive(outline)
   }
 
   /** Set the popover's state and draw it. */
@@ -300,6 +342,69 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
     el.classList.add(FLASH_CLASS)
     setTimeout(() => { el.classList.remove(FLASH_CLASS) }, FLASH_MS)
     setOpen(outline, false)
+  }
+
+  /**
+   * The entry the reader is in: the last heading whose top has passed the
+   * reading line. Before any heading reaches it — the very top of a document —
+   * the first entry is the section about to be read. A body that reports no
+   * height has not been laid out (the hook harness), and nothing is marked.
+   */
+  const activeIndex = (outline: Outline): number => {
+    if (outline.entries.length === 0) return -1
+    const body = outline.body
+    if (typeof body.getBoundingClientRect !== 'function') return -1
+    const view = body.getBoundingClientRect()
+    if (!(view.height > 0)) return -1
+    const line = view.top + READING_LINE
+    let active = 0
+    for (const [index, entry] of outline.entries.entries()) {
+      if (!entry.el.isConnected || typeof entry.el.getBoundingClientRect !== 'function') continue
+      if (entry.el.getBoundingClientRect().top <= line) active = index
+    }
+    return active
+  }
+
+  /**
+   * Light the row of the section the reader is in, if the popover is open.
+   *
+   * Only the two rows that change are touched, and only when the section does:
+   * the mark's attribute is what the stylesheet selects on, so rewriting all N
+   * rows on every scroll event would dirty N elements for nothing. In the steady
+   * state (one section) a scroll costs the rect reads and no DOM write at all.
+   */
+  const markActive = (outline: Outline): void => {
+    const panel = outline.panel
+    if (panel === null) return
+    const at = activeIndex(outline)
+    if (at === outline.active) return
+    outline.active = at
+    const previous = panel.querySelector(`[${ITEM}][${ACTIVE}]`)
+    previous?.removeAttribute(ACTIVE)
+    previous?.removeAttribute('aria-current')
+    if (at < 0) return
+    const item = panel.querySelectorAll(`[${ITEM}]`)[at]
+    if (item === undefined) return
+    item.setAttribute(ACTIVE, '')
+    item.setAttribute('aria-current', 'true')
+  }
+
+  /**
+   * Bring the marked row to the middle of the panel — by moving the panel's own
+   * scroll only. `scrollIntoView` would scroll every ancestor, so opening the
+   * outline would drag the preview to that heading as a side effect.
+   */
+  const revealActive = (outline: Outline): void => {
+    const panel = outline.panel
+    if (panel === null || typeof panel.getBoundingClientRect !== 'function') return
+    const item = panel.querySelector(`[${ITEM}][${ACTIVE}]`)
+    if (item === null || typeof item.getBoundingClientRect !== 'function') return
+    const height = panel.clientHeight
+    if (!(height > 0)) return
+    const view = panel.getBoundingClientRect()
+    const row = item.getBoundingClientRect()
+    const offset = row.top - view.top + panel.scrollTop
+    panel.scrollTop = Math.max(0, offset - (height - row.height) / 2)
   }
 
   /** Rescan one body: (re)mount the bar, refresh entries, redraw. */
@@ -351,6 +456,8 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
   /** Stop watching one body and take its bar away. */
   const release = (outline: Outline): void => {
     outline.observer.disconnect()
+    if (outline.scroll !== null) outline.body.removeEventListener('scroll', outline.scroll)
+    outline.scroll = null
     clear(outline)
     outlines.delete(outline.body)
   }
@@ -407,7 +514,15 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
       entries: [],
       signature: '',
       open: false,
+      active: -1,
+      scroll: null,
     }
+    // While the popover is open, the mark follows the reader. Only the mark:
+    // re-centring the panel here would fight a reader scrolling inside it.
+    outline.scroll = () => {
+      if (outline.open) markActive(outline)
+    }
+    body.addEventListener('scroll', outline.scroll, { passive: true })
     outline.observer.observe(body, { childList: true, subtree: true })
     outlines.set(body, outline)
     update(outline)

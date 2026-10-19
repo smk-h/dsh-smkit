@@ -5,8 +5,10 @@
  * This is chrome on a surface the plugin does not own — the right sidebar's
  * document preview (`ui-sidebar-documentpreview`) — so it takes no slot and
  * registers no seat: it watches the rendered document (see `watch.ts`). It is
- * the direct port of `dsh-better-sidebar`'s `MdToc`, which draws the same
- * outline inside that plugin's own editor tab.
+ * the port of `dsh-better-sidebar`'s `MdToc`, which draws the same outline
+ * inside that plugin's own editor tab, plus one deliberate addition: the
+ * popover opens on the section being read and marks it, instead of always
+ * starting at the top of the list.
  *
  * Like the explorer chip, it yields to that neighbour: while
  * `dsh-better-sidebar` is loaded, that plugin owns the file preview and already

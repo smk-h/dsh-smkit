@@ -10,6 +10,8 @@
  * - the popover lists the headings in document order, with the level number
  *   beside the text and the level carried as the item's own `data-*` value (the
  *   stylesheet's indent ladder reads that);
+ * - the popover opens on the section being read, with that row lit and centred,
+ *   and the mark follows the reader while it stays open;
  * - a click on an entry scrolls the heading to the top, flashes it for 1.2 s
  *   and closes the popover;
  * - Escape and a press outside the bar close it; a press inside does not;
@@ -64,6 +66,34 @@ function matchesParsed(element, parsed) {
   return true
 }
 
+/** Where the test says an element sits, in viewport coordinates. */
+const placements = new Map()
+
+/**
+ * The stand-in's layout for one element.
+ *
+ * Elements the test placed answer with that. The popover and its rows are built
+ * inside the feature, so they are laid out synthetically — a 200px panel of
+ * 24px rows — which is enough for the positioning rules to be observable.
+ */
+function placementOf(element) {
+  if (element === null || element === undefined) return undefined
+  const placed = placements.get(element)
+  if (placed !== undefined) return placed
+  if (element.className === 'smkit-outline-toc-panel') return { top: 132, height: 200 }
+  if (element.getAttribute('data-smkit-md-toc-item') !== null) {
+    const index = element.parentNode?.children.indexOf(element) ?? 0
+    return { top: 132 + index * 24, height: 24 }
+  }
+  return undefined
+}
+
+/** Tell the stand-in where one element sits. */
+function place(element, top, height) {
+  placements.set(element, { top, height })
+  return element
+}
+
 /** One DOM element, as much of it as the feature touches. */
 class SandboxElement {
   constructor(tagName) {
@@ -77,6 +107,8 @@ class SandboxElement {
     // A real element always carries a style object; the feature writes the
     // bar's sticky offset into it.
     this.style = {}
+    // The popover is the one scroller the feature moves by hand.
+    this.scrollTop = 0
     Object.defineProperty(this, 'className', {
       get: () => this.getAttribute('class') ?? '',
       set: (value) => this.setAttribute('class', value),
@@ -121,6 +153,16 @@ class SandboxElement {
     let node = this
     while (node.parentNode !== null) node = node.parentNode
     return node.root === true
+  }
+
+  get clientHeight() {
+    return placementOf(this)?.height ?? 0
+  }
+
+  /** The stand-in's layout: what `place` (or the popover's synthetic layout) says. */
+  getBoundingClientRect() {
+    const placed = placementOf(this)
+    return { top: placed?.top ?? 0, left: 0, right: 0, bottom: 0, width: 0, height: placed?.height ?? 0 }
   }
 
   getAttribute(name) {
@@ -504,6 +546,91 @@ it('opens a popover listing every heading with its level and text', () => {
       'level number first, then the text',
     )
     assert.equal(items[0].getAttribute('class'), 'smkit-outline-toc-item')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('opens on the section being read, with its row lit', () => {
+  const first = heading(1, '一')
+  const second = heading(2, '1. 背景')
+  const third = heading(2, '2. 介绍')
+  const fourth = heading(3, '2.1 细节')
+  const view = mount({ headings: [first, second, third, fourth] })
+  try {
+    // The reader has scrolled past the first two headings, and the reading line
+    // (32px under the scrollport edge, at 132) is inside the second one.
+    place(view.body, 100, 600)
+    place(first, 40, 40)
+    place(second, 120, 40)
+    place(third, 400, 40)
+    place(fourth, 900, 40)
+    view.toggle().dispatch('click')
+    const items = view.items()
+    assert.deepEqual(
+      items.map((item) => item.getAttribute('data-smkit-md-toc-active')),
+      [null, '', null, null],
+      'only the section being read is lit',
+    )
+    assert.equal(items[1].getAttribute('aria-current'), 'true', 'the mark is announced, not just painted')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('centres the lit row in the popover, without moving the preview', () => {
+  const headings = Array.from({ length: 12 }, (_, index) => heading(2, `第 ${index + 1} 节`))
+  const view = mount({ headings })
+  try {
+    place(view.body, 100, 600)
+    headings.forEach((element, index) => {
+      // The eleventh heading is the last above the reading line.
+      place(element, index <= 10 ? 130 - (10 - index) * 60 : 300 + (index - 10) * 60, 40)
+    })
+    view.toggle().dispatch('click')
+    // Row 10 starts at 132 + 10 × 24 = 372; the panel is 200px tall, its rows 24.
+    assert.equal(view.panel().scrollTop, 152, '240 − (200 − 24) / 2')
+    assert.equal(view.items()[10].getAttribute('data-smkit-md-toc-active'), '')
+    assert.ok(
+      headings.every((element) => element.scrolled === undefined),
+      'opening the list must not scroll the document behind it',
+    )
+
+    // Reopening re-centres, so the list never comes back at an old offset.
+    view.panel().scrollTop = 999
+    view.toggle().dispatch('click')
+    view.toggle().dispatch('click')
+    assert.equal(view.panel().scrollTop, 152)
+    assert.equal(
+      view.items()[10].getAttribute('data-smkit-md-toc-active'),
+      '',
+      'a rebuilt list is marked again, even at the same section',
+    )
+  } finally {
+    view.dispose()
+  }
+})
+
+it('keeps the mark on the reader while the popover is open, without re-centring', () => {
+  const first = heading(1, '一')
+  const second = heading(2, '1. 背景')
+  const third = heading(2, '2. 介绍')
+  const view = mount({ headings: [first, second, third] })
+  try {
+    place(view.body, 100, 600)
+    place(first, 40, 40)
+    place(second, 120, 40)
+    place(third, 400, 40)
+    view.toggle().dispatch('click')
+    assert.equal(view.items()[1].getAttribute('data-smkit-md-toc-active'), '')
+    const centred = view.panel().scrollTop
+
+    // The reader scrolls on: the third heading becomes the section being read.
+    place(third, 128, 40)
+    view.body.dispatch('scroll')
+    assert.equal(view.items()[2].getAttribute('data-smkit-md-toc-active'), '')
+    assert.equal(view.items()[1].getAttribute('data-smkit-md-toc-active'), null)
+    assert.equal(view.panel().scrollTop, centred, 'the reader keeps their place inside the panel')
   } finally {
     view.dispose()
   }
