@@ -13,7 +13,7 @@ export const OUTLINE_LOCALE_ZH: LocaleDict = {
   empty: '没有可列出的符号',
   failed: '读不出大纲：{message}',
   retry: '重试',
-  jump: '跳到第 {line} 行',
+
   kindFunction: '函数',
   kindStruct: '结构体',
   kindUnion: '联合',

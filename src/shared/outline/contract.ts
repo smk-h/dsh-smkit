@@ -30,6 +30,15 @@ export interface OutlineSymbol {
   readonly name: string
   /** 1-based line of the declaration's first line (the return type's line). */
   readonly line: number
+  /**
+   * A function's declaration as written, e.g. `int clamp(int value, int low)`.
+   *
+   * Present for functions only: a type or a macro has nothing to recall beyond
+   * its name, and the browser half uses this for the hover label. Taken from the
+   * source between the declaration's first and last token, so it carries the
+   * return type, the name and the parameter list — but not the body's brace.
+   */
+  readonly signature?: string
 }
 
 /** Stable refusal codes; the browser half shows the host's message verbatim. */

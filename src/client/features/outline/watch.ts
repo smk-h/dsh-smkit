@@ -285,7 +285,10 @@ export function watchOutline(api: ApiFn, t: Translator): () => void {
       const item = document.createElement('button')
       item.type = 'button'
       item.className = ITEM_CLASS
-      item.title = t('jump', { line: symbol.line })
+      // A function's hover label is its declaration, quoted from the source; the
+      // other kinds add nothing the row does not already show, so they carry no
+      // `title` at all and no bubble appears over them.
+      if (symbol.signature !== undefined) item.title = symbol.signature
       const kind = document.createElement('span')
       kind.className = KIND_CLASS
       kind.textContent = kindLabel(symbol)

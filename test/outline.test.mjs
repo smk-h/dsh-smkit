@@ -206,6 +206,33 @@ it('reads a realistic module, not one syntax family per file', () => {
   assert.equal(found.legacy, undefined)
 })
 
+/**
+ * A declaration with a wrapped parameter list, next to one without: what the
+ * hover label is built from, and what it must not include (the body's brace).
+ */
+const SIGNED = `int add(int left, int right);
+
+long multiply(
+    int left,
+    int right
+)
+{
+    return left * right;
+}
+
+struct point { int x; };
+`
+
+it('quotes a function\u2019s declaration as its label, and only for functions', () => {
+  const symbols = scanSource(SIGNED, C_FAMILY, { prototypes: true })
+  const found = new Map(symbols.map((symbol) => [symbol.name, symbol]))
+  assert.equal(found.get('add')?.signature, 'int add(int left, int right)')
+  // A wrapped list is folded into one line, and the body's brace is not part of it.
+  assert.equal(found.get('multiply')?.signature, 'long multiply(int left, int right)')
+  // Types and macros have nothing to quote; the row already shows their name.
+  assert.equal(found.get('point')?.signature, undefined)
+})
+
 it('reports prototypes only when asked, which is what a header is', () => {
   const text = 'int declared_only(int x);\nint defined(void) { return 0; }\n'
   assert.deepEqual(scanSource(text, C_FAMILY).map((symbol) => symbol.name), ['defined'])

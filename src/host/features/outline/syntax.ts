@@ -58,6 +58,15 @@ export interface Token {
   readonly text: string
   /** 1-based line the token starts on. */
   readonly line: number
+  /**
+   * 0-based column the token starts at, in characters.
+   *
+   * Masking blanks one character for one, and only directive lines lose their
+   * width (they are dropped whole), so a token's column is also its column in the
+   * source the reader sees — which is what lets the scanner quote a declaration
+   * verbatim (`scan.ts: signatureOf`).
+   */
+  readonly column: number
 }
 
 /**
@@ -187,12 +196,14 @@ function blankLiterals(text: string, rules: MaskRules): string {
 export function tokenize(text: string): Token[] {
   const tokens: Token[] = []
   let line = 1
+  let lineStart = 0
   let at = 0
   while (at < text.length) {
     const char = text[at]!
     if (char === '\n') {
       line++
       at++
+      lineStart = at
       continue
     }
     if (char === ' ' || char === '\t' || char === '\r') {
@@ -202,7 +213,7 @@ export function tokenize(text: string): Token[] {
     if (/[A-Za-z_]/.test(char)) {
       let end = at + 1
       while (end < text.length && /\w/.test(text[end]!)) end++
-      tokens.push({ text: text.slice(at, end), line })
+      tokens.push({ text: text.slice(at, end), line, column: at - lineStart })
       at = end
       continue
     }
@@ -212,7 +223,7 @@ export function tokenize(text: string): Token[] {
       at = end
       continue
     }
-    tokens.push({ text: char, line })
+    tokens.push({ text: char, line, column: at - lineStart })
     at++
   }
   return tokens

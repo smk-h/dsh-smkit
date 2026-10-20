@@ -36,6 +36,9 @@ export type Declaration =
   /** `typedef struct { … }` — the name arrives after the closing brace. */
   | { readonly anonymous: OutlineKind; readonly line: number }
 
+/** The half of a declaration the walk can list on the spot, name and all. */
+type NamedDeclaration = Extract<Declaration, { readonly name: string }>
+
 /**
  * Everything the walk needs to know about one language.
  *
@@ -219,6 +222,50 @@ export function scanSource(
       : profile.accept(statement, profile)
 
   /**
+   * The declaration's own text, quoted out of the source the reader sees.
+   *
+   * Tokens carry a line and a column, and masking keeps both intact (it blanks
+   * one character for one; only directive lines, which no declaration starts on,
+   * lose their width). So a slice from the first token's position to the last
+   * token's end is the declaration as written: the return type, the name and the
+   * parameter list, without the brace that opens the body — that brace ends the
+   * statement and is never in it.
+   *
+   * Line breaks and indentation inside a wrapped parameter list collapse to one
+   * space, because the label it feeds is a single-line tooltip.
+   */
+  const sourceLines = prepared.split('\n')
+  const signatureOf = (statement: readonly Token[]): string | undefined => {
+    const first = statement[0]
+    const last = statement[statement.length - 1]
+    if (first === undefined || last === undefined) return undefined
+    const end = last.column + last.text.length
+    const text = first.line === last.line
+      ? (sourceLines[first.line - 1] ?? '').slice(first.column, end)
+      : [
+        (sourceLines[first.line - 1] ?? '').slice(first.column),
+        ...sourceLines.slice(first.line, last.line - 1),
+        (sourceLines[last.line - 1] ?? '').slice(0, end),
+      ].join(' ')
+    // A wrapped list leaves a space just inside its parentheses; the label reads
+    // better without them, and nothing else in a declaration does that.
+    const flat = text
+      .replace(/\s+/g, ' ')
+      .replace(/\(\s+/g, '(')
+      .replace(/\s+\)/g, ')')
+      .trim()
+    return flat === '' ? undefined : flat
+  }
+
+  /** One classified statement as an entry, with a function's signature attached. */
+  const emit = (statement: readonly Token[], found: NamedDeclaration): void => {
+    const signature = found.kind === 'function' ? signatureOf(statement) : undefined
+    symbols.push(signature === undefined
+      ? { kind: found.kind, name: found.name, line: found.line }
+      : { kind: found.kind, name: found.name, line: found.line, signature })
+  }
+
+  /**
    * One entry per open brace: whether it is transparent.
    *
    * A container — `namespace`, `extern "C"` — holds declarations a reader still
@@ -238,7 +285,7 @@ export function scanSource(
       if (atTop()) {
         const found = classify(statement)
         if (found !== null) {
-          if ('name' in found) symbols.push({ kind: found.kind, name: found.name, line: found.line })
+          if ('name' in found) emit(statement, found)
           else awaiting = { anonymous: found.anonymous, line: found.line }
         }
         scopes.push(found === null && (profile.containers?.(statement) ?? false))
@@ -283,9 +330,7 @@ export function scanSource(
     ) {
       if (options.prototypes === true) {
         const found = classify(statement)
-        if (found !== null && 'name' in found) {
-          symbols.push({ kind: found.kind, name: found.name, line: found.line })
-        }
+        if (found !== null && 'name' in found) emit(statement, found)
       }
       statement = []
     }
@@ -293,9 +338,7 @@ export function scanSource(
     if (token.text === ';') {
       if (options.prototypes === true) {
         const found = classify(statement)
-        if (found !== null && 'name' in found) {
-          symbols.push({ kind: found.kind, name: found.name, line: found.line })
-        }
+        if (found !== null && 'name' in found) emit(statement, found)
       }
       statement = []
       continue
@@ -309,9 +352,7 @@ export function scanSource(
   // a declaration there is malformed — so the flush is the ASI profile's alone.
   if (statement.length > 0 && profile.startsStatement !== undefined && options.prototypes === true) {
     const found = classify(statement)
-    if (found !== null && 'name' in found) {
-      symbols.push({ kind: found.kind, name: found.name, line: found.line })
-    }
+    if (found !== null && 'name' in found) emit(statement, found)
   }
 
   return symbols.sort((left, right) => left.line - right.line || left.name.localeCompare(right.name))

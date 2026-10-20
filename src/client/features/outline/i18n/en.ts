@@ -13,7 +13,7 @@ export const OUTLINE_LOCALE_EN: LocaleDict = {
   empty: 'No symbols found',
   failed: 'Outline unavailable: {message}',
   retry: 'Retry',
-  jump: 'Go to line {line}',
+
   kindFunction: 'func',
   kindStruct: 'struct',
   kindUnion: 'union',
