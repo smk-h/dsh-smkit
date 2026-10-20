@@ -80,14 +80,20 @@ const AGGREGATES: ReadonlyMap<string, OutlineKind> = new Map([
 /** Suffixes whose prototypes belong in the outline. */
 const HEADERS: ReadonlySet<string> = new Set(['.h', '.hh', '.hpp', '.hxx'])
 
-/** A function-like macro: the `(` must touch the name, or it is an object-like one. */
-const MACRO = /^#\s*define\s+([A-Za-z_]\w*)\(/
+/**
+ * A `#define`, whether the body is a parameter list or a value.
+ *
+ * Both kinds are names a reader jumps to. A function-like macro's name is
+ * otherwise invisible — masking blanks the directive line, so the token walk
+ * never meets it — and an object-like constant (`#define LIMIT 32`) is exactly
+ * what one scrolls a file hunting for. `#undef` removes a name rather than
+ * declaring one, so it stays out.
+ */
+const MACRO = /^#\s*define\s+([A-Za-z_]\w*)/
 
 /**
- * Symbols that live outside the token walk.
- *
- * `#define list_push(l, v) …` reads as a function to anyone scanning a C file,
- * and its name is only visible on the directive line — which masking blanks.
+ * Symbols that live outside the token walk: the macros declared on `#define`
+ * lines, in either form.
  */
 function macros(masked: MaskedSource): OutlineSymbol[] {
   const found: OutlineSymbol[] = []

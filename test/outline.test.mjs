@@ -97,10 +97,10 @@ it('names an anonymous aggregate after its typedef', () => {
   assert.equal(scanSource(SAMPLE, C_FAMILY).some((symbol) => symbol.name === ''), false)
 })
 
-it('reports function-like macros only, and never from a comment or literal', () => {
+it('reports both macro forms, and never one from a comment or literal', () => {
   const names = scanSource(SAMPLE, C_FAMILY).map((symbol) => symbol.name)
-  assert.equal(names.includes('MAX'), true)
-  assert.equal(names.includes('BUF_SIZE'), false, 'an object-like define is not a callable')
+  assert.equal(names.includes('MAX'), true, 'a function-like define is a name')
+  assert.equal(names.includes('BUF_SIZE'), true, 'an object-like define is a name too')
   assert.equal(names.includes('Fake'), false, 'a declaration inside a comment')
   assert.equal(names.includes('fake'), false, 'a declaration inside a string literal')
 })
@@ -187,6 +187,7 @@ it('reads a realistic module, not one syntax family per file', () => {
   const found = lines(MIXED)
   assert.deepEqual(Object.keys(found).sort(), [
     'DEFINE_GETTER',
+    'LIMIT',
     'UNUSED',
     'create',
     'debug_count',
@@ -198,7 +199,7 @@ it('reads a realistic module, not one syntax family per file', () => {
   // Both arms of the conditional compile are definitions of the same name.
   assert.equal(scanSource(MIXED, C_FAMILY).filter((symbol) => symbol.name === 'debug_count').length, 2)
   // Globals, initialiser braces and macro bodies never become symbols.
-  for (const name of ['pool', 'compare', 'empty', 'banner', 'LIMIT', 'get_0']) {
+  for (const name of ['pool', 'compare', 'empty', 'banner', 'get_0']) {
     assert.equal(found[name], undefined, name + ' is not a symbol')
   }
   // A K&R parameter list stays the documented gap.
