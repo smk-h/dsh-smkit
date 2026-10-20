@@ -23,6 +23,7 @@ import { fileReferenceFeature } from './features/file-reference/client'
 import { lineJumpFeature } from './features/line-jump/client'
 import { markdownOutlineFeature } from './features/markdown-outline/client'
 import { openSpecFeature } from './features/openspec/client'
+import { outlineFeature } from './features/outline/client'
 import { selectionQuoteFeature } from './features/selection-quote/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
 import { tabMenuFeature } from './features/tab-menu/client'
@@ -64,13 +65,16 @@ const FEATURES: ClientFeature[] = [
   openSpecFeature,
   themeCenterFeature,
   tabMenuFeature,
-  // These three decorate surfaces another plugin may own (the explorer, its
-  // rows, the Markdown preview), so they register after every seat of this
-  // plugin — and each stands itself down when `dsh-better-sidebar` (or a future
-  // host) is the one providing the affordance.
+  // These decorate surfaces another plugin may own (the explorer, its rows, the
+  // Markdown preview, the file view), so they register after every seat of this
+  // plugin. Most stand themselves down when `dsh-better-sidebar` is the one
+  // providing the affordance; the code outline does not — that plugin has no
+  // symbol list, so it decorates the neighbour's editor alongside the host
+  // preview instead (see `features/outline`).
   markdownOutlineFeature,
   lineJumpFeature,
   selectionQuoteFeature,
+  outlineFeature,
   fileReferenceFeature,
   explorerMenuFeature,
 ]

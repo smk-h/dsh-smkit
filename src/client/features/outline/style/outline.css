@@ -1,0 +1,91 @@
+/* The outline this feature hangs on the host's code preview: a toggle in the
+   preview header and the panel it opens. Tokens are the host's own (the same
+   layer the line-jump box uses), so the panel follows the shell's theme. */
+
+/* 28px square with the header's own tool buttons: the row is sized by them, and
+   a shorter control would sit off-centre beside the reload icon. The button is
+   a glyph alone, so it is a square rather than a labelled pill — the label
+   lives on `aria-label` and the hover bubble. */
+.smkit-outline-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.smkit-outline-toggle:hover,
+.smkit-outline-toggle[aria-expanded='true'] {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Fixed rather than absolute: the panel is a child of `body`, so it is never
+   clipped by the preview's own scrollport. The position is set on open. */
+.smkit-outline-panel {
+  position: fixed;
+  z-index: 70;
+  width: 264px;
+  max-height: min(60vh, 420px);
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-shadow-lv2);
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xxs-12);
+}
+
+.smkit-outline-item {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  width: 100%;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.smkit-outline-item:hover,
+.smkit-outline-item:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.smkit-outline-kind {
+  flex: none;
+  min-width: 2.6em;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-outline-name {
+  overflow: hidden;
+  font-family: var(--dsw-font-family-mono, ui-monospace, monospace);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smkit-outline-note {
+  padding: 6px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Where a jump landed: the same wash the line-jump mark uses, so two features
+   pointing at a line look like one gesture. */
+[data-smkit-outline-hit] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 20%, transparent);
+  border-radius: 3px;
+  box-decoration-break: clone;
+}

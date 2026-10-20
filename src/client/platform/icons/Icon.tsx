@@ -89,6 +89,43 @@ export function iconElement(
   )
 }
 
+/** SVG's spelling of a React SVG attribute name (`strokeWidth` → `stroke-width`). */
+function kebabCase(name: string): string {
+  return name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
+}
+
+/**
+ * One glyph as an `SVGSVGElement`, built with `createElementNS`.
+ *
+ * The counterpart of `iconElement` for the DOM-decoration route: a preview body
+ * or an editor tab belongs to the host and is not a React surface this plugin
+ * may render into, so a watcher cannot hand a `createIcon` factory to `h` — it
+ * builds the same `<svg>` shell by hand instead.
+ *
+ * React spells SVG presentation attributes in camelCase (`strokeWidth`) while
+ * DOM attributes must use SVG's kebab-case (`stroke-width`); names are
+ * converted on the way out, because a `strokeWidth` written verbatim would land
+ * as an attribute no renderer reads. `viewBox` is on the shell and is already
+ * in its SVG spelling.
+ */
+export function iconSvg(spec: IconSpec): SVGSVGElement {
+  const ns = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(ns, 'svg')
+  svg.setAttribute('width', String(spec.size ?? 16))
+  svg.setAttribute('height', String(spec.size ?? 16))
+  svg.setAttribute('viewBox', spec.viewBox)
+  svg.setAttribute('fill', 'none')
+  svg.setAttribute('aria-hidden', 'true')
+  for (const node of spec.nodes) {
+    const child = document.createElementNS(ns, node.tag)
+    for (const [name, value] of Object.entries(node.attrs)) {
+      child.setAttribute(kebabCase(name), String(value))
+    }
+    svg.appendChild(child)
+  }
+  return svg
+}
+
 /**
  * One glyph as a `mask-image` value: the same `<svg>` shell `createIcon`
  * renders, serialized and URL-encoded for a stylesheet. Alpha only — the glyph
@@ -96,14 +133,10 @@ export function iconElement(
  * masked element's own colour shows through while `currentColor` in the rule
  * keeps the tint following hover and active states.
  *
- * React spells SVG presentation attributes in camelCase (`strokeWidth`) while
- * serialized markup must use SVG's kebab-case (`stroke-width`), so attribute
- * names are converted on the way out; the `viewBox` is on the shell and is
- * already in its SVG spelling.
+ * Attribute names go out in SVG's spelling for the reason `iconSvg` gives; the
+ * `viewBox` is on the shell and is already in its SVG spelling.
  */
 export function iconMaskDataUri(spec: IconSpec): string {
-  const kebabCase = (name: string): string =>
-    name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
   const attributes = (attrs: Record<string, string | number>): string =>
     Object.entries(attrs)
       .map(([name, value]) => ` ${kebabCase(name)}="${String(value)}"`)

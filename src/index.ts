@@ -18,6 +18,7 @@ import { explorerOpsFeature } from './host/features/explorer-ops/host.js'
 import { mcpFeature } from './host/features/mcp/host.js'
 import { notifyFeature } from './host/features/notify/host.js'
 import { openSpecFeature } from './host/features/openspec/host.js'
+import { outlineFeature } from './host/features/outline/host.js'
 import { sessionDeleteFeature } from './host/features/session-delete/host.js'
 import { skillsFeature } from './host/features/skills/host.js'
 import { themeCenterFeature } from './host/features/theme-center/host.js'
@@ -43,6 +44,7 @@ const FEATURES: HostFeature[] = [
   notifyFeature,
   themeCenterFeature,
   explorerOpsFeature,
+  outlineFeature,
 ]
 
 export function apply(ctx: PluginContext): void {
@@ -102,6 +104,9 @@ export type {
   SessionBatchDeleteReceipt,
 } from './shared/session-delete/contract.js'
 export { createNotifyOrchestrator } from './host/features/notify/orchestrator.js'
+export { classifyDeclaration, scanSource } from './host/features/outline/scan.js'
+export type { ScanOptions, SourceProfile } from './host/features/outline/scan.js'
+export { profileFor } from './host/features/outline/profiles/index.js'
 export type { NotifyOrchestrator } from './host/features/notify/orchestrator.js'
 export { createSessionTitleLookup } from './host/features/notify/title.js'
 export { createNotifyBroadcaster } from './host/features/notify/broadcaster.js'

@@ -279,6 +279,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // floating button are armed by the watch registered below (see
     // `features/selection-quote`).
     'smkit: selection-quote/dictionaries',
+    // The code outline: its dictionary, then the watch that hangs the panel on
+    // the host's preview (see `features/outline`).
+    'smkit: outline/dictionaries',
     // The explorer's @-reference chip: its dictionary, then the watch that
     // decorates the host's file rows (see `features/file-reference`).
     'smkit: file-reference/dictionaries',
@@ -310,6 +313,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // dispatch table that dismisses the button, and the press that writes the
     // quoted block into the composer draft.
     'smkit: selection-quote/preview',
+    // The code outline's watch: one document observer for previews, the toggle
+    // it hangs in each header, and the panel it opens on demand.
+    'smkit: outline/preview',
     // The explorer chip's watch: one document observer, one per tree, and a
     // capture-phase click that turns a press into an `@` reference.
     'smkit: file-reference/explorer',

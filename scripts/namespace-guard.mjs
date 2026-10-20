@@ -229,6 +229,14 @@ export const FOREIGN_DATA_ATTRS = [
   'data-textpreview-body',
   'data-document-markdown',
   /**
+   * A right-sidebar tab body (`ui-sidebar-right`). The code outline decorates
+   * whichever surface is showing a file, and when an editor plugin takes the
+   * file over there is no host preview to anchor on — this attribute is the
+   * stable box around whatever that tab renders, so the outline can find the
+   * editor's header without naming a CSS-module hash. Read only.
+   */
+  'data-sidebar-right-tab',
+  /**
    * The same preview's own root and tool row: `data-textpreview-state` marks the
    * element the header and body hang from (the header is the body's sibling,
    * found from the body upward), and `data-textpreview-tool="reload"` the reload

@@ -8,12 +8,15 @@
  * of those ride on it — so a published service means the surfaces are the
  * neighbour's, and this plugin's copy would be a second one on the same rows.
  *
- * Two features are deliberate exceptions. Line-jump: that plugin has no
+ * Three features are deliberate exceptions. Line-jump: that plugin has no
  * go-to-line of its own, so this plugin answers Ctrl+G on the neighbour's editor
  * too (see `features/line-jump`). Selection-quote: its right-click card only
  * ever appears on the host's own previews and terminals — the neighbour's editor
  * is its own tab body with its own popup, and it registers no `contextmenu`
  * handler — so the two never meet on a surface (see `features/selection-quote`).
+ * Outline: the neighbour draws a Markdown table of contents but no code symbol
+ * list, so yielding would remove the feature outright — it decorates the
+ * neighbour's editor instead (see `features/outline`).
  *
  * ## Policy: loaded means yield, where the two would draw the same thing
  *

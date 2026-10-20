@@ -91,7 +91,7 @@
 
 import type { ClientContext, Translator } from '../../platform/types'
 import { betterSidebarOwnsSurfaces } from '../../platform/neighbour'
-import type { IconSpec } from '../../platform/icons/Icon'
+import { iconSvg } from '../../platform/icons/Icon'
 import { LIST_PEN_ICON } from './icons/ListPenIcon'
 
 /** Fewer headings than this and the toggle stays hidden (no outline value). */
@@ -188,22 +188,6 @@ interface Outline {
 /** The signature used to skip no-op rescans (identity-safe re-render guard). */
 function signatureOf(entries: readonly TocEntry[]): string {
   return entries.map((entry) => `${entry.level}:${entry.text}`).join('\n')
-}
-
-/** Build the toggle's `<svg>` from the shared icon spec (same drawing, DOM API). */
-function glyph(spec: IconSpec): SVGSVGElement {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  svg.setAttribute('width', String(spec.size ?? 16))
-  svg.setAttribute('height', String(spec.size ?? 16))
-  svg.setAttribute('viewBox', spec.viewBox)
-  svg.setAttribute('fill', 'none')
-  svg.setAttribute('aria-hidden', 'true')
-  for (const node of spec.nodes) {
-    const child = document.createElementNS('http://www.w3.org/2000/svg', node.tag)
-    for (const [name, value] of Object.entries(node.attrs)) child.setAttribute(name, String(value))
-    svg.appendChild(child)
-  }
-  return svg
 }
 
 /**
@@ -367,7 +351,7 @@ export function watchMarkdownOutline(ctx: ClientContext, t: Translator): () => v
       toggle.type = 'button'
       toggle.className = TOGGLE_CLASS
       toggle.setAttribute(TOGGLE, '')
-      toggle.appendChild(glyph(LIST_PEN_ICON))
+      toggle.appendChild(iconSvg(LIST_PEN_ICON))
       toggle.addEventListener('click', () => { setOpen(outline, !outline.open) })
       outline.toggle = toggle
     }
