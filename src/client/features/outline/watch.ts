@@ -88,6 +88,15 @@ interface Board {
   readonly toggle: HTMLButtonElement
   /** Absolute path the surface currently shows. */
   path: string
+  /**
+   * Every path this surface has shown, `path` included.
+   *
+   * An editor tab keeps one surface across files, and switching files must not
+   * throw the previous file's symbols away — the reader may switch back, and a
+   * rescan would make that free move cost a request. So the entries stay while
+   * the surface lives, and the whole set is released when the tab closes.
+   */
+  readonly shown: Set<string>
   /** The open panel, when one is open. */
   panel: HTMLElement | null
   /** Symbols for {@link path}, or null while they are unknown. */
@@ -114,8 +123,38 @@ export function watchOutline(api: ApiFn, t: Translator): () => void {
   if (root === null || root === undefined) return () => {}
 
   const boards = new Map<Element, Board>()
-  /** Symbols already fetched, by absolute path: reopening a file is free. */
+  /**
+   * Symbols already fetched, by absolute path — held for as long as some
+   * surface that has shown that file is still open.
+   *
+   * Switching files on one surface keeps the entries: the reader may switch
+   * back, and a rescan would turn that free move into a request. A tab that
+   * closes releases every path it showed, so the memory follows the open tabs
+   * rather than the session's history — a page left open for days does not grow
+   * one array per file ever looked at. Reopening a file starts with nothing and
+   * only the click spends a scan, which the measurement puts at tens of
+   * milliseconds for the usual few-thousand-line file (the outline doc,
+   * chapter 6).
+   */
   const cache = new Map<string, OutlineSymbol[]>()
+
+  /**
+   * Release the symbols one closing surface held, for the paths no other open
+   * surface still shows (the same file may be open as a preview and as an
+   * editor tab at once).
+   */
+  const forget = (leaving: Board): void => {
+    for (const path of leaving.shown) {
+      let elsewhere = false
+      for (const board of boards.values()) {
+        if (board !== leaving && board.shown.has(path)) {
+          elsewhere = true
+          break
+        }
+      }
+      if (!elsewhere) cache.delete(path)
+    }
+  }
   let queued = false
   let timer: number | null = null
   let frame: number | null = null
@@ -148,10 +187,11 @@ export function watchOutline(api: ApiFn, t: Translator): () => void {
     board.toggle.setAttribute('aria-expanded', 'false')
   }
 
-  /** Forget one board entirely. */
+  /** Forget one board entirely — along with the symbols only it was holding. */
   const drop = (board: Board): void => {
     close(board)
     board.toggle.remove()
+    forget(board)
     boards.delete(board.surface.root)
   }
 
@@ -339,6 +379,7 @@ export function watchOutline(api: ApiFn, t: Translator): () => void {
       surface,
       toggle,
       path,
+      shown: new Set([path]),
       panel: null,
       symbols: cache.get(path) ?? null,
       note: null,
@@ -403,9 +444,12 @@ export function watchOutline(api: ApiFn, t: Translator): () => void {
   /** Point one board at the file currently on screen, or close it when it moved. */
   const follow = (board: Board, path: string): void => {
     if (board.path === path) return
-    // Another file: symbols belong to the old path, so the panel goes away.
+    // Another file: symbols belong to the old path, so the panel goes away. The
+    // old entry stays in the cache — it leaves with the tab, not with the
+    // switch — so switching back costs nothing.
     close(board)
     board.path = path
+    board.shown.add(path)
     board.symbols = cache.get(path) ?? null
     board.note = null
     board.pending = false
