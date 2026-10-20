@@ -63,6 +63,33 @@ export function createIcon(deps: ClientDeps, spec: IconSpec): IconFactory {
 }
 
 /**
+ * One glyph as a React element, instead of a component.
+ *
+ * The host's `Menu` takes each row's icon as a node (`items[].icon`), so a menu
+ * row cannot use a `createIcon` factory; this draws the same `<svg>` shell
+ * here. `h` is threaded in rather than imported, exactly as everywhere else in
+ * the client half, and the props bag is deliberately loose so both features can
+ * pass the factory they already carry.
+ */
+export function iconElement(
+  h: (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => unknown,
+  spec: IconSpec,
+): unknown {
+  return h(
+    'svg',
+    {
+      width: spec.size ?? 16,
+      height: spec.size ?? 16,
+      viewBox: spec.viewBox,
+      fill: 'none',
+      strokeWidth: 1,
+      'aria-hidden': 'true',
+    },
+    spec.nodes.map((node, index) => h(node.tag, { key: String(index), ...node.attrs })),
+  )
+}
+
+/**
  * One glyph as a `mask-image` value: the same `<svg>` shell `createIcon`
  * renders, serialized and URL-encoded for a stylesheet. Alpha only — the glyph
  * strokes in `currentColor`, which resolves to opaque inside a mask, so the

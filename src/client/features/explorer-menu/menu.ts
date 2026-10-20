@@ -57,7 +57,7 @@
 
 import type { ClientContext, ClientDeps, Translator } from '../../platform/types'
 import { betterSidebarOwnsSurfaces } from '../../platform/neighbour'
-import type { IconSpec } from '../../platform/icons/Icon'
+import { iconElement } from '../../platform/icons/Icon'
 import { COPY_ICON } from '../../platform/icons/CopyIcon'
 import { DELETE_ICON } from './icons/DeleteIcon'
 import { NEW_FILE_ICON } from './icons/NewFileIcon'
@@ -157,22 +157,6 @@ function loadRuntime(h: ElementFactory | undefined): MenuRuntime | undefined {
     // default right-click behaviour instead of this feature failing the bundle.
     return undefined
   }
-}
-
-/** One menu row's icon, built from the shared spec as a React element. */
-function iconElement(h: ElementFactory, spec: IconSpec): unknown {
-  return h(
-    'svg',
-    {
-      width: spec.size ?? 16,
-      height: spec.size ?? 16,
-      viewBox: spec.viewBox,
-      fill: 'none',
-      strokeWidth: 1,
-      'aria-hidden': 'true',
-    },
-    spec.nodes.map((node, index) => h(node.tag, { key: index, ...node.attrs })),
-  )
 }
 
 /**
