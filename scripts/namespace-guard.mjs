@@ -281,6 +281,15 @@ export const FOREIGN_DATA_ATTRS = [
   'data-dockkit-strip-tabs',
   'data-dockkit-tab',
   'data-dockkit-tab-close',
+  /**
+   * `dsh-better-sidebar`'s own mount host: it appends one div carrying this to
+   * the body and renders every surface it docks outside the right column into
+   * it (its bottom workbench, its floating windows). The collapse-all watcher
+   * uses it as the second box whose arrivals can bring a file window: the
+   * neighbour's tree panel also mounts inside the column, under
+   * `data-sidebar-right-session`, so both are watched and neither is written.
+   */
+  'data-dsh-better-sidebar',
 ]
 
 /**
@@ -354,6 +363,7 @@ export const SCOPES = [
   ['client/platform', 'ui'],
   ['client/settings', 'shell'],
   ['client/features/custom-settings', 'cs'],
+  ['client/features/explorer-collapse', 'collapse'],
   ['client/features/explorer-menu', 'explorer'],
   ['client/features/file-reference', 'file'],
   ['client/features/line-jump', 'line'],

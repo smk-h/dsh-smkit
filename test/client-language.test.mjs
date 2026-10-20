@@ -289,6 +289,10 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // that draws the shell's menu for the host's rows (see
     // `features/explorer-menu`).
     'smkit: explorer/dictionaries',
+    // The tree's fold-everything control: its dictionary, then the watch that
+    // hangs the button on the neighbour's file window (see
+    // `features/explorer-collapse`).
+    'smkit: explorer-collapse/dictionaries',
     'smkit: notify/heartbeat',
     // The web-delivery subscriber: the second notification path for remote
     // hosts, holding one event-stream open for the host's pushed decisions.
@@ -322,6 +326,10 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The tree's right-click menu: one capture-phase contextmenu listener and
     // the React root that draws the shell's own menu card.
     'smkit: explorer/menu',
+    // The fold-everything button's watch: one document observer for the
+    // neighbour's file windows, and the button it inserts beside each search
+    // box (the shell's own seat needs no watch — see `features/explorer-collapse`).
+    'smkit: explorer/collapse-all',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared

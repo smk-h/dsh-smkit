@@ -18,6 +18,7 @@
  * `settingsFeature` (see `settings.ts`) — the composition layer above them.
  */
 
+import { explorerCollapseFeature } from './features/explorer-collapse/client'
 import { explorerMenuFeature } from './features/explorer-menu/client'
 import { fileReferenceFeature } from './features/file-reference/client'
 import { lineJumpFeature } from './features/line-jump/client'
@@ -77,6 +78,7 @@ const FEATURES: ClientFeature[] = [
   outlineFeature,
   fileReferenceFeature,
   explorerMenuFeature,
+  explorerCollapseFeature,
 ]
 
 export function createPlugin(): { apply(ctx: ClientContext): void; inject: string[] } {

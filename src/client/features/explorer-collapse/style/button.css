@@ -1,0 +1,63 @@
+/*
+ * The fold-everything control, sized to each surface it sits on.
+ *
+ * Both surfaces are toolbar rows built from the same design tokens, and both
+ * draw their own controls at 28px square with a 3px radius — the shell's file
+ * header (`ui-sidebar-files`' `.tool`) and the neighbour's kit
+ * (`dsh-better-sidebar`'s `.iconButtonMd`). So the shape is shared and only the
+ * glyph differs by a pixel: the shell draws 15px icons in its header row, the
+ * neighbour 14px in its search row.
+ *
+ * Nothing here writes a colour of its own: `--dsw-alias-label-secondary` and
+ * `--dsw-alias-interactive-bg-hover` are the two tokens both toolbars paint
+ * their own buttons with, so the control follows hover and both themes for
+ * free.
+ */
+
+.smkit-collapse-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  background: none;
+  color: var(--dsw-alias-label-secondary);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.smkit-collapse-button:hover:not(:disabled) {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.smkit-collapse-button:focus-visible {
+  outline: 2px solid var(--dsw-alias-interactive-bg-hover-accent);
+  outline-offset: -1px;
+}
+
+.smkit-collapse-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.smkit-collapse-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* The neighbour's row is drawn at 14px (its own icons' size), and its radius
+ * is the flat 3px its kit uses rather than the shell's scale token. */
+.smkit-collapse-button-neighbour {
+  border-radius: 3px;
+}
+
+.smkit-collapse-button-neighbour svg {
+  width: 14px;
+  height: 14px;
+}
