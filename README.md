@@ -18,7 +18,7 @@
 
 ### 2. 项目介绍
 
-dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供九个功能。各功能的完整说明放在 `docs/` 下，按编号一篇一个功能：
+dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供十个功能。各功能的完整说明放在 `docs/` 下，按编号一篇一个功能：
 
 | 功能 | 说明 | 文档 |
 | --- | --- | --- |
@@ -31,6 +31,7 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 | 完成通知 | 任务完成、出错或需要人操作时提醒，投递在浏览器 Web 通知与原生 toast 之间分路 | [LV506-完成通知](docs/LV506-完成通知.md) |
 | 跳转到行 | 只读文件预览里按 `Ctrl+G` 跳到指定行，并把目标行留下作落点 | [LV507-跳转到行](docs/LV507-跳转到行.md) |
 | 添加到对话 | 在预览或终端里选中文本右键，写进当前会话的输入框草稿 | [LV508-添加到对话](docs/LV508-添加到对话.md) |
+| 标签页菜单 | 右侧栏标签右键菜单补上批量关闭：其他、左侧所有、右侧所有与全部 | [LV509-标签页菜单](docs/LV509-标签页菜单.md) |
 
 插件是什么形态、如何被 dsh 加载、一个插件包由哪三部分组成，见 [LV010-插件工作原理](docs/LV010-插件工作原理.md)。
 
