@@ -58,7 +58,7 @@
 import type { ClientContext, ClientDeps, Translator } from '../../platform/types'
 import { betterSidebarOwnsSurfaces } from '../../platform/neighbour'
 import type { IconSpec } from '../../platform/icons/Icon'
-import { COPY_ICON } from './icons/CopyIcon'
+import { COPY_ICON } from '../../platform/icons/CopyIcon'
 import { DELETE_ICON } from './icons/DeleteIcon'
 import { NEW_FILE_ICON } from './icons/NewFileIcon'
 import { PLUS_ICON } from './icons/PlusIcon'
