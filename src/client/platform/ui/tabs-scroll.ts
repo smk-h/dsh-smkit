@@ -78,6 +78,17 @@
 const ROOT = '[data-smkit-tabs]'
 const ROW = '[data-smkit-tabs-row]'
 const ARROW = '[data-smkit-tabs-arrow]'
+/**
+ * The host's own tab strip — `ui-dockkit`'s chip box in the right sidebar.
+ *
+ * It is a plain `overflow-x: auto` scroller with the scrollbar hidden and
+ * `scroll-behavior: smooth`, and no wheel handler of its own: a vertical wheel
+ * over it belongs to whatever scrolls behind, so the strip only moves sideways
+ * while shift is held. Chromium does not remap the axis (Firefox does), which is
+ * the whole reason this layer takes the host's strips too — same gesture, same
+ * driver, no arrows (the host draws its own chrome and fades the hidden sides).
+ */
+const HOST_ROW = '[data-dockkit-strip-tabs]'
 /** The attribute the strip marks its selected tab with, and that tab itself. */
 const SELECTED_ATTRIBUTE = 'data-smkit-active'
 const SELECTED = `[${SELECTED_ATTRIBUTE}=true]`
@@ -107,6 +118,27 @@ interface Glide {
 /** How much room the row has to move, never negative. */
 const roomOf = (row: HTMLElement): number => Math.max(row.scrollWidth - row.clientWidth, 0)
 
+/**
+ * Put a row at `left`, ignoring any `scroll-behavior: smooth` on it.
+ *
+ * The host's chip box ships that rule (a newly selected tab glides into view),
+ * and a plain `scrollLeft =` would start an animation of its own — one per frame
+ * of the chase, each cancelling the last, which reads as the row refusing to
+ * move. `behavior: 'instant'` is the one assignment the stylesheet cannot
+ * override; an engine too old to know it is left with the plain write.
+ */
+const write = (row: HTMLElement, left: number): void => {
+  if (typeof row.scrollTo === 'function') {
+    try {
+      row.scrollTo({ left, behavior: 'instant' as ScrollBehavior })
+      return
+    } catch {
+      // Older engines reject the third enum value; the plain write is the fallback.
+    }
+  }
+  row.scrollLeft = left
+}
+
 /** Whether the reader asked for less motion, in which case nothing is animated. */
 const prefersReducedMotion = (): boolean =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -115,6 +147,11 @@ const prefersReducedMotion = (): boolean =>
  * Watch every tab strip in the document: publish what each row can do
  * (`data-smkit-tabs-scroll`), scroll it on a wheel and on its arrows, and keep
  * its selected tab in sight.
+ *
+ * Two kinds of strip are watched: this plugin's own rows (`ui/Tabs`, arrows and
+ * all) and the host's chip box in the right sidebar, which gets the same wheel
+ * treatment and nothing else — that one is why a plain wheel scrolls the file
+ * tabs sideways instead of belonging to the page behind them.
  * @returns Disposer for the caller's effect cleanup.
  */
 export function watchTabsScroll(): () => void {
@@ -124,6 +161,8 @@ export function watchTabsScroll(): () => void {
 
   /** Per strip: how to let go of it again, keyed by its root. */
   const watched = new Map<Element, () => void>()
+  /** Per host chip box: how to let go of it again, keyed by the box itself. */
+  const hostRows = new Map<Element, () => void>()
   /** Per row: the frame loop moving it, and where to. */
   const glides = new Map<HTMLElement, Glide>()
 
@@ -169,15 +208,15 @@ export function watchTabsScroll(): () => void {
     if (press === null) {
       const left = glide.target - row.scrollLeft
       if (Math.abs(left) < SETTLE_PX) {
-        row.scrollLeft = glide.target
+        write(row, glide.target)
         return
       }
       const before = row.scrollLeft
-      row.scrollLeft += left * CHASE
+      write(row, before + left * CHASE)
       // An engine that snaps the fractional step back to the pixel it came from
       // would otherwise leave the chase a pixel short of its target for ever.
       if (row.scrollLeft === before) {
-        row.scrollLeft = glide.target
+        write(row, glide.target)
         return
       }
       glide.frame = requestAnimationFrame((next) => step(row, glide, next))
@@ -185,13 +224,13 @@ export function watchTabsScroll(): () => void {
     }
     const elapsed = (now - press.at) / PRESS_MS
     if (elapsed >= 1) {
-      row.scrollLeft = glide.target
+      write(row, glide.target)
       glide.press = null
       return
     }
     // Ease-out cubic: quick off the mark, settling onto the last tab.
     const eased = 1 - (1 - elapsed) ** 3
-    row.scrollLeft = press.from + (glide.target - press.from) * eased
+    write(row, press.from + (glide.target - press.from) * eased)
     glide.frame = requestAnimationFrame((next) => step(row, glide, next))
   }
 
@@ -246,7 +285,8 @@ export function watchTabsScroll(): () => void {
   const onWheel = (event: WheelEvent): void => {
     const target = event.target
     if (!(target instanceof Element)) return
-    const row = target.closest<HTMLElement>(ROW)
+    // Either strip: ours (a row inside its root) or the host's chip box itself.
+    const row = target.closest<HTMLElement>(`${ROW}, ${HOST_ROW}`)
     if (row === null) return
     const room = roomOf(row)
     if (room <= 1) return
@@ -265,7 +305,7 @@ export function watchTabsScroll(): () => void {
     glide.press = null
     glide.target = next
     if (prefersReducedMotion()) {
-      row.scrollLeft = next
+      write(row, next)
       return
     }
     run(row, glide)
@@ -353,6 +393,35 @@ export function watchTabsScroll(): () => void {
     reveal(row)
   }
 
+  /**
+   * Take up one of the host's chip boxes: the wheel and the grab, nothing else.
+   *
+   * The host owns everything around them — no arrows of its own, the selected
+   * tab brought into view by its own layout effect, and the edge fades written
+   * as `data-dockkit-strip-scroll` — so what is wired here is exactly the two
+   * gestures that have no home over there. A grab halts a chase for the same
+   * reason it does on our own row: the reader's finger wins.
+   */
+  const watchHost = (row: HTMLElement): void => {
+    if (hostRows.has(row)) return
+    const onGrab = (): void => {
+      const glide = glides.get(row)
+      if (glide === undefined) return
+      halt(glide)
+      glide.press = null
+      glide.target = row.scrollLeft
+    }
+    row.addEventListener('wheel', onWheel, { passive: false })
+    row.addEventListener('pointerdown', onGrab, { passive: true })
+    hostRows.set(row, () => {
+      row.removeEventListener('wheel', onWheel)
+      row.removeEventListener('pointerdown', onGrab)
+      const glide = glides.get(row)
+      if (glide !== undefined) halt(glide)
+      glides.delete(row)
+    })
+  }
+
   /** Re-read every strip under watch, and let go of the ones that left. */
   const refresh = (): void => {
     for (const [root, release] of watched) {
@@ -363,11 +432,18 @@ export function watchTabsScroll(): () => void {
       }
       watch(root)
     }
+    for (const [row, release] of hostRows) {
+      if (!row.isConnected) {
+        release()
+        hostRows.delete(row)
+      }
+    }
   }
 
   /** Every strip in the document: new ones start being watched, gone ones stop. */
   const scan = (): void => {
     for (const root of document.querySelectorAll(ROOT)) watch(root)
+    for (const row of document.querySelectorAll<HTMLElement>(HOST_ROW)) watchHost(row)
     refresh()
   }
 
@@ -401,6 +477,8 @@ export function watchTabsScroll(): () => void {
       root.removeAttribute(SCROLL)
     }
     watched.clear()
+    for (const release of hostRows.values()) release()
+    hostRows.clear()
     // A frame still owed would write to a row this watch no longer owns.
     for (const glide of glides.values()) halt(glide)
     glides.clear()
