@@ -41,3 +41,19 @@ body[data-smkit-theme='one-dark-pro'] [data-dockkit-tab][aria-selected='true'] {
   color: #d7dae0;
   background: #323842;
 }
+
+/* The rule under the active chip: one pixel, run edge to edge. It sits a pixel
+   above the chip's floor rather than on it, because the 8px radius takes the
+   last pixel of every chip's width with it — a line at the very bottom is a line
+   with its ends cut off. The ink is the editor's (`#abb2bf`), a step under the
+   title above it: at the title's own brightness a 1px line under a filled chip
+   reads as a light source rather than as a marker. */
+body[data-smkit-theme='one-dark-pro'] [data-dockkit-tab][aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  height: 1px;
+  background: #abb2bf;
+}
