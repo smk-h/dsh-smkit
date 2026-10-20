@@ -1,0 +1,43 @@
+/*
+ * The host's chip strip under One Dark Pro: which chip is the page you are on.
+ *
+ * The harness paints a chip from two alias tokens — `label-secondary` at rest,
+ * `label-primary` for the active one, over a fill of `markdown-tag` — and this
+ * palette spends those aliases elsewhere. `label-secondary` here is the status
+ * bar's ink (`#9da5b4`) and `label-primary` the editor's (`#abb2bf`): two
+ * neighbouring greys, so a row of titles all read the same and nothing on the
+ * strip says which page is showing. The fill has the same problem from the other
+ * side — `markdown-tag` is `#2c313a`, four levels off the canvas, which is all
+ * an inline code tag needs and too little for a tab.
+ *
+ * The palette answers both questions itself, and this sheet asks for its
+ * answers at the one place they belong: the chips. Resting titles take the
+ * title bar's inactive ink (`#6b717d`, `titleBar.inactiveForeground`), the
+ * active one the activity bar's (`#d7dae0`, `activityBar.foreground`), and the
+ * active chip's fill the focused row (`#323842`, `list.focusBackground`, the
+ * palette's own tab hover) — the same relationship VS Code's tabs have to the
+ * bar they sit in.
+ *
+ * Hover still steps back toward the ink: the shell's veils are the background
+ * of a hovered chip and are left alone, this only keeps its label readable
+ * under the pointer.
+ *
+ * Scoped on the body attribute `apply.ts` writes, after the manner of the
+ * floating and check-chip sheets: the harness's pairing stands for the shell's
+ * palettes, and a theme that wants a different answer earns a rule of its own
+ * keyed on its id.
+ */
+
+body[data-smkit-theme='one-dark-pro'] [data-dockkit-tab] {
+  color: #6b717d;
+}
+
+body[data-smkit-theme='one-dark-pro'] [data-dockkit-tab]:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Last, so the active chip keeps its own ink while hovered. */
+body[data-smkit-theme='one-dark-pro'] [data-dockkit-tab][aria-selected='true'] {
+  color: #d7dae0;
+  background: #323842;
+}
