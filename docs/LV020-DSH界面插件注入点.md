@@ -14,7 +14,7 @@ DSH Web 界面整体就是一个 slot（插槽）组装出来的外壳，宿主�
 
 （2）客户端半区入口导出 `inject`（所需服务名）与 `apply(ctx)`，见 [`src/client/entry.ts`](../src/client/entry.ts)；
 
-（3）在 `apply()` 里调用 `ctx.slots.inject(槽名, 工厂)` 声明占位，工厂里用 `ctx.slots.register(选项, 组件)` 完成注册，见 [`src/client/runtime/plugin.ts`](../src/client/runtime/plugin.ts)。
+（3）在 `apply()` 里调用 `ctx.slots.inject(槽名, 工厂)` 声明占位，工厂里用 `ctx.slots.register(选项, 组件)` 完成注册，见 [`src/client/features/tab-menu/client.ts`](../src/client/features/tab-menu/client.ts)。
 
 slot 契约的权威定义在各宿主 UI 包的 `lib/types/client/contract/slots.d.ts` 中（如 `@deepseek-ai/dsh-client-ui-conversation`、`@deepseek-ai/dsh-client-ui-sidebar`），每个 slot 的名字、形态与组件 props 都以该文件为准。
 
@@ -90,8 +90,17 @@ slot 契约的权威定义在各宿主 UI 包的 `lib/types/client/contract/slot
 | ---- | ---- | ---- |
 | 新增一个 tab 类型 | `sidebar.right.pane.tab` ＋ `sidebar.right.pane.tab.title` | keyed |
 | tab 的「⋯」菜单末尾追加项 | `sidebar.right.tab.menu.item` | list |
+| 文件树头部：路径行与刷新按钮之后 | `sidebar.right.tab.files.actions` | list |
+| 文档预览头部：渲染器专属控件 / 作用于该文件的按钮组 | `sidebar.right.tab.document.action` / `sidebar.right.tab.document.actions` | keyed / list |
 | 引导页整体替换 | `sidebar.right.tab.guide` | chain |
 | 整栏内容 | `rightbar` / `rightbar.session` | single |
+
+`sidebar.right.tab.files.actions` 是「文件」tab 自己的座位，由 `ui-sidebar-files` 声明：宿主的原生文件树头部只有 `PathLabel`（当前目录）与一个刷新按钮，这个座位就渲染在刷新之后，`scope` 为 `session`，组件另收到当前目录的 `absolutePath`，适合放「在此目录开终端 / 复制路径 / 在应用打开」这类与目录相关的动作（v0.1.5-rc.1 上该座位已被 `client-ui-open-in-app` 的 `open-in-app` 占据）。
+
+两条限制要记住：
+
+- 座位由**声明它的 tab 体**提供，`sidebar.right.pane.tab` 又是 keyed 座位——一旦第三方插件用 `files` 这个 key 接管了文件 tab（例如 `dsh-better-sidebar`），画面上就是它自己的那棵树，原生文件树连同这个座位一起不在。界面里见到的搜索框、「收起全部」「上传」「新建文件夹」这类控件也都是那类插件自绘的，不属宿主。
+- 因此它**只在原生「文件」tab 挂载期间存在**，常驻逻辑不能挂它的生命周期。
 
 ### 6. 设置弹窗
 
@@ -158,7 +167,7 @@ ctx.slots.inject('conversation.input.left', () =>
 
 ### 3. 参考实现
 
-- 本项目：[`src/client/runtime/plugin.ts`](../src/client/runtime/plugin.ts) 注册 `settings.section` 的完整流程，以及 `conversation.session.header.utilities`（会话头部删除按钮）的注册方式；
+- 本项目：[`src/client/settings.ts`](../src/client/settings.ts) 注册 `settings.section` 的完整流程，[`src/client/features/session-delete/client.ts`](../src/client/features/session-delete/client.ts) 注册 `conversation.session.header.utilities`（会话头部删除按钮）的写法；
 - 第三方实证：已装入 web profile 的 `dsh-better-sidebar` 插件同时注入了 `conversation.session.header.utilities`（顶栏按钮）、`conversation.chat.turnTail`（Turn 尾部按钮）、`settings.section` 与右侧栏 tab，说明这些座位对第三方插件完全开放。
 
 ---
