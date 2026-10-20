@@ -124,6 +124,87 @@ it('skips a function-pointer variable in both modes', () => {
   assert.deepEqual(scanSource(text, C_FAMILY, { prototypes: true }).map((symbol) => symbol.name), ['real'])
 })
 
+/**
+ * The shape a real C file has: configuration macros, aggregate definitions and
+ * global tables around the functions, not one family per file. The fixture
+ * directory (`.tmp/outline-fixtures/c/mixed.c`) carries the long version; this
+ * is the part worth keeping in CI.
+ */
+const MIXED = `#define LIMIT 32
+#define UNUSED(value) ((void)(value))
+#define DEFINE_GETTER(type, field) \\
+    type get_##field(void) { return 0; }
+
+typedef enum { IDLE, READY } state;
+
+typedef struct node node_t;
+
+struct reading {
+    union {
+        double real;
+        long integer;
+    } value;
+};
+
+struct node {
+    char name[16];
+    state state;
+    struct reading last;
+    struct node *next;
+};
+
+static node_t pool[LIMIT];
+static int (*const compare)(const void *, const void *) = 0;
+static const struct reading empty = { .value = { .real = 0 } };
+static const char *const banner = "struct fake { int x; };";
+
+static void reset(struct node *node)
+{
+    if (node == 0) {
+        return;
+    }
+}
+
+int create(const char *name)
+{
+    return name != 0;
+}
+
+#ifdef DEBUG
+int debug_count(void) { return 1; }
+#else
+int debug_count(void) { return 0; }
+#endif
+
+int legacy(a)
+    int a;
+{
+    return a;
+}
+`
+
+it('reads a realistic module, not one syntax family per file', () => {
+  const found = lines(MIXED)
+  assert.deepEqual(Object.keys(found).sort(), [
+    'DEFINE_GETTER',
+    'UNUSED',
+    'create',
+    'debug_count',
+    'node',
+    'reading',
+    'reset',
+    'state',
+  ])
+  // Both arms of the conditional compile are definitions of the same name.
+  assert.equal(scanSource(MIXED, C_FAMILY).filter((symbol) => symbol.name === 'debug_count').length, 2)
+  // Globals, initialiser braces and macro bodies never become symbols.
+  for (const name of ['pool', 'compare', 'empty', 'banner', 'LIMIT', 'get_0']) {
+    assert.equal(found[name], undefined, name + ' is not a symbol')
+  }
+  // A K&R parameter list stays the documented gap.
+  assert.equal(found.legacy, undefined)
+})
+
 it('reports prototypes only when asked, which is what a header is', () => {
   const text = 'int declared_only(int x);\nint defined(void) { return 0; }\n'
   assert.deepEqual(scanSource(text, C_FAMILY).map((symbol) => symbol.name), ['defined'])

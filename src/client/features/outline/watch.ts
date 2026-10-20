@@ -68,6 +68,7 @@ const PANEL_CLASS = 'smkit-outline-panel'
 const ITEM_CLASS = 'smkit-outline-item'
 const KIND_CLASS = 'smkit-outline-kind'
 const NAME_CLASS = 'smkit-outline-name'
+const LINE_CLASS = 'smkit-outline-line'
 const NOTE_CLASS = 'smkit-outline-note'
 
 /** The wash a landed line carries while the reader looks at it. */
@@ -291,8 +292,14 @@ export function watchOutline(api: ApiFn, t: Translator): () => void {
       const name = document.createElement('span')
       name.className = NAME_CLASS
       name.textContent = symbol.name
+      // The line number is the row's destination, so it sits where the eye can
+      // compare rows by it: hard right, in the panel's quiet colour.
+      const line = document.createElement('span')
+      line.className = LINE_CLASS
+      line.textContent = String(symbol.line)
       item.appendChild(kind)
       item.appendChild(name)
+      item.appendChild(line)
       item.addEventListener('click', () => { jump(board, symbol) })
       panel.appendChild(item)
     }

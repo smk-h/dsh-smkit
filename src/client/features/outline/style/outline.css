@@ -71,10 +71,22 @@
 }
 
 .smkit-outline-name {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   font-family: var(--dsw-font-family-mono, ui-monospace, monospace);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The row's destination: right-aligned so a column of numbers can be scanned,
+   tabular figures so they line up, and in the quiet colour so the names keep
+   the row's weight. */
+.smkit-outline-line {
+  flex: none;
+  margin-left: auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 .smkit-outline-note {
