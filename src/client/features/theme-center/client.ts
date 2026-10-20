@@ -1,7 +1,8 @@
 /**
  * The theme-center feature's client half, and the whole of what the plugin
- * does about themes: one row on the built-in Settings → General page, and one
- * control in the conversation header's right-aligned utilities.
+ * does about themes: one row on the built-in Settings → General page. The
+ * palette control it used to add to the conversation header is kept in
+ * `components/PaletteButton.tsx` but no longer seated — see below.
  *
  * The row's seat is deliberately not the plugin's merged settings section: a
  * theme is appearance, and the shell already groups appearance on Settings →
@@ -18,22 +19,26 @@
  * exactly one kind of thing before (a file, a namespace, an effect label) while
  * knowing nothing about each other.
  *
- * Four things this registration sets up, in the order the two seats need them:
+ * Three things this registration sets up, in the order the seat needs them:
  * the restored choice with the theme's colors stacked under it (so the row
- * renders against the truth), the palette edits stacked above it (so the panel
- * opens onto the colors the surface really has), the workbench board (so the
- * skin is on before the row offers to switch it), then the two seats.
+ * renders against the truth), the palette edits stacked above it (so a tuning
+ * session survives a theme switch), then the workbench board (so the skin is on
+ * before the row offers to switch it) and the row itself.
+ *
+ * The palette control is deliberately unseated. Its component, panel, icon and
+ * stylesheet all still stand, and the edits layer above is still registered —
+ * what is gone is the `ctx.slots.inject` into the header's utilities, so dsh
+ * shows no palette button at all. Putting it back is one injection plus its
+ * stylesheet entry; nothing else in this feature changed shape.
  */
 
 import { registerThemeCenter } from './apply'
 import { registerPaletteOverrides } from './overrides'
 import { registerWorkbench } from './workbench'
 import { createThemeCenterRow } from './components/ThemeCenterRow'
-import { createPaletteButton } from './components/PaletteButton'
 import { THEME_CENTER_LOCALE_EN } from './i18n/en'
 import { THEME_CENTER_LOCALE_ZH } from './i18n/zh'
 import rowCss from './style/row.css'
-import paletteCss from './style/palette.css'
 import workbenchCss from './style/workbench.css'
 import floatingCss from './style/floating.css'
 import checkChipCss from './style/check-chip.css'
@@ -41,12 +46,6 @@ import type { ClientContext, ClientDeps, ClientFeature, Translator } from '../..
 
 /** The built-in Settings → General item list the shell's own rows use. */
 const SETTINGS_GENERAL_ITEM = 'settings.general.item'
-
-/** The conversation header's right-aligned utilities list. `order: 48` puts the
- * palette one place left of the OpenSpec control (49) and the header's own
- * session-delete (50): the read-write trio reads as one run, and the outermost,
- * most destructive seat keeps its edge. */
-const SESSION_HEADER_UTILITIES = 'conversation.session.header.utilities'
 
 export const themeCenterFeature: ClientFeature = {
   id: 'theme-center',
@@ -67,7 +66,6 @@ export const themeCenterFeature: ClientFeature = {
   styles: [
     { name: 'theme-center/row', css: rowCss },
     { name: 'theme-center/workbench', css: workbenchCss },
-    { name: 'theme-center/palette', css: paletteCss },
     { name: 'theme-center/floating', css: floatingCss },
     { name: 'theme-center/check-chip', css: checkChipCss },
   ],
@@ -97,17 +95,9 @@ export const themeCenterFeature: ClientFeature = {
         ThemeCenterRow,
       ),
     )
-    const PaletteButton = createPaletteButton(deps)
-    ctx.slots.inject(SESSION_HEADER_UTILITIES, () =>
-      ctx.slots.register(
-        {
-          name: SESSION_HEADER_UTILITIES,
-          id: 'smkit-theme-palette',
-          order: 48,
-          locale: 'theme-center',
-        },
-        PaletteButton,
-      ),
-    )
+    // The palette toggle is not seated here any more. `components/PaletteButton`
+    // and the panel it opens are kept whole, and so is the edits layer above —
+    // they are simply unreachable from dsh's UI until an injection like the one
+    // this file used to hold puts the control back in the header's utilities.
   },
 }

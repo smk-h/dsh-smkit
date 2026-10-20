@@ -11,6 +11,10 @@
  * wiring rather than the arithmetic: which box is measured, when it is measured
  * again, what is left to the stylesheet when there is no box to measure, and
  * that the panel root carries the marker the rule looks for in the first place.
+ *
+ * The control is currently kept but not seated (see `theme-center/client.ts`),
+ * so the bundle registers no toggle to drive and every case here skips. They
+ * are kept, not deleted: restoring the seat makes them exercise the rule again.
  */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -166,10 +170,13 @@ function mount(options = {}) {
     reflect: { get: () => undefined },
   }
   exported.apply(ctx)
+  // The palette toggle is kept but no longer seated in the header (see
+  // `theme-center/client.ts`), so the bundle registers nothing to drive here.
   const PaletteButton = registrations.get('smkit-theme-palette')
-  assert.equal(typeof PaletteButton, 'function', 'the header utilities seat must get the palette toggle')
+  const seated = typeof PaletteButton === 'function'
 
   return {
+    seated,
     panel,
     toggle,
     header,
@@ -181,6 +188,7 @@ function mount(options = {}) {
       for (const observer of observers) observer.callback()
     },
     render() {
+      assert.ok(seated, 'the palette toggle is not seated, so there is nothing to render')
       cursor = 0
       effectCursor = 0
       const tree = PaletteButton({ t })
@@ -205,8 +213,28 @@ function mount(options = {}) {
   }
 }
 
-it('places the panel in its own column corner, not the window’s', () => {
+/**
+ * The mount one case drives, or a skip while the palette control is unseated.
+ *
+ * These cases describe the panel's corner, not whether the shell offers the
+ * toggle. They stay for the day the seat returns — reintroducing the injection
+ * in `theme-center/client.ts` makes them run again — and skip in the meantime
+ * rather than being deleted with the seat.
+ * @param t - the test's own context, for `skip`.
+ * @returns the mount, or null when there is no control to mount.
+ */
+function seatedMount(t) {
   const ui = mount()
+  if (!ui.seated) {
+    t.skip('the palette control is kept but not seated in the header')
+    return null
+  }
+  return ui
+}
+
+it('places the panel in its own column corner, not the window’s', (t) => {
+  const ui = seatedMount(t)
+  if (ui === null) return
   const tree = ui.click()
   // The marker the rule hunts for is the panel root's own: without it the
   // placement would be looking for something the render never draws.
@@ -216,8 +244,9 @@ it('places the panel in its own column corner, not the window’s', () => {
   assert.equal(ui.panel.style.right, '12px')
 })
 
-it('follows the column when the Sidebar takes its width', () => {
-  const ui = mount()
+it('follows the column when the Sidebar takes its width', (t) => {
+  const ui = seatedMount(t)
+  if (ui === null) return
   ui.click()
   // The shell's right Sidebar opens: the conversation column ends 300px short
   // of the window, and the panel travels left with its toggle.
@@ -228,8 +257,9 @@ it('follows the column when the Sidebar takes its width', () => {
   assert.equal(ui.panel.style.right, '12px')
 })
 
-it('watches the column, not the panel', () => {
-  const ui = mount()
+it('watches the column, not the panel', (t) => {
+  const ui = seatedMount(t)
+  if (ui === null) return
   ui.click()
   assert.equal(ui.observers.length, 1, 'one observer, for the panel’s lifetime')
   // The header is the one box whose width the frame's columns change, so it is
@@ -238,8 +268,9 @@ it('watches the column, not the panel', () => {
   assert.deepEqual(ui.observers[0].targets, [ui.header])
 })
 
-it('hands the panel back to the stylesheet when there is no column to measure', () => {
-  const ui = mount()
+it('hands the panel back to the stylesheet when there is no column to measure', (t) => {
+  const ui = seatedMount(t)
+  if (ui === null) return
   ui.click()
   assert.equal(ui.panel.style.right, '12px')
   // A header the shell has hidden: no box, so nothing to align to, and the
@@ -250,15 +281,20 @@ it('hands the panel back to the stylesheet when there is no column to measure', 
   assert.equal(ui.panel.style.right, '12px')
 })
 
-it('keeps the stylesheet’s corner where the host seats the toggle outside a header', () => {
+it('keeps the stylesheet’s corner where the host seats the toggle outside a header', (t) => {
   const ui = mount({ header: false })
+  if (!ui.seated) {
+    t.skip('the palette control is kept but not seated in the header')
+    return
+  }
   ui.click()
   assert.equal(ui.panel.style.right, '', 'no column to hang off means no measurement')
   assert.equal(ui.observers.length, 0, 'and nothing to watch')
 })
 
-it('stops following the column once the panel closes', () => {
-  const ui = mount()
+it('stops following the column once the panel closes', (t) => {
+  const ui = seatedMount(t)
+  if (ui === null) return
   ui.click()
   assert.equal(ui.observers[0].disconnected, false)
   ui.click()
