@@ -3,12 +3,14 @@
  * surfaces.
  *
  * Chrome on surfaces the plugin does not own — the right sidebar's document
- * preview and its terminal tab — so it takes no slot and registers no seat; it
- * listens for the selection gesture and draws its own button (see `watch.ts`).
- * The upstream reference this plugin ports from (`dsh-better-sidebar`,
- * `src/client/selection-popup.ts`) draws the same button inside its own editor,
- * which is why the watcher stands down while that plugin is loaded: one
- * affordance on one surface, never two.
+ * preview and its terminal tab — so it takes no slot and registers no seat; a
+ * right-click on a selection there replaces the native menu with a small card
+ * that quotes the passage into the draft, or copies it (see `watch.ts` and
+ * `menu.ts`). The upstream reference this plugin ports from
+ * (`dsh-better-sidebar`, `src/client/selection-popup.ts`) draws its own floating
+ * button inside its own editor; this feature deliberately does not stand down
+ * while that plugin is loaded, because the two never share a surface — its
+ * editor carries its button, the host's previews and terminals carry this card.
  */
 
 import { SELECTION_QUOTE_LOCALE_EN } from './i18n/en'
@@ -26,9 +28,9 @@ export const selectionQuoteFeature: ClientFeature = {
   },
   styles: [{ name: 'action', css: SELECTION_QUOTE_CSS }],
 
-  register(ctx: ClientContext, _deps: ClientDeps, t): void {
+  register(ctx: ClientContext, deps: ClientDeps, t): void {
     ctx.effect(
-      () => watchSelectionQuote(ctx, t),
+      () => watchSelectionQuote(ctx, deps, t),
       'smkit: selection-quote/preview',
     )
   },

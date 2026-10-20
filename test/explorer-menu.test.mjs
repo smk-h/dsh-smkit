@@ -34,7 +34,12 @@ import { it } from 'node:test'
 
 const source = readFileSync(fileURLToPath(new URL('../lib/client.js', import.meta.url)), 'utf8')
 
-/** Every selector this stand-in answers: `:scope >` , a tag, `[attr]`, `[attr="v"]`. */
+/**
+ * Every selector this stand-in answers: `:scope >` , a tag, `[attr]`,
+ * `[attr="v"]`, `:not([attr])`, and `.class` — the last one because the
+ * selection-quote watch asks `closest('.xterm')` on every right-click, whether
+ * or not a terminal is on the page.
+ */
 function parseSelector(selector) {
   return String(selector).split(',').map((raw) => {
     let text = raw.trim()
@@ -43,14 +48,17 @@ function parseSelector(selector) {
       direct = true
       text = text.slice(':scope >'.length).trim()
     }
-    const match = /^([a-zA-Z0-9]*)((?:\[[a-z-]+(?:="[^"]*")?\]|:not\(\[[a-z-]+\]\))*)$/.exec(text)
+    const match = /^([a-zA-Z0-9]*)((?:\[[a-z-]+(?:="[^"]*")?\]|:not\(\[[a-z-]+\]\)|\.[a-zA-Z0-9_-]+)*)$/.exec(text)
     assert.ok(match, `the test DOM does not understand the selector "${selector}"`)
-    const tokens = [...match[2].matchAll(/\[([a-z-]+)(?:="([^"]*)")?\]|:not\(\[([a-z-]+)\]\)/g)]
+    const tokens = [...match[2].matchAll(/\[([a-z-]+)(?:="([^"]*)")?\]|:not\(\[([a-z-]+)\]\)|\.([a-zA-Z0-9_-]+)/g)]
     return {
       direct,
       tag: match[1] === '' ? undefined : match[1].toLowerCase(),
-      present: tokens.filter((token) => token[3] === undefined).map((token) => ({ name: token[1], value: token[2] })),
+      present: tokens
+        .filter((token) => token[1] !== undefined)
+        .map((token) => ({ name: token[1], value: token[2] })),
       absent: tokens.filter((token) => token[3] !== undefined).map((token) => token[3]),
+      classes: tokens.filter((token) => token[4] !== undefined).map((token) => token[4]),
     }
   })
 }
@@ -64,6 +72,9 @@ function matchesParsed(element, parsed) {
   }
   for (const name of parsed.absent) {
     if (element.hasAttribute(name)) return false
+  }
+  for (const name of parsed.classes) {
+    if (!String(element.className).split(/\s+/).includes(name)) return false
   }
   return true
 }

@@ -1,29 +1,25 @@
 /**
- * The floating "add to conversation" action over a selection in a preview or a
- * terminal.
+ * The "copied" confirmation the quote card leaves behind.
  *
- * Portaled to `document.body` and `position: fixed`, so it is anchored to the
- * selection's viewport rectangle rather than to any scrollport: the preview
- * body clips its own children, and the button must sit outside it.
+ * The card itself is the shell's own `Menu` (see `menu.ts`); this is the one
+ * piece the shell has no component for: after the row closes, the reader needs
+ * to see that the clipboard write landed, where the card was. It wears the look
+ * of the shell's small floating card — `--dsw-specific-menu`, a hairline border,
+ * the 6px radius its floating labels use, the 11px strong font — so it reads as
+ * the same surface the row came from, and a theme switch carries it.
  *
- * The look is the shell's own small menu card — `--dsw-specific-menu`, a
- * hairline border, the 6px radius its floating buttons use, the 11px strong
- * font — so the button reads as part of DSH rather than as a plugin overlay,
- * and a theme switch carries it. Upstream (`dsh-better-sidebar`) uses the same
- * tokens and the same 28px height; the only addition is the level-2 shadow,
- * which keeps the card legible over the code it covers.
- *
- * The press is prevented at `mousedown` in `watch.ts` to keep the selection
- * alive; `cursor: pointer` and the hover fill are what tell the reader it is
- * pressable at all.
+ * Portaled to `document.body` and `position: fixed`: it is anchored to the
+ * viewport point the card opened at, and the preview body clips its own
+ * children. It is a label, never a control — no hand cursor, no hover fill, and
+ * the pointer falls through it.
  */
 
-.smkit-quote-action {
+.smkit-quote-action-note {
   position: fixed;
   z-index: 60;
   box-sizing: border-box;
-  /* Above the selection, centred on it: the left/top the watcher writes is the
-     selection's own midpoint and top edge. */
+  /* Above the anchor, centred on it: the left/top the watcher writes is the
+     point the card opened at. */
   transform: translate(-50%, calc(-100% - 8px));
   display: inline-flex;
   align-items: center;
@@ -36,14 +32,6 @@
   color: var(--dsw-alias-label-primary);
   font: var(--dsw-font-xxxs-strong-11);
   white-space: nowrap;
-  cursor: pointer;
-}
-
-.smkit-quote-action:hover {
-  background: var(--dsw-alias-interactive-bg-hover-solid);
-}
-
-.smkit-quote-action:focus-visible {
-  outline: 2px solid var(--dsw-alias-interactive-bg-hover-accent);
-  outline-offset: 1px;
+  pointer-events: none;
+  cursor: default;
 }

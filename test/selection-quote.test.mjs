@@ -2,28 +2,27 @@
  * "Add to conversation" on the host's read-only previews, driven through the
  * real client bundle against a stand-in for the shell's document preview.
  *
- * What is worth pinning is exactly what the port promises:
+ * What is worth pinning is exactly what the feature promises:
  *
- * - a mouse-up that ends a selection inside a preview offers one floating
- *   button, and only one;
- * - it is anchored to the point the gesture ended at, not to the selection's
- *   bounding box, so a selection taller than the window keeps its button on
- *   screen (and stays put below the top edge);
- * - its press drops a fenced block into the composer draft whose info line is
- *   the previewed path (relative to the session's cwd) plus the line span —
+ * - selecting a passage adds nothing on its own: the right-click card is the
+ *   only affordance (the floating button is gone, and it was the one that could
+ *   not be placed at a surface's edges);
+ * - a right-click with a live selection replaces the native menu with the
+ *   shell's own card — two rows, standard row metrics, one glyph each — anchored
+ *   at the pointer, or at the end of the selection for a keyboard menu key;
+ * - its first row drops a fenced block into the composer draft whose info line
+ *   is the previewed path (relative to the session's cwd) plus the line span —
  *   read from the rendered rows, never guessed;
+ * - its second row copies the selection itself and leaves a short confirmation;
  * - a rendered Markdown document has no source lines, so its payload is the
  *   path alone; a selection over 500 characters is the header alone;
  * - a terminal is read through xterm's own copy path and quoted as a `console`
- *   block at every length, with no document selection to die with;
+ *   block at every length;
  * - the path falls back to the absolute form when the session cwd is unknown,
- *   and the whole gesture is a no-op when the preview names no session;
- * - `dsh-better-sidebar` draws this same popup in its own viewer, so its
- *   service being present means this feature adds nothing;
- * - the button dies with its selection: an outside press, Escape, a collapsed
- *   selection, a scroll, or disposing the effect all remove it;
- * - the button's own press never collapses the selection (its `mousedown` is
- *   prevented), so the payload survives until the click lands.
+ *   and the gesture is a no-op without a selection, with the pointer off that
+ *   surface, or when the surface names no session;
+ * - `dsh-better-sidebar` being loaded does not silence any of it: its editor is
+ *   its own tab body with its own popup, and the host's surfaces stay ours.
  *
  * The VM has no DOM, so the document below implements only the questions this
  * feature asks: attribute and class selectors, `closest`, containment, a
@@ -36,6 +35,9 @@ import { runInNewContext } from 'node:vm'
 import { it } from 'node:test'
 
 const source = readFileSync(fileURLToPath(new URL('../lib/client.js', import.meta.url)), 'utf8')
+
+/** Let a clipboard write's promise settle (the confirmation follows it). */
+const flush = () => new Promise((resolve) => setImmediate(resolve))
 
 /** Every selector the stand-in answers: a tag, `.class`, `[attr]`, `[attr="v"]`. */
 function parseSelector(selector) {
@@ -369,18 +371,17 @@ function mount(options = {}) {
     useCallback: (callback) => callback,
   }
 
-  // A clock the test can move: the button ignores scrolls for a short settle
-  // window after it opens, and waiting for real time would slow the suite down.
-  let clock = Date.now()
-  class FakeDate extends Date {
-    static now() {
-      return clock
-    }
-  }
+  // The card mounts the shell's `Menu` through a React root of its own; with
+  // `options.menu` the platform table carries that, `createRoot` and the shell's
+  // clipboard write. Every render is recorded so a test can read the card's
+  // props and press its rows, and every write is kept so it can check what a
+  // copy actually put on the clipboard.
+  const renders = []
+  const shellMenu = function Menu() {}
+  const clipboard = { writes: [], ok: options.clipboardOk !== false }
 
   let exported
   runInNewContext(source, {
-    Date: FakeDate,
     // The terminal probe dispatches a `copy` event at xterm's root; the sandbox
     // needs a constructor and an element that can dispatch it.
     Event: class {
@@ -395,6 +396,7 @@ function mount(options = {}) {
     },
     window: {
       innerWidth: 1600,
+      innerHeight: 900,
       addEventListener: () => {},
       removeEventListener: () => {},
       __ModuleLoader__: {
@@ -403,7 +405,17 @@ function mount(options = {}) {
             if (id === 'react') return react
             if (id === 'react-dom') throw new Error('no react-dom')
             if (id === 'react-dom/client') {
-              return { createRoot: () => ({ render: () => {}, unmount: () => {} }) }
+              return { createRoot: () => ({ render: (node) => { renders.push(node) }, unmount: () => {} }) }
+            }
+            if (id === '@deepseek-ai/dsh-client-ui-primitives') {
+              if (options.menu !== true) throw new Error('no ui-primitives')
+              return {
+                Menu: shellMenu,
+                writeClipboard: async (text) => {
+                  clipboard.writes.push(text)
+                  return clipboard.ok
+                },
+              }
             }
             throw new Error(`no platform module ${id}`)
           })
@@ -443,7 +455,7 @@ function mount(options = {}) {
     slots: { register: () => () => {}, inject: (_name, callback) => callback() },
     sessions: {
       // The composer's insert needs the session's scope; a host without one is
-      // a no-op (and the button still closes).
+      // a no-op.
       scope: () => (options.scope === false ? undefined : { id: 's1' }),
       list: {
         getSnapshot: () => (options.cwd === null ? { byId: {} } : { byId: { s1: { cwd: options.cwd ?? '/work' } } }),
@@ -454,7 +466,12 @@ function mount(options = {}) {
 
   /** Deliver one event to the document's own listeners. */
   const fire = (type, event) => {
-    const delivered = { type, preventDefault() {}, stopPropagation() {}, ...event }
+    const delivered = {
+      type,
+      preventDefault() { delivered.prevented = true },
+      stopPropagation() { delivered.stopped = true },
+      ...event,
+    }
     for (const handler of listeners.get(type) ?? []) handler(delivered)
     return delivered
   }
@@ -476,11 +493,14 @@ function mount(options = {}) {
         }),
       }
     }
-    fire('selectionchange', {})
     return selection
   }
 
-  const action = () => shell.querySelectorAll('[data-smkit-quote-action]')[0] ?? null
+  /** The open card, as the shell's `Menu` was last rendered. */
+  const menu = () => {
+    const last = renders[renders.length - 1]
+    return last !== undefined && last.props?.open === true ? last : null
+  }
 
   return {
     body: shell,
@@ -491,173 +511,205 @@ function mount(options = {}) {
     /** Stand in for dragging over terminal output (the emulator's selection). */
     terminalSelect: (text) => { terminalSelection = text },
     outside,
-    action,
-    select,
-    draft: () => draft,
-    scroll: () => fire('scroll', {}),
-    /** Move the clock, for the scroll settle window. */
-    advance: (ms) => { clock += ms },
-    /**
-     * End a selection over `target`, as the browser's mouse-up does. Without a
-     * point the event carries no usable pointer, which is the synthetic case.
-     */
-    mouseUp: (target, point = {}) => fire('mouseup', {
-      target,
-      button: 0,
-      detail: point.detail ?? 1,
-      clientX: point.x ?? 0,
-      clientY: point.y ?? 0,
-    }),
-    mouseDown: (target, point = {}) => fire('mousedown', {
-      target,
-      button: 0,
-      detail: point.detail ?? 1,
-      clientX: point.x ?? 0,
-      clientY: point.y ?? 0,
-    }),
-    pressKey: (key) => fire('keydown', { key }),
-    /** Press the button: mousedown first (the selection guard), then the click. */
-    press() {
-      const button = action()
-      assert.notEqual(button, null, 'the button is open')
-      const down = button.dispatch('mousedown')
-      button.dispatch('click')
-      return down
+    menu,
+    /** What the shell's clipboard has been asked to write, in order. */
+    clipboard: () => clipboard.writes.slice(),
+    /** Make the next copy refused, as a browser without a clipboard does. */
+    refuseClipboard: () => { clipboard.ok = false },
+    /** The copy confirmation still on screen, if any. */
+    copied: () => shell.querySelectorAll('[data-smkit-quote-copied]')[0] ?? null,
+    /** Press one row of the open card, as the shell's menu does. */
+    pick(id = 'quote') {
+      const card = menu()
+      assert.notEqual(card, null, 'the menu is open')
+      card.props.onSelect(id)
     },
+    /** Right-click one surface, as the browser does before its native menu. */
+    contextMenu: (target, point = {}) => fire('contextmenu', {
+      target,
+      clientX: point.x ?? 0,
+      clientY: point.y ?? 0,
+    }),
+    select,
+    /** Deliver any other document event (to prove nothing listens for it). */
+    fire,
+    draft: () => draft,
     dispose() { for (const dispose of effects.reverse()) dispose() },
   }
 }
 
-it('offers the button over a preview selection and inserts the quoted block', () => {
-  const view = mount()
+it('opens the card on a preview selection and inserts the quoted block', () => {
+  const view = mount({ menu: true })
   try {
+    // Selecting is not a gesture of ours: nothing is drawn until a right-click.
+    const before = view.body.children.length
     view.select({
       start: view.rows[4],
       end: view.rows[7],
       text: 'const a = 1\nconst b = 2\n...\nconst d = 4',
       rect: { top: 180, left: 200, right: 420, bottom: 260, width: 220, height: 80 },
     })
-    view.mouseUp(view.rows[7])
-    const button = view.action()
-    assert.notEqual(button, null, 'the button is on the page')
-    assert.equal(button.textContent, 'addToConversation')
-    assert.equal(button.title, 'addToConversation', 'copy and bubble are one string')
-    // Centred on the selection and lifted off it: the stylesheet owns the lift.
-    assert.equal(button.style.left, '310px')
-    assert.equal(button.style.top, '180px')
+    view.fire('mouseup', { target: view.rows[7], button: 0, clientX: 310, clientY: 260 })
+    assert.equal(view.body.children.length, before, 'a selection on its own adds nothing')
+    assert.equal(view.menu(), null)
 
-    const down = view.press()
-    assert.equal(down.prevented, true, 'the press must not collapse the selection before the click')
+    const event = view.contextMenu(view.rows[7], { x: 900, y: 640 })
+    assert.equal(event.prevented, true, 'the browser menu gives way to the card')
+    assert.equal(event.stopped, true)
+
+    const card = view.menu()
+    assert.notEqual(card, null, 'the shell menu is up')
+    // The card's items array is built in the VM's realm, so it is compared by
+    // value rather than by prototype.
+    assert.equal(card.props.items.map((item) => item.id).join(), 'quote,copy')
+    assert.equal(card.props.items[0].label, 'addToConversation')
+    assert.equal(card.props.items[1].label, 'copy')
+    // Each row carries a glyph: the bubble-plus is lucide's, on its 24-unit grid
+    // (`lucide.nodejs.cn/icons`); the copy mark is the host's own 16-unit one the
+    // file tree's rows wear. The stand-in factory keeps a glyph's nodes as the
+    // single array argument `iconElement` passes, so the counts are 3 paths and
+    // a rect + a path.
+    assert.equal(card.props.items[0].icon.type, 'svg', 'the quote row is marked')
+    assert.equal(card.props.items[0].icon.props.viewBox, '0 0 24 24')
+    assert.equal(card.props.items[0].icon.children[0].length, 3, 'the bubble and its plus')
+    assert.equal(card.props.items[1].icon.type, 'svg', 'so is the copy row')
+    assert.equal(card.props.items[1].icon.props.viewBox, '0 0 16 16')
+    assert.equal(card.props.items[1].icon.children[0].length, 2, 'the two sheets')
+    // The standard row, not the shell's compact list: compact shrinks the row to
+    // 24px/11px text with `2px 6px` padding, which crowds the card's left edge.
+    assert.equal(card.props.compact, undefined, 'the roomy row this card is read against')
+    const anchor = card.props.getAnchorRect()
+    assert.equal(anchor.x, 900, 'the card opens where the pointer is')
+    assert.equal(anchor.y, 640)
+
+    view.pick()
     assert.equal(
       view.draft(),
       '```src/a.ts:5-8\nconst a = 1\nconst b = 2\n...\nconst d = 4\n```',
       'the info line carries the cwd-relative path and the line span',
     )
-    assert.equal(view.action(), null, 'the button goes away once it has committed')
+    assert.equal(view.menu(), null, 'the card closes on its row')
+    assert.deepEqual(view.clipboard(), [], 'the quote row is not a copy')
+
+    // A keyboard menu key reports 0,0: the card opens at the end of the
+    // selection instead, which is where the reader is looking.
+    view.contextMenu(view.rows[7])
+    const anchored = view.menu().props.getAnchorRect()
+    assert.equal(anchored.x, 310, 'the selection’s midpoint, not the missing pointer')
+    assert.equal(anchored.y, 180)
   } finally {
     view.dispose()
   }
 })
 
-it('anchors the button to the pointer, not to the selection’s box', () => {
-  const view = mount()
+it('copies the selection itself, and says so where the card was', async () => {
+  const view = mount({ menu: true })
   try {
-    // A selection taller than the window: its box starts far above the viewport,
-    // so a box anchor places the button off-screen — the defect this pins.
-    view.select({
-      start: view.rows[3],
-      end: view.rows[39],
-      text: 'x'.repeat(700),
-      rect: { top: -400, left: 900, right: 1400, bottom: 520, width: 500, height: 920 },
-    })
-    view.mouseUp(view.rows[39], { x: 700, y: 520 })
-    const button = view.action()
-    assert.notEqual(button, null, 'a large selection keeps its button')
-    assert.equal(button.style.left, '700px', 'the pointer, not the box midpoint')
-    assert.equal(button.style.top, '520px', 'the pointer, not the box top')
+    // Indented, unfenced: what the native menu's `copy` would have produced.
+    const text = '  const a = 1\n  const b = 2'
+    view.select({ start: view.rows[2], end: view.rows[3], text })
+    view.contextMenu(view.rows[3], { x: 900, y: 640 })
+    view.pick('copy')
+    assert.equal(view.menu(), null, 'the card closes before the write lands')
+    await flush()
 
-    // Against the top edge the lift is floored, so the button stays on screen.
-    view.mouseUp(view.rows[39], { x: 400, y: 10 })
-    assert.equal(view.action().style.top, '44px', 'the button cannot be lifted off the window')
+    assert.deepEqual(view.clipboard(), [text], 'the selection itself, not the fenced block')
+
+    const note = view.copied()
+    assert.notEqual(note, null, 'a copy that landed says so')
+    assert.equal(note.textContent, 'copied')
+    assert.equal(note.style.left, '900px')
+    assert.equal(note.style.top, '640px', 'the confirmation stands where the card was')
+
+    view.dispose()
+    assert.equal(view.copied(), null, 'and the effect takes it with it')
   } finally {
     view.dispose()
   }
 })
 
-it('adds a terminal selection as a console block', () => {
-  const view = mount()
+it('shows no confirmation when the clipboard refuses the write', async () => {
+  const view = mount({ menu: true })
   try {
-    view.terminalSelect('$ ls\nLICENSE  README.md  src')
-    view.mouseUp(view.terminal, { x: 900, y: 300 })
-    const button = view.action()
-    assert.notEqual(button, null, 'the terminal gets the same button')
-    assert.equal(button.style.left, '900px')
-    assert.equal(button.style.top, '300px')
+    view.refuseClipboard()
+    view.select({ start: view.rows[2], end: view.rows[2], text: 'x' })
+    view.contextMenu(view.rows[2], { x: 900, y: 300 })
+    view.pick('copy')
+    await flush()
+    assert.equal(view.clipboard().length, 1, 'the write was attempted')
+    assert.equal(view.copied(), null, 'a refused copy must not look like a copy')
+  } finally {
+    view.dispose()
+  }
+})
 
-    view.press()
-    assert.equal(view.draft(), '```console\n$ ls\nLICENSE  README.md  src\n```')
-
-    // The terminal's selection is the emulator's, not the document's: a
-    // selection change elsewhere must not drop its button.
-    view.terminalSelect('npm test')
-    view.mouseUp(view.terminal, { x: 900, y: 320 })
+it('quotes a terminal from the card, and leaves the native menu alone', () => {
+  const view = mount({ menu: true })
+  try {
+    // Nothing selected: the card has nothing to offer, so the browser keeps the
+    // gesture — and with it the terminal's own right-click behaviour.
     view.select(null)
-    assert.notEqual(view.action(), null, 'a document selection says nothing about the terminal')
+    const plain = view.contextMenu(view.rows[2], { x: 900, y: 300 })
+    assert.equal(plain.prevented, undefined, 'no selection, no claim')
+    assert.equal(view.menu(), null)
+
+    // A selection left in the preview does not put a card under a pointer
+    // somewhere else: the composer keeps its own paste menu.
+    view.select({ start: view.rows[2], end: view.rows[2], text: 'x' })
+    const elsewhere = view.contextMenu(view.outside, { x: 100, y: 100 })
+    assert.equal(elsewhere.prevented, undefined, 'the card belongs to the surface under the pointer')
+    assert.equal(view.menu(), null)
+
+    // A terminal's selection is the emulator's, so the click that made it is
+    // not part of the question: right there, right-click is enough.
+    view.terminalSelect('$ ls\nsrc')
+    const event = view.contextMenu(view.terminal, { x: 950, y: 320 })
+    assert.equal(event.prevented, true)
+    view.pick()
+    assert.equal(view.draft(), '```console\n$ ls\nsrc\n```')
+
+    // Empty selection, no card.
+    view.terminalSelect('   \n')
+    assert.equal(view.contextMenu(view.terminal, { x: 950, y: 320 }).prevented, undefined)
   } finally {
     view.dispose()
   }
 })
 
-it('offers nothing for an empty terminal selection, and keeps long ones whole', () => {
-  const view = mount()
+it('keeps terminal passages whole, whatever their length', () => {
+  const view = mount({ menu: true })
   try {
-    view.terminalSelect('   \n')
-    view.mouseUp(view.terminal, { x: 900, y: 300 })
-    assert.equal(view.action(), null, 'no selected text, no button')
-
     // No path or line span to fall back to, so nothing is cut — not at the
     // preview's 500 either, and not at any size a scrollback can hold.
     const long = Array.from({ length: 400 }, (_unused, at) => `line ${at + 1}: 输出`).join('\n')
     assert.ok(long.length > 5000, 'the fixture is well past the preview limit')
     view.terminalSelect(long)
-    view.mouseUp(view.terminal, { x: 900, y: 300 })
-    view.press()
+    view.contextMenu(view.terminal, { x: 900, y: 300 })
+    view.pick()
     assert.equal(view.draft(), `\`\`\`console\n${long}\n\`\`\``)
   } finally {
     view.dispose()
   }
 })
 
-it('does not re-offer the terminal button for a plain click', () => {
+it('leaves the native menu alone when the shell cannot draw its own', () => {
   const view = mount()
   try {
-    view.terminalSelect('a selection the reader already used')
-    // xterm can keep its selection through a click; a click must not bring the
-    // button back for text the reader did not just select.
-    view.mouseDown(view.terminal, { x: 900, y: 300 })
-    view.mouseUp(view.terminal, { x: 900, y: 300 })
-    assert.equal(view.action(), null)
-
-    // A drag is what selects, so it offers the button.
-    view.mouseDown(view.terminal, { x: 900, y: 300 })
-    view.mouseUp(view.terminal, { x: 940, y: 330 })
-    assert.notEqual(view.action(), null)
-
-    // So does a multi-click, which selects a word or a line without moving.
-    view.mouseDown(view.terminal, { x: 900, y: 300 })
-    view.mouseUp(view.terminal, { x: 900, y: 300, detail: 2 })
-    assert.notEqual(view.action(), null)
+    view.select({ start: view.rows[2], end: view.rows[2], text: 'x' })
+    const event = view.contextMenu(view.rows[2], { x: 900, y: 300 })
+    assert.equal(event.prevented, undefined, 'no card to replace it with')
+    assert.equal(view.menu(), null)
   } finally {
     view.dispose()
   }
 })
 
 it('numbers a plain renderer’s rows by their own attribute', () => {
-  const view = mount({ mode: 'plain', lines: 20, path: '/work/notes/1.c' })
+  const view = mount({ menu: true, mode: 'plain', lines: 20, path: '/work/notes/1.c' })
   try {
     view.select({ start: view.rows[1], end: view.rows[2], text: 'b\nc' })
-    view.mouseUp(view.rows[2])
-    view.press()
+    view.contextMenu(view.rows[2], { x: 900, y: 300 })
+    view.pick()
     assert.equal(view.draft(), '```notes/1.c:2-3\nb\nc\n```')
   } finally {
     view.dispose()
@@ -665,11 +717,11 @@ it('numbers a plain renderer’s rows by their own attribute', () => {
 })
 
 it('names only the path for a rendered Markdown document, which has no source lines', () => {
-  const view = mount({ mode: 'markdown', path: '/work/docs/readme.md' })
+  const view = mount({ menu: true, mode: 'markdown', path: '/work/docs/readme.md' })
   try {
     view.select({ start: view.rows[0], end: view.rows[0], text: 'prose' })
-    view.mouseUp(view.rows[0])
-    view.press()
+    view.contextMenu(view.rows[0], { x: 900, y: 300 })
+    view.pick()
     assert.equal(view.draft(), '```docs/readme.md\nprose\n```')
   } finally {
     view.dispose()
@@ -677,11 +729,11 @@ it('names only the path for a rendered Markdown document, which has no source li
 })
 
 it('drops the content for a selection over the limit, and keeps the header', () => {
-  const view = mount()
+  const view = mount({ menu: true })
   try {
     view.select({ start: view.rows[0], end: view.rows[0], text: 'x'.repeat(501) })
-    view.mouseUp(view.rows[0])
-    view.press()
+    view.contextMenu(view.rows[0], { x: 900, y: 300 })
+    view.pick()
     assert.equal(view.draft(), 'src/a.ts:1', 'an empty fence would only take up room')
   } finally {
     view.dispose()
@@ -689,96 +741,68 @@ it('drops the content for a selection over the limit, and keeps the header', () 
 })
 
 it('keeps the absolute path when the session cwd is unknown', () => {
-  const view = mount({ cwd: null })
+  const view = mount({ menu: true, cwd: null })
   try {
     view.select({ start: view.rows[4], end: view.rows[4], text: 'x' })
-    view.mouseUp(view.rows[4])
-    view.press()
+    view.contextMenu(view.rows[4], { x: 900, y: 300 })
+    view.pick()
     assert.equal(view.draft(), '```/work/src/a.ts:5\nx\n```')
   } finally {
     view.dispose()
   }
 })
 
-it('offers nothing without a selection, outside the preview, or without a session', () => {
-  const view = mount()
+it('offers nothing without a selection, for whitespace, outside the preview, or without a session', () => {
+  const view = mount({ menu: true })
   try {
-    // A click that selects nothing.
+    const claim = (event) => assert.equal(event.prevented, undefined, 'nothing to quote, no card')
+
     view.select(null)
-    view.mouseUp(view.rows[3])
-    assert.equal(view.action(), null)
+    claim(view.contextMenu(view.rows[3], { x: 900, y: 300 }))
 
     // Whitespace only: nothing to quote.
     view.select({ start: view.rows[3], end: view.rows[3], text: '  \n  ' })
-    view.mouseUp(view.rows[3])
-    assert.equal(view.action(), null)
+    claim(view.contextMenu(view.rows[3], { x: 900, y: 300 }))
 
     // A selection whose ends live outside the preview body.
     view.select({ start: view.outside, end: view.outside, text: 'elsewhere' })
-    view.mouseUp(view.rows[3])
-    assert.equal(view.action(), null)
+    claim(view.contextMenu(view.rows[3], { x: 900, y: 300 }))
 
-    // A release past the preview's edge still belongs to the selection inside
-    // it: that is how a drag over the last visible line usually ends.
+    // A selection inside the preview, right-clicked on its header: that surface
+    // keeps its own menu.
     view.select({ start: view.rows[3], end: view.rows[3], text: 'x' })
-    view.mouseUp(view.outside)
-    assert.notEqual(view.action(), null, 'the selection names the surface, not the release target')
+    claim(view.contextMenu(view.preview.querySelector('div'), { x: 900, y: 60 }))
+
+    assert.equal(view.menu(), null)
   } finally {
     view.dispose()
   }
 
-  const unnamed = mount({ sidebarSession: null })
+  const unnamed = mount({ menu: true, sidebarSession: null })
   try {
     unnamed.select({ start: unnamed.rows[3], end: unnamed.rows[3], text: 'x' })
-    unnamed.mouseUp(unnamed.rows[3])
-    assert.equal(unnamed.action(), null, 'no session, nowhere to insert')
+    assert.equal(
+      unnamed.contextMenu(unnamed.rows[3], { x: 900, y: 300 }).prevented,
+      undefined,
+      'no session, nowhere to insert',
+    )
   } finally {
     unnamed.dispose()
   }
 })
 
-it('stands down while dsh-better-sidebar draws the same popup', () => {
-  const view = mount({ betterSidebar: true })
+it('keeps answering on the host’s surfaces while dsh-better-sidebar is loaded', () => {
+  const view = mount({ menu: true, betterSidebar: true })
   try {
-    view.select({ start: view.rows[3], end: view.rows[3], text: 'x' })
-    view.mouseUp(view.rows[3])
-    assert.equal(view.action(), null, 'two popups on one selection is the defect this prevents')
-  } finally {
-    view.dispose()
-  }
-})
+    view.select({ start: view.rows[2], end: view.rows[3], text: 'a\nb' })
+    const event = view.contextMenu(view.rows[3], { x: 900, y: 640 })
+    assert.equal(event.prevented, true, 'the neighbour’s editor is its own surface; this one is the host’s')
+    view.pick()
+    assert.equal(view.draft(), '```src/a.ts:3-4\na\nb\n```')
 
-it('closes on an outside press, Escape, a collapsed selection, a scroll, or teardown', () => {
-  const view = mount()
-  try {
-    const open = (row) => {
-      view.select({ start: row, end: row, text: 'x' })
-      view.mouseUp(row)
-      assert.notEqual(view.action(), null, 'the button is open')
-    }
-
-    open(view.rows[2])
-    view.mouseDown(view.body)
-    assert.equal(view.action(), null, 'an outside press dismisses')
-
-    open(view.rows[2])
-    view.pressKey('Escape')
-    assert.equal(view.action(), null)
-
-    open(view.rows[2])
-    view.select(null)
-    assert.equal(view.action(), null, 'the selection it belongs to is gone')
-
-    open(view.rows[2])
-    view.scroll()
-    assert.notEqual(view.action(), null, 'a drag’s own auto-scroll must not kill it at once')
-    view.advance(300)
-    view.scroll()
-    assert.equal(view.action(), null, 'later, a scroll means the anchor moved out from under it')
-
-    open(view.rows[2])
-    view.dispose()
-    assert.equal(view.action(), null, 'and the effect takes it with it')
+    // Its terminal is still an xterm, so a terminal passage answers too.
+    view.terminalSelect('$ ls')
+    assert.equal(view.contextMenu(view.terminal, { x: 950, y: 320 }).prevented, true)
   } finally {
     view.dispose()
   }
