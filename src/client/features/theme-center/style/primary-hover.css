@@ -1,0 +1,23 @@
+/**
+ * The primary button's hover fill, re-pointed for One Dark Pro alone.
+ *
+ * `platform/style/button.css` takes that hover from `--dsw-static-deepseek-600`,
+ * a static palette step the shell ships for its own themes — and in the shell's
+ * own palettes it is a shade *below* the resting fill, which is why the rule
+ * was written that way. One Dark Pro's table does not leave that step where the
+ * rule expects it: it lands on the palette's light blue, so the same hover turns
+ * the button pale while the label stays white, and the two collapse into one
+ * another. The dark-theme branch makes it lighter still, because it assumes an
+ * on-fill ink this palette does not use.
+ *
+ * The correction is scoped to this theme's body attribute, the way
+ * `floating.css` and `strip.css` correct host cells: the fill deepens inside its
+ * own hue, derived from the same alias the resting state paints rather than from
+ * any static step, and the label keeps the theme's on-fill colour. Every other
+ * theme — the shell's own, and any theme this center ships later — keeps the
+ * shell's intended step, which is the whole point of scoping it here.
+ */
+body[data-smkit-theme='one-dark-pro'] .smkit-ui-button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 86%, #000);
+  color: var(--dsw-alias-label-primary-foreground, #fff);
+}

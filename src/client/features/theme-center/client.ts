@@ -43,6 +43,7 @@ import workbenchCss from './style/workbench.css'
 import floatingCss from './style/floating.css'
 import checkChipCss from './style/check-chip.css'
 import stripCss from './style/strip.css'
+import primaryHoverCss from './style/primary-hover.css'
 import type { ClientContext, ClientDeps, ClientFeature, Translator } from '../../platform/types'
 
 /** The built-in Settings → General item list the shell's own rows use. */
@@ -70,6 +71,10 @@ export const themeCenterFeature: ClientFeature = {
     { name: 'theme-center/floating', css: floatingCss },
     { name: 'theme-center/check-chip', css: checkChipCss },
     { name: 'theme-center/strip', css: stripCss },
+    // Last on purpose: this sheet re-points one platform rule, and it has to be
+    // the sheet the cascade reads after `platform/button` and after the
+    // dark-theme branch that rule carries.
+    { name: 'theme-center/primary-hover', css: primaryHoverCss },
   ],
   register(ctx: ClientContext, deps: ClientDeps, t: Translator): void {
     // The restored theme and its colors, and the programmatic API first; the
