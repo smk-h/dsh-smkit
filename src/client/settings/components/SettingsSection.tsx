@@ -37,6 +37,7 @@
 import { createTabs } from '../../platform/ui/Tabs'
 import type { SettingsShellGuard } from '../../platform/ui/settings-shell'
 import { createVersionBadge } from '../../platform/ui/VersionBadge'
+import { createUpdateControl } from './UpdateControl'
 import { createCableIcon } from '../../features/mcp/icons/CableIcon'
 import { createWandSparklesIcon } from '../../features/skills/icons/WandSparklesIcon'
 import { createSettings2Icon } from '../../platform/icons/Settings2Icon'
@@ -101,6 +102,7 @@ export function createSettingsSection(
   const t = panelDictionaries.section
   const Tabs = createTabs(deps)
   const VersionBadge = createVersionBadge(deps)
+  const UpdateControl = createUpdateControl(deps, t)
   const CableIcon = createCableIcon(deps)
   const WandSparklesIcon = createWandSparklesIcon(deps)
   const Settings2Icon = createSettings2Icon(deps)
@@ -218,7 +220,12 @@ export function createSettingsSection(
             than the open panel, so they stay put while the tabs move. */}
         <h3 className="smkit-shell-page-heading">{t('sectionLabel')}</h3>
         <p className="smkit-shell-page-intro">{t('sectionIntro')}</p>
-        <VersionBadge />
+        {/* The pill and its one action sit on a row: the update check is the
+            badge's gesture, and its answer prints beside the version it is about. */}
+        <div className="smkit-shell-page-identity">
+          <VersionBadge />
+          <UpdateControl />
+        </div>
         <Tabs
           ariaLabel={t('sectionLabel')}
           active={active.id}

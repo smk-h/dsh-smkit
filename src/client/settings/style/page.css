@@ -53,3 +53,56 @@
   display: flex;
   flex-direction: column;
 }
+
+/* The identity row: the version pill and the button that checks it. Wrapping
+ * is what keeps the note on screen in a narrow settings dialog — the answer
+ * ("already latest", "restart to apply") belongs beside the version, not under
+ * a horizontally scrolling row. */
+.smkit-shell-page-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.smkit-shell-page-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The button carries the spinner while a check is in flight, so it is a flex
+ * row even when it holds one word: the arc and the label have to share a
+ * baseline, and the box must not resize when the arc appears. */
+.smkit-shell-page-update-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* The command the dialog hands over: a run of code, not a word in a sentence,
+ * so it gets its own block, its own ink and `user-select: all` — with the copy
+ * button refused by a browser, one click still selects the whole line. */
+.smkit-shell-page-update-command {
+  display: block;
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1, var(--dsw-alias-bg-layer-2));
+  color: var(--dsw-alias-label-primary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: all;
+}
+
+.smkit-shell-page-update-note {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}

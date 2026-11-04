@@ -21,4 +21,17 @@ export const SMKIT_LOCALE_EN: LocaleDict = {
   tabNotify: 'Notifications',
   tabSessions: 'Sessions',
   tabPlugins: 'Plugins',
+  updateCheck: 'Check for updates',
+  updateChecking: 'Checking',
+  updateTitle: 'Update available',
+  updateBody:
+    'Running v{current}; the latest is v{latest}. Run the command below in a terminal, then restart dsh:',
+  updateBodyNoCommand:
+    'Running v{current}; the latest is v{latest}. Update from this application’s plugin page.',
+  updateCopy: 'Copy command',
+  updateCopied: 'Copied',
+  updateCopyFailed: 'Copy failed — select the command and copy it by hand',
+  updateClose: 'Close',
+  updateLatest: 'Already the latest version, v{current}',
+  updateFailed: 'Could not check for updates — check the network and try again',
 }

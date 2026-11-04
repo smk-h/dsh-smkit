@@ -14,6 +14,10 @@
  * `details` is the same kind of optional extra: a caller that can say exactly
  * what it is about to remove passes the rendered facts, and the dialog widens to
  * give them room instead of squeezing paths into a 360px column.
+ *
+ * `confirmLabel` and `danger` are the two things a non-destructive caller — the
+ * update prompt — has to change to stop the dialog from reading as a delete:
+ * the word it names its own action with, and the ink that action wears.
  */
 
 import type { ClientDeps } from '../types'
@@ -32,6 +36,24 @@ export interface ConfirmDialogProps {
    * still running) keeps the dialog open as an explanation, not as a trap.
    */
   confirmDisabled?: boolean
+  /**
+   * The confirm button's word. Defaults to the platform's own "delete", which
+   * is what every destructive caller wants; a caller doing something else names
+   * its own action instead of borrowing the wrong verb.
+   */
+  confirmLabel?: string
+  /**
+   * Paint the confirm button as destructive (the default) or as the primary
+   * action. The update prompt is the second: installing a version is not a
+   * removal, and a red button would ask the user to fear it.
+   */
+  danger?: boolean
+  /**
+   * The dismiss button's word. Defaults to the platform's "cancel", which is
+   * right for a caller that is deciding something; a caller that is only
+   * showing a result wants "close" instead.
+   */
+  cancelLabel?: string
   onCancel(): void
   onConfirm(): void
 }
@@ -46,6 +68,9 @@ export function createConfirmDialog(deps: ClientDeps): (props: ConfirmDialogProp
     details,
     error,
     confirmDisabled,
+    confirmLabel,
+    danger = true,
+    cancelLabel,
     onCancel,
     onConfirm,
   }: ConfirmDialogProps): JSX.Element {
@@ -61,16 +86,16 @@ export function createConfirmDialog(deps: ClientDeps): (props: ConfirmDialogProp
           {error ? <div className="smkit-ui-field-error">{error}</div> : null}
           <div className="smkit-ui-dialog-actions">
             <button className="smkit-ui-button" onClick={onCancel} disabled={busy}>
-              {platformT('cancel')}
+              {cancelLabel ?? platformT('cancel')}
             </button>
             <button
-              className="smkit-ui-button danger"
+              className={danger ? 'smkit-ui-button danger' : 'smkit-ui-button primary'}
               onClick={onConfirm}
               disabled={busy || confirmDisabled === true}
               data-smkit-pending={busy ? 'true' : undefined}
               aria-busy={busy}
             >
-              {platformT('delete')}
+              {confirmLabel ?? platformT('delete')}
             </button>
           </div>
         </div>

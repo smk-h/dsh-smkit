@@ -22,6 +22,7 @@ import { outlineFeature } from './host/features/outline/host.js'
 import { sessionDeleteFeature } from './host/features/session-delete/host.js'
 import { skillsFeature } from './host/features/skills/host.js'
 import { themeCenterFeature } from './host/features/theme-center/host.js'
+import { updateFeature } from './host/features/update/host.js'
 import type { HostFeature, HostPlatform, PluginContext } from './host/platform/context.js'
 import type { ApiHandler } from './host/platform/routes.js'
 import type { ServiceAccessor } from './host/platform/types.js'
@@ -45,6 +46,7 @@ const FEATURES: HostFeature[] = [
   themeCenterFeature,
   explorerOpsFeature,
   outlineFeature,
+  updateFeature,
 ]
 
 export function apply(ctx: PluginContext): void {
@@ -281,6 +283,17 @@ export type {
   ToolSearchResult,
   WorkspaceView,
 } from './host/features/mcp/types.js'
+
+export {
+  DEFAULT_REGISTRY,
+  checkForUpdate,
+  compareVersions,
+  fetchLatestVersion,
+  registryLatestUrl,
+} from './host/features/update/check.js'
+export type { CheckOptions } from './host/features/update/check.js'
+export { installCommand } from './host/features/update/command.js'
+export type { UpdateCheckView } from './shared/update/contract.js'
 
 export { bootPaintRows, bootPaintScript } from './host/features/theme-center/boot-paint.js'
 export type { BootInjectionRow } from './host/features/theme-center/boot-paint.js'
