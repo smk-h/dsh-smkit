@@ -18,7 +18,7 @@
 
 ### 2. 项目介绍
 
-dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供十一个功能。各功能的完整说明放在 `docs/` 下，按编号一篇一个功能：
+dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供十二个功能。各功能的完整说明放在 `docs/` 下，按编号一篇一个功能：
 
 | 功能 | 说明 | 文档 |
 | --- | --- | --- |
@@ -33,6 +33,7 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 | 添加到对话 | 在预览或终端里选中文本右键，写进当前会话的输入框草稿 | [LV508-添加到对话](docs/LV508-添加到对话.md) |
 | 标签页菜单 | 右侧栏标签右键菜单补上批量关闭：其他、左侧所有、右侧所有与全部 | [LV509-标签页菜单](docs/LV509-标签页菜单.md) |
 | 代码大纲 | 源码预览旁列出函数、类、结构体、枚举与宏（C/C++、TS/JS、shell），点击跳转到行 | [LV510-代码大纲](docs/LV510-代码大纲.md) |
+| 检查更新 | 设置页按一次，比对 npm 上的 latest；有新版本时给出带 profile 与版本的安装命令，可一键复制 | [LV511-检查更新](docs/LV511-检查更新.md) |
 
 插件是什么形态、如何被 dsh 加载、一个插件包由哪三部分组成，见 [LV010-插件工作原理](docs/LV010-插件工作原理.md)。
 
@@ -99,6 +100,8 @@ dsh --profile demo --dump-config | Select-String "dsh-smkit" -Context 1
 dsh plugin --profile demo remove @smai-kit/dsh-smkit   # 同时移除依赖和层
 dsh plugin --profile demo update @smai-kit/dsh-smkit   # pnpm update + reconcile
 ```
+
+不知道有没有新版本时，打开 设置 → smkit 配置，点版本号右边的「检查更新」：它比对 npm 上的 latest，有新版就把带 profile 与版本的完整命令给你，点「复制命令」即可粘到终端执行（见 [LV511-检查更新](docs/LV511-检查更新.md)）。装完要重启 dsh，宿主半边的代码只在启动时加载。
 
 ## 三、 调试
 
