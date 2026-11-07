@@ -1,25 +1,39 @@
 /**
- * The hairline after the shared menu's leading row.
+ * One hairline width for the shared context menu.
  *
  * `ui-context-menu` can place a separator only BEFORE a row (`separatorBefore`),
  * and the shell hides that one on a menu's first row — so the row this plugin
  * puts above the shell's own ("add to conversation") has no way to say where
- * its group ends. The row's glyph carries `data-smkit-menu-lead` instead.
+ * its group ends. The row's glyph carries `data-smkit-menu-lead` instead, and
+ * the line is drawn on the shell's item wrapper: that wrapper is the box the
+ * separators are laid out in, so anchoring here keeps the line in the same
+ * coordinate system as every other rule in the card.
  *
- * The line is drawn from the glyph's box rather than the row's: the shell's item
- * wrapper already carries `position: relative` (that is what its own hairlines
- * are positioned against), and the glyph's wrapper adds no positioned box, so
- * an absolutely positioned pseudo-element on it spans the whole row. Inset,
- * thickness and colour are the shell's separator values — 8px each side, half a
- * pixel of the l2 border token — so the result reads as the separator the data
- * model cannot express, and stays correct when the menu re-renders.
+ * ## Why the shell's own separators are re-spanned
+ *
+ * A menu card carries two different hairlines today: the pinned footer's
+ * `border-top`, which spans the full list width, and each separator, which is
+ * inset by 8px. The rows below the lead row live in that footer, so a plugin
+ * line matched to the separators would still read as shorter than the border
+ * above it. This sheet gives every line in a context menu the widest span the
+ * card offers — the full list width, the footer border's own — so the sections
+ * read as one grid rather than three widths.
+ *
+ * Only `[data-context-menu]` cards are touched (the shell marks the shared
+ * popup with it); dropdowns and submenus keep their own insets. `:has()` is
+ * already used by the host's stylesheet, so it is available wherever this menu
+ * renders at all.
  */
 
-[data-smkit-menu-lead]::after {
+[data-context-menu] [role='separator'] {
+  margin-inline: 0;
+}
+
+:is(div, li):has(> button[role='menuitem'] [data-smkit-menu-lead])::after {
   content: '';
   position: absolute;
-  left: 8px;
-  right: 8px;
+  left: 0;
+  right: 0;
   bottom: 0;
   height: 0.5px;
   background: var(--dsw-alias-border-l2);

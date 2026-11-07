@@ -290,6 +290,16 @@ export const FOREIGN_DATA_ATTRS = [
    * `data-sidebar-right-session`, so both are watched and neither is written.
    */
   'data-dsh-better-sidebar',
+  /**
+   * The shared right-click card (`ui-context-menu`'s `MenuOverlay`): it renders
+   * `<Menu contextual>`, which stamps this on the list element. The explorer's
+   * rows live in that card now, and its separator spans differ per hairline —
+   * the footer's border is full width, each separator is inset. `native-lead.css`
+   * names this attribute to give every line in the card one span, because the
+   * card's class names are build-time hashes. Read only; the plugin marks its
+   * own row with `data-smkit-menu-lead`.
+   */
+  'data-context-menu',
 ]
 
 /**
