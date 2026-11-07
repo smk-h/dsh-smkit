@@ -116,7 +116,7 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
   // copies.
   installStylesheet('smkit/platform', PLATFORM_CSS)
   for (const feature of FEATURES) {
-    for (const sheet of feature.styles) {
+    for (const sheet of feature.styles ?? []) {
       installStylesheet(`smkit/${sheet.name}`, sheet.css)
     }
   }

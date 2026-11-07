@@ -1,24 +1,24 @@
 /**
- * The right sidebar's tab menu, driven through the real client bundle against a
- * stand-in for the shell's dockkit strip.
+ * The tab menu's one contributed row, driven through the real client bundle
+ * against stand-ins for the shell's menu service and the right column.
  *
- * The feature fills a slot (`sidebar.right.tab.menu.item`) rather than drawing
- * a menu, so what is worth pinning is what the filled seat promises:
+ * The feature contributes a `tab` menu action rather than markup, so what is
+ * worth pinning is what the contribution promises:
  *
- * - the rows that apply are the ones that would close something: "others",
- *   "left", "right" and "all", in that order, each omitted when it is empty;
- * - a tab the shell does not let go (no × on its chip) is never in a set;
- * - "close all" does not repeat the kit's own "close" (a lone closable tab) or
- *   "close others" (the open tab is not closable);
- * - a hairline leads the rows only when the kit's "close" row is above them;
- * - a row dismisses the menu before it closes anything, and closes through the
- *   column's controller, keeping strip order;
- * - without that controller the chip's own × is what gets pressed;
- * - a tab whose chip has left the strip renders nothing, leaving the kit's own
- *   menu as it was.
+ * - it registers for the `tab` target and nothing else, and stands down when
+ *   the host has no menu service at all;
+ * - the one action is "close all to the left", with the icon key the plugin
+ *   answers on the icon seat;
+ * - the set is the closable tabs to the left: `all` minus `right`, with the
+ *   clicked tab already excluded by the controller, and never a tab the shell
+ *   holds open;
+ * - nothing to the left means no action at all, not a disabled one;
+ * - running it closes through the column's controller in display order, and
+ *   falls back to the older `close(id)` when the session-aware one is missing;
+ * - a controller without `menuTabs` is read off the strip's own anchors.
  *
  * The VM has no DOM, so the document below implements only the questions the
- * feature asks: a small attribute/tag selector grammar, `:not([attr])`,
+ * bundle asks: a small attribute/tag selector grammar, `:not([attr])`,
  * `closest`, and a `click()` that reaches per-element listeners.
  */
 import assert from 'node:assert/strict'
@@ -60,7 +60,7 @@ function matchesParsed(element, parsed) {
   return true
 }
 
-/** One DOM element, as much of it as the feature and the bundle touch. */
+/** One DOM element, as much of it as the bundle touches. */
 class SandboxElement {
   constructor(tagName) {
     this.tagName = String(tagName).toUpperCase()
@@ -157,10 +157,7 @@ class SandboxElement {
     for (const handler of this.listeners.get(type) ?? []) handler(event)
   }
 
-  /**
-   * A real press: the feature reaches for a chip's × in the no-controller
-   * fallback, and React's own listener is what answers in the browser.
-   */
+  /** A real press: the fallback reaches for a chip's ×, as a reader would. */
   click() {
     this.dispatch('click', { target: this, currentTarget: this })
   }
@@ -217,11 +214,11 @@ function strip(tabs) {
 }
 
 /**
- * Mount the whole bundle once and hand back the tab-menu component it
- * registered for the seat.
+ * Mount the whole bundle once and hand back what the feature registered.
  *
- * @param options - `tabs` the strip carries as `[id, closable]` pairs, and
- *   `sidebarRight` = false for a column whose controller predates `close()`.
+ * @param options - `tabs` the strip carries as `[id, closable]` pairs (read
+ *   only by the DOM fallback), `menu` = false for a host with no menu service,
+ *   `controller` picks which controller methods the column publishes.
  */
 function mount(options = {}) {
   const html = new SandboxElement('html')
@@ -234,8 +231,8 @@ function mount(options = {}) {
   const { stripEl, chips } = strip(options.tabs ?? [])
   panel.appendChild(stripEl)
 
-  const closers = []
-  const dismissed = []
+  const contributions = []
+  const closed = []
   const pressed = []
   const registrations = []
 
@@ -294,13 +291,22 @@ function mount(options = {}) {
     clearInterval: () => {},
   })
 
-  const services = options.sidebarRight === false
-    ? {}
+  const controller = options.controller ?? 'closeIn'
+  const menus = options.menu === false
+    ? undefined
+    : { register: (contribution) => { contributions.push(contribution); return () => {} } }
+  const sidebar = controller === 'none'
+    ? undefined
     : {
-        sidebarRight: {
-          close: (id) => { closers.push(id) },
-        },
+        ...(options.menuTabs === false
+          ? {}
+          : {
+              menuTabs: () => options.pane ?? { all: [], right: [], close: true },
+            }),
+        ...(controller === 'closeIn' ? { closeIn: (_sessionId, id) => { closed.push(id) } } : {}),
+        ...(controller === 'close' ? { close: (id) => { closed.push(id) } } : {}),
       }
+  const services = { contextMenus: menus, sidebarRight: sidebar }
   const ctx = {
     effect: (fn) => { fn() },
     provide: () => {},
@@ -317,112 +323,78 @@ function mount(options = {}) {
   }
   exported.apply(ctx)
 
-  const seat = registrations.find((one) => one.entry.name === 'sidebar.right.tab.menu.item')
-  assert.ok(seat, 'the feature registered a row list for the tab menu seat')
-
-  // The fallback path presses the chip's own ×; those presses are recorded the
-  // way React's listener would answer them.
+  // The fallback presses the chip's own ×; those presses are recorded the way
+  // React's listener would answer them.
   for (const chip of chips) {
     const close = chip.querySelector('[data-dockkit-tab-close]')
     close?.addEventListener('click', () => { pressed.push(close.getAttribute('data-dockkit-tab-close')) })
   }
 
-  /** Render the slot component for one tab and flatten the rows it returned. */
-  function open(tabId) {
-    const events = []
-    const render = (node) => {
-      if (node === null || node === undefined) return
-      if (Array.isArray(node)) { node.forEach(render); return }
-      if (typeof node !== 'object') return
-      if (node.type === 'button') {
-        events.push({
-          label: node.children.filter((child) => typeof child === 'string').join(''),
-          select: () => node.props.onClick(),
-        })
-        return
-      }
-      for (const child of node.children ?? []) render(child)
-    }
-    const tree = seat.component({
-      tab: { id: tabId },
-      dismiss: () => { dismissed.push(tabId) },
-      t: (key) => key,
-    })
-    const separator = Array.isArray(tree) && tree.some((node) => node?.props?.role === 'separator')
-    render(tree)
-    return { events, separator, tree }
+  const contribution = contributions.find((one) => one.target === 'tab')
+
+  /** Resolve the contributed action for one tab. */
+  function resolve(tabId) {
+    assert.ok(contribution, 'the feature contributed a tab menu')
+    return contribution.resolve({ sessionId: 'session-1', paneId: 'pane-1', tab: { id: tabId } }, new AbortController().signal)
   }
 
-  return { open, closers, dismissed, pressed, chips, stripEl }
+  return { resolve, contributions, closed, pressed, registrations, chips }
 }
 
-it('offers every batch row that would close something, in a fixed order', () => {
-  const view = mount({ tabs: [['tab-1', true], ['tab-2', true], ['tab-3', true], ['tab-4', true]] })
-  const { events, separator } = view.open('tab-2')
-  assert.deepEqual(events.map((row) => row.label), ['closeOthers', 'closeLeft', 'closeRight', 'closeAll'])
-  assert.equal(separator, true, 'the kit’s own close row sits above these')
+it('contributes one action to the tab menu, after the shell’s own rows', () => {
+  const view = mount({ pane: { all: ['tab-1'], right: [], close: true } })
+  assert.equal(view.contributions.length, 1)
+  assert.ok(view.contributions[0].order > 100, 'the column registers at 100')
+  const [action] = view.resolve('tab-2')
+  assert.equal(action.id, 'smkit.close-left')
+  assert.equal(action.label, 'closeLeft')
+  assert.equal(action.icon.key, 'smkit.close-left')
 })
 
-it('omits the rows the strip gives them nothing to close', () => {
-  const view = mount({ tabs: [['tab-1', true], ['tab-2', false], ['tab-3', false]] })
-  // The open tab can go, but nothing else can: the kit's own close row already
-  // says the only thing there is to say.
-  assert.equal(view.open('tab-1').tree, null)
-  // The open tab cannot go, and only what is left of it can.
-  const last = view.open('tab-3')
-  assert.deepEqual(last.events.map((row) => row.label), ['closeOthers', 'closeLeft'])
+it('answers the icon key on the icon seat, with a component', () => {
+  const view = mount()
+  const icon = view.registrations.find((one) => one.entry.name === 'contextMenu.icon')
+  assert.ok(icon, 'the icon seat is filled')
+  assert.equal(icon.entry.key, 'smkit.close-left')
+  assert.equal(typeof icon.component, 'function')
 })
 
-it('never offers a tab the shell holds open', () => {
-  // The guide has no ×, so no row may name it, and "close all" would merely
-  // repeat "close others" when the open tab cannot go.
-  const view = mount({ tabs: [['tab-1', true], ['guide', false], ['tab-3', true]] })
-  const { events, separator } = view.open('guide')
-  assert.deepEqual(events.map((row) => row.label), ['closeOthers', 'closeLeft', 'closeRight'])
-  assert.equal(separator, false, 'no close row above, so no hairline leading the menu')
-
-  events[0].select()
-  assert.deepEqual(view.closers, ['tab-1', 'tab-3'], 'only the closable siblings')
+it('offers nothing when the left side has nothing to close', () => {
+  const view = mount({ pane: { all: [], right: [], close: true } })
+  // The answer is built inside the VM, so its array is a different realm's.
+  assert.equal(view.resolve('tab-1').length, 0)
 })
 
-it('leaves the kit menu alone for a lone tab', () => {
-  const view = mount({ tabs: [['tab-1', true]] })
-  assert.equal(view.open('tab-1').tree, null)
-  assert.deepEqual(view.open('tab-1').events, [])
+it('keeps only the tabs left of the clicked one, in display order', () => {
+  // `all` is everything but the clicked tab; `right` is its right-hand subset.
+  const view = mount({ pane: { all: ['tab-1', 'tab-2', 'tab-4', 'tab-5'], right: ['tab-4', 'tab-5'], close: true } })
+  const [action] = view.resolve('tab-3')
+  action.run()
+  assert.deepEqual(view.closed, ['tab-1', 'tab-2'])
 })
 
-it('dismisses first, then closes each set in strip order', () => {
+it('falls back to the older close(id) when the session-aware one is missing', () => {
+  const view = mount({ controller: 'close', pane: { all: ['tab-1'], right: [], close: true } })
+  view.resolve('tab-2')[0].run()
+  assert.deepEqual(view.closed, ['tab-1'])
+})
+
+it('reads the strip’s own anchors when the controller cannot list tabs', () => {
   const view = mount({
-    tabs: [['tab-1', true], ['tab-2', true], ['tab-3', true], ['tab-4', true]],
+    menuTabs: false,
+    tabs: [['tab-1', true], ['guide', false], ['tab-3', true], ['tab-4', true]],
+    controller: 'none',
   })
-  const orders = []
-
-  const rows = view.open('tab-2').events
-  for (const row of rows) {
-    const before = view.closers.length
-    row.select()
-    orders.push(view.closers.slice(before))
-  }
-  assert.deepEqual(orders, [
-    ['tab-1', 'tab-3', 'tab-4'],
-    ['tab-1'],
-    ['tab-3', 'tab-4'],
-    ['tab-1', 'tab-2', 'tab-3', 'tab-4'],
-  ])
-  assert.deepEqual(view.dismissed, ['tab-2', 'tab-2', 'tab-2', 'tab-2'], 'each row closed the menu first')
+  view.resolve('tab-4')[0].run()
+  assert.deepEqual(view.pressed, ['tab-1', 'tab-3'], 'the held guide keeps its place')
 })
 
-it('falls back to the chip’s own × when the column has no controller', () => {
-  const view = mount({
-    tabs: [['tab-1', true], ['tab-2', true], ['tab-3', true]],
-    sidebarRight: false,
-  })
-  const right = view.open('tab-2').events.find((row) => row.label === 'closeRight')
-  right.select()
-  assert.deepEqual(view.pressed, ['tab-3'])
-})
-
-it('renders nothing for a tab whose chip has left the strip', () => {
-  const view = mount({ tabs: [['tab-1', true], ['tab-2', true]] })
-  assert.equal(view.open('ghost').tree, null)
+it('stands down on a host with no menu service', () => {
+  const view = mount({ menu: false })
+  assert.deepEqual(view.contributions, [])
+  assert.equal(
+    view.registrations.filter((one) => one.entry.name === 'contextMenu.icon').length,
+    0,
+    'no icon seat is filled either',
+  )
 })

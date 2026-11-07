@@ -288,13 +288,52 @@ export interface ClientContext {
  * Registration options of one slot entry. `label` is optional because DSH only
  * reads it for entries an owner projects as a named row (the settings nav); a
  * plain header control declares none.
+ *
+ * A `keyed` slot dispatches by `key` instead of `id` — the icon seat of the
+ * tab menu (`contextMenu.icon`) is one — so neither identity is required here;
+ * the host validates whichever its slot kind reads.
  */
 export interface SlotOptions {
   name: string
-  id: string
-  order: number
+  /** Row identity of a `list`/`single`/`hoc` seat. */
+  id?: string
+  /** Dispatch key of a `keyed` seat. */
+  key?: string
+  order?: number
   label?: () => string
-  locale: string
+  locale?: string
+}
+
+/** One resolved action of a `tab` context menu (`ui-context-menu`'s `MenuAction`). */
+export interface TabMenuAction {
+  id: string
+  label: string
+  disabled?: boolean
+  /** Glyph key answered by the `contextMenu.icon` seat. */
+  icon?: { key: string }
+  separatorBefore?: boolean
+  run?: () => void
+}
+
+/** The clicked tab, as a `tab` context-menu contribution receives it. */
+export interface TabMenuTarget {
+  sessionId: string
+  paneId: string
+  tab: { id: string }
+}
+
+/** The slice of DSH's `contextMenus` service (`ui-context-menu`) this plugin uses. */
+export interface ContextMenusLike {
+  /**
+   * Register one contribution for later openings.
+   * @returns the unregister, which the caller owns.
+   */
+  register(contribution: {
+    id: string
+    target: 'tab'
+    order: number
+    resolve: (target: TabMenuTarget, signal: AbortSignal) => readonly TabMenuAction[] | Promise<readonly TabMenuAction[]>
+  }): () => void
 }
 
 /** One stylesheet a feature ships, keyed by its `data-smkit-css` name. */
@@ -321,7 +360,8 @@ export interface ClientFeature {
    * features may know about them, so it declares them here.
    */
   extraLocales?: Array<{ namespace: string; zh: LocaleDict; en: LocaleDict }>
-  styles: FeatureStylesheet[]
+  /** Stylesheets this feature paints with; a pure data contribution ships none. */
+  styles?: FeatureStylesheet[]
   /**
    * Register this feature's slot contributions, and any one-off side effect of
    * mounting it, against the plugin context. `t` is already bound to the
