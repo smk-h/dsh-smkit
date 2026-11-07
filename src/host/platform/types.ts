@@ -64,6 +64,38 @@ export interface ToolExecContext {
   agent: AgentLike
   signal?: AbortSignal
   arguments?: unknown
+  /**
+   * The same call in the shape DSH 0.2.x's `ctx.tools.execute` reads. That
+   * release replaced the single-call input (`callId`/`name`/`arguments`) with a
+   * batch of raw model calls, so a caller that fills in both shapes works on
+   * either service without retrying — which matters here, because a retried
+   * device command would run the operation twice.
+   */
+  calls?: readonly ToolCallBlockLike[]
+}
+
+/** One raw model tool call, as DSH 0.2.x batches them. */
+export interface ToolCallBlockLike {
+  type: 'tool-call'
+  id: string
+  name: string
+  /** Raw JSON string, exactly as the model produced it. */
+  arguments: string
+}
+
+/** One settled tool outcome, whichever service shape produced it. */
+export interface ToolExecOutcome {
+  isError?: boolean
+  error?: { message?: string }
+  content?: ContentBlock[]
+  /**
+   * DSH 0.2.x answers a batch: one settled outcome per call, in call order.
+   * Absent on the single-call service, which answers the outcome itself.
+   */
+  results?: readonly {
+    callId?: string
+    result: { isError?: boolean; error?: { message?: string }; content?: ContentBlock[] }
+  }[]
 }
 
 export interface ToolOutput {
@@ -105,7 +137,7 @@ export interface ToolsRegistry {
   guard(check: (exec: ToolExecContext & { name: string }) => string | undefined): () => void
   schemas(agent?: AgentLike): ToolSchemaView[]
   get(name: string, agent?: AgentLike): ToolDefinition | undefined
-  execute(call: ToolExecContext): Promise<{ isError?: boolean; error?: { message?: string }; content?: ContentBlock[] }>
+  execute(call: ToolExecContext): Promise<ToolExecOutcome>
 }
 
 /* ------------------------------------------------------------- agent slice */

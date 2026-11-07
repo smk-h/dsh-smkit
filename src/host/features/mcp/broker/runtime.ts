@@ -47,13 +47,26 @@ export interface BrokerRuntime {
   install(): () => void
   /** Toggle broker mode, persisting the setting (rolled back on write failure). */
   setOnDemandToolInjection(enabled: boolean): void
+  /**
+   * Mint a token the guard lets through, for a caller that runs in the host
+   * process instead of through the broker — the `/mcp` command.
+   *
+   * The guard only waves a call through when the call carries one of these
+   * tokens as its `parent`, so the caller must pass `token` on the execution.
+   * While broker mode is off there is no guard to satisfy, so the token is
+   * simply never read; `release` stays a no-op either way.
+   */
+  approveDirectCall(): { token: unknown; release: () => void }
 }
 
 export function createBrokerRuntime(deps: BrokerRuntimeDeps): BrokerRuntime {
   const { runtime, logger, tools, on } = deps
+  // Hoisted out of `install()`: the guard and a host-side caller (the `/mcp`
+  // command) have to agree on the same set across install/uninstall cycles.
+  const approvedParents = new Set<unknown>()
+  let hostCallSeq = 0
 
   function install(): () => void {
-    const approvedParents = new Set<unknown>()
     const unsupportedAgents = new WeakSet<object>()
     const warnedUnsupportedAgents = new WeakSet<object>()
     const disposers: (() => void)[] = []
@@ -142,5 +155,16 @@ export function createBrokerRuntime(deps: BrokerRuntimeDeps): BrokerRuntime {
     }
   }
 
-  return { install, setOnDemandToolInjection }
+  function approveDirectCall(): { token: unknown; release: () => void } {
+    const token = Symbol(`host-call-${hostCallSeq++}`)
+    approvedParents.add(token)
+    return {
+      token,
+      release: () => {
+        approvedParents.delete(token)
+      },
+    }
+  }
+
+  return { install, setOnDemandToolInjection, approveDirectCall }
 }

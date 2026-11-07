@@ -9,6 +9,7 @@
  */
 
 import { renderBrokerExecuteResult } from '../mcp/content.js'
+import { executeToolCall } from '../mcp/execute.js'
 import {
   BROKER_DESCRIBE_RESULT_SCHEMA,
   BROKER_EXECUTE_RESULT_SCHEMA,
@@ -167,7 +168,7 @@ export function makeBrokerDefinitions(
         }
         approvedParents.add(exec.token)
         try {
-          const result = await tools.execute({
+          const result = await executeToolCall(tools, {
             callId: `${exec.callId}:mcp:${nestedSeq++}`,
             rootCallId: exec.rootCallId,
             name,

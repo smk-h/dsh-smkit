@@ -22,6 +22,7 @@
 import { LOG_PREFIX } from '../../platform/constants.js'
 import { hasToken } from './auth/credentials.js'
 import { createBrokerRuntime } from './broker/runtime.js'
+import { installMcpCommand } from './command.js'
 import { createOAuth } from './auth/oauth.js'
 import { createRegistry, setServerAuthStatus } from './registry.js'
 import { createRuntime } from './runtime.js'
@@ -197,6 +198,19 @@ export const mcpFeature: HostFeature = {
     }
 
     if (state.onDemandToolInjection) runtime.brokerRuntimeDispose = broker.install()
+
+    // `/mcp`: a host-side caller for the same tools. Injected lazily — a
+    // minimal profile (or an older shell) has no command service, and declaring
+    // it would make the plugin unloadable rather than simply command-free.
+    ctx.effect(() =>
+      ctx.inject(['commands'], (childCtx) => {
+        installMcpCommand(childCtx, {
+          logger,
+          tools,
+          approveDirectCall: () => broker.approveDirectCall(),
+        })
+      }).dispose,
+    )
 
     // The feature's routes: the OAuth callback answers a browser navigation, so
     // it is matched before the API prefix; the rest answer inside it, in the
