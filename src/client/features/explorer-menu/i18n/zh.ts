@@ -11,6 +11,7 @@
 import type { LocaleDict } from '../../../platform/types'
 
 export const EXPLORER_MENU_LOCALE_ZH: LocaleDict = {
+  "addToChat": "添加到会话",
   "copyRelative": "复制相对路径",
   "copyAbsolute": "复制绝对路径",
   "copied": "已复制",

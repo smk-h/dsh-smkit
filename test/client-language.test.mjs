@@ -209,7 +209,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'tab-menu', 'markdown-outline', 'line-jump', 'selection-quote', 'file-reference', 'explorer']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'tab-menu', 'markdown-outline', 'line-jump', 'selection-quote', 'explorer']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -282,12 +282,8 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The code outline: its dictionary, then the watch that hangs the panel on
     // the host's preview (see `features/outline`).
     'smkit: outline/dictionaries',
-    // The explorer's @-reference chip: its dictionary, then the watch that
-    // decorates the host's file rows (see `features/file-reference`).
-    'smkit: file-reference/dictionaries',
-    // The tree's copy-path menu: its dictionary, then the contextmenu watch
-    // that draws the shell's menu for the host's rows (see
-    // `features/explorer-menu`).
+    // The tree's menu: its dictionary, then the contextmenu watch that draws
+    // the shell's menu for the host's rows (see `features/explorer-menu`).
     'smkit: explorer/dictionaries',
     // The tree's fold-everything control: its dictionary, then the watch that
     // hangs the button on the neighbour's file window (see
@@ -320,11 +316,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The code outline's watch: one document observer for previews, the toggle
     // it hangs in each header, and the panel it opens on demand.
     'smkit: outline/preview',
-    // The explorer chip's watch: one document observer, one per tree, and a
-    // capture-phase click that turns a press into an `@` reference.
-    'smkit: file-reference/explorer',
     // The tree's right-click menu: one capture-phase contextmenu listener and
-    // the React root that draws the shell's own menu card.
+    // the React root that draws the shell's own menu card — the "add to
+    // conversation" row included.
     'smkit: explorer/menu',
     // The fold-everything button's watch: one document observer for the
     // neighbour's file windows, and the button it inserts beside each search

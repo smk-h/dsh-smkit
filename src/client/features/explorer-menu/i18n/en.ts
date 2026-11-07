@@ -7,6 +7,7 @@
 import type { LocaleDict } from '../../../platform/types'
 
 export const EXPLORER_MENU_LOCALE_EN: LocaleDict = {
+  "addToChat": "Add to conversation",
   "copyRelative": "Copy relative path",
   "copyAbsolute": "Copy absolute path",
   "copied": "Copied",

@@ -1,28 +1,21 @@
 /**
- * The explorer's `@`-reference chip, driven through the real client bundle
- * against a stand-in for the shell's file tree.
+ * "Add to conversation", the explorer menu's reference row, driven through the
+ * real client bundle against a stand-in for the shell's file tree.
  *
- * The chip belongs to a surface this plugin does not draw, so the claims worth
- * pinning are the ones about coexistence and about the mention:
+ * The row is a menu action, not a decoration: the explorer menu owns the
+ * gesture, and this feature owns only what the action writes. So the claims
+ * worth pinning are about the mention:
  *
- * - every row of the host tree gets one chip, and only one — a re-render that
- *   drops it puts it back, while a chip a previous mount left behind is
- *   replaced (its listener died with that mount);
- * - `dsh-better-sidebar` already owns the `files` page and renders exactly this
- *   chip, so its service being present means this plugin adds nothing, and the
- *   published `smkitFileReference` says which of the two answered;
- * - a host that grows the affordance itself is detected the same way: an
- *   `@`-labelled control on a row that is not ours stands the whole tree down;
- * - a press inserts the row as the shell's own reference chip (a workspace-root
- *   relative mention, never the session cwd), at the composer's caret, with a
- *   folder carrying `appearance: "folder"` and a slash-suffixed label; only a
- *   host that takes no chip gets plain draft text instead;
- * - an unresolved workspace leaves the draft untouched and lets the row's own
- *   click through.
+ * - the row is on the menu, ahead of the copy rows;
+ * - choosing it inserts the entry as the shell's own reference chip (a
+ *   workspace-root relative mention, never the session cwd) at the composer's
+ *   caret, with a folder carrying `appearance: "folder"` and a slash-suffixed
+ *   label; only a host that takes no chip gets plain draft text instead;
+ * - the session comes from the sidebar container (or the sidebar service) —
+ *   never from a guess — and an unresolved workspace leaves the draft untouched.
  *
  * The VM has no DOM, so the document below implements only the questions the
- * feature asks: attribute selectors, `:scope > child`, `closest`, and the
- * marker the click handler walks up through.
+ * bundle asks: attribute and class selectors, `:scope > child`, and `closest`.
  */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -32,13 +25,20 @@ import { it } from 'node:test'
 
 const source = readFileSync(fileURLToPath(new URL('../lib/client.js', import.meta.url)), 'utf8')
 
-/** Parse the selectors this feature writes: `tag?[attr]?[="value"]?`, or `:scope > …`. */
+/**
+ * Parse the selectors this feature writes: `tag?[attr]?[="value"]?` steps joined
+ * by `>`, optionally rooted at `:scope`. Both row shapes are asked for that way
+ * (`:scope > button`, `:scope > div > button`).
+ */
 function parseSelector(selector) {
   const scope = selector.startsWith(':scope > ')
   const body = scope ? selector.slice(':scope > '.length) : selector
-  const match = /^([a-zA-Z]+)?(?:\[([a-z-]+)(?:="([^"]*)")?\])?$/.exec(body)
-  assert.ok(match, `the test DOM only answers this feature's selectors, got "${selector}"`)
-  return { scope, tag: match[1]?.toLowerCase(), attr: match[2], value: match[3] }
+  const steps = body.split('>').map((part) => {
+    const match = /^([a-zA-Z]+)?(?:\.([\w-]+))?(?:\[([a-z-]+)(?:="([^"]*)")?\])?$/.exec(part.trim())
+    assert.ok(match, `the test DOM only answers this feature's selectors, got "${selector}"`)
+    return { tag: match[1]?.toLowerCase(), cls: match[2], attr: match[3], value: match[4] }
+  })
+  return { scope, steps }
 }
 
 /** Parse a selector list (`a[data-x], b[title]`); the feature writes no commas inside one. */
@@ -46,12 +46,35 @@ function parseList(selector) {
   return selector.split(',').map((part) => parseSelector(part.trim()))
 }
 
-/** Whether one element matches one parsed selector. */
+/** Whether one element matches one step. */
+function matchesStep(element, step) {
+  if (step.tag !== undefined && element.tagName.toLowerCase() !== step.tag) return false
+  if (step.cls !== undefined) {
+    const classes = String(element.className ?? '').split(/\s+/).filter(Boolean)
+    if (!classes.includes(step.cls)) return false
+  }
+  if (step.attr === undefined) return true
+  if (!element.hasAttribute(step.attr)) return false
+  return step.value === undefined || element.getAttribute(step.attr) === step.value
+}
+
+/** Whether one element matches one parsed selector (a single step, for closest). */
 function matchesParsed(element, parsed) {
-  if (parsed.tag !== undefined && element.tagName.toLowerCase() !== parsed.tag) return false
-  if (parsed.attr === undefined) return true
-  if (!element.hasAttribute(parsed.attr)) return false
-  return parsed.value === undefined || element.getAttribute(parsed.attr) === parsed.value
+  return parsed.steps.length === 1 && matchesStep(element, parsed.steps[0])
+}
+
+/**
+ * Whether `element` matches a whole parsed selector, walking the chain upwards.
+ * A `:scope` selector additionally requires the chain to be rooted at `root`.
+ */
+function matchesChain(element, parsed, root) {
+  let node = element
+  for (let at = parsed.steps.length - 1; at >= 0; at -= 1) {
+    if (node === null || node === undefined) return false
+    if (!matchesStep(node, parsed.steps[at])) return false
+    node = node.parentNode
+  }
+  return parsed.scope ? node === root : true
 }
 
 /** One DOM element, as much of it as the feature touches. */
@@ -64,6 +87,9 @@ class SandboxElement {
     this.textContent = ''
     this.className = ''
     this.type = ''
+    // The menu's portal container parks itself with `style.display`; nothing
+    // else in this harness reads CSS.
+    this.style = { setProperty: () => {}, removeProperty: () => {} }
     // Real elements reflect these two properties onto attributes; the feature
     // writes the copy as properties and the assertions read the attributes.
     Object.defineProperty(this, 'title', {
@@ -145,9 +171,8 @@ class SandboxElement {
     const found = []
     const visit = (node) => {
       for (const child of node.children) {
-        if (parsed.some((one) => matchesParsed(child, one))) found.push(child)
-        // `:scope > x` is about direct children; a plain selector is a subtree.
-        if (!parsed.some((one) => one.scope)) visit(child)
+        if (parsed.some((one) => matchesChain(child, one, this))) found.push(child)
+        visit(child)
       }
     }
     visit(this)
@@ -159,14 +184,26 @@ class SandboxElement {
   }
 }
 
-/** One row of the host's tree: `<li data-files-entry=…><button>…</button></li>`. */
-function entry(kind, path, extra = []) {
+/**
+ * One row of the host's tree.
+ *
+ * Up to 0.1.x: `<li data-files-entry=…><button>…</button></li>`.
+ * From 0.2.2 (`wrapped`): `<li><div><button></div></li>` — the row lives in a
+ * flex container, which is also where the chip has to go.
+ */
+function entry(kind, path, extra = [], wrapped = false) {
   const item = new SandboxElement('li')
   item.setAttribute('data-files-entry', kind)
   item.setAttribute('data-files-path', path)
   const row = new SandboxElement('button')
   row.setAttribute('type', 'button')
-  item.appendChild(row)
+  if (wrapped) {
+    const container = new SandboxElement('div')
+    container.appendChild(row)
+    item.appendChild(container)
+  } else {
+    item.appendChild(row)
+  }
   for (const node of extra) item.appendChild(node)
   return item
 }
@@ -294,8 +331,11 @@ function mount(options = {}) {
     composer,
   )
   const observers = []
-  let click = null
-  dom.addEventListener = (type, handler) => { if (type === 'click') click = handler }
+  /** Every document-level listener the bundle registers, by type. */
+  const listeners = new Map()
+  dom.addEventListener = (type, handler) => {
+    listeners.set(type, [...(listeners.get(type) ?? []), handler])
+  }
 
   /** Every `slash/input-insert-reference` the feature emitted, in order. */
   const emitted = []
@@ -358,14 +398,38 @@ function mount(options = {}) {
     sessions: { scope: () => actx, list: { getSnapshot: () => ({}) } },
   }
 
+  /** The menu component's last props, as the stub root saw them. */
+  let rendered = null
+  const Menu = (props) => { rendered = props; return null }
+  const react = {
+    createElement: (type, props) => ({ type, props: props ?? {} }),
+    useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
+    useEffect: () => {},
+    useCallback: (fn) => fn,
+  }
+
   let exported
   runInNewContext(source, {
-    window: { __ModuleLoader__: { load: ({ factory }) => { exported = factory(() => ({
-      createElement: (type, props) => ({ type, props: props ?? {} }),
-      useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
-      useEffect: () => {},
-      useCallback: (fn) => fn,
-    })) } } },
+    window: { __ModuleLoader__: { load: ({ factory }) => {
+      exported = factory((id) => {
+        if (id === 'react') return react
+        if (id === 'react-dom') return { createPortal: () => null }
+        if (id === 'react-dom/client') {
+          return {
+            createRoot: () => ({
+              render: (node) => {
+                if (node !== null && node !== undefined && node.props?.items !== undefined) rendered = node.props
+              },
+              unmount: () => { rendered = null },
+            }),
+          }
+        }
+        if (id === '@deepseek-ai/dsh-client-ui-primitives') {
+          return { Menu, writeClipboard: async () => true }
+        }
+        throw new Error(`no platform module ${id}`)
+      })
+    } } },
     document: dom,
     Element: SandboxElement,
     localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
@@ -386,55 +450,48 @@ function mount(options = {}) {
   })
   exported.apply(ctx)
 
-  const chips = () => dom.tree.querySelectorAll('[data-smkit-file-ref-button]')
-  const status = () => provided.find((entry) => entry.name === 'smkitFileReference')?.value
   return {
     dom,
-    chips,
-    status,
+    rows: options.rows ?? [],
     emitted,
     composer,
     shellCalls,
     draft: () => draft,
-    press(chip) {
-      const prevented = []
-      const stopped = []
-      click({
-        composedPath: () => [chip, chip.parentNode, dom.tree, dom.sidebar, dom.html],
-        preventDefault: () => prevented.push(true),
-        stopPropagation: () => stopped.push(true),
-      })
-      return { prevented: prevented.length > 0, stopped: stopped.length > 0 }
-    },
-    /** Make the shell re-render one row: the chip disappears, then a batch lands. */
-    reRender() {
-      for (const chip of chips()) chip.remove()
-      for (const observer of observers) {
-        if (observer.targets.includes(dom.tree)) observer.callback([])
+    /** Right-click a row: the menu opens with this plugin's rows. */
+    openMenu(row) {
+      const event = {
+        target: row,
+        clientX: 10,
+        clientY: 20,
+        prevented: false,
+        stopped: false,
+        preventDefault() { this.prevented = true },
+        stopPropagation() { this.stopped = true },
       }
+      for (const handler of listeners.get('contextmenu') ?? []) handler(event)
+      assert.ok(rendered !== null, 'the row menu opened')
+      return { menu: rendered, event }
+    },
+    /**
+     * The gesture the feature now answers to: right-click a row, then pick the
+     * menu's "add to conversation" row.
+     */
+    reference(row) {
+      const { menu, event } = this.openMenu(row)
+      menu.onSelect('reference')
+      return { prevented: event.prevented, stopped: event.stopped }
     },
     dispose() { for (const dispose of effects.reverse()) dispose() },
   }
 }
 
-it('puts one @ chip on every file and folder row of the shell tree', () => {
-  const view = mount({
-    rows: [
-      entry('file', '/work/src/a.ts'),
-      entry('directory', '/work/src'),
-      entry('other', '/work/pipe'),
-    ],
-  })
+it('offers "add to conversation" ahead of the copy rows', () => {
+  const view = mount({ rows: [entry('file', '/work/src/a.ts')] })
   try {
-    const chips = view.chips()
-    assert.equal(chips.length, 2, 'files and folders get the chip; an unopenable row does not')
-    for (const chip of chips) {
-      assert.equal(chip.getAttribute('aria-label'), 'referenceFile')
-      assert.equal(chip.getAttribute('title'), 'referenceFile', 'copy and bubble are one string, as upstream')
-      assert.equal(chip.textContent, 'referenceFile')
-    }
-    assert.equal(view.status().active, true)
-    assert.equal(view.status().reason, 'active')
+    const { menu } = view.openMenu(view.rows[0])
+    const ids = menu.items.map((item) => item.id)
+    assert.equal(ids.includes('reference'), true, 'the row is on the menu')
+    assert.ok(ids.indexOf('reference') < ids.indexOf('relative'), 'it leads the identity group')
   } finally {
     view.dispose()
   }
@@ -445,8 +502,8 @@ it('emits the host insertion event with a workspace-root relative mention', () =
   // the degradation a host without a findable textarea gets.
   const view = mount({ rows: [entry('file', '/work/docs/my notes.md')], composer: false })
   try {
-    const result = view.press(view.chips()[0])
-    assert.equal(result.stopped, true, 'the row must not also open the file')
+    const result = view.reference(view.rows[0])
+    assert.equal(result.stopped, true, 'the row menu owns the gesture')
     // The payload is built inside the VM realm, so it is compared as data.
     assert.equal(JSON.stringify(view.emitted), JSON.stringify([{
       name: 'slash/input-insert-reference',
@@ -470,7 +527,7 @@ it('inserts a file at the composer caret instead of at the end of the draft', ()
   // Caret at the very start: an append would land after "second" instead.
   const view = mount({ rows: [entry('file', '/work/src/a.ts')], draft: 'second', caret: 0 })
   try {
-    view.press(view.chips()[0])
+    view.reference(view.rows[0])
     const span = view.emitted[0]?.payload?.span
     assert.deepEqual(
       { start: span.start, end: span.end },
@@ -496,7 +553,7 @@ it('replaces the composer selection, and leaves the rest of the draft alone', ()
     caretEnd: 9,
   })
   try {
-    view.press(view.chips()[0])
+    view.reference(view.rows[0])
     assert.equal(view.draft(), 'keep @src/a.ts ')
     assert.equal(view.composer.selectionStart, 'keep @src/a.ts '.length)
   } finally {
@@ -513,7 +570,7 @@ it('inserts a file as a chip through the shell, at the caret', () => {
     shellInput: true,
   })
   try {
-    view.press(view.chips()[0])
+    view.reference(view.rows[0])
     assert.equal(view.shellCalls.length, 1)
     assert.equal(view.shellCalls[0].kind, 'addFiles', 'the shell writes the chip, not this feature')
     assert.deepEqual({ ...view.shellCalls[0].references[0] }, {
@@ -544,7 +601,7 @@ it('inserts a folder as plain folder text at the caret, not as a chip', () => {
     shellInput: true,
   })
   try {
-    view.press(view.chips()[0])
+    view.reference(view.rows[0])
     assert.equal(view.shellCalls[0].kind, 'insertText')
     assert.equal(view.shellCalls[0].text, '@"my dir/" ')
     assert.equal(view.draft(), '@"my dir/" second')
@@ -565,9 +622,9 @@ it('lets the shell keep a chip off the word before it', () => {
     shellInput: true,
   })
   try {
-    view.press(view.chips()[0])
+    view.reference(view.rows[0])
     assert.equal(view.draft(), 'asdf @lib/ ', 'folder chip, separated from the word')
-    view.press(view.chips()[1])
+    view.reference(view.rows[1])
     assert.equal(view.draft(), 'asdf @lib/ @src/a.ts ', 'file chip, same rule')
   } finally {
     view.dispose()
@@ -587,7 +644,7 @@ it('writes nothing when the host refuses the chip', () => {
     addFilesRefuses: true,
   })
   try {
-    view.press(view.chips()[0])
+    view.reference(view.rows[0])
     assert.equal(view.shellCalls.length, 1, 'the host was asked once')
     assert.equal(view.draft(), 'typing', 'and its refusal stands')
   } finally {
@@ -601,60 +658,9 @@ it('writes a folder as draft text when the host offers no text insert', () => {
   // one folder mention.
   const view = mount({ rows: [entry('directory', '/work/my dir')] })
   try {
-    const result = view.press(view.chips()[0])
+    const result = view.reference(view.rows[0])
     assert.equal(result.stopped, true)
     assert.equal(view.draft(), 'before @"my dir/" ')
-  } finally {
-    view.dispose()
-  }
-})
-
-it('stands down when dsh-better-sidebar owns the same affordance', () => {
-  const view = mount({ rows: [entry('file', '/work/src/a.ts')], betterSidebar: true })
-  try {
-    assert.equal(view.chips().length, 0, 'two chips on one row is the defect this prevents')
-    assert.equal(view.status().active, false)
-    assert.equal(view.status().reason, 'better-sidebar')
-  } finally {
-    view.dispose()
-  }
-})
-
-it('stands down for any published service, its own tab switches included', () => {
-  // Policy: loaded means yield. The neighbour's per-type switches are not
-  // consulted, so a service reporting every type off still owns the tree.
-  const view = mount({
-    rows: [entry('file', '/work/src/a.ts')],
-    betterSidebar: { isTabEnabled: () => false },
-  })
-  try {
-    assert.equal(view.chips().length, 0)
-    assert.equal(view.status().reason, 'better-sidebar')
-  } finally {
-    view.dispose()
-  }
-})
-
-it('stands down when dsh-better-sidebar keeps its own files takeover', () => {
-  const view = mount({
-    rows: [entry('file', '/work/src/a.ts')],
-    betterSidebar: { isTabEnabled: () => true },
-  })
-  try {
-    assert.equal(view.chips().length, 0)
-    assert.equal(view.status().reason, 'better-sidebar')
-  } finally {
-    view.dispose()
-  }
-})
-
-it('stands down when the host tree already carries its own @ control', () => {
-  const own = new SandboxElement('button')
-  own.setAttribute('aria-label', '@file')
-  const view = mount({ rows: [entry('file', '/work/src/a.ts', [own])] })
-  try {
-    assert.equal(view.chips().length, 0)
-    assert.equal(view.status().reason, 'host-affordance')
   } finally {
     view.dispose()
   }
@@ -663,7 +669,7 @@ it('stands down when the host tree already carries its own @ control', () => {
 it('projects a ~-rooted workspace, like the reference implementation', () => {
   const view = mount({ rows: [entry('file', '~/proj/a.ts')], workspaceRoot: '~/proj' })
   try {
-    view.press(view.chips()[0])
+    view.reference(view.rows[0])
     assert.equal(view.emitted[0]?.payload?.reference?.ref, '@a.ts')
   } finally {
     view.dispose()
@@ -673,7 +679,7 @@ it('projects a ~-rooted workspace, like the reference implementation', () => {
 it('compares Windows paths case-insensitively and normalizes separators', () => {
   const view = mount({ rows: [entry('file', 'C:\\Work\\src\\a.ts')], workspaceRoot: 'c:/work' })
   try {
-    view.press(view.chips()[0])
+    view.reference(view.rows[0])
     assert.equal(view.emitted[0]?.payload?.reference?.ref, '@src/a.ts')
   } finally {
     view.dispose()
@@ -683,9 +689,9 @@ it('compares Windows paths case-insensitively and normalizes separators', () => 
 it('refuses a path with a traversal component', () => {
   const view = mount({ rows: [entry('file', '/work/../secret')] })
   try {
-    const result = view.press(view.chips()[0])
+    const result = view.reference(view.rows[0])
     assert.equal(view.emitted.length, 0)
-    assert.equal(result.stopped, true, 'a chip press never activates the row')
+    assert.equal(result.stopped, true, 'the menu owns the gesture either way')
     assert.equal(view.draft(), 'before')
   } finally {
     view.dispose()
@@ -695,8 +701,7 @@ it('refuses a path with a traversal component', () => {
 it('refuses to guess the session when neither the sidebar nor its service names one', () => {
   const view = mount({ rows: [entry('file', '/work/src/a.ts')], sidebarSession: null })
   try {
-    const result = view.press(view.chips()[0])
-    assert.equal(result.stopped, true, 'the chip still owns the press')
+    view.reference(view.rows[0])
     assert.equal(view.emitted.length, 0, 'no reference in a guessed conversation')
     assert.equal(view.draft(), 'before')
   } finally {
@@ -711,41 +716,20 @@ it('falls back to the sidebar service when the markup has no session attribute',
     sidebarRight: { mounted: { getSnapshot: () => 's1' } },
   })
   try {
-    view.press(view.chips()[0])
+    view.reference(view.rows[0])
     assert.equal(view.emitted[0]?.payload?.reference?.ref, '@src/a.ts')
   } finally {
     view.dispose()
   }
 })
 
-it('re-decorates a row the shell re-rendered, and only once', () => {
-  const view = mount({ rows: [entry('file', '/work/src/a.ts')] })
-  try {
-    assert.equal(view.chips().length, 1)
-    view.reRender()
-    assert.equal(view.chips().length, 1, 'the chip comes back once, not twice')
-  } finally {
-    view.dispose()
-  }
-})
-
-it('leaves the draft and the row alone when the workspace cannot be resolved', () => {
+it('leaves the draft alone when the workspace cannot be resolved', () => {
   const view = mount({ rows: [entry('file', '/work/src/a.ts')], workspace: false })
   try {
-    const result = view.press(view.chips()[0])
-    // The reference implementation stops the press whether or not the insert
-    // landed; the chip is never a row activation.
-    assert.equal(result.stopped, true)
+    view.reference(view.rows[0])
     assert.equal(view.draft(), 'before')
     assert.equal(view.emitted.length, 0)
   } finally {
     view.dispose()
   }
-})
-
-it('removes every chip when the entry is disposed', () => {
-  const view = mount({ rows: [entry('file', '/work/src/a.ts'), entry('directory', '/work/src')] })
-  view.dispose()
-  assert.equal(view.chips().length, 0)
-  assert.equal(view.status().active, false)
 })

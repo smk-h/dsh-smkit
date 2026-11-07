@@ -4,11 +4,11 @@
  * The draft store only exposes the whole string (`getSnapshot().draft` +
  * `setDraft(text)`), so a caller that wants its text at the reader's caret has
  * to find that caret elsewhere and splice the draft itself. This module is that
- * one route, shared by the two features that write into a draft: the explorer's
- * `@` reference chip (`file-reference`) and the preview's selection popup
- * (`selection-quote`). It was lifted out of `file-reference/reference.ts` when
- * the second caller appeared — a feature may not import another feature, and a
- * second copy of this arithmetic would be a second set of bugs.
+ * one route, shared by the two features that write into a draft: the explorer
+ * menu's "add to conversation" row (`platform/reference.ts`, reached from
+ * `features/explorer-menu`) and the preview's selection popup
+ * (`selection-quote`). It lives here because a feature may not import another
+ * feature, and a second copy of this arithmetic would be a second set of bugs.
  *
  * Ported from `dsh-better-sidebar` (`src/client/conversation-draft.ts`), where
  * it had been checked against the host:

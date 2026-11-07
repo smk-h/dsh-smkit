@@ -6,8 +6,8 @@
  * right sidebar — and the answer has to come from the host, never from "the
  * current session": there may be several sidebars on screen (docks, floating
  * panes), and the store's session list carries no `current` field to borrow.
- * Lifted out of `file-reference/reference.ts` when the preview selection popup
- * became the second caller (a feature may not import another feature).
+ * Lifted out of the explorer's reference insertion when the preview selection
+ * popup became the second caller (a feature may not import another feature).
  *
  * The right-sidebar container is the primary authority: the shell itself maps
  * an element back to its session with

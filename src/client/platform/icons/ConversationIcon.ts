@@ -1,18 +1,22 @@
 /**
- * The card's first row glyph: a message bubble with a plus — "put this in the
- * conversation".
+ * "Put this in the conversation": a message bubble with a plus.
  *
  * Glyph ported verbatim from [lucide](https://lucide.nodejs.cn/icons/message-square-plus)'s
  * `message-square-plus` (lucide-static v0.536.0 — the version that icon page
  * last changed at — ISC, © Lucide Contributors), on its own 24-unit grid. The
  * three `path` elements are the upstream ones; only the stroke differs, and only
- * in where it is declared: the menu row draws the mark at 14px, where lucide's
+ * in where it is declared: the menu rows draw the mark at 14px, where lucide's
  * 2px stroke lands at ~1.2px while the copy mark beside it strokes at ~0.9px, so
  * it is declared per node at 1.6 (with lucide's round joins, which is what keeps
  * the small plus legible) to put both rows' marks at the same visual weight.
+ *
+ * It lives in the platform layer because two features draw it: the selection
+ * card's "add to conversation" row and the explorer menu's "send this file to
+ * the conversation" row. A feature may not import another feature, and a second
+ * verbatim port is exactly the copy the architecture guard exists to catch.
  */
 
-import type { IconSpec } from '../../../platform/icons/Icon'
+import type { IconSpec } from './Icon'
 
 /** The stroke every node of this outline glyph carries (see the header). */
 const STROKE = {

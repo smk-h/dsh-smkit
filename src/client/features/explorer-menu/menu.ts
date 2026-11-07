@@ -57,7 +57,11 @@
 
 import type { ClientContext, ClientDeps, Translator } from '../../platform/types'
 import { betterSidebarOwnsSurfaces } from '../../platform/neighbour'
+import { insertWorkspaceReference } from '../../platform/reference'
+import { rowContainerOf } from '../../platform/row'
+import { sessionOfRow } from '../../platform/session'
 import { iconElement } from '../../platform/icons/Icon'
+import { CONVERSATION_ICON } from '../../platform/icons/ConversationIcon'
 import { COPY_ICON } from '../../platform/icons/CopyIcon'
 import { DELETE_ICON } from './icons/DeleteIcon'
 import { NEW_FILE_ICON } from './icons/NewFileIcon'
@@ -227,21 +231,21 @@ export function watchExplorerMenu(
   }
 
   /**
-   * Flash the "copied" label in the row's trailing slot: the reference replaces
-   * the `@` button with the label in the same seat, and so does this (the
-   * stylesheet hides the chip while the row carries the copied marker).
+   * Flash the "copied" label in the row's trailing slot, the seat the source
+   * fills with its own confirmation after a copy.
    */
   const flashCopied = (target: MenuTarget): void => {
     const row = target.row.isConnected ? target.row : findRow(target.path)
     if (row === null) return
-    for (const stale of Array.from(row.querySelectorAll(`[${LABEL}]`))) stale.remove()
+    const seat = rowContainerOf(row)
+    for (const stale of Array.from(seat.querySelectorAll(`[${LABEL}]`))) stale.remove()
     const pending = timers.get(row)
     if (pending !== undefined) clearTimeout(pending)
     const label = document.createElement('span')
     label.className = LABEL_CLASS
     label.setAttribute(LABEL, '')
     label.textContent = t('copied')
-    row.appendChild(label)
+    seat.appendChild(label)
     row.setAttribute(COPIED, '')
     const timer = setTimeout(() => {
       label.remove()
@@ -253,6 +257,7 @@ export function watchExplorerMenu(
 
   /** Draw the menu's current state through the host component. */
   const draw = (): void => {
+    const conversationIcon = iconElement(h, CONVERSATION_ICON)
     const copyIcon = iconElement(h, COPY_ICON)
     const renameIcon = iconElement(h, RENAME_ICON)
     const deleteIcon = iconElement(h, DELETE_ICON)
@@ -264,7 +269,17 @@ export function watchExplorerMenu(
         items: open === null
           ? []
           : [
-              // The creating rows lead, as the source's do, and belong to a
+              // The most-used row leads the whole menu, alone above a hairline:
+              // sending the entry to the conversation is what a reader reaches
+              // for far more often than creating or copying beside it. The
+              // root's header row is not an entry, so it is left out.
+              ...(open.kind === 'root'
+                ? []
+                : [
+                    { id: 'reference', label: t('addToChat'), icon: conversationIcon },
+                    { id: 'reference-sep', type: 'separator' },
+                  ]),
+              // The creating rows follow, as the source's do, and belong to a
               // directory — the tree's root included, which is a directory the
               // shell draws no row for.
               ...(open.kind === 'directory' || open.kind === 'root'
@@ -375,6 +390,16 @@ export function watchExplorerMenu(
         name: baseName(target.path),
         isDir: target.kind === 'directory',
       })
+      return
+    }
+    if (id === 'reference') {
+      // The row names its session through the sidebar container it sits in;
+      // without one there is no draft to write into, so the gesture is a no-op
+      // rather than a guess at "the current session".
+      const sessionId = sessionOfRow(ctx, target.row)
+      if (sessionId !== undefined) {
+        insertWorkspaceReference(ctx, sessionId, target.path, target.kind === 'directory')
+      }
       return
     }
     void runtime.writeClipboard(textOf(target, id)).then((ok) => {

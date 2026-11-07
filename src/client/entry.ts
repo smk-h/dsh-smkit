@@ -20,7 +20,6 @@
 
 import { explorerCollapseFeature } from './features/explorer-collapse/client'
 import { explorerMenuFeature } from './features/explorer-menu/client'
-import { fileReferenceFeature } from './features/file-reference/client'
 import { lineJumpFeature } from './features/line-jump/client'
 import { markdownOutlineFeature } from './features/markdown-outline/client'
 import { openSpecFeature } from './features/openspec/client'
@@ -76,7 +75,6 @@ const FEATURES: ClientFeature[] = [
   lineJumpFeature,
   selectionQuoteFeature,
   outlineFeature,
-  fileReferenceFeature,
   explorerMenuFeature,
   explorerCollapseFeature,
 ]

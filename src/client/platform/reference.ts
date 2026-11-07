@@ -1,5 +1,10 @@
 /**
- * Turning one explorer row into an `@` reference in the current draft.
+ * Turning one file-tree entry into an `@` reference in the current draft.
+ *
+ * The caller is the explorer menu's "add to conversation" row
+ * (`features/explorer-menu`): the reader right-clicks a row and picks the row,
+ * so the gesture carries the entry's path and session — no per-row control is
+ * added to the host's tree, and nothing observes it.
  *
  * Ported from `dsh-better-sidebar` (`src/client/reference-in-chat.ts`), where
  * the grammar had already been checked against the host: the token is spelled
@@ -36,9 +41,9 @@
  * absolute path.
  */
 
-import type { ClientContext } from '../../platform/types'
-import { appendToDraft, needsLeadingSpace, placeComposerCaretAfterInsert, probeInsertion, resolveInput } from '../../platform/composer'
-import type { ConversationInput } from '../../platform/composer'
+import type { ClientContext } from './types'
+import { appendToDraft, needsLeadingSpace, placeComposerCaretAfterInsert, probeInsertion, resolveInput } from './composer'
+import type { ConversationInput } from './composer'
 
 /** One reference chip, in the shape the shell builds its node from. */
 interface ChipInsert {
@@ -206,7 +211,7 @@ export function insertFileReference(
     // that does not take it has no chip route at all.
     return emitReferenceChip(ctx, sessionId, input, chip) ? true : undefined
   } catch (error) {
-    console.warn('[smkit] file-reference insert failed:', error)
+    console.warn('[smkit] reference insert failed:', error)
     return undefined
   }
 }

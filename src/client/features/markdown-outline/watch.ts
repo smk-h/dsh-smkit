@@ -3,11 +3,11 @@
  *
  * The host draws the Markdown preview itself (`ui-sidebar-documentpreview`) and
  * offers no overlay seat inside its scroll body, so this feature decorates the
- * rendered document the way `file-reference` decorates the explorer: a
- * zero-height sticky bar is inserted as the rendered Markdown document's FIRST
- * child, and the toggle rides the preview header — the row that already carries
- * the viewer name and the reload control — immediately before reload. The bar
- * then holds only the popover the toggle opens. Everything else is behaviour.
+ * rendered document: a zero-height sticky bar is inserted as the rendered
+ * Markdown document's FIRST child, and the toggle rides the preview header — the
+ * row that already carries the viewer name and the reload control —
+ * immediately before reload. The bar then holds only the popover the toggle
+ * opens. Everything else is behaviour.
  *
  * ## Why the header and not the corner
  *

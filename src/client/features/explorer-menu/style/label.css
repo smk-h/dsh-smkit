@@ -1,20 +1,32 @@
 /**
  * The transient "copied" label that follows a successful path copy.
  *
- * The label takes the row's trailing seat — the same seat the `@` chip occupies
- * — exactly as `dsh-better-sidebar` swaps its chip for the label after a copy:
- * same 11px tertiary text, same right inset, and the chip hidden while the
- * label is up (one seat, one occupant). The label exists for 1.2 s, so the
- * grid that parks it there is scoped to the marker the label sets, not to the
- * row permanently: a tree that never copies is laid out by the shell alone.
+ * The label takes the row's trailing seat, the slot the source fills with its
+ * own confirmation after a copy. Two row shapes have to be covered, because the
+ * shell wrapped the row without telling anyone:
  *
- * Both this grid and the `@` chip's grid (feature `file-reference`) describe
- * the same two-row structure — the shell's row button on line 1, an expanded
- * directory's children list on line 2 — so whichever feature is active, the
- * row's geometry is the shell's own.
+ * - up to 0.1.x the row button is the `<li>`'s own child, so the `<li>` becomes
+ *   a two-row grid for the 1.2 s the label lives — the button and the label
+ *   share row 1, an expanded directory's children list takes row 2;
+ * - from 0.2.2 the `<li>` holds a flex row container, so the label joins that
+ *   flex line and the shell places it like any other trailing content.
+ *
+ * The marker is on the `<li>` and only for those 1.2 s: a tree that never
+ * copies is laid out by the shell alone.
  */
 
-li[data-smkit-explorer-copied] {
+/* The label's face, shared by both row shapes. */
+.smkit-explorer-label {
+  font: var(--dsw-font-xxxs-11);
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- legacy --
+ * The shell's row button is the `<li>`'s own child: the `<li>` becomes the
+ * grid that parks the label over the row's right end.
+ */
+li[data-smkit-explorer-copied]:has(> button:not([data-smkit-explorer-label])) {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
 }
@@ -28,19 +40,20 @@ li[data-smkit-explorer-copied] > ul {
   grid-area: 2 / 1;
 }
 
-/* The copied label and the `@` chip share the seat: only the label shows. */
-li[data-smkit-explorer-copied] > [data-smkit-file-ref-button] {
-  display: none;
-}
-
-.smkit-explorer-label {
+li[data-smkit-explorer-copied] > .smkit-explorer-label {
   grid-area: 1 / 1;
   align-self: center;
   justify-self: end;
   /* The shell's row pads its right edge by 10px; a trailing affordance inside
      that row ends exactly this far from the row's border. */
   margin-right: 10px;
-  font: var(--dsw-font-xxxs-11);
-  color: var(--dsw-alias-label-tertiary);
-  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ 0.2.2 --
+ * The label joins the shell's own flex row, after its button and accessory
+ * cell, so the row's centring and height apply to it unchanged.
+ */
+li[data-smkit-explorer-copied] > div > .smkit-explorer-label {
+  flex: 0 0 auto;
+  margin-right: 10px;
 }

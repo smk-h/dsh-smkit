@@ -515,10 +515,14 @@ it('opens the shell’s menu at the cursor, with the source’s rows', () => {
     assert.equal(menu.align, 'start')
     // Joined, not deep-compared: the rows are built inside the VM, so their
     // array carries that realm's prototype.
-    assert.equal(menu.items.map((item) => item.id).join(','), 'relative,absolute,mutate-sep,rename,delete')
+    assert.equal(
+      menu.items.map((item) => item.id).join(','),
+      'reference,reference-sep,relative,absolute,mutate-sep,rename,delete',
+      'the most-used row leads, alone above its own hairline',
+    )
     assert.equal(
       menu.items.map((item) => (item.type === 'separator' ? '—' : item.label)).join(','),
-      'copyRelative,copyAbsolute,—,rename,delete',
+      'addToChat,—,copyRelative,copyAbsolute,—,rename,delete',
     )
     const rect = menu.getAnchorRect()
     assert.equal(rect.x, 120, 'anchored at the right-click point')
@@ -669,15 +673,18 @@ it('offers the two creating rows on a directory row, never on a file row', () =>
     view.contextMenu(view.dir.children[0])
     assert.equal(
       view.menu().items.map((item) => item.id).join(','),
-      'new-folder,new-file,relative,absolute,mutate-sep,rename,delete',
-      'the creating rows lead and the mutations close, as in the source’s menu',
+      'reference,reference-sep,new-folder,new-file,relative,absolute,mutate-sep,rename,delete',
+      'the reference row leads, the creating rows follow, the mutations close',
     )
     assert.equal(
       view.menu().items.map((item) => (item.type === 'separator' ? '—' : item.label)).join(','),
-      'newFolder,newFile,copyRelative,copyAbsolute,—,rename,delete',
+      'addToChat,—,newFolder,newFile,copyRelative,copyAbsolute,—,rename,delete',
     )
     view.contextMenu(view.file.children[0])
-    assert.equal(view.menu().items.map((item) => item.id).join(','), 'relative,absolute,mutate-sep,rename,delete')
+    assert.equal(
+      view.menu().items.map((item) => item.id).join(','),
+      'reference,reference-sep,relative,absolute,mutate-sep,rename,delete',
+    )
   } finally {
     view.dispose()
   }

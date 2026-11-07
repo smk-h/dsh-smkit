@@ -48,7 +48,7 @@
 import type { ClientDeps, Translator } from '../../platform/types'
 import { COPY_ICON } from '../../platform/icons/CopyIcon'
 import { iconElement } from '../../platform/icons/Icon'
-import { CONVERSATION_ICON } from './icons/ConversationIcon'
+import { CONVERSATION_ICON } from '../../platform/icons/ConversationIcon'
 
 /** The React factory the client bundle threads in as `h`. */
 type ElementFactory = (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => unknown
