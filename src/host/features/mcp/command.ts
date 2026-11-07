@@ -43,10 +43,14 @@ export const MCP_COMMAND = 'mcp'
 /** How many tools `list` and `search` print before truncating. */
 const LIST_LIMIT = 50
 
+/** How many optional parameters an example line spells out. */
+const OPTIONAL_EXAMPLE_LIMIT = 3
+
 const USAGE = [
   'Usage:',
   '  /mcp list                 list the MCP servers visible in this project',
   "  /mcp list <server>        list one server's tools",
+  '  /mcp help <name>          show one tool’s parameters and a call example',
   '  /mcp search <query>       search every visible tool by keyword',
   '  /mcp call <name> [json]   call one tool by exact name, arguments as a JSON object',
 ].join('\n')
@@ -118,6 +122,151 @@ function toolLine(entry: { schema: { name: string; description?: string } }): st
     : `  ${entry.schema.name} — ${description.slice(0, 160)}`
 }
 
+/** One tool's input schema, read the way the command surface can print it. */
+interface ParameterSheet {
+  /** Print-ready lines, `*name (type)` for required ones. */
+  lines: string[]
+  /** Names the schema marks required. */
+  required: string[]
+  /** Every declared parameter name. */
+  names: string[]
+  /**
+   * The shortest call that can work: a JSON object with every required
+   * parameter, or `''` when nothing is required (a bare call is then valid).
+   */
+  minimal: string
+  /**
+   * The same call with a few optional parameters spelled out, so the reader
+   * sees how they are shaped. `''` when the schema declares no optional ones.
+   */
+  full: string
+}
+
+/** One declared property, as far as this printer reads it. */
+interface SchemaProperty {
+  type?: unknown
+  description?: unknown
+  enum?: unknown
+  default?: unknown
+}
+
+/**
+ * A placeholder value for one property, so the example object parses as-is.
+ *
+ * An `enum` or a `default` is the server answering the question itself, so
+ * those are used verbatim (a real choice beats a placeholder); everything else
+ * gets a typed literal, and a string gets `…` — the reader replaces it.
+ *
+ * @param property - one declared property of the tool schema.
+ * @returns a JSON-serialisable placeholder.
+ */
+function exampleValue(property: SchemaProperty): unknown {
+  if (Array.isArray(property.enum) && property.enum.length > 0) return property.enum[0]
+  if (property.default !== undefined) return property.default
+  switch (property.type) {
+    case 'number':
+    case 'integer':
+      return 0
+    case 'boolean':
+      return false
+    case 'array':
+      return []
+    case 'object':
+      return {}
+    default:
+      return '…'
+  }
+}
+
+/**
+ * Project a tool's JSON-Schema parameters into printable lines.
+ *
+ * The command surface is plain text, so the schema is flattened: one line per
+ * property, required ones marked with `*`, the declared type in parentheses,
+ * and the server's own description after the dash. `enum` members are printed
+ * because they are the one constraint a caller cannot guess from a type.
+ *
+ * @param parameters - the tool definition's `parameters` (open-ended on purpose:
+ *   a server writes this schema, not this plugin).
+ * @returns the lines, the two name sets the caller reasons about, and a
+ *   call-shaped example built from the required parameters.
+ */
+function parameterSheet(parameters: unknown): ParameterSheet {
+  const spec = (parameters ?? {}) as {
+    properties?: Record<string, SchemaProperty>
+    required?: unknown
+  }
+  const properties = spec.properties ?? {}
+  const required = Array.isArray(spec.required) ? spec.required.map(String) : []
+  const names = Object.keys(properties)
+  const lines = names.map((name) => {
+    const property = properties[name] ?? {}
+    const type = typeof property.type === 'string'
+      ? property.type
+      : Array.isArray(property.enum) ? 'enum' : 'any'
+    const description = String(property.description ?? '').replace(/\s+/gu, ' ').trim()
+    const choices = Array.isArray(property.enum)
+      ? ` — one of: ${property.enum.map(String).join(', ')}`
+      : ''
+    return `  ${required.includes(name) ? '*' : ' '}${name} (${type})${description === '' ? '' : ` — ${description}`}${choices}`
+  })
+  const requiredNames = names.filter((name) => required.includes(name))
+  const optionalNames = names.filter((name) => !required.includes(name)).slice(0, OPTIONAL_EXAMPLE_LIMIT)
+  const sample = (chosen: readonly string[]): string => chosen.length === 0
+    ? ''
+    : JSON.stringify(
+      Object.fromEntries(chosen.map((name) => [name, exampleValue(properties[name] ?? {})])),
+    )
+  return {
+    lines,
+    required,
+    names,
+    minimal: sample(requiredNames),
+    full: sample([...requiredNames, ...optionalNames]),
+  }
+}
+
+/**
+ * The full "how do I call this" sheet: one ready-to-paste command line first,
+ * then what the tool does and every parameter it takes.
+ *
+ * The example leads because the collapsed command card shows only the first
+ * line of the text — with the example up there, the caller sees the command
+ * without expanding anything, and the reference below is what they open for.
+ *
+ * @param name - exact public tool name.
+ * @param entry - the catalog row, for the description and schema.
+ * @param lead - why the sheet is being shown; empty for a plain `describe`.
+ * @returns the printable block.
+ */
+function callSheet(
+  name: string,
+  entry: { schema: { description?: string; parameters?: unknown } },
+  lead: string,
+): string {
+  const sheet = parameterSheet(entry.schema.parameters)
+  const description = String(entry.schema.description ?? '').replace(/\s+/gu, ' ').trim()
+  // Two shapes when they differ: the shortest call that works, then the same
+  // call with a few optional parameters spelled out. When the schema declares
+  // nothing optional they collapse into one line, and no duplicate is printed.
+  const minimalLine = sheet.minimal === ''
+    ? `/mcp call ${name}`
+    : `/mcp call ${name} ${sheet.minimal}`
+  const fullLine = sheet.full === '' || sheet.full === sheet.minimal
+    ? ''
+    : `/mcp call ${name} ${sheet.full}`
+  return [
+    minimalLine,
+    ...(fullLine === '' ? [] : [fullLine]),
+    '',
+    ...(lead === '' ? [] : [lead]),
+    ...(description === '' ? [] : [description]),
+    ...(lead === '' && description === '' ? [] : ['']),
+    'Parameters (* marks required):',
+    ...(sheet.lines.length === 0 ? ['  (this tool declares no parameters)'] : sheet.lines),
+  ].join('\n')
+}
+
 /** Render one execution's content blocks as text the command card can show. */
 function renderContent(content: readonly ContentBlock[] | undefined): string {
   const blocks = content ?? []
@@ -163,13 +312,15 @@ export function installMcpCommand(childCtx: PluginContext, deps: McpCommandDeps)
   childCtx.effect(
     () => commands.register({
       name: MCP_COMMAND,
-      description: 'List this project\'s MCP servers, search their tools, or call one',
-      input: { hint: 'list [server] | search <query> | call <name> [json]' },
+      description: 'List this project\'s MCP servers, show a tool\'s parameters, or call one',
+      input: { hint: 'list [server] | help <name> | search <query> | call <name> [json]' },
       async handler(invocation) {
         const { action, rest } = parseInput(invocation.rawInput)
         const registry = registryFor(deps, invocation.agent)
 
-        if (action === 'help') return { kind: 'success', text: USAGE }
+        // Bare `/mcp help` is the usage block; `help <name>` is the tool sheet
+        // below (the same answer `describe` gives, kept as an alias).
+        if (action === 'help' && rest === '') return { kind: 'success', text: USAGE }
 
         if (action === 'list' || action === 'search') {
           const catalog = brokerCatalog(registry, invocation.agent).map((entry) => ({
@@ -217,7 +368,13 @@ export function installMcpCommand(childCtx: PluginContext, deps: McpCommandDeps)
               : ''
             return {
               kind: 'success',
-              text: `${own.length} tool${own.length === 1 ? '' : 's'} from MCP server "${rest}":\n${shown.join('\n')}${truncated}`,
+              text: [
+                `${own.length} tool${own.length === 1 ? '' : 's'} from MCP server "${rest}":`,
+                ...shown,
+                ...(truncated === '' ? [] : [truncated]),
+                '',
+                'Run "/mcp help <name>" to see one tool\'s parameters.',
+              ].join('\n'),
             }
           }
           const found = searchToolEntries(catalog, { query: rest, limit: LIST_LIMIT })
@@ -237,7 +394,7 @@ export function installMcpCommand(childCtx: PluginContext, deps: McpCommandDeps)
           }
         }
 
-        if (action === 'call') {
+        if (action === 'call' || action === 'describe' || action === 'help') {
           const space = rest.search(/\s/u)
           const name = space < 0 ? rest : rest.slice(0, space)
           const rawArguments = space < 0 ? '' : rest.slice(space + 1).trim()
@@ -251,6 +408,12 @@ export function installMcpCommand(childCtx: PluginContext, deps: McpCommandDeps)
               text: `MCP tool "${name}" is not visible in this project. Run "/mcp list" for the exact names.`,
             }
           }
+          // `help <name>` never executes: it is the "what does this one take?"
+          // answer, and the same sheet a `call` shows when it is missing
+          // something. `describe` stays as the older spelling.
+          if (action !== 'call') {
+            return { kind: 'success', text: callSheet(name, visible, '') }
+          }
           let args: unknown = {}
           if (rawArguments !== '') {
             try {
@@ -258,11 +421,34 @@ export function installMcpCommand(childCtx: PluginContext, deps: McpCommandDeps)
             } catch (error) {
               return {
                 kind: 'error',
-                text: `Arguments must be one JSON object: ${(error as Error).message}`,
+                text: callSheet(
+                  name,
+                  visible,
+                  `Arguments must be one JSON object (${(error as Error).message}). This tool takes:`,
+                ),
               }
             }
             if (args === null || typeof args !== 'object' || Array.isArray(args)) {
-              return { kind: 'error', text: 'Arguments must be one JSON object.' }
+              return {
+                kind: 'error',
+                text: callSheet(name, visible, 'Arguments must be one JSON object. This tool takes:'),
+              }
+            }
+          }
+          // A call missing a required parameter would fail at the server with
+          // its own wording; naming the gaps here is the difference between a
+          // guess and a next step. Only `required` is checked — anything else
+          // is the server's business.
+          const sheet = parameterSheet(visible.schema.parameters)
+          const missing = sheet.required.filter((key) => !(key in (args as Record<string, unknown>)))
+          if (missing.length > 0) {
+            return {
+              kind: 'error',
+              text: callSheet(
+                name,
+                visible,
+                `Missing required argument${missing.length === 1 ? '' : 's'}: ${missing.join(', ')}. This tool takes:`,
+              ),
             }
           }
           // Broker mode waits for the approval token on the execution itself

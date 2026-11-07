@@ -35,8 +35,8 @@ process.env.DSH_HOME = scratchHome
 const { mcpFeature } = await import('../lib/host/features/mcp/host.js')
 
 /** One tool schema, as `tools.schemas()` reports it. */
-function schema(name, description) {
-  return { name, description, parameters: { type: 'object', properties: {} } }
+function schema(name, description, parameters = { type: 'object', properties: {} }) {
+  return { name, description, parameters }
 }
 
 /**
@@ -222,6 +222,100 @@ it('searches the catalog by keyword', async () => {
   assert.equal(result.kind, 'success')
   assert.match(result.text, /matched "console"/)
   assert.match(result.text, /mcp__board__serial_exec/)
+})
+
+/** A tool whose schema carries required arguments and an enum. */
+const PARAM_TOOL = schema('mcp__board__serial_exec', 'Run one command on the serial console', {
+  type: 'object',
+  properties: {
+    cmd: { type: 'string', description: 'Command to run' },
+    session_id: { type: 'string', description: 'Session from serial_shell_open' },
+    timeout: { type: 'number' },
+    mode: { type: 'string', enum: ['text', 'binary'] },
+  },
+  required: ['cmd', 'session_id'],
+})
+
+it('leads with the example, then the description and the parameters', async () => {
+  const view = mount({ agentSchemas: [PARAM_TOOL] })
+  const result = await view.run(' help mcp__board__serial_exec')
+  assert.equal(result.kind, 'success')
+  assert.match(
+    result.text,
+    /^\/mcp call mcp__board__serial_exec \{"cmd":"…","session_id":"…"\}/,
+    'the first line is the shortest working call — the collapsed card shows it as is',
+  )
+  assert.match(
+    result.text,
+    /\n\/mcp call mcp__board__serial_exec \{"cmd":"…","session_id":"…","timeout":0,"mode":"text"\}/,
+    'the second line spells the optional ones out',
+  )
+  assert.match(result.text, /Run one command on the serial console/, 'then the description')
+  assert.match(result.text, /\*cmd \(string\) — Command to run/)
+  assert.match(result.text, /\*session_id \(string\) — Session from serial_shell_open/)
+  assert.match(result.text, /\n\s+timeout \(number\)/, 'optional ones carry no star')
+  assert.match(result.text, /mode \(string\) — one of: text, binary/)
+})
+
+it('keeps describe as an alias for help <name>', async () => {
+  const view = mount({ agentSchemas: [PARAM_TOOL] })
+  const viaHelp = await view.run(' help mcp__board__serial_exec')
+  const viaDescribe = await view.run(' describe mcp__board__serial_exec')
+  assert.equal(viaDescribe.text, viaHelp.text)
+})
+
+it('shows the optional arguments on their own line when nothing is required', async () => {
+  const tool = schema('mcp__board__login', 'One-click login', {
+    type: 'object',
+    properties: {
+      device: { type: 'string', description: 'Device name' },
+      key: { type: 'string', description: 'Unlock key' },
+      timeout: { type: 'number', default: 1500 },
+    },
+  })
+  const view = mount({ agentSchemas: [tool] })
+  const result = await view.run(' help mcp__board__login')
+  assert.equal(result.kind, 'success')
+  assert.match(result.text, /^\/mcp call mcp__board__login\n/, 'the bare call still leads')
+  assert.match(
+    result.text,
+    /\/mcp call mcp__board__login \{"device":"…","key":"…","timeout":1500\}/,
+    'a second line shows how the optional ones are spelled',
+  )
+})
+
+it('shows a bare example for a tool that needs no arguments', async () => {
+  const view = mount({ agentSchemas: THREE_TOOLS })
+  const result = await view.run(' help mcp__board__serial_log')
+  assert.equal(result.kind, 'success')
+  assert.match(result.text, /^\/mcp call mcp__board__serial_log\n/)
+})
+
+it('uses an enum value as the placeholder when the schema offers one', async () => {
+  const tool = schema('mcp__board__mode', 'Set the mode', {
+    type: 'object',
+    properties: { mode: { type: 'string', enum: ['text', 'binary'] } },
+    required: ['mode'],
+  })
+  const view = mount({ agentSchemas: [tool] })
+  const result = await view.run(' help mcp__board__mode')
+  assert.match(result.text, /\/mcp call mcp__board__mode \{"mode":"text"\}/)
+})
+
+it('names the required arguments a call is missing, and does not execute', async () => {
+  const view = mount({ agentSchemas: [PARAM_TOOL] })
+  const result = await view.run(' call mcp__board__serial_exec')
+  assert.equal(result.kind, 'error')
+  assert.match(result.text, /Missing required arguments: cmd, session_id/)
+  assert.match(result.text, /\*cmd \(string\)/)
+  assert.equal(view.agentTools.executed.length, 0, 'nothing reached the registry')
+})
+
+it('calls as soon as the required arguments are supplied', async () => {
+  const view = mount({ agentSchemas: [PARAM_TOOL] })
+  const result = await view.run(' call mcp__board__serial_exec {"cmd":"ls","session_id":"s1"}')
+  assert.equal(result.kind, 'success')
+  assert.equal(view.agentTools.executed.length, 1)
 })
 
 it('calls a visible tool with the parsed JSON object', async () => {
