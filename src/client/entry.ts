@@ -20,6 +20,7 @@
 
 import { explorerCollapseFeature } from './features/explorer-collapse/client'
 import { explorerMenuFeature } from './features/explorer-menu/client'
+import { inputHistoryFeature } from './features/input-history/client'
 import { lineJumpFeature } from './features/line-jump/client'
 import { markdownOutlineFeature } from './features/markdown-outline/client'
 import { openSpecFeature } from './features/openspec/client'
@@ -77,6 +78,9 @@ const FEATURES: ClientFeature[] = [
   outlineFeature,
   explorerMenuFeature,
   explorerCollapseFeature,
+  // The composer's own keystroke: last, because it reads the draft store the
+  // others write through and must never outrank a seat that draws something.
+  inputHistoryFeature,
 ]
 
 export function createPlugin(): { apply(ctx: ClientContext): void; inject: string[] } {

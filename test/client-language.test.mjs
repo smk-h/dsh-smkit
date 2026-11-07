@@ -209,7 +209,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'tab-menu', 'markdown-outline', 'line-jump', 'selection-quote', 'explorer']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'tab-menu', 'markdown-outline', 'line-jump', 'selection-quote', 'explorer', 'input-history']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -289,6 +289,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // hangs the button on the neighbour's file window (see
     // `features/explorer-collapse`).
     'smkit: explorer-collapse/dictionaries',
+    // The composer's `/mcp` history: its (empty) dictionary, then the one
+    // keydown listener that answers ↑ / ↓ (see `features/input-history`).
+    'smkit: input-history/dictionaries',
     'smkit: notify/heartbeat',
     // The web-delivery subscriber: the second notification path for remote
     // hosts, holding one event-stream open for the host's pushed decisions.
@@ -324,6 +327,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // neighbour's file windows, and the button it inserts beside each search
     // box (the shell's own seat needs no watch — see `features/explorer-collapse`).
     'smkit: explorer/collapse-all',
+    // The composer's `/mcp` history: one capture-phase keydown listener, and
+    // nothing drawn (see `features/input-history`).
+    'smkit: input history',
   ])
   // Every key a component asks for must exist in one of the registered
   // dictionaries: business copy in its feature's namespace, the dialog's shared
