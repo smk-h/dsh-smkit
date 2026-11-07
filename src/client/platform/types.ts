@@ -233,8 +233,16 @@ export interface ClientContext {
     bind(namespace: string): Translator
   }
   slots: {
-    inject(name: string, setup: () => void): void
-    register(options: SlotOptions, component: unknown): unknown
+    /**
+     * Run `setup` for one declaration lifetime of the slot: synchronously when
+     * the owner has already declared it, otherwise inside the declaring
+     * `register()` call. The setup's return value is its disposer, so a seat
+     * a later host version adds (`settings.section.icon`, from 0.2.2 on) is
+     * claimed exactly when that host declares it and released when it does not.
+     */
+    inject(name: string, setup: () => (() => void) | void): void
+    /** Register one entry; the answer is the entry's own disposer. */
+    register(options: SlotOptions, component: unknown): () => void
     /**
      * Snapshot the entries registered under one slot key — the ledger's public
      * read (`SlotRegistry.entries`). Optional on purpose: the settings-shell

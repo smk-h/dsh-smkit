@@ -38,9 +38,9 @@ import { LOCAL_CACHE_CSS } from './features/local-cache/styles'
 import { NOTIFY_CSS } from './features/notify/styles'
 import { SESSION_MANAGER_CSS } from './features/session-manager/styles'
 import { PLUGIN_GALLERY_CSS } from './features/plugin-gallery/styles'
-import { SETTINGS_NAV_ATTRIBUTE, markSettingsNavRow } from './platform/ui/settings-nav'
+import { SETTINGS_NAV_GLYPH_ATTRIBUTE, markSettingsNavRow } from './platform/ui/settings-nav'
 import { iconMaskDataUri } from './platform/icons/Icon'
-import { SETTINGS2_SPEC } from './platform/icons/Settings2Icon'
+import { createSettings2Icon, SETTINGS2_SPEC } from './platform/icons/Settings2Icon'
 import pageCss from './settings/style/page.css'
 import type { ClientContext, ClientDeps, ClientFeature, Translator } from './platform/types'
 
@@ -52,9 +52,18 @@ const NAV_GLYPH = iconMaskDataUri(SETTINGS2_SPEC)
 
 /** The glyph as a custom property — how a stylesheet receives a value only
  * code can produce. The platform layer's `style/settings-nav.css` consumes it
- * on every marked row; this rule supplies it on this section's row alone,
- * keyed by the marker's value. */
-const NAV_GLYPH_RULE = `[${SETTINGS_NAV_ATTRIBUTE}='smkit']{--smkit-shell-nav-glyph:url("${NAV_GLYPH}")}`
+ * on every row that still asks for the paint; this rule supplies it on this
+ * section's row alone, keyed by the paint marker's value. */
+const NAV_GLYPH_RULE = `[${SETTINGS_NAV_GLYPH_ATTRIBUTE}='smkit']{--smkit-shell-nav-glyph:url("${NAV_GLYPH}")}`
+
+/** The icon seat DSH introduced in 0.2.2 and keeps in every later release.
+ * Hosts before it never declare the seat, where the paint stands in. */
+const SECTION_ICON_SEAT = 'settings.section.icon'
+
+/** The section id, quoted once here and once at the seat below: the shell
+ * remembers it across reloads and addresses the icon seat by it, so the two
+ * literals are frozen together by `scripts/namespace-guard.mjs`. */
+const SECTION_ID = 'mcp-manager'
 
 /**
  * The section component, built once for the life of the module: it closes over
@@ -97,16 +106,33 @@ export const settingsFeature: ClientFeature = {
     // the restoring effect and the override layer all live in the theme-center
     // feature, which knows about none of the pages below. What is left here is
     // this section's own seat.
-    // DSH projects only `id`, `order` and `label` out of a section registration
-    // and picks each row's glyph from a closed list of built-in ids, so this
-    // section marks its own row and lets the stylesheet paint the glyph (see
-    // `platform/ui/settings-nav` and `NAV_GLYPH_RULE`). The marker owns no
-    // shell structure and is dropped again on disposal, which keeps the
-    // adaptation HMR-safe.
-    ctx.effect(
-      () => markSettingsNavRow('smkit', () => t('sectionLabel')),
-      'smkit: merged settings nav row',
-    )
+    // Hosts before 0.2.2 project only `id`, `order` and `label` out of a
+    // section registration and pick each row's glyph from a closed list of
+    // built-in ids, so the row is marked and the stylesheet paints the glyph
+    // (see `platform/ui/settings-nav` and `NAV_GLYPH_RULE`). The marker owns
+    // no shell structure and is dropped again on disposal, which keeps the
+    // adaptation HMR-safe. The row itself stays marked on every host: the
+    // shell-restore fallback clicks it by attribute.
+    const navMarker = markSettingsNavRow('smkit', () => t('sectionLabel'))
+    ctx.effect(() => () => navMarker.dispose(), 'smkit: merged settings nav row')
+    // 0.2.2 and later give every section a glyph seat of its own, addressed
+    // by the section id. Registering there hands the
+    // drawing back to the shell — on any host that declares the seat the
+    // marker stops painting (its row stays locatable), so the row shows one
+    // glyph rather than the shell's gear plus this mask. The question asked is
+    // always "does this host declare the seat", never "which version is
+    // this": a newer host takes the seat, an older one keeps the paint.
+    ctx.slots.inject(SECTION_ICON_SEAT, () => {
+      const resumePaint = navMarker.standDown()
+      const disposeIcon = ctx.slots.register(
+        { name: SECTION_ICON_SEAT, id: SECTION_ID, order: 50, locale: 'smkit' },
+        createSettings2Icon(deps),
+      )
+      return () => {
+        disposeIcon()
+        resumePaint()
+      }
+    })
     // Each panel reads its own namespace: the seat binds this shell's, but the
     // words inside a page still belong to the feature that wrote them.
     section ??= createSettingsSection(deps, {
@@ -122,16 +148,17 @@ export const settingsFeature: ClientFeature = {
       // The shell closes itself when a removal empties the main view; the
       // guard arms before a batch and puts the dialog back on this section
       // after (a no-op while it stayed open, and a stand-down on a host whose
-      // ledger answers nothing). The literal is the seat id below — the
-      // namespace guard pins it.
-      onBatchDelete: createSettingsShellRestore(ctx, 'mcp-manager'),
+      // ledger answers nothing).
+      onBatchDelete: createSettingsShellRestore(ctx, SECTION_ID),
     })
     ctx.slots.inject('settings.section', () =>
       ctx.slots.register(
         {
           name: 'settings.section',
           // The id the MCP page has always used: a host that remembered which
-          // section was open across reloads keeps landing on this one.
+          // section was open across reloads keeps landing on this one, and it
+          // is the id the icon seat above answers to. The literal stays a
+          // literal — the namespace guard freezes it against a rename.
           id: 'mcp-manager',
           order: 50,
           label: () => t('sectionLabel'),

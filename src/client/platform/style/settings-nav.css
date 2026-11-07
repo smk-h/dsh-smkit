@@ -8,15 +8,24 @@
  * so the section supplies it and only the *use* of it is shared here — which is
  * also what keeps the drawn icon and the mask from drifting.
  *
+ * Two row shapes have to be covered, because the shell may hand the fallback
+ * glyph over either way. Hosts before 0.2.2 put it on the row as a direct
+ * child; from 0.2.2 on it sits inside the `navIcon` wrapper that also hosts
+ * the `settings.section.icon` seat. A section on such a host registers there
+ * and never paints at all (`standDown`), so the wrapper shape only matters for
+ * a host that grew the wrapper without the seat — but hiding the wrong shape
+ * would leave two glyphs in one row, so both are listed.
+ *
  * One part of the platform layer's stylesheet. `styles.ts` imports the parts
  * and joins them in the order listed there.
  */
 
-[data-smkit-nav]>svg:first-child {
+[data-smkit-nav-glyph]>svg:first-child,
+[data-smkit-nav-glyph]>span:first-child>svg:first-child {
   display: none;
 }
 
-[data-smkit-nav]::before {
+[data-smkit-nav-glyph]::before {
   content: '';
   flex: none;
   width: 16px;
