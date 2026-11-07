@@ -451,15 +451,20 @@ function mount(options = {}) {
   }
   exported.apply(ctx)
 
-  /** Deliver one contextmenu, the way the browser dispatches it (capture). */
-  const contextMenu = (target, x = 120, y = 240) => {
+  /**
+   * Deliver one contextmenu to the document listener the fallback arms.
+   * `claimed` stands in for the shell's own handler having called
+   * `preventDefault()` already — the bubble phase sees it as such.
+   */
+  const contextMenu = (target, x = 120, y = 240, claimed = false) => {
     const event = {
       target,
       clientX: x,
       clientY: y,
       prevented: false,
       stopped: false,
-      preventDefault() { this.prevented = true },
+      defaultPrevented: claimed,
+      preventDefault() { this.prevented = true; this.defaultPrevented = true },
       stopPropagation() { this.stopped = true },
     }
     for (const handler of documentListeners.get('contextmenu') ?? []) handler(event)
@@ -634,6 +639,21 @@ it('keeps the browser’s right-click while dsh-better-sidebar owns the tree', (
     const after = view.contextMenu(view.file.children[0])
     assert.equal(after.prevented, true, 'the shell’s tree is ours again once the service is gone')
     assert.equal(view.menu().open, true)
+  } finally {
+    view.dispose()
+  }
+})
+
+it('leaves the gesture to the shell when its shared menu already claimed it', () => {
+  // The other door: a host that opens `ui-context-menu` on this row calls
+  // `preventDefault()` in its own trigger, which the bubble phase reads. The
+  // drawn menu must not open a second card over the host's own.
+  const view = mount()
+  try {
+    const event = view.contextMenu(view.file.children[0], 120, 240, true)
+    assert.equal(event.prevented, false, 'the host menu keeps the right-click')
+    assert.equal(event.stopped, false, 'and nothing downstream is blocked')
+    assert.equal(view.menu(), null, 'no menu of ours was drawn')
   } finally {
     view.dispose()
   }

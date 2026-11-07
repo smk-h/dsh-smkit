@@ -319,9 +319,10 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The code outline's watch: one document observer for previews, the toggle
     // it hangs in each header, and the panel it opens on demand.
     'smkit: outline/preview',
-    // The tree's right-click menu: one capture-phase contextmenu listener and
-    // the React root that draws the shell's own menu card — the "add to
-    // conversation" row included.
+    // The tree's menu: its dictionary, then the fallback watch that draws the
+    // shell's menu for the host's rows (see `features/explorer-menu`). The
+    // contributions to the shell's shared menu are not here: this harness has
+    // no `contextMenus` service, so they register on a host that has one.
     'smkit: explorer/menu',
     // The fold-everything button's watch: one document observer for the
     // neighbour's file windows, and the button it inserts beside each search

@@ -88,6 +88,8 @@ export interface ClientSessionsLike {
       readonly byId?: Readonly<Record<string, {
         readonly blank?: boolean
         readonly retainedBy?: Readonly<Record<string, number | undefined>>
+        /** The session's working directory — the explorer's root. */
+        readonly cwd?: string
       }>>
     }
   }
@@ -322,18 +324,73 @@ export interface TabMenuTarget {
   tab: { id: string }
 }
 
+/**
+ * One resolved row of a `file` / `directory` context menu.
+ *
+ * The same shape as {@link TabMenuAction} plus the two fields the shared menu
+ * grew for rows pinned below its scrolling area: `danger` for a destructive
+ * row, and `afterContent` to render in the footer — the pinned strip whose own
+ * hairline is what separates a plugin's rows from the shell's.
+ */
+export interface ContextMenuAction {
+  id: string
+  label: string
+  disabled?: boolean
+  /** Destructive row: the shell paints it in the danger colour. */
+  danger?: boolean
+  /** Glyph key answered by the `contextMenu.icon` seat. */
+  icon?: { key: string; src?: string }
+  /** Draw a hairline above this row. Ignored on the menu's first row. */
+  separatorBefore?: boolean
+  /** Render in the pinned footer instead of the scrolling list. */
+  afterContent?: boolean
+  run?: () => void
+}
+
+/** The clicked file, as a `file` context-menu contribution receives it. */
+export interface FileMenuTarget {
+  sessionId: string
+  /** Absolute path, as the tree publishes it. */
+  path: string
+  line?: number
+  paneId?: string
+}
+
+/** The clicked directory, as a `directory` context-menu contribution receives it. */
+export interface DirectoryMenuTarget {
+  sessionId: string
+  /** Absolute path; the workspace root itself for the tree's header row. */
+  path: string
+}
+
+/** One contribution to the shell's shared context menu. */
+export type ContextMenuContribution =
+  | {
+    id: string
+    target: 'tab'
+    order: number
+    resolve(target: TabMenuTarget, signal: AbortSignal): readonly TabMenuAction[] | Promise<readonly TabMenuAction[]>
+  }
+  | {
+    id: string
+    target: 'file'
+    order: number
+    resolve(target: FileMenuTarget, signal: AbortSignal): readonly ContextMenuAction[] | Promise<readonly ContextMenuAction[]>
+  }
+  | {
+    id: string
+    target: 'directory'
+    order: number
+    resolve(target: DirectoryMenuTarget, signal: AbortSignal): readonly ContextMenuAction[] | Promise<readonly ContextMenuAction[]>
+  }
+
 /** The slice of DSH's `contextMenus` service (`ui-context-menu`) this plugin uses. */
 export interface ContextMenusLike {
   /**
    * Register one contribution for later openings.
    * @returns the unregister, which the caller owns.
    */
-  register(contribution: {
-    id: string
-    target: 'tab'
-    order: number
-    resolve: (target: TabMenuTarget, signal: AbortSignal) => readonly TabMenuAction[] | Promise<readonly TabMenuAction[]>
-  }): () => void
+  register(contribution: ContextMenuContribution): () => void
 }
 
 /** One stylesheet a feature ships, keyed by its `data-smkit-css` name. */

@@ -343,8 +343,11 @@ function mount(options = {}) {
 
 it('contributes one action to the tab menu, after the shell’s own rows', () => {
   const view = mount({ pane: { all: ['tab-1'], right: [], close: true } })
-  assert.equal(view.contributions.length, 1)
-  assert.ok(view.contributions[0].order > 100, 'the column registers at 100')
+  // The bundle carries one other family of contributions — the explorer's
+  // `file` / `directory` rows — so the tab family is what this asserts on.
+  const tabs = view.contributions.filter((one) => one.target === 'tab')
+  assert.equal(tabs.length, 1)
+  assert.ok(tabs[0].order > 100, 'the column registers at 100')
   const [action] = view.resolve('tab-2')
   assert.equal(action.id, 'smkit.close-left')
   assert.equal(action.label, 'closeLeft')
@@ -353,9 +356,9 @@ it('contributes one action to the tab menu, after the shell’s own rows', () =>
 
 it('answers the icon key on the icon seat, with a component', () => {
   const view = mount()
-  const icon = view.registrations.find((one) => one.entry.name === 'contextMenu.icon')
+  const icon = view.registrations.find((one) => one.entry.key === 'smkit.close-left')
   assert.ok(icon, 'the icon seat is filled')
-  assert.equal(icon.entry.key, 'smkit.close-left')
+  assert.equal(icon.entry.name, 'contextMenu.icon')
   assert.equal(typeof icon.component, 'function')
 })
 

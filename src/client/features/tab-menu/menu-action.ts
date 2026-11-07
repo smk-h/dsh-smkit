@@ -35,7 +35,6 @@
 
 import type {
   ClientContext,
-  ContextMenusLike,
   TabMenuAction,
   TabMenuTarget,
   Translator,
@@ -73,17 +72,13 @@ interface SidebarRightLike {
   close?(id: string): void
 }
 
-/** The shell's menu service, read through reflection (an optional host). */
-export function contextMenusOf(ctx: ClientContext): ContextMenusLike | undefined {
-  try {
-    const menus = ctx.reflect?.get('contextMenus') as ContextMenusLike | undefined
-    return typeof menus?.register === 'function' ? menus : undefined
-  } catch {
-    // A reflection read that throws resolves nothing: the feature stands down
-    // and the menu keeps the rows the shell itself provides.
-    return undefined
-  }
-}
+/**
+ * The shell's menu service, read through reflection (an optional host).
+ *
+ * Re-exported from the platform layer since the explorer's rows reach the same
+ * service; a feature may use the platform, never a sibling feature.
+ */
+export { contextMenusOf } from '../../platform/context-menus'
 
 /** The column's controller, read through reflection (an optional host). */
 function sidebarOf(ctx: ClientContext): SidebarRightLike | undefined {
