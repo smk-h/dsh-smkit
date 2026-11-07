@@ -148,7 +148,9 @@ export function createExplorerActions(options: ExplorerActionsOptions): Explorer
     const body = tree?.querySelector(BODY) ?? null
     return {
       header: body?.previousElementSibling ?? null,
-      level: body?.querySelector(':scope > ul') ?? null,
+      // The first `ul` in the body is the root level, at whatever depth the
+      // shell wraps it: there is nothing above it but the header.
+      level: body?.querySelector('ul') ?? null,
     }
   }
 

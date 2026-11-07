@@ -80,11 +80,23 @@ const ICON_CLASS = 'smkit-explorer-new-row-icon'
 const INPUT_CLASS = 'smkit-explorer-new-row-input'
 const ERROR_CLASS = 'smkit-explorer-new-row-error'
 
-/** The editor row's height, in pixels — the source's `explorerRow` height. */
+/**
+ * The card's height when the row it replaces publishes no box.
+ *
+ * The card and the gap it opens are both the row's own height, measured from
+ * the row's trigger, so a shell that changes its row height (dense lists, a
+ * larger type ramp) carries this editor with it. The constant is only the
+ * fallback for a row that cannot be measured — a detached node (0), or a box
+ * far outside the range a row can have.
+ */
 const CARD_HEIGHT = 28
 
-/** The refusal line's height: 11px text, one line, 2px above and 2px below. */
+/** The refusal line's height when it cannot be measured: 11px text plus padding. */
 const ERROR_HEIGHT = 20
+
+/** What a row's height may be: below this the node is detached, above it is a subtree. */
+const MIN_ROW_HEIGHT = 16
+const MAX_ROW_HEIGHT = 64
 
 /** Characters Windows refuses in a name (control characters included). */
 const ILLEGAL_NAME_CHARS = /[<>:"|?*\u0000-\u001f]/
@@ -197,14 +209,11 @@ function iconElement(spec: IconSpec): Element {
  * @returns the row's trigger button, or null when this host draws none.
  */
 function rowTrigger(row: Element): Element | null {
-  const direct = row.querySelector(':scope > button')
-  if (direct !== null) return direct
-  for (const child of Array.from(row.children)) {
-    // One level only: the wrapper the shell adds, never a nested row's button.
-    const nested = child.querySelector(':scope > button')
-    if (nested !== null) return nested
-  }
-  return null
+  // The first button in a row is its trigger, however many wrappers the shell
+  // puts around it: the child level is a `ul` that follows that button, so no
+  // nested row's button can come first. The direct-child test stays first so a
+  // host that adds a handle before the trigger keeps working.
+  return row.querySelector(':scope > button') ?? row.querySelector('button')
 }
 
 /**
@@ -220,6 +229,12 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
   const renaming = options.mode === 'rename'
   const anchor = (options.anchor ?? rowTrigger(row) ?? row) as HTMLElement
 
+  /** The row's own height — the card's, and the gap the level gives up for it. */
+  const rowHeight = (): number => {
+    const measured = Math.round(anchor.getBoundingClientRect().height)
+    return measured >= MIN_ROW_HEIGHT && measured <= MAX_ROW_HEIGHT ? measured : CARD_HEIGHT
+  }
+
   /** The directory a creation lands in, and the directory the editor indents to. */
   const directory = renaming ? parentOf(options.path) : options.path
   /** The name the field starts with: '' for a creation, the entry's for a rename. */
@@ -228,7 +243,10 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
   // The source expands the directory first, so the new row is visible in the
   // level it belongs to. The shell's row button is the toggle. A rename edits a
   // row that is already on screen, so it never toggles anything.
-  if (!renaming && row.getAttribute('data-files-entry') === 'directory' && row.querySelector(':scope > ul') === null) {
+  // `ul` without `:scope`: a shell that wraps the level one layer deeper still
+  // gets the row expanded, and the first `ul` inside a row is always its level
+  // (the button precedes it).
+  if (!renaming && row.getAttribute('data-files-entry') === 'directory' && row.querySelector('ul') === null) {
     anchor.click()
   }
 
@@ -280,6 +298,9 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
   editor.appendChild(input)
   editor.appendChild(error)
   document.body.appendChild(editor)
+  // The card wears the row's own height, so a dense list or a larger type ramp
+  // moves both edges together; the stylesheet's 28px is only its floor.
+  editor.style.height = `${rowHeight()}px`
 
   // The glyph is drawn once the card is in the document: a React root mounted
   // into a detached container renders on the host's schedule, and moving that
@@ -306,7 +327,7 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
   let list: HTMLElement | null = null
   let listPadding = ''
   /** The gap the list has to give up: the card, plus the refusal line when shown. */
-  let reserve = CARD_HEIGHT
+  let reserve = rowHeight()
 
   const releaseList = (): void => {
     if (list === null) return
@@ -317,7 +338,7 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
   /** Take (or re-take) the card's height from the children list. */
   const reserveList = (): void => {
     if (renaming) return
-    const next = options.list === undefined ? row.querySelector(':scope > ul') : options.list()
+    const next = options.list === undefined ? row.querySelector('ul') : options.list()
     if (next === null || !(next instanceof Element)) return
     const element = next as HTMLElement
     if (element !== list) {
@@ -371,12 +392,23 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
     editor.remove()
   }
 
+  /**
+   * The refusal line's own height, measured once it is on screen.
+   *
+   * It rides the type ramp, so a themed shell may draw it taller than the
+   * constant; the constant is only used when the box cannot be read.
+   */
+  const errorHeight = (): number => {
+    const measured = Math.round(error.getBoundingClientRect().height)
+    return measured > 0 ? measured : ERROR_HEIGHT
+  }
+
   /** Keep the editor open and say why the name was refused. */
   const fail = (message: string): void => {
     error.textContent = message
     editor.setAttribute(INVALID_ATTR, '')
     // The refusal line needs its own gap, or it would sit on the next entry.
-    reserve = CARD_HEIGHT + ERROR_HEIGHT
+    reserve = rowHeight() + errorHeight()
     reserveList()
     input.focus()
   }

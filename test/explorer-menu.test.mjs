@@ -782,8 +782,8 @@ it('creates at the root, seated under the header row', async () => {
     assert.equal(editor.style.width, '160px')
     assert.equal(
       view.treeBody.children[0].style.paddingTop,
-      '28px',
-      'the top level lends the editor its one row of height',
+      '20px',
+      'the top level lends the editor the row height it measured',
     )
     const input = editor.querySelector('input')
     input.value = 'docs'
@@ -843,7 +843,26 @@ it('seats the editor under the row, not under an expanded directory’s subtree'
     view.select('new-folder')
     const editor = view.body.querySelector('[data-smkit-explorer-new-row]')
     assert.equal(editor.style.top, '20px', 'the row’s own bottom edge, not the subtree’s')
-    assert.equal(level.style.paddingTop, '28px', 'and the level still lends the gap')
+    assert.equal(level.style.paddingTop, '20px', 'and the level still lends the gap it measured')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('follows the row height the tree publishes, card and gap alike', () => {
+  // Nothing here is a fixed 28px: a dense list or a larger type ramp on the host
+  // moves the card's height and the gap the level opens with it.
+  const view = mount({ nestedRows: true })
+  try {
+    const level = new SandboxElement('ul')
+    view.dir.appendChild(level)
+    const trigger = view.dir.querySelector(':scope > div').querySelector(':scope > button')
+    trigger.rect = { x: 0, y: 0, left: 0, top: 0, right: 160, bottom: 34, width: 160, height: 34 }
+    view.contextMenu(trigger)
+    view.select('new-folder')
+    const editor = view.body.querySelector('[data-smkit-explorer-new-row]')
+    assert.equal(editor.style.height, '34px', 'the card wears the row’s own height')
+    assert.equal(level.style.paddingTop, '34px', 'and the level gives up exactly that')
   } finally {
     view.dispose()
   }
