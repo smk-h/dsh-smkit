@@ -89,6 +89,8 @@ class SandboxElement {
     this.textContent = ''
     this.type = ''
     this.value = ''
+    /** Overrides the one shared row box; a test that needs two sizes sets it. */
+    this.rect = null
     this.listeners = new Map()
     this.focused = false
     this.offsetWidth = 0
@@ -214,9 +216,13 @@ class SandboxElement {
     this.focused = true
   }
 
-  /** Layout is not simulated: one row-sized rectangle is enough to pin to. */
+  /**
+   * Layout is not simulated: one row-sized rectangle is enough to pin to. A
+   * test that needs two different boxes (a row inside an expanded directory)
+   * assigns `rect` on the element it cares about.
+   */
   getBoundingClientRect() {
-    const known = { x: 0, y: 0, left: 0, top: 0, right: 160, bottom: 20, width: 160, height: 20 }
+    const known = this.rect ?? { x: 0, y: 0, left: 0, top: 0, right: 160, bottom: 20, width: 160, height: 20 }
     return { ...known, toJSON: () => known }
   }
 
@@ -253,8 +259,15 @@ class SandboxElement {
   }
 }
 
-/** One tree row: `<li data-files-entry=… data-files-path=…><button>name</button></li>`. */
-function row(kind, path) {
+/**
+ * One tree row.
+ *
+ * `nested` reproduces the shape `ui-sidebar-files` renders from 0.2.x on —
+ * `<li data-files-entry=… data-files-path=…><div><button>name</button></div></li>`
+ * — while the default is the 0.1.x shape the rest of the suites were written
+ * against (`<li><button>name</button></li>`).
+ */
+function row(kind, path, nested = false) {
   const item = new SandboxElement('li')
   item.setAttribute('data-files-entry', kind)
   if (path !== undefined) item.setAttribute('data-files-path', path)
@@ -262,7 +275,13 @@ function row(kind, path) {
   const name = new SandboxElement('span')
   name.textContent = path === undefined ? '?' : path.split('/').pop()
   button.appendChild(name)
-  item.appendChild(button)
+  if (nested) {
+    const wrapper = new SandboxElement('div')
+    wrapper.appendChild(button)
+    item.appendChild(wrapper)
+  } else {
+    item.appendChild(button)
+  }
   return item
 }
 
@@ -292,9 +311,10 @@ function mount(options = {}) {
   tree.appendChild(header)
   tree.appendChild(body)
   shell.appendChild(tree)
-  const noPath = row('file', undefined)
-  const file = row('file', '/ws/src/a.ts')
-  const dir = row('directory', '/ws/src')
+  const nested = options.nestedRows === true
+  const noPath = row('file', undefined, nested)
+  const file = row('file', '/ws/src/a.ts', nested)
+  const dir = row('directory', '/ws/src', nested)
   for (const item of [noPath, file, dir]) level.appendChild(item)
 
   const timers = []
@@ -338,6 +358,8 @@ function mount(options = {}) {
     useCallback: (callback) => callback,
   }
   const Menu = (props) => { rendered = props; return null }
+  /** The shell's file-type glyph, mounted by the editor once it types a name. */
+  const FileTypeIcon = (props) => { return { type: 'FileTypeIcon', props } }
 
   /**
    * The creating routes' stand-in: every request the bundle makes, and the
@@ -361,18 +383,23 @@ function mount(options = {}) {
             if (id === 'react-dom') return { createPortal: () => null }
             if (id === 'react-dom/client') {
               return {
-                createRoot: () => {
+                createRoot: (container) => {
                   const root = {
+                    /** The element the root renders into, for the glyph assertions. */
+                    container,
+                    /** Whether that element was in the document when mounted. */
+                    connected: container?.isConnected === true,
                     /** What this root last rendered, so its unmount can retract it. */
                     current: null,
                     render: (node) => {
                       if (node === null || node === undefined) return
-                      root.current = node.props ?? {}
-                      if (Array.isArray(root.current.items)) rendered = root.current
-                      else if (typeof root.current.title === 'string') dialog = root.current
+                      root.current = node
+                      const props = node.props ?? {}
+                      if (Array.isArray(props.items)) rendered = props
+                      else if (typeof props.title === 'string') dialog = props
                     },
                     unmount: () => {
-                      if (root.current !== null && dialog === root.current) dialog = null
+                      if (root.current !== null && dialog === root.current.props) dialog = null
                       root.current = null
                       root.unmounted = true
                     },
@@ -390,6 +417,12 @@ function mount(options = {}) {
                   clipboard.texts.push(text)
                   return clipboard.accept
                 },
+                // The shell's type glyphs are optional on purpose: a host that
+                // seeds none makes the editor draw its own. `fileTypes` asks for
+                // the seeded path, which is the one a 0.2.x shell takes.
+                ...(options.fileTypes === true
+                  ? { FileTypeIcon, classifyFileType: () => 'code' }
+                  : {}),
               }
             }
             throw new Error(`no platform module ${id}`)
@@ -480,6 +513,8 @@ function mount(options = {}) {
     file,
     dir,
     roots,
+    /** The stand-in for the shell's file-type glyph. */
+    fileTypeIcon: FileTypeIcon,
     clipboard,
     requests,
     /** The confirm dialog's props, or null when none is open. */
@@ -787,6 +822,54 @@ it('opens the inline editor under the row and creates the file on Enter', async 
     assert.equal(view.requests[0].method, 'POST')
     assert.deepEqual(JSON.parse(view.requests[0].body), { path: '/ws/src', name: 'todo.md' })
     assert.equal(view.body.querySelector('[data-smkit-explorer-new-row]'), null, 'it closes on success')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('seats the editor under the row, not under an expanded directory’s subtree', () => {
+  // From 0.2.x the shell wraps a row in a `div` (`li > div > button`). A lookup
+  // that stops at direct children finds no button there and falls back to the
+  // `li` — which, for an expanded directory, contains the whole subtree, so its
+  // bottom edge is the last child's and the editor floats under every entry.
+  const view = mount({ nestedRows: true })
+  try {
+    const level = new SandboxElement('ul')
+    view.dir.appendChild(level)
+    view.dir.rect = { x: 0, y: 0, left: 0, top: 0, right: 160, bottom: 120, width: 160, height: 120 }
+    const trigger = view.dir.querySelector(':scope > div').querySelector(':scope > button')
+    trigger.rect = { x: 0, y: 0, left: 0, top: 0, right: 160, bottom: 20, width: 160, height: 20 }
+    view.contextMenu(trigger)
+    view.select('new-folder')
+    const editor = view.body.querySelector('[data-smkit-explorer-new-row]')
+    assert.equal(editor.style.top, '20px', 'the row’s own bottom edge, not the subtree’s')
+    assert.equal(level.style.paddingTop, '28px', 'and the level still lends the gap')
+  } finally {
+    view.dispose()
+  }
+})
+
+it('paints the seeded glyph once the card is in the document, folder and file apart', () => {
+  const view = mount({ fileTypes: true })
+  try {
+    view.contextMenu(view.dir.children[0])
+    view.select('new-file')
+    const iconRoot = view.roots.find((root) => root.container?.className === 'smkit-explorer-new-row-icon')
+    assert.ok(iconRoot, 'the glyph has a root of its own')
+    assert.equal(iconRoot.connected, true, 'mounted after the card joined the document')
+    assert.equal(iconRoot.current.type, view.fileTypeIcon)
+    assert.equal(iconRoot.current.props.kind, 'code', 'a file takes the shell’s classifier')
+    assert.equal(iconRoot.current.props.size, 14)
+
+    // Switching the row to a folder asks for the folder glyph, not a classified
+    // one: a directory has no extension to read.
+    const input = view.body.querySelector('[data-smkit-explorer-new-row]').querySelector('input')
+    input.dispatch('keydown', { key: 'Escape' })
+    view.contextMenu(view.dir.children[0])
+    view.select('new-folder')
+    const folderRoot = [...view.roots].reverse()
+      .find((root) => root.container?.className === 'smkit-explorer-new-row-icon')
+    assert.equal(folderRoot.current.props.kind, 'folder')
   } finally {
     view.dispose()
   }

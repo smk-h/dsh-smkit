@@ -185,6 +185,29 @@ function iconElement(spec: IconSpec): Element {
 }
 
 /**
+ * The button that carries a row's own box.
+ *
+ * `ui-sidebar-files` wraps the row in a `div` from 0.2.x on
+ * (`li > div > button`); 0.1.x put the button straight under the `li`. The `li`
+ * is NOT a substitute: an expanded directory's `li` contains the whole subtree,
+ * so its bottom edge is the last child's, not the row's — an editor pinned there
+ * lands under every child instead of in the gap the level opened for it.
+ *
+ * @param row - one `li[data-files-entry]`.
+ * @returns the row's trigger button, or null when this host draws none.
+ */
+function rowTrigger(row: Element): Element | null {
+  const direct = row.querySelector(':scope > button')
+  if (direct !== null) return direct
+  for (const child of Array.from(row.children)) {
+    // One level only: the wrapper the shell adds, never a nested row's button.
+    const nested = child.querySelector(':scope > button')
+    if (nested !== null) return nested
+  }
+  return null
+}
+
+/**
  * Open the inline editor for one menu row.
  *
  * The caller owns the single-editor rule: it closes the previous handle before
@@ -195,7 +218,7 @@ function iconElement(spec: IconSpec): Element {
 export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
   const { api, t, kind, row } = options
   const renaming = options.mode === 'rename'
-  const anchor = (options.anchor ?? row.querySelector(':scope > button') ?? row) as HTMLElement
+  const anchor = (options.anchor ?? rowTrigger(row) ?? row) as HTMLElement
 
   /** The directory a creation lands in, and the directory the editor indents to. */
   const directory = renaming ? parentOf(options.path) : options.path
@@ -237,12 +260,6 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
     if (iconRoot === null) iconRoot = typeIcon.createRoot(icon)
     iconRoot.render(node)
   }
-  if (typeIcon === undefined) {
-    icon.appendChild(iconElement(kind === 'folder' ? PLUS_ICON : NEW_FILE_ICON))
-  } else {
-    paintIcon(current)
-  }
-
   const input = document.createElement('input')
   input.className = INPUT_CLASS
   input.setAttribute('type', 'text')
@@ -263,6 +280,15 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
   editor.appendChild(input)
   editor.appendChild(error)
   document.body.appendChild(editor)
+
+  // The glyph is drawn once the card is in the document: a React root mounted
+  // into a detached container renders on the host's schedule, and moving that
+  // container afterwards is the one order the shell's own rows never ask for.
+  if (typeIcon === undefined) {
+    icon.appendChild(iconElement(kind === 'folder' ? PLUS_ICON : NEW_FILE_ICON))
+  } else {
+    paintIcon(current)
+  }
 
   /** The viewport, where `resize` actually fires (guarded for the Node harness). */
   const viewport = typeof window === 'undefined' ? undefined : window

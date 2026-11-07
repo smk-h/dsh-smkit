@@ -30,12 +30,25 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The glyph seat. Its size is stated here rather than left to the host glyph:
+ * the card floats over the tree, so it has to hold the column whether the host
+ * seeds a file-type icon or this feature draws its own. The colour keeps its
+ * host token but does not depend on it existing — an older shell that spells
+ * the ramp differently still paints a visible glyph. */
 .smkit-explorer-new-row-icon {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  color: var(--dsw-alias-label-tertiary);
+  width: 14px;
+  height: 14px;
+  color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-tertiary));
+}
+
+.smkit-explorer-new-row-icon > svg {
+  display: block;
+  width: 14px;
+  height: 14px;
 }
 
 .smkit-explorer-new-row-input {
