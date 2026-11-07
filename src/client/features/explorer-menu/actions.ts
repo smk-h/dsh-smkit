@@ -75,6 +75,12 @@ const ROW = 'li[data-files-entry]'
 const TREE = '[data-files-state="tree"]'
 /** The listing's scroll body — the level sits directly inside it. */
 const BODY = '[data-files-body]'
+/**
+ * The page that owns the tree, from 0.2.x: its header row (the root's path
+ * label, the reload control, the directory actions) is a SIBLING of the tree,
+ * not a child of it.
+ */
+const PAGE = '[data-files-page]'
 
 /** This feature's markers: the transient label, and the row that carries it. */
 const LABEL = 'data-smkit-explorer-label'
@@ -142,12 +148,22 @@ export function createExplorerActions(options: ExplorerActionsOptions): Explorer
   /**
    * The tree's root anchor: the header row above the listing (the root has no
    * row of its own) and the listing's top level the create borrows.
+   *
+   * Where that header lives changed with the shell: up to 0.1.x it was the
+   * scroll body's previous sibling, inside the tree. From 0.2.x the tree is an
+   * `<aside>` inside a page whose header — the root's `PathLabel`, the reload
+   * control and the directory actions — sits OUTSIDE that `<aside>`, so the
+   * body has no header sibling at all; the root's own menu would find nothing
+   * to anchor to and every create at the root silently did nothing. The page
+   * is the stable anchor there (`data-files-page`), and its first child is
+   * that header row.
    */
   const rootParts = (root: string): { header: Element | null; level: Element | null } => {
     const tree = treeOf(root)
     const body = tree?.querySelector(BODY) ?? null
+    const page = tree?.closest(PAGE) ?? null
     return {
-      header: body?.previousElementSibling ?? null,
+      header: page?.children[0] ?? body?.previousElementSibling ?? null,
       // The first `ul` in the body is the root level, at whatever depth the
       // shell wraps it: there is nothing above it but the header.
       level: body?.querySelector('ul') ?? null,

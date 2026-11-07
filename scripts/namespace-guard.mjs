@@ -300,6 +300,14 @@ export const FOREIGN_DATA_ATTRS = [
    * own row with `data-smkit-menu-lead`.
    */
   'data-context-menu',
+  /**
+   * The files page from 0.2.x (`FilesBody` in ui-sidebar-files): the tree is an
+   * `<aside>` inside this page, and the root's own path label — the row a
+   * right-click on the workspace root lands on — is in the page's header, a
+   * sibling of that `<aside>` rather than a child of it. The explorer's root
+   * anchor reads this to find the header at all. Read only.
+   */
+  'data-files-page',
 ]
 
 /**

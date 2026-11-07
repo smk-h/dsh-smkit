@@ -308,9 +308,22 @@ function mount(options = {}) {
   body.setAttribute('data-files-body', '')
   const level = new SandboxElement('ul')
   body.appendChild(level)
-  tree.appendChild(header)
-  tree.appendChild(body)
-  shell.appendChild(tree)
+  if (options.page === true) {
+    // 0.2.x: the header (the root's PathLabel, the reload control) is a sibling
+    // of the tree, inside a page — not a child of the tree at all.
+    const content = new SandboxElement('div')
+    const page = new SandboxElement('div')
+    page.setAttribute('data-files-page', '')
+    content.appendChild(tree)
+    tree.appendChild(body)
+    page.appendChild(header)
+    page.appendChild(content)
+    shell.appendChild(page)
+  } else {
+    tree.appendChild(header)
+    tree.appendChild(body)
+    shell.appendChild(tree)
+  }
   const nested = options.nestedRows === true
   const noPath = row('file', undefined, nested)
   const file = row('file', '/ws/src/a.ts', nested)
@@ -792,6 +805,26 @@ it('creates at the root, seated under the header row', async () => {
     assert.equal(view.requests.length, 1)
     assert.equal(view.requests[0].url, '/smkit/api/explorer/create-folder')
     assert.deepEqual(JSON.parse(view.requests[0].body), { path: '/ws', name: 'docs' })
+  } finally {
+    view.dispose()
+  }
+})
+
+it('creates at the root on a 0.2.x page, whose header sits outside the tree', () => {
+  // The shell moved the root's path label out of the tree: it is the page
+  // header now, a sibling of the `<aside>` that holds the listing. A root
+  // create that only looks for the body's previous sibling finds nothing —
+  // which is how "new folder / new file" went silent at the workspace root.
+  const view = mount({ page: true })
+  try {
+    view.header.rect = { x: 0, y: 0, left: 0, top: 0, right: 160, bottom: 24, width: 160, height: 24 }
+    view.contextMenu(view.header.children[0])
+    assert.equal(view.menu()?.open, true, 'the root menu opens from the page header')
+    view.select('new-folder')
+    const editor = view.body.querySelector('[data-smkit-explorer-new-row]')
+    assert.notEqual(editor, null, 'the editor appears at all')
+    assert.equal(editor.style.top, '24px', 'seated under the page header')
+    assert.equal(view.treeBody.children[0].style.paddingTop, '24px', 'the top level lends the gap')
   } finally {
     view.dispose()
   }

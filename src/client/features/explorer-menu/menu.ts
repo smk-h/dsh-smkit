@@ -56,6 +56,8 @@ const ROW = 'li[data-files-entry]'
 const TREE = '[data-files-state="tree"]'
 /** The listing's scroll body — the level sits directly inside it. */
 const BODY = '[data-files-body]'
+/** The page that owns the tree from 0.2.x; its header is outside the tree. */
+const PAGE = '[data-files-page]'
 
 /**
  * The row the open menu belongs to. The shell paints `row:hover` on the row's
@@ -235,11 +237,14 @@ export function watchExplorerMenu(
    * `data-files-root`.
    */
   const rootTarget = (node: Element, event: MouseEvent): MenuTarget | null => {
-    const tree = node.closest(TREE)
+    // From 0.2.x the tree is an `<aside>` inside a page, and the root's own
+    // path label lives in that page's header — outside the tree. The page is
+    // the second way in, for a press on the label itself.
+    const tree = node.closest(TREE) ?? node.closest(PAGE)?.querySelector(TREE) ?? null
     if (tree === null) return null
     const path = tree.getAttribute('data-files-root') ?? ''
     const body = tree.querySelector(BODY)
-    const header = body?.previousElementSibling ?? null
+    const header = tree.closest(PAGE)?.children[0] ?? body?.previousElementSibling ?? null
     if (path === '' || body === null || header === null) return null
     return { row: header, path, root: path, kind: 'root', x: event.clientX, y: event.clientY }
   }
