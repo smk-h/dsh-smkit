@@ -326,6 +326,14 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
    */
   let list: HTMLElement | null = null
   let listPadding = ''
+  /**
+   * The level's own indent, read once per borrowed list.
+   *
+   * `getComputedStyle` forces a style pass; the tree scrolls far more often
+   * than it changes its indent, so the answer is kept until the list is
+   * replaced (a refresh swaps the `ul`, and `releaseList` clears it).
+   */
+  let listIndent: number | null = null
   /** The gap the list has to give up: the card, plus the refusal line when shown. */
   let reserve = rowHeight()
 
@@ -333,6 +341,7 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
     if (list === null) return
     list.style.paddingTop = listPadding
     list = null
+    listIndent = null
   }
 
   /** Take (or re-take) the card's height from the children list. */
@@ -366,17 +375,40 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
     }
     // A creation belongs to the level INSIDE the row, so it starts where that
     // level's rows start — the list's padding, which is the shell's indent.
-    const indent = list === null || typeof getComputedStyle !== 'function'
-      ? 0
-      : Number.parseFloat(getComputedStyle(list).paddingLeft) || 0
-    editor.style.left = `${rect.left + indent}px`
+    if (listIndent === null) {
+      listIndent = list === null || typeof getComputedStyle !== 'function'
+        ? 0
+        : Number.parseFloat(getComputedStyle(list).paddingLeft) || 0
+    }
+    editor.style.left = `${rect.left + listIndent}px`
     editor.style.top = `${rect.bottom}px`
-    editor.style.width = `${Math.max(rect.width - indent, 0)}px`
+    editor.style.width = `${Math.max(rect.width - listIndent, 0)}px`
+  }
+
+  /**
+   * One reposition per frame.
+   *
+   * Scroll fires many times per frame and the tree re-renders in bursts; each
+   * pass reads a layout box (and may write one), so they are coalesced rather
+   * than served one by one. The first call still runs synchronously so the card
+   * never appears in the wrong place for a frame.
+   */
+  let frame = 0
+  const schedule = (): void => {
+    if (frame !== 0) return
+    if (typeof requestAnimationFrame !== 'function') {
+      reposition()
+      return
+    }
+    frame = requestAnimationFrame(() => {
+      frame = 0
+      reposition()
+    })
   }
 
   // The children list of a just-expanded directory arrives after the click, and
   // the shell may replace it on any re-render; both are why this watches.
-  const watcher = typeof MutationObserver === 'undefined' ? undefined : new MutationObserver(() => { reposition() })
+  const watcher = typeof MutationObserver === 'undefined' ? undefined : new MutationObserver(() => { schedule() })
   watcher?.observe(row, { childList: true })
   reposition()
 
@@ -385,10 +417,12 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
     if (settled) return
     settled = true
     watcher?.disconnect()
+    if (frame !== 0 && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(frame)
+    frame = 0
     releaseList()
     iconRoot?.unmount()
-    document.removeEventListener('scroll', reposition, true)
-    viewport?.removeEventListener?.('resize', reposition)
+    document.removeEventListener('scroll', schedule, true)
+    viewport?.removeEventListener?.('resize', schedule)
     editor.remove()
   }
 
@@ -496,8 +530,8 @@ export function openRowEditor(options: RowEditorOptions): RowEditorHandle {
   // The source commits on blur; so does this, which is also what makes "click
   // somewhere else" behave like Enter rather than like a silent discard.
   input.addEventListener('blur', () => { commit() })
-  document.addEventListener('scroll', reposition, true)
-  viewport?.addEventListener?.('resize', reposition)
+  document.addEventListener('scroll', schedule, true)
+  viewport?.addEventListener?.('resize', schedule)
   input.focus()
   // A rename opens with the whole name selected, as the source's ref does.
   if (renaming && typeof input.select === 'function') input.select()
