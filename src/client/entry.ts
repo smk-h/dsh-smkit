@@ -23,6 +23,7 @@ import { explorerMenuFeature } from './features/explorer-menu/client'
 import { inputHistoryFeature } from './features/input-history/client'
 import { lineJumpFeature } from './features/line-jump/client'
 import { markdownOutlineFeature } from './features/markdown-outline/client'
+import { mcpCommandFeature } from './features/mcp-command/client'
 import { openSpecFeature } from './features/openspec/client'
 import { outlineFeature } from './features/outline/client'
 import { selectionQuoteFeature } from './features/selection-quote/client'
@@ -63,6 +64,9 @@ const FEATURES: ClientFeature[] = [
   sessionDeleteFeature,
   notifyFeature,
   settingsFeature,
+  // The `/mcp` picker: it decorates the HOST command's bare invocation, so it
+  // registers after the pages and before the surfaces that decorate the shell.
+  mcpCommandFeature,
   openSpecFeature,
   themeCenterFeature,
   tabMenuFeature,

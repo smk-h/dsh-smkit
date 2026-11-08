@@ -600,7 +600,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       source: 'workspace',
       status,
       toolCount,
-      tools: toolViews(tools),
+      tools: toolViews(tools, server.name),
       error,
     }
     applyTransportFields(view, server)

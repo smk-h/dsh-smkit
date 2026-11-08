@@ -309,6 +309,35 @@ export function placeComposerCaretAfterInsert(expectedDraft: string, caretIndex:
 }
 
 /**
+ * Replace the session's draft with one complete command line, caret at the end.
+ *
+ * The `/mcp` picker's call rows use this instead of submitting: a tool with no
+ * required parameter still usually wants some, so the row only completes the
+ * line and the reader edits it before pressing Enter. `setDraft` is the right
+ * primitive rather than the caret insert — the popup closes with the trigger
+ * token still in the draft and consumes it only after `onSelect` returns, and
+ * that consume is revision-guarded, so the whole-line write wins and the stale
+ * span is dropped.
+ *
+ * @param ctx - the client context.
+ * @param sessionId - the session whose composer receives the line.
+ * @param line - the full command line to place in the draft.
+ * @returns whether the draft was written.
+ */
+export function setComposerLine(ctx: ClientContext, sessionId: string, line: string): boolean {
+  const input = resolveInput(ctx, sessionId)
+  if (input === undefined) return false
+  try {
+    input.setDraft(line)
+    placeComposerCaretAfterInsert(line, line.length)
+    return true
+  } catch (error) {
+    console.warn('[smkit] draft write failed:', error)
+    return false
+  }
+}
+
+/**
  * Insert `text` into the session's draft at the composer's live caret,
  * appending when the caret cannot be resolved. False (and logged) when the
  * conversation service or the session scope is unavailable.

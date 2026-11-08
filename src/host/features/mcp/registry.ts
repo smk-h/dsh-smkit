@@ -197,7 +197,7 @@ export function createRegistry(deps: RegistryDeps): Registry {
       toolCount: conn?.toolCount ?? 0,
       // The registration map is keyed by raw tool name, so its values carry the
       // entry the server declared (see `RegisteredTool.info`).
-      tools: conn ? toolViews([...conn.tools.values()].map((entry) => entry.info)) : [],
+      tools: conn ? toolViews([...conn.tools.values()].map((entry) => entry.info), server.name) : [],
       error: conn?.error ?? '',
       authMode: type === 'stdio' ? undefined : server.authMode,
     }

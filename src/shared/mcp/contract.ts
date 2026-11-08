@@ -44,6 +44,15 @@ export type ServerStatus =
 export interface ToolView {
   /** The MCP `tools/list` name. */
   name: string
+  /**
+   * The model-facing `mcp__<server>__<tool>` name: what `tools/call` resolves
+   * and what every caller outside the settings page must pass (the slash
+   * command's `help`/`call`, the broker's tool rows). Derived here because the
+   * projection is the only place that knows both halves, and the rule is
+   * `naming.ts`'s one implementation, not a copy the browser would have to keep
+   * byte-identical.
+   */
+  publicName: string
   /** The server's own description, empty when it sent none. */
   description: string
   /** Sanitised input schema — the same `convParams` output the registry

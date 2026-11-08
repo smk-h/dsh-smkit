@@ -71,6 +71,14 @@ export interface ClientSessionsLike {
    */
   scope?(id: string): unknown
   /**
+   * One session's binding, for the session-scoped command face
+   * (`binding.session.command(line)` — the same admission call the shell's own
+   * slash menu makes). Optional: a host without it costs the caller the
+   * command submission and nothing else, and the caller also has the reflection
+   * route through `remote.commands.execute`.
+   */
+  binding?(id: string): { session?: { command?(line: string): Promise<unknown> } } | undefined
+  /**
    * The host-authoritative session list (`ISessions.list`), read only to
    * predict whether a removal turns the main view absent or blank — the
    * condition the settings shell answers by closing itself (see
@@ -391,6 +399,64 @@ export interface ContextMenusLike {
    * @returns the unregister, which the caller owns.
    */
   register(contribution: ContextMenuContribution): () => void
+}
+
+/** One row of a `popupSelect` panel (`SelectOption` in `ui-commands`). */
+export interface SelectOptionLike {
+  /** Opaque row identity; this plugin puts the command line it submits here. */
+  id: string
+  label: string
+  /** Short marker printed beside the label — used here to mark a direct call. */
+  badge?: string
+  /** Secondary line under the label; a tool's own description rides here. */
+  detail?: string
+  /** Equal group names share a sticky heading; groups keep first-seen order. */
+  group?: { name: string; label: string }
+}
+
+/** The session projection a decoration's callbacks receive. */
+export interface CommandSessionLike {
+  sessionId: string
+}
+
+/**
+ * The `popupSelect` panel a decoration opens (`PopupSelectSpec` in
+ * `ui-commands`): the shared picker shell — search box, groups, keyboard walk —
+ * with this plugin supplying only the rows.
+ */
+export interface PopupSelectLike {
+  kind: 'popupSelect'
+  /** Defaults to substring; `fuzzy-label` is what the model picker uses. */
+  searchMode?: 'substring' | 'fuzzy-label'
+  /** Search-box copy for this opening; omitted uses the shell's generic text. */
+  searchLabels?(): { placeholder: string; empty: string; noResults: string }
+  options(
+    session: CommandSessionLike,
+    signal: AbortSignal,
+  ): Promise<readonly SelectOptionLike[]>
+  onSelect(option: SelectOptionLike, session: CommandSessionLike): void | Promise<void>
+}
+
+/**
+ * A UI decoration hung on one HOST command (`CommandDecoration` in
+ * `ui-commands`): what its bare invocation does on this client. The host
+ * command keeps its catalog row, its argument claim and its lifecycle logging;
+ * this only replaces the bare menu-pick with a picker.
+ */
+export interface CommandDecorationLike {
+  /** The host command name this decorates (without the leading slash). */
+  name: string
+  available(session: CommandSessionLike): boolean
+  ui: PopupSelectLike
+}
+
+/** The slice of DSH's `commandUi` service (`ui-commands`) this plugin uses. */
+export interface CommandUiLike {
+  /**
+   * Hang a bare-invocation decoration on one host command.
+   * @returns the disposer removing the decoration.
+   */
+  decorate(decoration: CommandDecorationLike): () => void
 }
 
 /** One stylesheet a feature ships, keyed by its `data-smkit-css` name. */

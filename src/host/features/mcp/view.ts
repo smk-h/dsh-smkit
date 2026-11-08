@@ -10,6 +10,7 @@
  */
 
 import { MAX_DESCRIPTION_LENGTH } from './constants.js'
+import { publicName } from './mcp/naming.js'
 import { convParams } from './mcp/schema.js'
 import type { McpToolInfo, ToolView } from './types.js'
 import type { ServerView, WorkspaceServerView } from '../../../shared/mcp/contract.js'
@@ -40,10 +41,20 @@ export function applyTransportFields(
  * The description is capped at the same length the registry caps the
  * model-facing copy at: it is the one field here the server controls the size
  * of, and the list rides the settings page's 3-second poll.
+ *
+ * The public name comes from the server name because only this projection sees
+ * both halves of it; every caller that must address the registered tool
+ * (`/mcp help`, `/mcp call`, a picker that completes a command line) reads it
+ * from here instead of re-deriving the rule.
+ *
+ * @param tools - the raw `tools/list` entries of one server.
+ * @param server - the server those entries came from; its name is the prefix.
+ * @returns the rows the settings page and the command picker both render.
  */
-export function toolViews(tools: readonly McpToolInfo[]): ToolView[] {
+export function toolViews(tools: readonly McpToolInfo[], server: string): ToolView[] {
   return tools.map((tool) => ({
     name: tool.name,
+    publicName: publicName(server, tool.name),
     description:
       typeof tool.description === 'string' ? tool.description.slice(0, MAX_DESCRIPTION_LENGTH) : '',
     parameters: convParams(tool.inputSchema),

@@ -263,6 +263,8 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The plugin gallery's dictionary, seated by the merged section the same
     // way: its list is data, but the one line per card is copy.
     'smkit: plugin-gallery/dictionaries',
+    // The `/mcp` picker's dictionary (search box, group heading, row copy).
+    'smkit: mcp-command/dictionaries',
     'smkit: openspec/dictionaries',
     'smkit: theme-center/dictionaries',
     // The right sidebar's tab menu: its dictionary only — the batch rows are
@@ -297,6 +299,10 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // hosts, holding one event-stream open for the host's pushed decisions.
     'smkit: notify/web-delivery',
     'smkit: merged settings nav row',
+    // The `/mcp` picker's decoration of the host command. This harness
+    // publishes no `commandUi` service, so the effect resolves to the
+    // stand-down disposer — the label is still the registration's own.
+    'smkit: mcp/command panel',
     // The theme center's mount-time half: the swap element, the saved mode and
     // theme, and the programmatic API — all before the settings row renders.
     'smkit: theme-center/restore',
