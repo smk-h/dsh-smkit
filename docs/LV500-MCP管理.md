@@ -9,7 +9,7 @@
 - **传输**：远程 HTTP 支持 OAuth PKCE + 动态客户端注册、静态 Bearer Token 与无鉴权三种认证，无鉴权模式不发送 `Authorization` 头，适合本机这类不做认证的端点（如 `http://127.0.0.1:9316/mcp`）；本地 stdio 直接拉起子进程。
 - **工作区隔离**：工作区独享的服务器写在 `<workspace>/.dsh/dshmm/mcp.json`，全局服务器也可按工作区屏蔽；作用域选择旁可一键打开当前生效的配置文件（全局为 `~/.dsh/mcp-manager.json` 状态文件，工作区为该工作区的 `mcp.json`）。连接在会话之间如何复用与释放，见「五、连接归属与生命周期」。
 - **命名**：服务器名取 1～32 位 `[A-Za-z0-9_-]`，与工具原始名拼成模型可见的 `mcp__<服务器名>__<工具名>`；不同工作区可声明同名服务器，规则见「四、命名规则」。
-- **与上游共存**：同一个 profile 若还装着 `dsh-mcp-manager`（本插件的前身），本插件的 MCP 部分**自动退避**：不注册 `mcp__*` 工具、不提供 `/mcp` 命令、不占用 `mcp` 语言命名空间、设置区不显示 MCP 页，MCP 全部交给上游；技能、主题、大纲、通知等功能照常。判据是 profile 的 `dsh.profile.bundles`——装了但没被加载不会触发退避，两个都加载时也只有一个在管 MCP。
+- **与上游共存**：同一个 profile 若还装着 `dsh-mcp-manager`（本插件的前身），本插件的 MCP 部分**自动退避**：不注册 `mcp__*` 工具、不提供 `/mcp` 命令、不占用 `mcp` 语言命名空间、设置区不显示 MCP 页，MCP 全部交给上游；技能、主题、大纲、通知等功能照常。判据是 profile 的 `dsh.profile.bundles`——装了但没被加载不会触发退避，两个都加载时也只有一个在管 MCP。改动装配或语言命名空间后，用 [`test/cases/LV006-MCP上游共存退避.md`](../test/cases/LV006-MCP上游共存退避.md) 复验两种装配。
 - **运行时控制**：可重启或关闭单个服务器的连接，长连接断开后不必重启 dsh；「高级」里还可开启掉线自动重连，由插件自己发现并重建连接（见「三、掉线自动重连」）。
 - **接口准入**：插件自己的 HTTP 接口（`/smkit/api/*`）走 DSH 的准入判定——没有 DSH 会话 401，Host/Origin 不符 403，宿主没有 `connection` 服务时 503 而不是匿名放行；OAuth 回调页豁免会话校验（IdP 跳转不带 cookie），由回调自身校验 `state`。
 
@@ -26,7 +26,7 @@
 
 「设置 → MCP」页提供「按需 MCP 工具调用」开关（可选）：开启后该 MCP 仅暴露 search、describe、execute 三个 broker 工具，避免几十个工具一次性占满上下文。
 
-暴露方式随宿主能力而定：DSH 0.2 不再把工具清单交给 `system-prompt/assemble`，插件改为给每条注册打 `deferLoading` 标记，由宿主决定怎么用——路由声明了 `toolUpdate` 时这些工具延迟加载、不占请求体积；路由没声明（多数 OpenAI 兼容模型就是这种）时宿主会立即下发全部工具，此时直接调用仍被 guard 拒绝并提示改用 `mcp_execute_tool`。0.1 沿用原来的清单过滤。两条路径都保留工具的可执行性，`mcp_execute_tool` 与 `/mcp call` 走同一套放行。
+暴露方式随宿主能力而定：DSH 0.2 不再把工具清单交给 `system-prompt/assemble`，插件改为给每条注册打 `deferLoading` 标记，由宿主决定怎么用——路由声明了 `toolUpdate` 时这些工具延迟加载、不占请求体积；路由没声明（多数 OpenAI 兼容模型就是这种）时宿主会立即下发，插件随即把完整定义换成**同名短桩**（描述一行、参数表留空，完整 schema 用 `mcp_describe_tool` 取），从第二轮起生效。0.1 沿用原来的清单过滤。两条路径都保留工具的可执行性，`mcp_execute_tool` 与 `/mcp call` 走同一套放行。改动这块后用 [`test/cases/LV007-MCP影子桩.md`](../test/cases/LV007-MCP影子桩.md) 复验。
 
 ### 3. 工具调用超时
 
