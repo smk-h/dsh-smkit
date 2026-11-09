@@ -1,0 +1,61 @@
+@startuml 按需调用时序
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam ArrowColor #5A5A5A
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 12
+skinparam defaultFontSize 12
+skinparam ParticipantFontSize 13
+skinparam NoteFontSize 12
+skinparam SequenceGroupFontSize 13
+skinparam TitleFontSize 16
+skinparam SequenceParticipantBorderColor #7A93BE
+skinparam SequenceParticipantBackgroundColor #DCE9FB
+skinparam SequenceParticipantFontColor #1F2933
+skinparam SequenceLifeLineBorderColor #7A93BE
+skinparam SequenceGroupBackgroundColor #F7F9FC
+skinparam SequenceGroupBorderColor #7A93BE
+skinparam NoteBackgroundColor #FFFBE6
+skinparam NoteBorderColor #E0B400
+skinparam NoteFontColor #5C4A00
+
+title 一次按需调用：先找、再问、后执行
+
+participant "模型" as M
+participant "mcp_search_tools" as S
+participant "mcp_describe_tool" as D
+participant "目录读取器\n连接记录 + 注册表" as C
+participant "mcp_execute_tool" as E
+participant "dsh 工具表\nmcp__* 定义" as R
+participant "MCP 服务器" as V
+
+== 阶段一：找工具 ==
+M -> S : query = "串口"
+S -> C : catalogOf(agent)
+C --> S : 目录行（名字、服务器、描述）
+S --> M : 匹配列表 + score
+
+== 阶段二：取参数表 ==
+M -> D : name = mcp__board__serial_exec
+D -> C : catalogOf(agent)
+C --> D : 该工具的原始条目
+D --> M : description + inputSchema
+
+== 阶段三：执行 ==
+M -> E : name + arguments
+E -> C : 可见性校验
+C --> E : 命中
+E -> R : executeToolCall(嵌套调用，新 callId)
+R -> V : tools/call
+V --> R : MCP content
+R --> E : content
+E --> M : 投影后的内容块
+
+note over E, R
+  guard 只放行两类调用：
+  broker 铸造的 parent / callId
+end note
+
+@enduml

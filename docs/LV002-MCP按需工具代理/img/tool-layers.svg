@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1200 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tool-layers-title tool-layers-desc" id="tool-layers-root">
+        <title id="tool-layers-title">三张表，一张注册表</title>
+        <desc id="tool-layers-desc">内置工具、插件工具与 MCP 工具同样注册在 dsh 的工具表里，区别只在注册者，其中插件注册的三个 broker 工具标为焦点。</desc>
+        <defs>
+      <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;family=Noto+Serif:ital@0;1&amp;family=Noto+Sans+KR:wght@400;500;600&amp;family=Noto+Serif+KR:wght@400&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap');
+      #tool-layers-root { --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-accent:  #bf4520;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace; }
+      #tool-layers-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #tool-layers-root .diagram-container { width: 100%; overflow-x: auto; }
+      @media print {
+#tool-layers-root .diagram-container { overflow-x: visible; }
+}</style>
+          <marker id="tool-layers-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="tool-layers-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+          <marker id="tool-layers-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <!-- zone -->
+        <rect x="80" y="90" width="1040" height="190" rx="8" fill="#2d3142" stroke="#2d3142" stroke-width="0.8" fill-opacity="0.02" stroke-opacity="0.10"/>
+        <rect x="100" y="94" width="300" height="20" rx="2" fill="#f5f5f5"/>
+        <text x="250" y="109" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.12em">DSH TOOL REGISTRY · platform.tools</text>
+
+        <!-- arrows first -->
+        <line x1="260" y1="380" x2="260" y2="236" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#tool-layers-arrow)"/>
+        <line x1="600" y1="380" x2="600" y2="236" stroke="#bf4520" stroke-width="1.4" marker-end="url(#tool-layers-arrow-accent)"/>
+        <line x1="940" y1="380" x2="940" y2="236" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#tool-layers-arrow)"/>
+
+        <rect x="272" y="296" width="76" height="20" rx="2" fill="#f5f5f5"/>
+        <text x="310" y="311" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.04em">REGISTER</text>
+        <rect x="612" y="296" width="76" height="20" rx="2" fill="#f5f5f5"/>
+        <text x="650" y="311" fill="#bf4520" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.04em">REGISTER</text>
+        <rect x="952" y="296" width="76" height="20" rx="2" fill="#f5f5f5"/>
+        <text x="990" y="311" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.04em">REGISTER</text>
+
+        <!-- nodes -->
+        <rect x="110" y="140" width="300" height="96" rx="6" fill="#f5f5f5"/>
+        <rect x="110" y="140" width="300" height="96" rx="6" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <rect x="126" y="152" width="52" height="18" rx="2" fill="none" stroke="#4f5d75" stroke-width="0.8" stroke-opacity="0.40"/>
+        <text x="152" y="165" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em" fill-opacity="0.85">CORE</text>
+        <text x="260" y="200" fill="#2d3142" font-size="14" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">内置工具</text>
+        <text x="260" y="222" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">edit · read_file</text>
+
+        <rect x="450" y="140" width="300" height="96" rx="6" fill="#f5f5f5"/>
+        <rect x="450" y="140" width="300" height="96" rx="6" fill="#ffffff" stroke="#bf4520" stroke-width="1.4"/>
+        <rect x="466" y="152" width="64" height="18" rx="2" fill="none" stroke="#bf4520" stroke-width="0.8" stroke-opacity="0.40"/>
+        <text x="498" y="165" fill="#bf4520" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em" fill-opacity="0.9">PLUGIN</text>
+        <text x="600" y="200" fill="#bf4520" font-size="14" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">插件工具</text>
+        <text x="600" y="222" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">mcp_search_tools ...</text>
+
+        <rect x="790" y="140" width="300" height="96" rx="6" fill="#f5f5f5"/>
+        <rect x="790" y="140" width="300" height="96" rx="6" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <rect x="806" y="152" width="44" height="18" rx="2" fill="none" stroke="#4f5d75" stroke-width="0.8" stroke-opacity="0.40"/>
+        <text x="828" y="165" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em" fill-opacity="0.85">MCP</text>
+        <text x="940" y="200" fill="#2d3142" font-size="14" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">MCP 工具</text>
+        <text x="940" y="222" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">mcp__board__serial_exec</text>
+
+        <!-- sources -->
+        <rect x="110" y="380" width="300" height="88" rx="6" fill="#f5f5f5"/>
+        <rect x="110" y="380" width="300" height="88" rx="6" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <text x="260" y="416" fill="#2d3142" font-size="14" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">dsh 内核</text>
+        <text x="260" y="440" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">harness core</text>
+
+        <rect x="450" y="380" width="300" height="88" rx="6" fill="#f5f5f5"/>
+        <rect x="450" y="380" width="300" height="88" rx="6" fill="#ffffff" stroke="#bf4520" stroke-width="1.4"/>
+        <text x="600" y="416" fill="#bf4520" font-size="14" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">dsh-smkit 插件</text>
+        <text x="600" y="440" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">this plugin</text>
+
+        <rect x="790" y="380" width="300" height="88" rx="6" fill="#f5f5f5"/>
+        <rect x="790" y="380" width="300" height="88" rx="6" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <text x="940" y="416" fill="#2d3142" font-size="14" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">MCP 服务器</text>
+        <text x="940" y="440" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">stdio / http</text>
+
+        <!-- legend -->
+        <line x1="80" y1="536" x2="1120" y2="536" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.10"/>
+        <text x="80" y="566" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.12em">LEGEND</text>
+        <rect x="172" y="552" width="14" height="14" rx="2" fill="#ffffff" stroke="#bf4520" stroke-width="1.4"/>
+        <text x="196" y="565" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif">本插件注册的焦点工具</text>
+        <line x1="420" y1="559" x2="452" y2="559" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#tool-layers-arrow)"/>
+        <text x="462" y="565" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif">注册（register）</text>
+      </svg>

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 880" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="hide-paths-title hide-paths-desc" id="hide-paths-root">
+        <title id="hide-paths-title">三种隐藏，一条例外</title>
+        <desc id="hide-paths-desc">开关打开后依次判断呈现方式、宿主版本与路由能力，在保留全量、清单过滤、延迟加载与影子桩之间选择一条路径，隐藏直接的 MCP 工具。</desc>
+        <defs>
+      <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;family=Noto+Serif:ital@0;1&amp;family=Noto+Sans+KR:wght@400;500;600&amp;family=Noto+Serif+KR:wght@400&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap');
+      #hide-paths-root { --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-accent:  #bf4520;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace; }
+      #hide-paths-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #hide-paths-root .diagram-container { width: 100%; overflow-x: auto; }
+      @media print {
+#hide-paths-root .diagram-container { overflow-x: visible; }
+}</style>
+          <marker id="hide-paths-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="hide-paths-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+          <marker id="hide-paths-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <!-- arrows first -->
+        <line x1="295" y1="88" x2="295" y2="148" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#hide-paths-arrow)"/>
+
+        <line x1="485" y1="200" x2="575" y2="200" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#hide-paths-arrow)"/>
+        <rect x="516" y="172" width="28" height="20" rx="2" fill="#f5f5f5"/>
+        <text x="530" y="187" fill="#4f5d75" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">是</text>
+
+        <line x1="295" y1="252" x2="295" y2="304" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#hide-paths-arrow)"/>
+        <rect x="303" y="268" width="28" height="20" rx="2" fill="#f5f5f5"/>
+        <text x="317" y="283" fill="#4f5d75" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">否</text>
+
+        <line x1="465" y1="356" x2="575" y2="356" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#hide-paths-arrow)"/>
+        <rect x="506" y="328" width="28" height="20" rx="2" fill="#f5f5f5"/>
+        <text x="520" y="343" fill="#4f5d75" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">是</text>
+
+        <line x1="295" y1="408" x2="295" y2="460" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#hide-paths-arrow)"/>
+        <rect x="303" y="424" width="28" height="20" rx="2" fill="#f5f5f5"/>
+        <text x="317" y="439" fill="#4f5d75" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">否</text>
+
+        <line x1="485" y1="512" x2="575" y2="512" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#hide-paths-arrow)"/>
+        <rect x="516" y="484" width="28" height="20" rx="2" fill="#f5f5f5"/>
+        <text x="530" y="499" fill="#4f5d75" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">是</text>
+
+        <line x1="295" y1="564" x2="295" y2="624" stroke="#bf4520" stroke-width="1.4" marker-end="url(#hide-paths-arrow-accent)"/>
+        <rect x="303" y="584" width="28" height="20" rx="2" fill="#f5f5f5"/>
+        <text x="317" y="599" fill="#bf4520" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">否</text>
+
+        <!-- start -->
+        <rect x="195" y="40" width="200" height="48" rx="24" fill="#f5f5f5"/>
+        <rect x="195" y="40" width="200" height="48" rx="24" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <text x="295" y="69" fill="#2d3142" font-size="14" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">开关已打开</text>
+
+        <!-- decision 1: presentation -->
+        <path d="M 295,148 L 485,200 L 295,252 L 105,200 Z" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <text x="295" y="205" fill="#2d3142" font-size="13" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">呈现是 code / both？</text>
+
+        <!-- decision 2: host generation -->
+        <path d="M 295,304 L 465,356 L 295,408 L 125,356 Z" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <text x="295" y="361" fill="#2d3142" font-size="13" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">宿主是 dsh 0.1？</text>
+
+        <!-- decision 3: route capability -->
+        <path d="M 295,460 L 485,512 L 295,564 L 105,512 Z" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <text x="295" y="517" fill="#2d3142" font-size="13" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">路由声明 toolUpdate？</text>
+
+        <!-- outcome A: keep full surface -->
+        <rect x="575" y="144" width="280" height="112" rx="6" fill="#f5f5f5"/>
+        <rect x="575" y="144" width="280" height="112" rx="6" fill="#ffffff" stroke="#4f5d75" stroke-width="1" stroke-dasharray="5,4"/>
+        <text x="715" y="180" fill="#2d3142" font-size="14" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">保留全量</text>
+        <text x="715" y="204" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">不打桩、不剥离</text>
+        <text x="715" y="228" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">code 与 both 例外</text>
+
+        <!-- outcome B: list filtering -->
+        <rect x="575" y="300" width="280" height="112" rx="6" fill="#f5f5f5"/>
+        <rect x="575" y="300" width="280" height="112" rx="6" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <text x="715" y="336" fill="#2d3142" font-size="14" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">清单过滤</text>
+        <text x="715" y="360" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">assemble 删 mcp__*</text>
+        <text x="715" y="384" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">当轮生效</text>
+
+        <!-- outcome C: deferLoading -->
+        <rect x="575" y="456" width="280" height="112" rx="6" fill="#f5f5f5"/>
+        <rect x="575" y="456" width="280" height="112" rx="6" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <text x="715" y="492" fill="#2d3142" font-size="14" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">延迟加载</text>
+        <text x="715" y="516" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">注册带 deferLoading</text>
+        <text x="715" y="540" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">当轮生效</text>
+
+        <!-- outcome D: shadow stub -->
+        <rect x="125" y="624" width="340" height="112" rx="6" fill="#f5f5f5"/>
+        <rect x="125" y="624" width="340" height="112" rx="6" fill="#ffffff" stroke="#bf4520" stroke-width="1.4"/>
+        <text x="295" y="660" fill="#bf4520" font-size="14" font-weight="600" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">影子桩</text>
+        <text x="295" y="684" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">同名 + 空参数表</text>
+        <text x="295" y="708" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">下一轮生效</text>
+
+        <!-- footnote -->
+        <text x="60" y="790" fill="#2d3142" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif">四条分支都保留可执行性：隐藏的是工具定义，不是调用能力。</text>
+
+        <!-- legend -->
+        <line x1="60" y1="812" x2="900" y2="812" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.10"/>
+        <text x="60" y="842" fill="#4f5d75" font-size="12" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.12em">LEGEND</text>
+        <rect x="152" y="828" width="28" height="16" rx="8" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <text x="188" y="842" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif">起止</text>
+        <path d="M 256,836 L 272,828 L 288,836 L 272,844 Z" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <text x="296" y="842" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif">判定</text>
+        <rect x="356" y="828" width="20" height="16" rx="3" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+        <text x="384" y="842" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif">步骤</text>
+        <rect x="444" y="828" width="20" height="16" rx="3" fill="#ffffff" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="472" y="842" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif">例外</text>
+        <rect x="536" y="828" width="16" height="16" rx="3" fill="#ffffff" stroke="#bf4520" stroke-width="1.4"/>
+        <text x="560" y="842" fill="#4f5d75" font-size="12" font-family="'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif">默认兜底</text>
+      </svg>
