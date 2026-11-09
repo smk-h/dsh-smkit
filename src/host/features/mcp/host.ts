@@ -49,6 +49,7 @@ import { handleWorkspaces } from './api/workspaces.js'
 import type { HostFeature, HostPlatform } from '../../platform/context.js'
 import type { ApiHandler } from '../../platform/routes.js'
 import type { McpApiDeps } from './api/context.js'
+import type { AgentLike } from './types.js'
 import type { BrokerRuntime } from './broker/runtime.js'
 import type { Registry } from './registry.js'
 import type { WorkspaceManager } from './workspace/manager.js'
@@ -182,6 +183,15 @@ export const mcpFeature: HostFeature = {
       logger,
       tools,
       on: (event, handler, options) => ctx.on(event, handler, options),
+      // The deferred-loading marker lives on each registration, so a toggle has
+      // to rebuild them: global rows through the registry, workspace rows
+      // through the per-agent scopes that own them.
+      resyncRegistrations: () => {
+        registry.resyncAll()
+        for (const [agent, state] of runtime.agentScopeState) {
+          scope.rebuildAgentWorkspace(agent as AgentLike, state.wsPath)
+        }
+      },
     })
 
     const api: McpApiDeps = {
@@ -207,7 +217,7 @@ export const mcpFeature: HostFeature = {
         installMcpCommand(childCtx, {
           logger,
           tools,
-          approveDirectCall: () => broker.approveDirectCall(),
+          approveDirectCall: (callId) => broker.approveDirectCall(callId),
         })
       }).dispose,
     )

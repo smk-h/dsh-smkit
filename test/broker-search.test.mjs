@@ -155,6 +155,8 @@ describe('searchToolEntries', () => {
 /** Mount the plugin on a stub ctx that records the registered tool definitions. */
 function mountBroker(catalogSchemas) {
   const registered = new Map()
+  /** Cordis event handlers the broker installed, by event name. */
+  const handlers = new Map()
   const disposers = []
   const ctx = {
     logger: { info() {}, warn() {}, error() {} },
@@ -171,13 +173,17 @@ function mountBroker(catalogSchemas) {
     },
     webServer: { register: () => () => {} },
     get: () => undefined,
-    on: () => () => {},
+    on: (event, handler) => {
+      handlers.set(event, handler)
+      return () => { handlers.delete(event) }
+    },
     inject: () => ({ dispose: () => {} }),
     effect: (fn) => { const dispose = fn(); if (typeof dispose === 'function') disposers.push(dispose); return () => {} },
   }
   apply(ctx)
   return {
     registered,
+    handlers,
     dispose: () => { for (const fn of disposers.reverse()) { try { fn() } catch {} } },
   }
 }
@@ -211,5 +217,75 @@ describe('mcp_search_tools broker wiring', () => {
     assert.equal(found.matches.length, 1)
     assert.equal(found.matches[0].name, 'mcp__thor__query_logs')
     assert.ok(Number.isInteger(found.matches[0].score) && found.matches[0].score > 0)
+  })
+})
+
+describe('deferred loading marker', () => {
+  const images = { prepare: async () => {}, finalizeContent: undefined }
+  const server = { id: 'srv-1', name: 'demo', type: 'stdio', command: 'node', args: [] }
+  const tool = {
+    name: 'who_am_i',
+    description: 'Who am I?',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  }
+
+  it('marks a definition only when the broker asks for it, and the mark is part of the signature', async () => {
+    const { makeToolDefinition, registrationSignature } = await import('../lib/host/features/mcp/mcp/tools.js')
+    const plain = makeToolDefinition(server, tool, async () => ({ content: [], isError: false }), images)
+    const deferred = makeToolDefinition(server, tool, async () => ({ content: [], isError: false }), images, true)
+
+    assert.equal(plain.deferLoading, undefined, 'broker off: the host sees a normal definition')
+    assert.equal(deferred.deferLoading, true, 'broker on: the host is asked to defer this one')
+    assert.notEqual(
+      registrationSignature(plain),
+      registrationSignature(deferred),
+      'toggling the broker has to look like a real change, or the old registration survives',
+    )
+  })
+})
+
+describe('system-prompt assembly on dsh 0.2', () => {
+  /** Broker on, plus the event handlers it installed. */
+  function mountWithBroker() {
+    mkdirSync(join(scratchHome, '.dsh'), { recursive: true })
+    writeFileSync(
+      join(scratchHome, '.dsh', 'mcp-manager.json'),
+      JSON.stringify({ servers: [], onDemandToolInjection: true }),
+    )
+    return mountBroker([])
+  }
+
+  it('leaves a presentation-only payload alone instead of throwing', async (t) => {
+    const { handlers, dispose } = mountWithBroker()
+    t.after(dispose)
+    const hook = handlers.get('system-prompt/assemble')
+    assert.ok(hook, 'broker mode installs the assembly hook')
+
+    // dsh 0.2 hands the waterfall the presentation only; the registry-owned
+    // tool list is appended afterwards. Reading `tools` here used to fail every
+    // turn with "Cannot read properties of undefined (reading 'filter')".
+    const presentation = {
+      sections: [{ name: 'tools:system', text: 'you are a harness' }],
+      contexts: [],
+      variables: {},
+    }
+    const returned = await hook(presentation, { agent: {} }, async () => presentation)
+    assert.equal(returned, presentation, 'nothing to rewrite: the payload comes back untouched')
+  })
+
+  it('still filters MCP tools out of an assembly that carries them', async (t) => {
+    const { handlers, dispose } = mountWithBroker()
+    t.after(dispose)
+    const hook = handlers.get('system-prompt/assemble')
+    const payload = {
+      sections: [{ name: 'tools:system', text: 'you are a harness' }],
+      tools: [{ name: 'mcp__thor__query_logs' }, { name: 'read_file' }],
+    }
+    const returned = await hook(payload, { agent: {} }, async () => payload)
+    assert.deepEqual(
+      returned.tools.map((tool) => tool.name),
+      ['read_file'],
+      'hosts before 0.2 still get the broker filter',
+    )
   })
 })

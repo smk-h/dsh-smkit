@@ -49,6 +49,13 @@ export interface Registry {
   serverView(server: ServerConfig): ServerView
   setGlobalTools(serverName: string, names: string[]): void
   clearGlobalTools(serverName: string): void
+  /**
+   * Re-register every live global server's tools against the current
+   * `runtime.deferDirectTools`. Called when on-demand injection flips: the flag
+   * is part of each registration's signature, so the existing entries have to
+   * be rebuilt for the model-request shape to change.
+   */
+  resyncAll(): void
 }
 
 /** Set a server's auth/connection status in whichever tier it belongs to. */
@@ -106,7 +113,7 @@ export function createRegistry(deps: RegistryDeps): Registry {
       // without reconnecting the server.
       return conn.handle.call(name, args, effectiveToolCallTimeoutMs(runtime.state))
     }
-    const names = syncToolRegistrations(tools, services, server, conn.tools, list, call)
+    const names = syncToolRegistrations(tools, services, server, conn.tools, list, call, runtime.deferDirectTools)
     conn.toolCount = list.length
     conn.status = 'connected'
     conn.error = ''
@@ -205,5 +212,19 @@ export function createRegistry(deps: RegistryDeps): Registry {
     return view
   }
 
-  return { connect, disconnect, serverView, setGlobalTools, clearGlobalTools }
+  /**
+   * Rebuild every live global registration so it carries (or drops) the
+   * deferred-loading hint the broker sets. A connection that is not connected
+   * has nothing to re-register; its next connect reads the flag anyway.
+   */
+  function resyncAll(): void {
+    for (const [serverId, conn] of runtime.live) {
+      if (!conn.handle || conn.status !== 'connected') continue
+      const server = runtime.state.servers.find((candidate) => candidate.id === serverId)
+      if (!server) continue
+      registerToolsGlobal(server, conn, conn.tools.size > 0 ? [...conn.tools.values()].map((entry) => entry.info) : [])
+    }
+  }
+
+  return { connect, disconnect, serverView, setGlobalTools, clearGlobalTools, resyncAll }
 }

@@ -40,6 +40,12 @@ export interface Runtime {
   workspaceRescans: Map<string, Promise<void>>
   /** Disposer of the on-demand broker runtime, when installed. */
   brokerRuntimeDispose: (() => void) | null
+  /**
+   * Whether every MCP registration should carry the host's deferred-loading
+   * hint. The broker raises it while on-demand injection is on; registrations
+   * are re-synced at that moment, because the flag is part of their signature.
+   */
+  deferDirectTools: boolean
   /** Monotonic JSON-RPC request id, shared by every transport. */
   nextRpcId(): number
   /** Read-or-create a live connection, applying `patch`. */
@@ -59,6 +65,7 @@ export function createRuntime(state: PluginState): Runtime {
     agentScopeState: new Map(),
     workspaceRescans: new Map(),
     brokerRuntimeDispose: null,
+    deferDirectTools: false,
     nextRpcId: () => rpcSeq++,
     setLive(serverId, patch) {
       const current = live.get(serverId) ?? {

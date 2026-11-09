@@ -96,7 +96,7 @@ export interface McpCommandDeps {
    * call through only when it carries the returned `token` as its `parent`, so
    * the token travels on the execution itself.
    */
-  approveDirectCall?: () => { token: unknown; release: () => void }
+  approveDirectCall?: (callId: string) => { token: unknown; release: () => void }
 }
 
 /** Split one invocation's input into its sub-action and the rest. */
@@ -455,7 +455,7 @@ export function installMcpCommand(childCtx: PluginContext, deps: McpCommandDeps)
           // (`parent`), not for anything on this scope; the release runs even
           // when execution throws. Outside broker mode the token is simply
           // never read.
-          const approval = deps.approveDirectCall?.()
+          const approval = deps.approveDirectCall?.(invocation.commandId)
           try {
             const result = await executeToolCall(registry, {
               callId: invocation.commandId,

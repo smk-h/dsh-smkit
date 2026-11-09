@@ -25,12 +25,19 @@ import type {
   ToolsRegistry,
 } from '../types.js'
 
-/** Build one tool definition from a `tools/list` entry. */
+/**
+ * Build one tool definition from a `tools/list` entry.
+ *
+ * @param deferred - mark the definition for the host's deferred-loading hint:
+ *   while the on-demand broker is on, direct MCP tools stay registered and
+ *   executable but stop arriving as full definitions in the model request.
+ */
 export function makeToolDefinition(
   server: ServerConfig,
   tool: McpToolInfo,
   callFn: (name: string, args: unknown) => Promise<McpCallResult>,
   images: ImageProjectionHandlers,
+  deferred = false,
 ): ToolDefinition {
   return {
     name: publicName(server.name, tool.name),
@@ -39,6 +46,7 @@ export function makeToolDefinition(
     description: `${tool.description ?? ''} [${server.name} MCP]`.slice(0, MAX_DESCRIPTION_LENGTH),
     parameters: convParams(tool.inputSchema),
     output: { schema: MCP_RESULT_SCHEMA, render: renderMcpResult },
+    ...(deferred ? { deferLoading: true } : {}),
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       const payload = (args ?? {}) as Record<string, unknown>
@@ -57,12 +65,19 @@ export function makeToolDefinition(
   }
 }
 
-/** The model-facing surface of a definition, used to detect real changes. */
+/**
+ * The model-facing surface of a definition, used to detect real changes.
+ *
+ * `deferLoading` is part of it: toggling on-demand injection only rewrites that
+ * flag, and a signature that ignored it would keep the previous registrations
+ * (and so the previous prompt shape) in place.
+ */
 export function registrationSignature(definition: ToolDefinition): string {
   return JSON.stringify({
     name: definition.name,
     description: definition.description,
     parameters: definition.parameters,
+    deferred: definition.deferLoading === true,
   })
 }
 
@@ -88,6 +103,7 @@ export function syncToolRegistrations(
   registrations: Map<string, RegisteredTool>,
   tools: McpToolInfo[],
   callFn: (name: string, args: unknown) => Promise<McpCallResult>,
+  deferred = false,
 ): string[] {
   const desired = new Map<string, { definition: ToolDefinition; info: McpToolInfo; signature: string }>()
   const publicNames = new Set<string>()
@@ -103,6 +119,7 @@ export function syncToolRegistrations(
       tool,
       callFn,
       mcpImageProjectionHandlers(services, tool.name),
+      deferred,
     )
     if (publicNames.has(definition.name)) {
       throw new Error(

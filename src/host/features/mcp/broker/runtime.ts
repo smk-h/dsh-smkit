@@ -15,10 +15,18 @@ import { isMcpToolName, makeBrokerDefinitions } from './definitions.js'
 import type { Runtime } from '../runtime.js'
 import type { LoggerLike, ToolExecContext, ToolsRegistry } from '../types.js'
 
-/** The prompt-assembly snapshot the hook inspects and rewrites. */
+/**
+ * The prompt-assembly snapshot the hook inspects and rewrites.
+ *
+ * `tools` is optional on purpose: dsh 0.2 passes only the presentation
+ * (`sections`/`contexts`/`variables`) through this waterfall and appends the
+ * registry-owned tool list afterwards, so a hook that assumed `tools` existed
+ * threw on every turn. On those hosts the direct tools are hidden through the
+ * registry's deferred-loading marker instead.
+ */
 export interface PromptAssembly {
   sections: { name: string; text: string }[]
-  tools: { name: string }[]
+  tools?: { name: string }[]
 }
 
 export interface PromptAssembleContext {
@@ -40,6 +48,12 @@ export interface BrokerRuntimeDeps {
     ) => Promise<PromptAssembly>,
     options?: { prepend?: boolean; global?: boolean },
   ): () => void
+  /**
+   * Re-register every live MCP tool so the deferred-loading marker matches
+   * `runtime.deferDirectTools`. The flag is part of a registration's signature,
+   * so this is what actually changes the model request after a toggle.
+   */
+  resyncRegistrations(): void
 }
 
 export interface BrokerRuntime {
@@ -48,15 +62,16 @@ export interface BrokerRuntime {
   /** Toggle broker mode, persisting the setting (rolled back on write failure). */
   setOnDemandToolInjection(enabled: boolean): void
   /**
-   * Mint a token the guard lets through, for a caller that runs in the host
-   * process instead of through the broker — the `/mcp` command.
+   * Approve one host-side call for the guard — the `/mcp` command.
    *
-   * The guard only waves a call through when the call carries one of these
-   * tokens as its `parent`, so the caller must pass `token` on the execution.
-   * While broker mode is off there is no guard to satisfy, so the token is
-   * simply never read; `release` stays a no-op either way.
+   * `callId` is the identity that survives on every host generation: dsh 0.1
+   * carries the minted `token` through as the call's `parent`, dsh 0.2's batch
+   * entry point drops it but keeps `calls[].id`, which the caller sets from the
+   * same value. Both are registered, so the guard waves the call through either
+   * way. While broker mode is off there is no guard to satisfy; `release`
+   * stays a no-op either way.
    */
-  approveDirectCall(): { token: unknown; release: () => void }
+  approveDirectCall(callId: string): { token: unknown; release: () => void }
 }
 
 export function createBrokerRuntime(deps: BrokerRuntimeDeps): BrokerRuntime {
@@ -64,6 +79,12 @@ export function createBrokerRuntime(deps: BrokerRuntimeDeps): BrokerRuntime {
   // Hoisted out of `install()`: the guard and a host-side caller (the `/mcp`
   // command) have to agree on the same set across install/uninstall cycles.
   const approvedParents = new Set<unknown>()
+  // dsh 0.2's batch entry point (`tools.execute({ calls })`) carries neither
+  // `parent` nor the flat fields, so the token above is invisible to the guard
+  // there. The batch keeps the caller's `callId` (`calls[].id`), and that is the
+  // identity both host-side callers already pass, so approvals are tracked by
+  // call id as well — one mechanism per generation, same guard.
+  const approvedCallIds = new Set<string>()
   let hostCallSeq = 0
 
   function install(): () => void {
@@ -71,7 +92,12 @@ export function createBrokerRuntime(deps: BrokerRuntimeDeps): BrokerRuntime {
     const warnedUnsupportedAgents = new WeakSet<object>()
     const disposers: (() => void)[] = []
     try {
-      for (const definition of makeBrokerDefinitions(tools, approvedParents)) {
+      // Registrations made while the broker is on carry the host's deferred
+      // loading hint, which is what keeps the direct tools out of the model
+      // request on hosts that no longer hand the tool list to this waterfall.
+      runtime.deferDirectTools = true
+      deps.resyncRegistrations()
+      for (const definition of makeBrokerDefinitions(tools, approvedParents, approvedCallIds)) {
         disposers.push(tools.register(definition))
       }
       disposers.push(
@@ -80,6 +106,7 @@ export function createBrokerRuntime(deps: BrokerRuntimeDeps): BrokerRuntime {
           const agent = exec.agent as object
           if (unsupportedAgents.has(agent)) return undefined
           if (exec.parent !== undefined && approvedParents.has(exec.parent)) return undefined
+          if (approvedCallIds.has(exec.callId)) return undefined
           return `direct MCP tool "${exec.name}" is hidden while on-demand MCP tools are enabled; use mcp_execute_tool`
         }),
       )
@@ -104,6 +131,11 @@ export function createBrokerRuntime(deps: BrokerRuntimeDeps): BrokerRuntime {
               return assembled
             }
             unsupportedAgents.delete(agent)
+            // Hosts before 0.2 still hand the tool list to this waterfall; there
+            // the broker's own filter is what hides the direct tools. A 0.2 host
+            // sends only the presentation, and the registry-side deferred marker
+            // already covers it — touching `tools` here would throw.
+            if (!Array.isArray(assembled.tools)) return assembled
             return { ...assembled, tools: assembled.tools.filter((tool) => !isMcpToolName(tool.name)) }
           },
           { prepend: true, global: true },
@@ -124,6 +156,7 @@ export function createBrokerRuntime(deps: BrokerRuntimeDeps): BrokerRuntime {
       if (disposed) return
       disposed = true
       approvedParents.clear()
+      approvedCallIds.clear()
       for (let index = disposers.length - 1; index >= 0; index -= 1) {
         try {
           disposers[index]()
@@ -131,6 +164,9 @@ export function createBrokerRuntime(deps: BrokerRuntimeDeps): BrokerRuntime {
           // Already released.
         }
       }
+      // Direct tools are the model's again: drop the marker and re-register.
+      runtime.deferDirectTools = false
+      deps.resyncRegistrations()
     }
   }
 
@@ -155,13 +191,15 @@ export function createBrokerRuntime(deps: BrokerRuntimeDeps): BrokerRuntime {
     }
   }
 
-  function approveDirectCall(): { token: unknown; release: () => void } {
+  function approveDirectCall(callId: string): { token: unknown; release: () => void } {
     const token = Symbol(`host-call-${hostCallSeq++}`)
     approvedParents.add(token)
+    approvedCallIds.add(callId)
     return {
       token,
       release: () => {
         approvedParents.delete(token)
+        approvedCallIds.delete(callId)
       },
     }
   }

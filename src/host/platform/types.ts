@@ -116,6 +116,14 @@ export interface ToolDefinition {
   /** Set on MCP-backed tools so the broker can recover `<server>`/`<tool>`. */
   mcpServerName?: string
   mcpRawName?: string
+  /**
+   * Ask the host to defer loading this definition in the model request
+   * (DSH 0.2's `defer_loading` hint). The broker marks every MCP registration
+   * this way while on-demand injection is on, so the same catalogue no longer
+   * arrives as a wall of tool definitions; the tools stay registered and
+   * executable through `mcp_execute_tool`.
+   */
+  deferLoading?: boolean
 }
 
 export interface ToolFinalizeResult {

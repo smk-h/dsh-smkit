@@ -74,6 +74,8 @@ function brokerJsonRender(_args: unknown, value: unknown): ContentBlock[] {
 export function makeBrokerDefinitions(
   tools: ToolsRegistry,
   approvedParents: Set<unknown>,
+  /** Call ids the guard lets through; dsh 0.2 keeps `calls[].id` but not `parent`. */
+  approvedCallIds: Set<string>,
 ): ToolDefinition[] {
   let nestedSeq = 1
 
@@ -166,10 +168,14 @@ export function makeBrokerDefinitions(
         if (!brokerCatalog(tools, exec.agent).some((candidate) => candidate.schema.name === name)) {
           throw new Error(`MCP tool "${name}" is not visible in this session`)
         }
+        // Approve the nested call by both identities: `parent` for hosts that
+        // carry it through, the call id for dsh 0.2's batch entry point.
+        const nestedCallId = `${exec.callId}:mcp:${nestedSeq++}`
         approvedParents.add(exec.token)
+        approvedCallIds.add(nestedCallId)
         try {
           const result = await executeToolCall(tools, {
-            callId: `${exec.callId}:mcp:${nestedSeq++}`,
+            callId: nestedCallId,
             rootCallId: exec.rootCallId,
             name,
             arguments: input.arguments ?? {},
@@ -181,6 +187,7 @@ export function makeBrokerDefinitions(
           return { content: renderBrokerExecuteResult(args, { content: result.content }) }
         } finally {
           approvedParents.delete(exec.token)
+          approvedCallIds.delete(nestedCallId)
         }
       },
     },

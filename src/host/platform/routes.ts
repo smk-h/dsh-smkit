@@ -48,6 +48,14 @@ export interface PrefixRouteOptions {
   /** Handlers inside the API prefix, tried in registration order. */
   handlers: ApiHandler[]
   logger: LoggerLike
+  /**
+   * Admission check run before any handler sees the request: DSH's own
+   * Host/Origin fence and browser authentication, via the `connection`
+   * service. Returning a status rejects the request; `undefined` lets it in.
+   * Absent for hosts that offer no such service, which keeps older shells
+   * working exactly as before.
+   */
+  admit?(req: RequestLike): 401 | 403 | 503 | undefined
 }
 
 /** `/servers/<id>` or `/servers/<id>/<action>`. */
@@ -78,6 +86,15 @@ export function createPrefixRoute(options: PrefixRouteOptions): RouteDefinition 
       const url = new URL(String(req.url ?? '/'), 'http://localhost')
       const origin = originOf(req)
       try {
+        const rejection = options.admit?.(req)
+        if (rejection !== undefined) {
+          sendJson(res, rejection, {
+            error: rejection === 503
+              ? 'the host does not expose its connection service; refusing anonymous access'
+              : 'request rejected by the host connection fence',
+          })
+          return
+        }
         const facts: RequestFacts = { url, rest: '', origin, idMatch: null }
         for (const handle of options.outsideApi) {
           if (await handle(req, res, facts)) return

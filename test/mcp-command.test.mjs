@@ -77,7 +77,9 @@ function registry(schemas, options = {}) {
           callId: call.callId ?? block?.id,
           name: call.name ?? block?.name,
           arguments: call.arguments ?? JSON.parse(block?.arguments ?? '{}'),
-          parent: call.parent,
+          // A 0.2 host reads the batch and drops the flat fields, `parent`
+          // included; the call id survives because it rides on `calls[].id`.
+          parent: options.dropsParent === true ? undefined : call.parent,
         }
         // The host runs the installed guard before the definition; so does
         // this stand-in, which is what makes the approval token observable.
@@ -85,7 +87,12 @@ function registry(schemas, options = {}) {
         // workspace table shares one execution pipeline in the real host.
         const guard = state.guardSource?.guard ?? state.guard
         if (guard !== undefined && String(flat.name).startsWith('mcp__')) {
-          const refusal = guard({ ...flat, agent: {} })
+          // `dropsParent` models DSH 0.2's batch entry point: the guard sees the
+          // call id but never the host's `parent` token.
+          const guardInput = options.dropsParent === true
+            ? { callId: flat.callId, name: flat.name, arguments: flat.arguments, agent: {} }
+            : { ...flat, agent: {} }
+          const refusal = guard(guardInput)
           if (refusal !== undefined) throw new Error(refusal)
         }
         executed.push(flat)
@@ -415,4 +422,26 @@ it('passes the broker guard with the approval token it attaches', async () => {
   // refuse, which is the control case for the assertion above.
   const refused = view.global.guard({ name: 'mcp__board__serial_exec', agent: {} })
   assert.match(String(refused), /hidden while on-demand MCP tools are enabled/)
+})
+
+it('passes the guard on a host that drops the parent token (0.2.x batch)', async () => {
+  // dsh 0.2's `tools.execute({ calls })` keeps `calls[].id` and carries no
+  // `parent`; the approval has to survive on the call id alone, or every
+  // host-side `/mcp call` is refused as a direct model call.
+  const view = mount({ agentSchemas: THREE_TOOLS, onDemand: true, dropsParent: true })
+  const result = await view.run(' call mcp__board__serial_exec {"cmd":"ls"}')
+  assert.equal(result.kind, 'success', result.text)
+  assert.equal(view.agentTools.executed.length, 1)
+  assert.equal(
+    view.agentTools.executed[0].parent,
+    undefined,
+    'the stand-in models a host that never forwards the token',
+  )
+
+  const refused = view.global.guard({ callId: 'not-approved', name: 'mcp__board__serial_exec', agent: {} })
+  assert.match(
+    String(refused),
+    /hidden while on-demand MCP tools are enabled/,
+    'a call id nobody approved is still refused',
+  )
 })

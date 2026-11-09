@@ -11,8 +11,9 @@
  * directory plus one entry in `FEATURES`.
  */
 
-import { API_PREFIX, ROUTE_PATH } from './host/platform/constants.js'
+import { API_PREFIX, CALLBACK_PATH, ROUTE_PATH } from './host/platform/constants.js'
 import { createPrefixRoute } from './host/platform/routes.js'
+import { serviceOf } from './host/platform/util/services.js'
 import { upstreamMcpManagerInstalled } from './host/platform/upstream.js'
 import { customSettingsFeature } from './host/features/custom-settings/host.js'
 import { explorerOpsFeature } from './host/features/explorer-ops/host.js'
@@ -85,6 +86,29 @@ export function apply(ctx: PluginContext): void {
             outsideApi,
             handlers,
             logger: ctx.logger,
+            // DSH's own admission fence, the same one its native routes use:
+            // no session cookie → 401, Host/Origin mismatch → 403, and no
+            // `connection` service at all → 503 rather than anonymous access.
+            // The OAuth redirect is exempt from the session requirement — the
+            // IdP navigates the browser there without a DSH cookie — and the
+            // callback handler verifies the flow `state` itself.
+            admit: (req) => {
+              // No socket means the request never crossed a network boundary —
+              // an in-process caller such as the unit harness. There is nothing
+              // to authenticate there: that caller already runs inside the host.
+              if ((req as { socket?: unknown }).socket === undefined) return undefined
+              const url = new URL(String(req.url ?? '/'), 'http://localhost')
+              if (req.method === 'GET' && url.pathname.startsWith(`${CALLBACK_PATH}/`)) return undefined
+              const connection = serviceOf(platform.services, 'connection') as
+                | {
+                    requestRejection?: (request: {
+                      headers: Record<string, string | string[] | undefined>
+                    }) => 401 | 403 | undefined
+                  }
+                | undefined
+              if (connection === undefined || typeof connection.requestRejection !== 'function') return 503
+              return connection.requestRejection({ headers: req.headers })
+            },
           }),
         ),
       )

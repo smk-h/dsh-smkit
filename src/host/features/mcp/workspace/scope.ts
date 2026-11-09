@@ -59,7 +59,7 @@ export function createWorkspaceScope(deps: WorkspaceScopeDeps): WorkspaceScope {
     }
     const registry = agent.ctx?.tools
     if (!registry) throw new TypeError("cannot read properties of undefined (reading 'tools')")
-    syncToolRegistrations(registry, null, server, registrations, conn.tools, call)
+    syncToolRegistrations(registry, null, server, registrations, conn.tools, call, runtime.deferDirectTools)
   }
 
   function disposeAgentScope(state: AgentScopeState): void {
