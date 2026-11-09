@@ -21,7 +21,7 @@ const I18N_MODULE = /[/\\]i18n[/\\]/
 // header's delete control and the OpenSpec button), so registrations are keyed
 // by the entry id DSH itself addresses them by — a map keyed by slot name would
 // keep whichever feature registered last.
-function mount(fetch, language = 'en') {
+function mount(fetch, language = 'en', options = {}) {
   let disposed = false
   const dictionaries = {}
   const effectLabels = []
@@ -63,7 +63,14 @@ function mount(fetch, language = 'en') {
     useCallback: (callback) => callback,
   }
   runInNewContext(source, {
-    window: { __ModuleLoader__: { load: ({ factory }) => { exported = factory(() => react) } } },
+    window: {
+      __ModuleLoader__: { load: ({ factory }) => { exported = factory(() => react) } },
+      // `upstream: true` boots the graph the same way a profile that also loads
+      // `dsh-mcp-manager` does — the stand-down reads this, not a package check.
+      ...(options.upstream === true
+        ? { __DSH_BOOT__: { entries: [{ id: 'dsh-mcp-manager' }, { id: '@smai-kit/dsh-smkit' }] } }
+        : {}),
+    },
     fetch,
     setInterval: () => 1,
     clearInterval: () => {},
@@ -83,7 +90,9 @@ function mount(fetch, language = 'en') {
       register: (options, component) => { registrations.set(options.id, { options, component }) },
     },
   })
-  const section = registrations.get('mcp-manager')
+  // The seat id moves to `smkit-settings` when the upstream manager is loaded
+  // beside this plugin; either id names the same section here.
+  const section = registrations.get('mcp-manager') ?? registrations.get('smkit-settings')
   // One render pass, depth first, each component called exactly once. Reading
   // the page and registering its hooks must be the same walk: the merged shell
   // owns state of its own (which tab is open) above the panel's. `frames`
@@ -206,6 +215,29 @@ function mount(fetch, language = 'en') {
 }
 const response = (body, ok = true, status = 200) => ({ ok, status, json: async () => body })
 const settle = () => new Promise((resolve) => setImmediate(resolve))
+
+it('stands its MCP half down when dsh-mcp-manager shares the boot graph', () => {
+  const app = mount(async () => response({}), 'en', { upstream: true })
+  assert.equal(app.dictionaries.mcp, undefined, 'the upstream manager owns the `mcp` namespace')
+  assert.ok(app.dictionaries.skills, 'the remaining settings pages keep their copy')
+  assert.ok(
+    !app.effectLabels.includes('smkit: mcp-command/dictionaries'),
+    'the `/mcp` picker stands down with the rest of the MCP half',
+  )
+  assert.equal(
+    app.spec.id,
+    'smkit-settings',
+    'the seat id moves: the upstream manager seats itself as `mcp-manager`',
+  )
+  // The strip's labels sit inside each tab's children, so read them as text.
+  const pass = app.paint()
+  const tabText = pass.nodes
+    .filter((node) => node.props?.role === 'tab')
+    .map((node) => JSON.stringify(node.children))
+    .join(' | ')
+  assert.ok(tabText.includes('Skills'), `the section still offers its remaining pages: ${tabText}`)
+  assert.ok(!tabText.includes('MCP'), `the MCP page is gone: another manager owns it: ${tabText}`)
+})
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))

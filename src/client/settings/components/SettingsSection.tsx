@@ -90,6 +90,12 @@ export interface SettingsSectionOptions {
    * restore; without it the page keeps today's behavior.
    */
   onBatchDelete?: SettingsShellGuard
+  /**
+   * Hide the MCP page: another MCP manager is loaded beside this plugin and
+   * owns the `mcp` namespace (see `platform/upstream`). The remaining pages
+   * stay, so the section is still worth opening.
+   */
+  hideMcp?: boolean
 }
 
 export function createSettingsSection(
@@ -128,15 +134,18 @@ export function createSettingsSection(
     Panel: (props) => <NotifyPanel {...props} />,
   }
 
+  /** The MCP page, built whether or not the strip shows it (see `hideMcp`). */
+  const mcpTab: SettingsTab = {
+    id: 'mcp',
+    label: 'tabMcp',
+    icon: <CableIcon size={14} />,
+    Panel: (props) => <McpContent {...props} />,
+  }
+
   /** The pages, in strip order — the order the settings nav listed them in
    * before they were merged. */
   const TABS: SettingsTab[] = [
-    {
-      id: 'mcp',
-      label: 'tabMcp',
-      icon: <CableIcon size={14} />,
-      Panel: (props) => <McpContent {...props} />,
-    },
+    ...(options.hideMcp === true ? [] : [mcpTab]),
     {
       id: 'skills',
       label: 'tabSkills',

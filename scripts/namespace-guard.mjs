@@ -366,9 +366,9 @@ export const FROZEN = [
     why: 'per-workspace config dir, may be committed to git and shared across machines',
   },
   {
-    name: "id: 'mcp-manager'",
+    name: "SECTION_ID = 'mcp-manager'",
     where: 'src/client/settings.ts',
-    why: 'settings section id the host remembers to reopen the last tab',
+    why: 'settings section id the host remembers to reopen the last tab (the upstream-manager stand-down seats itself under smkit-settings instead)',
   },
 ]
 

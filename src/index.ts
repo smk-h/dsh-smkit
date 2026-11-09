@@ -13,6 +13,7 @@
 
 import { API_PREFIX, ROUTE_PATH } from './host/platform/constants.js'
 import { createPrefixRoute } from './host/platform/routes.js'
+import { upstreamMcpManagerInstalled } from './host/platform/upstream.js'
 import { customSettingsFeature } from './host/features/custom-settings/host.js'
 import { explorerOpsFeature } from './host/features/explorer-ops/host.js'
 import { mcpFeature } from './host/features/mcp/host.js'
@@ -61,7 +62,15 @@ export function apply(ctx: PluginContext): void {
     outsideApi,
     handlers,
   }
-  for (const feature of FEATURES) feature.mount(platform)
+  // When the same profile also loads the upstream MCP manager, MCP is its
+  // business: standing our half down keeps the two from registering the same
+  // `mcp__*` tools and connecting the same servers twice, and the client half
+  // then leaves the `mcp` locale namespace alone as well. Everything else in
+  // this plugin mounts as usual.
+  const features = upstreamMcpManagerInstalled()
+    ? FEATURES.filter((feature) => feature !== mcpFeature)
+    : FEATURES
+  for (const feature of features) feature.mount(platform)
 
   // The GUI surface (Settings → MCP, the session delete dialog) needs the
   // webserver, but the agent-side tiers do not. Mount the route when (and if) a
@@ -87,6 +96,7 @@ export function apply(ctx: PluginContext): void {
  * Re-exported helpers. They exist so the test suites can exercise host
  * behaviour without a live harness; none of them is needed to mount the plugin.
  */
+export { upstreamMcpManagerInstalled } from './host/platform/upstream.js'
 export {
   effectiveToolCallTimeoutMs,
   loadState,

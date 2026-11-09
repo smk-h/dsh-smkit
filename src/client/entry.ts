@@ -33,6 +33,7 @@ import { themeCenterFeature } from './features/theme-center/client'
 import { notifyFeature } from './features/notify/client'
 import { settingsFeature } from './settings'
 import { createApi, createStream } from './platform/api'
+import { upstreamMcpManagerPresent } from './platform/upstream'
 import { PLATFORM_LOCALE_EN } from './platform/i18n/en'
 import { PLATFORM_LOCALE_ZH } from './platform/i18n/zh'
 import { PLATFORM_CSS, installStylesheet } from './platform/styles'
@@ -129,6 +130,16 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
 
   return {
     apply(ctx: ClientContext): void {
+      // The upstream MCP manager (`dsh-mcp-manager`) owns MCP when it is loaded
+      // next to this plugin: it registers the same `mcp` locale namespace, and
+      // dsh answers that duplicate — not the feature — with an exception that
+      // costs the whole entry. So the MCP half stands down here: no `mcp`
+      // dictionary, no `/mcp` picker. The host half makes the same call from the
+      // profile manifest, so both sides agree on which plugin owns MCP.
+      const upstream = upstreamMcpManagerPresent()
+      const features = upstream
+        ? FEATURES.filter((feature) => feature !== mcpCommandFeature)
+        : FEATURES
       // The platform dictionary is registered before the features: the platform
       // layer's own components read their copy through `platformT`, and each
       // feature binds its own namespace afterwards.
@@ -151,8 +162,11 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
         createPortal,
         Tooltip,
       }
-      for (const feature of FEATURES) {
+      for (const feature of features) {
         for (const dictionary of [feature.locale, ...(feature.extraLocales ?? [])]) {
+          // `mcp` belongs to the upstream manager when it is present; claiming
+          // it here is exactly the duplicate registration dsh refuses.
+          if (upstream && dictionary.namespace === 'mcp') continue
           ctx.effect(
             () => ctx.locale.register(dictionary.namespace, {
               zh: dictionary.zh,
@@ -166,7 +180,7 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
       // the very first render the shell makes of it, and a feature that
       // composes another's components (the merged settings section) reads
       // namespaces a later entry would not yet have declared.
-      for (const feature of FEATURES) {
+      for (const feature of features) {
         feature.register(ctx, deps, ctx.locale.bind(feature.locale.namespace))
       }
     },

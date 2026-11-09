@@ -31,6 +31,7 @@ import { PLUGIN_GALLERY_LOCALE_EN } from './features/plugin-gallery/i18n/en'
 import { PLUGIN_GALLERY_LOCALE_ZH } from './features/plugin-gallery/i18n/zh'
 import { createSettingsSection } from './settings/components/SettingsSection'
 import { createSettingsShellRestore } from './platform/ui/settings-shell'
+import { upstreamMcpManagerPresent } from './platform/upstream'
 import { MCP_CSS } from './features/mcp/styles'
 import { SKILLS_CSS } from './features/skills/styles'
 import { CUSTOM_SETTINGS_CSS } from './features/custom-settings/styles'
@@ -64,6 +65,11 @@ const SECTION_ICON_SEAT = 'settings.section.icon'
  * remembers it across reloads and addresses the icon seat by it, so the two
  * literals are frozen together by `scripts/namespace-guard.mjs`. */
 const SECTION_ID = 'mcp-manager'
+
+/** The seat id used while the upstream manager is loaded beside this plugin:
+ * it owns `mcp-manager`, and two seats with one id collide in the settings
+ * slot. The remembered-section nicety is the only thing this gives up. */
+const STANDDOWN_SECTION_ID = 'smkit-settings'
 
 /**
  * The section component, built once for the life of the module: it closes over
@@ -102,6 +108,13 @@ export const settingsFeature: ClientFeature = {
     { name: 'smkit/nav-icon', css: NAV_GLYPH_RULE },
   ],
   register(ctx: ClientContext, deps: ClientDeps, t: Translator): void {
+    // The upstream manager owns MCP when both are loaded: its dictionary is the
+    // one dsh accepted for the `mcp` namespace (ours was deliberately skipped in
+    // `entry.ts`), and its own settings page is the place to configure servers.
+    // This section therefore hides the MCP tab and — because that plugin also
+    // claims the `mcp-manager` seat id — registers under an id of its own.
+    const upstream = upstreamMcpManagerPresent()
+    const sectionId = upstream ? STANDDOWN_SECTION_ID : SECTION_ID
     // The theme is not this feature's any more: its row, its palette control,
     // the restoring effect and the override layer all live in the theme-center
     // feature, which knows about none of the pages below. What is left here is
@@ -125,7 +138,7 @@ export const settingsFeature: ClientFeature = {
     ctx.slots.inject(SECTION_ICON_SEAT, () => {
       const resumePaint = navMarker.standDown()
       const disposeIcon = ctx.slots.register(
-        { name: SECTION_ICON_SEAT, id: SECTION_ID, order: 50, locale: 'smkit' },
+        { name: SECTION_ICON_SEAT, id: sectionId, order: 50, locale: 'smkit' },
         createSettings2Icon(deps),
       )
       return () => {
@@ -137,7 +150,7 @@ export const settingsFeature: ClientFeature = {
     // words inside a page still belong to the feature that wrote them.
     section ??= createSettingsSection(deps, {
       section: t,
-      mcp: ctx.locale.bind('mcp'),
+      mcp: upstream ? (key: string) => key : ctx.locale.bind('mcp'),
       skills: ctx.locale.bind('skills'),
       customSettings: ctx.locale.bind('custom-settings'),
       localCache: ctx.locale.bind('local-cache'),
@@ -145,11 +158,12 @@ export const settingsFeature: ClientFeature = {
       sessionManager: ctx.locale.bind('session-manager'),
       pluginGallery: ctx.locale.bind('plugin-gallery'),
     }, {
+      hideMcp: upstream,
       // The shell closes itself when a removal empties the main view; the
       // guard arms before a batch and puts the dialog back on this section
       // after (a no-op while it stayed open, and a stand-down on a host whose
       // ledger answers nothing).
-      onBatchDelete: createSettingsShellRestore(ctx, SECTION_ID),
+      onBatchDelete: createSettingsShellRestore(ctx, sectionId),
     })
     ctx.slots.inject('settings.section', () =>
       ctx.slots.register(
@@ -157,9 +171,10 @@ export const settingsFeature: ClientFeature = {
           name: 'settings.section',
           // The id the MCP page has always used: a host that remembered which
           // section was open across reloads keeps landing on this one, and it
-          // is the id the icon seat above answers to. The literal stays a
-          // literal — the namespace guard freezes it against a rename.
-          id: 'mcp-manager',
+          // is the id the icon seat above answers to. While the upstream
+          // manager is loaded the id moves, because that plugin seats itself
+          // under the same one.
+          id: sectionId,
           order: 50,
           label: () => t('sectionLabel'),
           locale: 'smkit',
