@@ -76,6 +76,12 @@ export function makeBrokerDefinitions(
   approvedParents: Set<unknown>,
   /** Call ids the guard lets through; dsh 0.2 keeps `calls[].id` but not `parent`. */
   approvedCallIds: Set<string>,
+  /**
+   * How to read the agent's MCP catalogue. Defaults to the registry view; the
+   * host passes one that reads the connection records, so a stubbed
+   * registration still describes the real schema.
+   */
+  catalogOf: (agent: AgentLike) => BrokerCatalogEntry[] = (agent) => brokerCatalog(tools, agent),
 ): ToolDefinition[] {
   let nestedSeq = 1
 
@@ -101,7 +107,7 @@ export function makeBrokerDefinitions(
       isConcurrencySafe: () => true,
       async execute(args, exec) {
         const input = (args ?? {}) as { query?: unknown; server?: unknown; limit?: unknown }
-        const catalog: ToolCatalogEntry[] = brokerCatalog(tools, exec.agent).map((entry) => ({
+        const catalog: ToolCatalogEntry[] = catalogOf(exec.agent).map((entry) => ({
           name: entry.schema.name,
           server: entry.server,
           tool: entry.tool,
@@ -133,7 +139,7 @@ export function makeBrokerDefinitions(
       isConcurrencySafe: () => true,
       async execute(args, exec) {
         const name = String(((args ?? {}) as { name?: unknown }).name ?? '').trim()
-        const entry = brokerCatalog(tools, exec.agent).find((candidate) => candidate.schema.name === name)
+        const entry = catalogOf(exec.agent).find((candidate) => candidate.schema.name === name)
         if (!entry) throw new Error(`MCP tool "${name}" is not visible in this session`)
         return {
           name: entry.schema.name,
@@ -165,7 +171,7 @@ export function makeBrokerDefinitions(
       async execute(args, exec) {
         const input = (args ?? {}) as { name?: unknown; arguments?: unknown }
         const name = String(input.name ?? '').trim()
-        if (!brokerCatalog(tools, exec.agent).some((candidate) => candidate.schema.name === name)) {
+        if (!catalogOf(exec.agent).some((candidate) => candidate.schema.name === name)) {
           throw new Error(`MCP tool "${name}" is not visible in this session`)
         }
         // Approve the nested call by both identities: `parent` for hosts that

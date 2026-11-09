@@ -93,7 +93,7 @@ export const MCP_LOCALE_EN: LocaleDict = {
   "editWorkspace": "Edit MCP server (workspace)",
   "servers": "MCP servers",
   "onDemand": "On-demand MCP tool calls",
-  "onDemandHelp": "In Native mode, MCP exposes only the search, describe, and execute broker tools",
+  "onDemandHelp": "Adds the search, describe and execute broker tools and rejects direct MCP calls; on a route without deferred loading each definition collapses to a same-name stub — use describe for the real schema",
   "on": "On",
   "off": "Off",
   "global": "Global",

@@ -9,6 +9,7 @@
  */
 
 import { MAX_DESCRIPTION_LENGTH } from '../constants.js'
+import { stubDefinition } from '../broker/shadow.js'
 import { renderMcpResult } from './content.js'
 import { mcpImageProjectionHandlers } from './image.js'
 import { publicName } from './naming.js'
@@ -104,6 +105,12 @@ export function syncToolRegistrations(
   tools: McpToolInfo[],
   callFn: (name: string, args: unknown) => Promise<McpCallResult>,
   deferred = false,
+  /**
+   * Register the token-cheap face of each definition instead of the full one
+   * (see `broker/shadow.ts`). The connection record keeps the full definition,
+   * so `mcp_describe_tool` and the settings page still see the real schema.
+   */
+  stubbed = false,
 ): string[] {
   const desired = new Map<string, { definition: ToolDefinition; info: McpToolInfo; signature: string }>()
   const publicNames = new Set<string>()
@@ -114,13 +121,17 @@ export function syncToolRegistrations(
     if (desired.has(tool.name)) {
       throw new Error(`MCP server "${server.name}" returned duplicate tool "${tool.name}"`)
     }
-    const definition = makeToolDefinition(
+    const full = makeToolDefinition(
       server,
       tool,
       callFn,
       mcpImageProjectionHandlers(services, tool.name),
       deferred,
     )
+    // What the registry (and therefore the model request) gets; `info` keeps the
+    // full `tools/list` entry either way, which is what the settings page and
+    // the broker catalogue read.
+    const definition = stubbed ? stubDefinition(full) : full
     if (publicNames.has(definition.name)) {
       throw new Error(
         `MCP server "${server.name}" returned tools that normalize to duplicate name "${definition.name}"`,

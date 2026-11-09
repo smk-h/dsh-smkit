@@ -96,7 +96,7 @@ export const MCP_LOCALE_ZH: LocaleDict = {
   "editWorkspace": "编辑 MCP 服务器（工作区）",
   "servers": "MCP 服务器",
   "onDemand": "按需 MCP 工具调用",
-  "onDemandHelp": "Native 模式下，MCP 仅暴露 search、describe、execute 三个 broker 工具",
+  "onDemandHelp": "提供 search、describe、execute 三个 broker 工具，并拦下对 MCP 工具的直接调用；模型路由不支持延迟加载时，工具定义收成同名短桩，完整参数用 describe 查看",
   "on": "已开启",
   "off": "已关闭",
   "global": "全局",

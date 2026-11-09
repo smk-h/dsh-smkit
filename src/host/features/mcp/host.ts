@@ -21,6 +21,7 @@
 
 import { LOG_PREFIX } from '../../platform/constants.js'
 import { hasToken } from './auth/credentials.js'
+import { createBrokerCatalog } from './broker/catalog.js'
 import { createBrokerRuntime } from './broker/runtime.js'
 import { installMcpCommand } from './command.js'
 import { createOAuth } from './auth/oauth.js'
@@ -192,6 +193,20 @@ export const mcpFeature: HostFeature = {
           scope.rebuildAgentWorkspace(agent as AgentLike, state.wsPath)
         }
       },
+      services,
+      // The broker's catalogue reads the connection records, not the registry
+      // rows: when a row is a shadow stub its parameters are empty by design,
+      // and `mcp_describe_tool` still has to answer with the real schema.
+      catalogOf: createBrokerCatalog({ runtime, tools }),
+      // Workspace tools are registered per agent, so the stub verdict changes
+      // what that agent's registry holds; re-register on the transition only.
+      applyAgentStubMode: (agent, stubbed) => {
+        const changed = runtime.stubAgents.get(agent) !== stubbed
+        runtime.stubAgents.set(agent, stubbed)
+        if (!changed) return
+        const state = runtime.agentScopeState.get(agent)
+        if (state !== undefined) scope.rebuildAgentWorkspace(agent as AgentLike, state.wsPath)
+      },
     })
 
     const api: McpApiDeps = {
@@ -218,6 +233,9 @@ export const mcpFeature: HostFeature = {
           logger,
           tools,
           approveDirectCall: (callId) => broker.approveDirectCall(callId),
+          // `/mcp help` must print the real schema even while the model sees a
+          // shadow stub, so it reads the same catalogue the broker tools do.
+          catalogOf: createBrokerCatalog({ runtime, tools }),
         })
       }).dispose,
     )

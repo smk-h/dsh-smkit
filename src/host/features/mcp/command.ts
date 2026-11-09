@@ -35,6 +35,7 @@ import { brokerCatalog } from './broker/definitions.js'
 import { searchToolEntries } from './broker/search.js'
 import { executeToolCall } from './mcp/execute.js'
 import type { PluginContext } from '../../platform/context.js'
+import type { BrokerCatalogEntry } from './broker/definitions.js'
 import type { AgentLike, ContentBlock, LoggerLike, ToolsRegistry } from './types.js'
 
 /** The command name; the user types `/mcp`. */
@@ -97,6 +98,12 @@ export interface McpCommandDeps {
    * the token travels on the execution itself.
    */
   approveDirectCall?: (callId: string) => { token: unknown; release: () => void }
+  /**
+   * The MCP catalogue as the connection records hold it. When on-demand mode
+   * registered a shadow stub, the registry row carries no schema; `help` and
+   * the call example have to read the record, exactly like the broker tools do.
+   */
+  catalogOf?: (agent: AgentLike, registry?: ToolsRegistry) => BrokerCatalogEntry[]
 }
 
 /** Split one invocation's input into its sub-action and the rest. */
@@ -317,13 +324,19 @@ export function installMcpCommand(childCtx: PluginContext, deps: McpCommandDeps)
       async handler(invocation) {
         const { action, rest } = parseInput(invocation.rawInput)
         const registry = registryFor(deps, invocation.agent)
+        // Prefer the connection records: with on-demand shadow stubs the
+        // registry row carries no schema, and `help` must still print the real
+        // parameters. The registry view stays the fallback (harnesses, foreign
+        // `mcp__` tools).
+        const catalogFor = (agent: AgentLike): BrokerCatalogEntry[] =>
+          deps.catalogOf?.(agent, registry) ?? brokerCatalog(registry, agent)
 
         // Bare `/mcp help` is the usage block; `help <name>` is the tool sheet
         // below (the same answer `describe` gives, kept as an alias).
         if (action === 'help' && rest === '') return { kind: 'success', text: USAGE }
 
         if (action === 'list' || action === 'search') {
-          const catalog = brokerCatalog(registry, invocation.agent).map((entry) => ({
+          const catalog = catalogFor(invocation.agent).map((entry) => ({
             name: entry.schema.name,
             server: entry.server,
             tool: entry.tool,
@@ -399,7 +412,7 @@ export function installMcpCommand(childCtx: PluginContext, deps: McpCommandDeps)
           const name = space < 0 ? rest : rest.slice(0, space)
           const rawArguments = space < 0 ? '' : rest.slice(space + 1).trim()
           if (name === '') return { kind: 'error', text: USAGE }
-          const visible = brokerCatalog(registry, invocation.agent).find(
+          const visible = catalogFor(invocation.agent).find(
             (entry) => entry.schema.name === name,
           )
           if (visible === undefined) {

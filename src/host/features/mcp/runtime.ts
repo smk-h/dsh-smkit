@@ -46,6 +46,13 @@ export interface Runtime {
    * are re-synced at that moment, because the flag is part of their signature.
    */
   deferDirectTools: boolean
+  /**
+   * Agents whose route cannot defer loading, so their **workspace** tools are
+   * registered as shadow stubs (the global tier gets per-agent stubs instead,
+   * because that registry is shared). Set by the broker when it resolves the
+   * route, and read by the workspace scope on every re-registration.
+   */
+  stubAgents: Map<object, boolean>
   /** Monotonic JSON-RPC request id, shared by every transport. */
   nextRpcId(): number
   /** Read-or-create a live connection, applying `patch`. */
@@ -66,6 +73,7 @@ export function createRuntime(state: PluginState): Runtime {
     workspaceRescans: new Map(),
     brokerRuntimeDispose: null,
     deferDirectTools: false,
+    stubAgents: new Map(),
     nextRpcId: () => rpcSeq++,
     setLive(serverId, patch) {
       const current = live.get(serverId) ?? {
