@@ -105,6 +105,38 @@ it('describes the real schema even when the registry row is a stub', async () =>
   assert.equal(rows[0].schema.description, 'Run one command.')
 })
 
+it('still lists a workspace server when no registry view answers', async () => {
+  // The shape that produced `{ total: 0, matches: [] }` in a live session: the
+  // agent is a member of the workspace, but the state map has no row for it and
+  // neither registry table reports its tools (a resumed session / rebuild race).
+  // Visibility is a filter for the global tier; a workspace server's tools are
+  // the workspace's own and must still be listed.
+  const { createBrokerCatalog } = await import('../lib/host/features/mcp/broker/catalog.js')
+  const agent = {}
+  const full = fullDefinition()
+  const runtime = {
+    agentScopeState: new Map(),
+    workspaces: new Map([
+      ['/ws', {
+        agents: new Set([agent]),
+        servers: new Map([
+          ['rich', {
+            server: { name: 'rich' },
+            tools: [{ name: 'serial_exec', description: 'Run one command.', inputSchema: full.parameters }],
+          }],
+        ]),
+      }],
+    ]),
+    live: new Map(),
+  }
+  const empty = { schemas: () => [] }
+
+  const rows = createBrokerCatalog({ runtime, tools: empty })(agent)
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].schema.name, 'mcp__rich__serial_exec')
+  assert.deepEqual(Object.keys(rows[0].schema.parameters.properties), ['session_id', 'cmd', 'timeout'])
+})
+
 it('describes a stub differently from the definition it shadows', () => {
   assert.notEqual(stubDescription('mcp__x__y'), stubDescription('mcp__x__z'))
   assert.ok(stubDescription('a'.repeat(200)).length <= 160)

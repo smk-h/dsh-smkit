@@ -37,20 +37,35 @@ export function createBrokerCatalog(
 ): (agent: AgentLike, registry?: ToolsRegistry) => BrokerCatalogEntry[] {
   const { runtime, tools } = deps
   return (agent, registry = tools) => {
-    const visible = new Set(
-      registry
-        .schemas(agent)
-        .filter((schema) => schema.name.startsWith('mcp__'))
-        .map((schema) => schema.name),
-    )
+    // Visibility is a union: the root registry resolves the agent's scope on
+    // most hosts, the agent's own table is authoritative on all of them. A
+    // session opened before a mid-session toggle can end up in a state where
+    // only one of the two answers, and an empty answer used to make the whole
+    // catalogue empty.
+    const visible = new Set<string>()
+    for (const table of [registry, (agent as { ctx?: { tools?: ToolsRegistry } }).ctx?.tools]) {
+      if (table === undefined || typeof table.schemas !== 'function') continue
+      for (const schema of table.schemas(agent)) {
+        if (schema.name.startsWith('mcp__')) visible.add(schema.name)
+      }
+    }
     const rows = new Map<string, BrokerCatalogEntry>()
 
+    // The workspace this agent belongs to. `agentScopeState` is the fast path;
+    // `ws.agents` is the record the manager itself keeps, and it still answers
+    // when the agent object never made it into the state map (a resumed session
+    // or a rebuild race).
     const wsPath = runtime.agentScopeState.get(agent as object)?.wsPath
-    const workspace = wsPath === undefined ? undefined : runtime.workspaces.get(wsPath)
+    const workspace = wsPath !== undefined
+      ? runtime.workspaces.get(wsPath)
+      : [...runtime.workspaces.values()].find((candidate) => candidate.agents.has(agent))
+    // A workspace server's tools belong to that workspace and are registered in
+    // its agents' own tables, so they need no visibility gate: the only mask
+    // this plugin applies (`exclude`) covers the **global** tier.
     for (const conn of workspace?.servers.values() ?? []) {
       for (const info of conn.tools) {
         const name = publicName(conn.server.name, info.name)
-        if (!visible.has(name) || rows.has(name)) continue
+        if (rows.has(name)) continue
         rows.set(name, {
           schema: {
             name,
