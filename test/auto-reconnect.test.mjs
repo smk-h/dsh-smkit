@@ -11,7 +11,9 @@
  * 2. stopping a server cancels the retry a drop already scheduled — without
  *    that, "关闭" would be undone a second later;
  * 3. a transport that is alive but dead inside is found by the health probe,
- *    and a spent retry budget gives up instead of probing forever.
+ *    and a spent retry budget gives up instead of probing forever;
+ * 4. rebuilding a workspace connection reaps the transport it replaced — a
+ *    probe-detected drop leaves a live process behind otherwise.
  */
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -207,15 +209,32 @@ const configure = (handler, settings) =>
  * A newline-delimited JSON-RPC MCP server that appends its pid to
  * `$SPAWN_LOG` on every start, so a test can both count the starts and kill
  * the current child to simulate the bridge dropping.
+ *
+ * `$BREAK_FILE` is how a test asks for the *other* shape of a drop: once that
+ * file exists, this child answers `tools/list` with an error but keeps running,
+ * and consumes the file so the child spawned by the reconnect starts healthy.
  */
 const STDIO_STUB = `
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, existsSync, unlinkSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 appendFileSync(process.env.SPAWN_LOG, process.pid + '\\n')
+let wedged = false
 createInterface({ input: process.stdin }).on('line', (line) => {
   let message
   try { message = JSON.parse(line) } catch { return }
   if (message.id === undefined) return
+  if (message.method === 'tools/list' && !wedged && process.env.BREAK_FILE && existsSync(process.env.BREAK_FILE)) {
+    wedged = true
+    unlinkSync(process.env.BREAK_FILE)
+  }
+  if (wedged && message.method === 'tools/list') {
+    process.stdout.write(JSON.stringify({
+      jsonrpc: '2.0',
+      id: message.id,
+      error: { code: -32000, message: 'wedged' },
+    }) + '\\n')
+    return
+  }
   const result =
     message.method === 'initialize'
       ? { protocolVersion: '2025-03-26', capabilities: {}, serverInfo: { name: 'stdio-stub', version: '1' } }
@@ -225,6 +244,20 @@ createInterface({ input: process.stdin }).on('line', (line) => {
   process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: message.id, result }) + '\\n')
 })
 `
+
+/** Wait until `pid` is gone; false when it outlives the window. */
+async function waitForGone(pid, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    try {
+      process.kill(pid, 0)
+    } catch {
+      return true
+    }
+    if (Date.now() > deadline) return false
+    await settleMs(50)
+  }
+}
 
 /** The pids the stub has started, oldest first. */
 const startedPids = (log) => {
@@ -517,6 +550,59 @@ it('keeps a workspace retry alive across its own failures', async () => {
     dispose()
     rmSync(wsDir, { recursive: true, force: true })
     await stub.close()
+  }
+})
+
+it('reaps the transport it replaces when a workspace connection is rebuilt', async () => {
+  resetState()
+  const wsDir = mkdtempSync(join(tmpdir(), 'dsh-smkit-reconnect-ws-reap-'))
+  const { handler, agents, dispose } = makeWorkspaceCtx(wsDir)
+  const log = join(wsDir, 'spawn.log')
+  const breakFile = join(wsDir, 'wedged')
+  const script = join(wsDir, 'ws-reap.mjs')
+  writeFileSync(script, STDIO_STUB)
+  const read = () => workspaceRow(handler, wsDir, 'ws-reap')
+  try {
+    await configure(handler, {
+      healthCheckIntervalMs: 1000,
+      reconnectMaxDelayMs: 1000,
+      reconnectMaxAttempts: 0,
+      autoReconnect: true,
+    })
+    // Opening the workspace is what connects its servers.
+    await agents.create({ setup: async () => {} })
+    const created = await request(handler, 'POST', '/smkit/api/workspaces/servers', {
+      path: wsDir,
+      name: 'ws-reap',
+      type: 'stdio',
+      command: process.execPath,
+      args: [script],
+      env: { SPAWN_LOG: log, BREAK_FILE: breakFile },
+    })
+    assert.equal(created.code, 200)
+    await waitForRow(read, 'ws-reap', (row) => row.status === 'connected')
+    const [first] = startedPids(log)
+    assert.ok(first, 'the stub must have started once')
+
+    // The next probe's `tools/list` is answered with an error while the process
+    // stays alive: the half-dead shape only the probe can find. The rebuild has
+    // to reap that child — otherwise the row keeps a second process (a stdio
+    // bridge holds its remote session, an HTTP handle keeps polling) with no
+    // reference left to it.
+    writeFileSync(breakFile, '')
+    await waitForRow(
+      read,
+      'ws-reap',
+      (row) => row.status === 'reconnecting' && row.error.includes('health check failed'),
+      15_000,
+    )
+    const revived = await waitForRow(read, 'ws-reap', (row) => row.status === 'connected', 15_000)
+    assert.equal(revived.row.toolCount, 1, 'the rebuilt connection registers its tool again')
+    assert.equal(startedPids(log).length, 2, 'the row must be rebuilt on exactly one new child')
+    assert.ok(await waitForGone(Number(first)), `the superseded child (pid ${first}) must be reaped`)
+  } finally {
+    dispose()
+    rmSync(wsDir, { recursive: true, force: true })
   }
 })
 

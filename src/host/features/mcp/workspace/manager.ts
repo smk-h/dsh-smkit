@@ -247,6 +247,14 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
         closeHandleQuietly(handle)
         return conn
       }
+      // Reap the transport this row held before, exactly as the global connect
+      // path does. A retry re-enters here only after a drop, and a drop the
+      // health probe found is a *live* process whose session is gone — without
+      // this the row would carry two children (a stdio bridge keeps its remote
+      // session, an HTTP handle keeps its notification stream polling) with no
+      // reference left to the old one. Closing after the new handle exists
+      // keeps a failed reopen from costing the old transport.
+      closeHandleQuietly(conn.handle)
       conn.handle = handle
       conn.tools = handle.tools ?? []
       conn.toolCount = conn.tools.length
