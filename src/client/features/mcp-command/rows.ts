@@ -11,12 +11,11 @@
  *   the ready-to-paste call line and the parameter sheet without executing
  *   anything, which is exactly what a reader needs after picking a name;
  * - every tool gets a second row that completes `/mcp call <public name>` —
- *   completed, not run. The line starts from the call's own minimum: no
- *   arguments when none are required, and otherwise a JSON object with every
- *   required name filled in with a parseable placeholder (`{"name":"…"}`), the
- *   same shape the host's own sheet prints. `greet_tool` and `version_tool`
- *   therefore look alike here; what differs is how much the reader has to type
- *   before the line means what they want.
+ *   completed, not run. The line carries a parseable placeholder for every
+ *   parameter the tool declares, in schema order (`{"name":"…","count":0}`),
+ *   each value the same shape the host's own sheet prints; the reader replaces
+ *   the `…`s instead of recalling the signature. A tool that declares no
+ *   parameter gets the bare call, trailing space included as the edit point.
  *
  * Scope comes from the same two sources the page trusts: the global tier
  * (enabled, connected, not excluded by this workspace) plus the workspace tier
@@ -47,12 +46,6 @@ export interface ProjectTools {
 /** A description as one printable line; 160 chars is the card's own budget. */
 function oneLine(text: string): string {
   return text.replace(/\s+/gu, ' ').trim().slice(0, 160)
-}
-
-/** The parameter names a tool schema marks required. */
-function requiredNames(parameters: Record<string, unknown>): readonly string[] {
-  const required = parameters.required
-  return Array.isArray(required) ? required.map(String) : []
 }
 
 /** One declared property, as far as the placeholder rule reads it. */
@@ -97,16 +90,26 @@ function placeholderOf(property: SchemaPropertyLike): unknown {
 }
 
 /**
- * The arguments a call row starts from: every required name, placeholder
- * values, serialised as one JSON object. Empty when nothing is required — the
- * bare call is then the minimum, and the row leaves the caret after a space.
+ * The arguments a call row starts from: every parameter the schema declares,
+ * each with its placeholder value, serialised as one JSON object in declaration
+ * order.
+ *
+ * Optional parameters are included on purpose. Showing the shortest legal call
+ * is the `help` sheet's job; completing a call is the moment to save the reader
+ * from recalling the signature, so the line arrives complete and they only
+ * replace the `…`s (or delete what this call does not need).
+ *
+ * @param parameters - the sanitised input schema the wire view carries.
+ * @returns the JSON object text, or `''` when the tool declares no parameter at
+ *   all — the bare call is then the whole line, with a trailing space as the
+ *   edit point.
  */
-function requiredSample(parameters: Record<string, unknown>): string {
-  const required = requiredNames(parameters)
-  if (required.length === 0) return ''
+function argumentSample(parameters: Record<string, unknown>): string {
   const properties = propertiesOf(parameters)
+  const names = Object.keys(properties)
+  if (names.length === 0) return ''
   return JSON.stringify(
-    Object.fromEntries(required.map((name) => [name, placeholderOf(properties[name] ?? {})])),
+    Object.fromEntries(names.map((name) => [name, placeholderOf(properties[name] ?? {})])),
   )
 }
 
@@ -175,10 +178,10 @@ export function commandRows(tools: ProjectTools, t: Translator): readonly Select
         ...(detail === '' ? {} : { detail }),
         group,
       })
-      const sample = requiredSample(tool.parameters)
+      const sample = argumentSample(tool.parameters)
       rows.push({
-        // The trailing space is the edit point of a bare call; with arguments
-        // the caret already lands at the end of the object, so none is added.
+        // The trailing space is the edit point of a parameterless call; with
+        // arguments the caret already lands at the end of the object.
         id: sample === ''
           ? `${CALL_LINE_PREFIX}${tool.publicName} `
           : `${CALL_LINE_PREFIX}${tool.publicName} ${sample}`,

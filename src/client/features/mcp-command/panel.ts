@@ -142,10 +142,10 @@ function decorateWith(
           return commandRows(scope, t)
         },
         onSelect(option, session) {
-          // A call row completes the line instead of running it: the tool needs
-          // no required argument to be legal, but a real call usually wants the
-          // optional ones (a host, a port, a user), so the reader gets the line
-          // in the composer and presses Enter when it says what they mean.
+          // A call row completes the line instead of running it: the line
+          // already carries every declared parameter with a placeholder value,
+          // so the reader replaces the `…`s, drops what this call does not
+          // need, and presses Enter. Nothing runs on the way in.
           if (option.id.startsWith(CALL_LINE_PREFIX)) {
             setComposerLine(ctx, session.sessionId, option.id)
             return

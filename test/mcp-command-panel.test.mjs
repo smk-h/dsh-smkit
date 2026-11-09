@@ -8,8 +8,9 @@
  *   does not exclude; another workspace's servers and a disconnected server
  *   never appear;
  * - every tool row completes `/mcp help <public name>`, and every tool also gets
- *   a call row whose line starts from that call's minimum: bare with a trailing
- *   space when nothing is required, a placeholder JSON object when something is;
+ *   a call row whose line carries a placeholder for every declared parameter,
+ *   optional ones included, in schema order — bare with a trailing space only
+ *   when the tool declares no parameter at all;
  * - a help pick submits that line through the session binding; a call pick only
  *   writes it into the composer, because the optional arguments are the
  *   reader's to fill in;
@@ -97,12 +98,24 @@ const WORKSPACES = {
         authMode: '',
         source: 'workspace',
         status: 'connected',
-        toolCount: 1,
+        toolCount: 2,
         tools: [{
           name: 'ping',
           publicName: 'mcp__local__ping',
           description: 'Ping the device',
           parameters: { properties: { count: { type: 'number' } }, required: [] },
+        }, {
+          name: 'serial_open',
+          publicName: 'mcp__local__serial_open',
+          description: 'Open a serial port',
+          parameters: {
+            properties: {
+              port: { type: 'string' },
+              baud: { type: 'number' },
+              parity: { type: 'string', enum: ['none', 'even'] },
+            },
+            required: ['port'],
+          },
         }],
         error: '',
       }],
@@ -232,7 +245,7 @@ async function decorate(commandUi) {
   return { app, decoration }
 }
 
-it('completes every tool with help, and a call that starts from its own minimum', async () => {
+it('completes every tool with help, and a call carrying every parameter placeholder', async () => {
   const { decoration } = await decorate()
   assert.equal(decoration.available({ sessionId: 's1' }), true)
   const rows = await decoration.ui.options({ sessionId: 's1' }, new AbortController().signal)
@@ -242,14 +255,21 @@ it('completes every tool with help, and a call that starts from its own minimum'
   assert.ok(ids.includes('/mcp help mcp__context7__resolve-library-id'))
   assert.ok(
     ids.includes('/mcp call mcp__context7__resolve-library-id {"libraryName":"…"}'),
-    'a required parameter arrives as a parseable placeholder, the same shape the help sheet prints',
+    'a required string arrives as a parseable placeholder, the same shape the help sheet prints',
+  )
+  assert.ok(
+    ids.includes('/mcp call mcp__local__serial_open {"port":"…","baud":0,"parity":"none"}'),
+    'every declared parameter is filled — optional ones included, in schema order, enum taken verbatim',
+  )
+  assert.ok(
+    ids.includes('/mcp call mcp__local__ping {"count":0}'),
+    'a tool whose parameters are all optional still gets them completed',
   )
   assert.ok(
     ids.includes('/mcp call mcp__board__serial_list '),
     'a parameterless tool gets the bare call, caret after the space',
   )
   assert.ok(ids.includes('/mcp help mcp__local__ping'))
-  assert.ok(ids.includes('/mcp call mcp__local__ping '))
 })
 
 it('scopes the rows to the session workspace and the global tier it allows', async () => {
