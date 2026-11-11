@@ -63,4 +63,10 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
     repo: 'https://github.com/csyangwen/dsh-memory-evolve',
     command: 'dsh plugin --profile web add github:csyangwen/dsh-memory-evolve',
   },
+  {
+    id: 'context',
+    name: 'dsh-context',
+    repo: 'https://github.com/bowenliang123/dsh-context',
+    command: 'dsh plugin --profile web add dsh-context',
+  },
 ]
