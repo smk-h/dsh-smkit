@@ -241,7 +241,7 @@ it('stands its MCP half down when dsh-mcp-manager shares the boot graph', () => 
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'plugin-gallery', 'tab-menu', 'markdown-outline', 'line-jump', 'selection-quote', 'explorer', 'input-history']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'tab-menu', 'markdown-outline', 'line-jump', 'selection-quote', 'explorer', 'input-history']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -292,9 +292,6 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // The session-manager page's own dictionary, seated by the merged section
     // like the pages above it.
     'smkit: session-manager/dictionaries',
-    // The plugin gallery's dictionary, seated by the merged section the same
-    // way: its list is data, but the one line per card is copy.
-    'smkit: plugin-gallery/dictionaries',
     // The `/mcp` picker's dictionary (search box, group heading, row copy).
     'smkit: mcp-command/dictionaries',
     'smkit: openspec/dictionaries',

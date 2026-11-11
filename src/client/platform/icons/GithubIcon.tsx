@@ -16,12 +16,9 @@
  * cat takes the pill behind it: a dark disc on the light theme, a light disc on
  * the dark one, with no second colour and no theme selector in the glyph.
  *
- * It is drawn by two things, both of them links out to a repository: the
- * identity badge (`platform/ui/VersionBadge`), at the tail of the pill that
- * links to this plugin's own repository, and the plugin gallery's cards
- * (`features/plugin-gallery`), in front of the name of each plugin they list.
- * Two features draw it, so the glyph is platform material like the `<svg>`
- * shell it is drawn with.
+ * It is drawn by the identity badge (`platform/ui/VersionBadge`), at the tail
+ * of the pill that links to this plugin's own repository, so the glyph is
+ * platform material like the `<svg>` shell it is drawn with.
  */
 
 import { createIcon, type IconFactory, type IconSpec } from './Icon'

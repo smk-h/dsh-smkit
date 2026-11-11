@@ -389,7 +389,6 @@ export const SCOPES = [
   ['client/features/markdown-outline', 'outline'],
   ['client/features/mcp', 'mcp'],
   ['client/features/openspec', 'spec'],
-  ['client/features/plugin-gallery', 'gallery'],
   ['client/features/selection-quote', 'quote'],
   ['client/features/session-delete', 'del'],
   ['client/features/session-manager', 'sess'],

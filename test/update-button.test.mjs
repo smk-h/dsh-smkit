@@ -12,7 +12,7 @@
  * Nothing is installed from here, and nothing is scheduled: every case starts
  * with a click, and `settle()` is the request coming back.
  *
- * Harness discipline (same as `plugin-gallery-panel.test.mjs`): hooks are handed
+ * Harness discipline (same as `session-manager-panel.test.mjs`): hooks are handed
  * out on one flat cursor, and **one pass is one walk** — a tree may not be
  * walked twice, because the second walk would re-invoke the components at
  * whatever cursor the first one left behind.
