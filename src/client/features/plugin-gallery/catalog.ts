@@ -57,4 +57,10 @@ export const PLUGIN_CATALOG: readonly CatalogEntry[] = [
     repo: 'https://github.com/TOBYCAI/dsh-sessions-manager',
     command: 'dsh plugin --profile web add "github:TOBYCAI/dsh-sessions-manager"',
   },
+  {
+    id: 'memoryEvolve',
+    name: 'dsh-memory-evolve',
+    repo: 'https://github.com/csyangwen/dsh-memory-evolve',
+    command: 'dsh plugin --profile web add github:csyangwen/dsh-memory-evolve',
+  },
 ]

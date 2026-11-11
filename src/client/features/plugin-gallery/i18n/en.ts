@@ -22,4 +22,6 @@ export const PLUGIN_GALLERY_LOCALE_EN: LocaleDict = {
     'The sidebar workbench: file preview and editing, a terminal, a side chat, Git and sub-agent pages are built in, and the sidebar itself is a base other plugins register pages onto.',
   sessionsManagerDesc:
     'Session management: one settings page for every active and archived session, with search, stars, tags, batch archive and cross-workspace moves; each sidebar row\'s ⋯ menu also gains mark-unread, move and delete, where delete goes to a trash bin you can restore from or empty after 7/30/90 days.',
+  memoryEvolveDesc:
+    'Cross-session long-term memory: five tracks that default to ~/.dsh/memories — USER.md for who you are, MEMORY.md for global facts, one daily log per day under daily/, and a per-project KEY.md plus project log keyed by the git remote of the repository, filterable by branch when injected; writes come from memory tool calls the model makes, and the background review is off by default, queueing what it drafts for your approval. Skill self-evolution and a skill manager, four-track todos, session broadcast and external CLI dispatch come along.',
 }
