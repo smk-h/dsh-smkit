@@ -102,7 +102,7 @@ dsh plugin --profile demo remove @smai-kit/dsh-smkit   # 同时移除依赖和�
 dsh plugin --profile demo update @smai-kit/dsh-smkit   # pnpm update + reconcile
 ```
 
-不知道有没有新版本时，打开 设置 → smkit 配置，点版本号右边的「检查更新」：它比对 npm 上的 latest，有新版就把带 profile 与版本的完整命令给你，点「复制命令」即可粘到终端执行（见 [LV511-检查更新](docs/LV511-检查更新.md)）。装完要重启 dsh，宿主半边的代码只在启动时加载。
+不知道有没有新版本时，打开 设置 → SMKIT，点版本号右边的「检查更新」：它比对 npm 上的 latest，有新版就把带 profile 与版本的完整命令给你，点「复制命令」即可粘到终端执行（见 [LV511-检查更新](docs/LV511-检查更新.md)）。装完要重启 dsh，宿主半边的代码只在启动时加载。
 
 ## 三、 调试
 

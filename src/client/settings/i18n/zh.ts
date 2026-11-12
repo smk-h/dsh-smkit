@@ -11,7 +11,7 @@
 import type { LocaleDict } from '../../platform/types'
 
 export const SMKIT_LOCALE_ZH: LocaleDict = {
-  sectionLabel: "smkit 配置",
+  sectionLabel: "SMKIT",
   sectionIntro: "本插件的设置项都收在这一节里，用下面的标签页切换要看的那一页。",
   tabMcp: "MCP",
   tabSkills: "技能",

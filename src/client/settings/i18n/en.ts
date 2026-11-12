@@ -11,7 +11,7 @@
 import type { LocaleDict } from '../../platform/types'
 
 export const SMKIT_LOCALE_EN: LocaleDict = {
-  sectionLabel: 'smkit Settings',
+  sectionLabel: 'SMKIT',
   sectionIntro:
     "The plugin's settings pages in one place: the tab strip picks which of them the panel below shows.",
   tabMcp: 'MCP',

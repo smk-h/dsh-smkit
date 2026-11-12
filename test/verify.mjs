@@ -188,5 +188,5 @@ assert.equal(openSpecSlot.locale, 'openspec', 'the OpenSpec control binds its ow
 assert.ok(openSpecSlot.order < deleteSlot.order, 'it sits before the destructive control')
 
 console.log(
-  'verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → smkit 配置 (MCP · Skills · 自定义设置) → the header pair.',
+  'verify: ok — dsh-smkit builds, mounts its API route, and seats Settings → SMKIT (MCP · Skills · 自定义设置) → the header pair.',
 )

@@ -38,7 +38,7 @@
 
 （3）在页面内直接 `fetch` 三个接口：`/smkit/api/servers`、`/smkit/api/skills`、`/mcp-manager/api/servers`。
 
-（4）打开「账户菜单 → 设置 → smkit Settings」，读取页签列表。
+（4）打开「账户菜单 → 设置 → SMKIT」，读取页签列表。
 
 ### 3. 场景 B：两个插件同 profile
 

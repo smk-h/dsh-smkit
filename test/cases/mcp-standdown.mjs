@@ -186,7 +186,7 @@ async function inspect(page, tokenUrl, artifactDir) {
   await page.waitForTimeout(600)
   await page.getByText(/^Settings$|^设置$/).first().click()
   await page.waitForTimeout(1500)
-  await page.getByRole('button', { name: /smkit Settings/ }).first().click()
+  await page.getByRole('button', { name: /SMKIT/ }).first().click()
   await page.waitForTimeout(1500)
   const tabs = await page.locator('[role="tab"]').allInnerTexts()
   await page.screenshot({ path: join(artifactDir, 'settings.png') })

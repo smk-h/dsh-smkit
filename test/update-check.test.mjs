@@ -1,5 +1,5 @@
 /**
- * The manual update check (`Settings → smkit 配置` → 检查更新).
+ * The manual update check (`Settings → SMKIT` → 检查更新).
  *
  * Three things have to hold, because they are what the button promises:
  *

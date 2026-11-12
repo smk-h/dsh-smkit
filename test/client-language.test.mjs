@@ -252,7 +252,7 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
   // namespace carries its label and whose tabs reach into the pages'.
   assert.equal(app.spec.name, 'settings.section')
   assert.equal(app.spec.locale, 'smkit')
-  assert.equal(app.spec.label(), 'smkit Settings')
+  assert.equal(app.spec.label(), 'SMKIT')
   assert.equal(
     app.spec.id,
     'mcp-manager',
@@ -420,13 +420,14 @@ it('binds the shell copy and each panel copy, and follows locale changes', async
   const app = mount(async (url) => { calls.push(url); return response({}) })
   // The merged shell reads its label and tab names from its own namespace, the
   // open panel from the `mcp` one — the seat binds the shell, not the page.
-  assert.match(app.paint().text, /smkit Settings/)
+  assert.match(app.paint().text, /SMKIT/)
   assert.match(app.paint().text, /MCP servers/)
   app.effects()
   await settle()
   app.setLocale('zh')
   assert.match(app.paint().text, /MCP 服务器/)
-  assert.match(app.paint().text, /smkit 配置/)
+  // The section's own name is the product name in both languages.
+  assert.match(app.paint().text, /SMKIT/)
   assert.equal(calls.filter((url) => url.endsWith('/settings')).length, 1)
   assert.ok(calls.every((url) => !url.includes('/settings/language')))
   // The tabs are the three pages, and the panel swaps with the selected one.
