@@ -59,7 +59,7 @@
  * 锚定项目根是同一个套路。
  */
 
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { createInterface } from 'node:readline'
 
@@ -92,6 +92,10 @@ if (options.help !== undefined) {
       '                     时间戳为北京时间：2026-09-18 10:45:26.096',
       '  --name=<label>     serverInfo 与每行日志前缀（默认 ssh-stub）——同一份脚本',
       '                     起多个实例时用它区分：--name=node-stub → [node-stub]',
+      '  --fail-after-first=<marker>  首次正常服务，并写下 marker；之后每次启动见到',
+      '                     marker 就写一行 refusing to start 并退出 1。用来把一次',
+      '                     掉线变成"之后再也连不上"，从而测出重试预算何时耗尽。',
+      '                     省略路径时用 .tmp/<name>-started.marker；下一轮前删掉它。',
       '',
     ].join('\n'),
   )
@@ -119,6 +123,13 @@ const LIFETIME_MS = Number(options.lifetime ?? 20_000)
 const STARTUP_DELAY_MS = Number(options['startup-delay'] ?? 5_000)
 const LOG_PATH = typeof options.log === 'string' ? options.log : ''
 const LABEL = typeof options.name === 'string' && options.name ? options.name : 'ssh-stub'
+/**
+ * `--fail-after-first` 的 marker 路径：首次启动写下它，之后每次启动见到它就
+ * 直接失败。省略值时按 `--name` 落到 `.tmp/` 下，避免多个实例共用一个 marker。
+ */
+const FAIL_AFTER_FIRST = typeof options['fail-after-first'] === 'string'
+  ? (options['fail-after-first'] === 'true' ? `.tmp/${LABEL}-started.marker` : options['fail-after-first'])
+  : ''
 
 /**
  * 日志行前缀跟着 `--name` 走，而不是写死脚本名：同一份脚本会被拉起成多个实例
@@ -276,6 +287,19 @@ function handle(message) {
 }
 
 const startupDelay = Number.isFinite(STARTUP_DELAY_MS) && STARTUP_DELAY_MS > 0 ? STARTUP_DELAY_MS : 0
+
+if (FAIL_AFTER_FIRST !== '') {
+  if (existsSync(FAIL_AFTER_FIRST)) {
+    logLifecycle(`refusing to start: marker ${FAIL_AFTER_FIRST} exists (--fail-after-first)`)
+    process.exit(1)
+  }
+  try {
+    mkdirSync(dirname(FAIL_AFTER_FIRST), { recursive: true })
+    writeFileSync(FAIL_AFTER_FIRST, `${stamp()} pid=${process.pid}\n`)
+  } catch (error) {
+    logLifecycle(`could not write fail marker ${FAIL_AFTER_FIRST}: ${error?.message ?? error}`)
+  }
+}
 
 logLifecycle(
   `===== START pid=${process.pid} mode=${MODE} ` +

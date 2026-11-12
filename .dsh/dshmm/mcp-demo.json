@@ -39,6 +39,19 @@
       ],
       "env": {}
     },
+    "node-stub-once": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./scripts/ssh-stub-mcp.mjs",
+        "--name=node-stub-once",
+        "--startup-delay=0",
+        "--lifetime=5000",
+        "--fail-after-first=.tmp/node-stub-once-started.marker",
+        "--log=.tmp/node-stub-once.log"
+      ],
+      "env": {}
+    },
     "ssh-stub": {
       "type": "stdio",
       "command": "ssh",

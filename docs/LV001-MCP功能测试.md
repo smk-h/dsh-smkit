@@ -169,6 +169,7 @@ pnpm dsh:kill-port 3080 -y  # -y 跳过确认
 | `--mode=<exit\|hang>` | 断开方式（见上表） | `exit` |
 | `--log=<路径>` | 启动/断开/协议流水写到这里（同时写 stderr）。相对路径按 cwd 解析，父目录不存在会自动创建——配合配置里的 `cd <仓库> &&`，`--log=.tmp/ssh-stub.log` 落在仓库根的 `.tmp/`（已在 `.gitignore` 里）。每行开头是**北京时间**定宽时间戳（`2026-09-18 10:45:26.096`，UTC+8） | 只写 stderr |
 | `--name=<名字>` | 写进 `serverInfo`、应答文本，并作为**每行日志的前缀**（`--name=node-stub` → `[node-stub] …`），同一份脚本起多个实例时用它区分 | `ssh-stub` |
+| `--fail-after-first=<marker>` | 首次正常服务并写下 marker；之后每次启动见到 marker 就写一行 `refusing to start` 并退出 1。用来把“一次掉线”变成“之后再也连不上”，从而测出重试预算何时耗尽；省略路径时用 `.tmp/<name>-started.marker`，下一轮前删掉 marker 即可恢复 | 关闭 |
 
 除定时断开外，它还提供三个工具便于在对话里**精确控制**时机，不必等定时器：`stub_echo`（回显）、`stub_die`（应答后退出）、`stub_hang`（应答后停止应答）。
 

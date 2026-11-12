@@ -20,6 +20,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { after, it } from 'node:test'
 
 // STATE_PATH is derived from homedir() when the module is evaluated, so point
@@ -204,6 +205,16 @@ const waitForGlobal = (handler, name, done, timeoutMs) =>
 /** Write the reconnect settings this test needs (they persist in the store). */
 const configure = (handler, settings) =>
   request(handler, 'POST', '/smkit/api/settings/reconnect', settings)
+
+/** Poll until the HTTP stub has seen `count` connect attempts (one initialize each). */
+async function waitForConnects(stub, count, timeoutMs = 15_000) {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    if (stub.state.inits >= count) return stub.state.inits
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${count} connects; saw ${stub.state.inits}`)
+    await settleMs(50)
+  }
+}
 
 /**
  * A newline-delimited JSON-RPC MCP server that appends its pid to
@@ -614,7 +625,7 @@ it('gives up once the retry budget is spent', async () => {
     await configure(handler, {
       healthCheckIntervalMs: 1000,
       reconnectMaxDelayMs: 1000,
-      reconnectMaxAttempts: 1,
+      reconnectMaxAttempts: 2,
       autoReconnect: true,
     })
     const created = await request(handler, 'POST', '/smkit/api/servers', {
@@ -633,7 +644,9 @@ it('gives up once the retry budget is spent', async () => {
       (row) => row.status === 'error' && row.error.includes('gave up'),
       10_000,
     )
-    assert.ok(settled.row.error.includes('gave up after 1 reconnect attempts'), settled.row.error)
+    assert.ok(settled.row.error.includes('gave up after 2 reconnect attempts'), settled.row.error)
+    // Exactly the configured budget was spent: one connect plus two retries.
+    assert.equal(stub.state.inits, 3, 'the budget must be spent exactly')
 
     // The budget is spent: no retry and no probe may keep knocking.
     const knocked = stub.state.lists
@@ -715,6 +728,138 @@ it('translates a legacy zero budget to -1 and keeps a deliberate new zero', asyn
     assert.equal(settings.json.reconnectMaxAttempts, 0)
   } finally {
     second.dispose()
+  }
+})
+
+it('keeps retrying while the budget is unbounded', async () => {
+  resetState()
+  const stub = await startHttpStub()
+  const { handler, dispose } = makeCtx()
+  try {
+    await configure(handler, {
+      healthCheckIntervalMs: 1000,
+      reconnectMaxDelayMs: 1000,
+      reconnectMaxAttempts: -1,
+      autoReconnect: true,
+    })
+    const created = await request(handler, 'POST', '/smkit/api/servers', {
+      name: 'no-limit',
+      type: 'http',
+      url: stub.url,
+      authMode: 'none',
+    })
+    assert.equal(created.code, 201)
+    await waitForGlobal(handler, 'no-limit', (row) => row.status === 'connected')
+
+    stub.state.down = true
+    // Four connects = the first one plus three retries: more than any bounded
+    // budget this suite uses elsewhere, so an accidental cap would show here.
+    const connects = await waitForConnects(stub, 4)
+    assert.ok(connects >= 4, `-1 must keep retrying; stopped after ${connects}`)
+
+    const row = await globalRow(handler, 'no-limit')
+    assert.equal(row.status, 'reconnecting', 'an unbounded budget must stay in the retry loop')
+    assert.ok(!String(row.error ?? '').includes('gave up'), row.error)
+  } finally {
+    dispose()
+    await stub.close()
+  }
+})
+
+it('applies a lowered budget to the next failed attempt', async () => {
+  resetState()
+  const stub = await startHttpStub()
+  const { handler, dispose } = makeCtx()
+  try {
+    await configure(handler, {
+      healthCheckIntervalMs: 1000,
+      reconnectMaxDelayMs: 1000,
+      reconnectMaxAttempts: -1,
+      autoReconnect: true,
+    })
+    const created = await request(handler, 'POST', '/smkit/api/servers', {
+      name: 'lowered',
+      type: 'http',
+      url: stub.url,
+      authMode: 'none',
+    })
+    assert.equal(created.code, 201)
+    await waitForGlobal(handler, 'lowered', (row) => row.status === 'connected')
+
+    stub.state.down = true
+    await waitForConnects(stub, 3)
+    // The counter already sits above the new budget: the next failure must give
+    // up instead of finishing the unbounded loop it was in a moment ago.
+    const lowered = await configure(handler, { reconnectMaxAttempts: 1 })
+    assert.equal(lowered.json.reconnectMaxAttempts, 1)
+
+    const settled = await waitForGlobal(
+      handler,
+      'lowered',
+      (row) => row.status === 'error' && row.error.includes('gave up'),
+      15_000,
+    )
+    assert.ok(settled.row.error.includes('gave up after 1 reconnect attempts'), settled.row.error)
+
+    const connects = stub.state.inits
+    await settleMs(2000)
+    assert.equal(stub.state.inits, connects, 'a lowered budget must stop further attempts')
+  } finally {
+    dispose()
+    await stub.close()
+  }
+})
+
+it('gives up when every reconnect fails to spawn', async () => {
+  resetState()
+  const { handler, dispose } = makeCtx()
+  const stub = fileURLToPath(new URL('../scripts/ssh-stub-mcp.mjs', import.meta.url))
+  const marker = join(scratchHome, 'spawn-fail.marker')
+  const log = join(scratchHome, 'spawn-fail.log')
+  rmSync(marker, { force: true })
+  rmSync(log, { force: true })
+  try {
+    await configure(handler, {
+      healthCheckIntervalMs: 0,
+      reconnectMaxDelayMs: 1000,
+      reconnectMaxAttempts: 2,
+      autoReconnect: true,
+    })
+    const created = await request(handler, 'POST', '/smkit/api/servers', {
+      name: 'spawn-fail',
+      type: 'stdio',
+      command: process.execPath,
+      args: [stub, '--name=spawn-fail', '--lifetime=0', '--startup-delay=0', `--log=${log}`, `--fail-after-first=${marker}`],
+      env: {},
+    })
+    assert.equal(created.code, 201)
+    await waitForGlobal(handler, 'spawn-fail', (row) => row.status === 'connected')
+
+    // The first instance leaves its marker; killing it turns every later start
+    // into an immediate "refusing to start", so the budget is the only thing
+    // that can end the loop.
+    const pid = /START pid=(\d+)/u.exec(readFileSync(log, 'utf8'))?.[1]
+    assert.ok(pid, 'the first instance must log its pid')
+    process.kill(Number(pid), 'SIGKILL')
+
+    const settled = await waitForGlobal(
+      handler,
+      'spawn-fail',
+      (row) => row.status === 'error' && row.error.includes('gave up'),
+      15_000,
+    )
+    assert.ok(settled.row.error.includes('gave up after 2 reconnect attempts'), settled.row.error)
+
+    const refusals = readFileSync(log, 'utf8')
+      .split(/\r?\n/u)
+      .filter((line) => line.includes('refusing to start'))
+    assert.equal(refusals.length, 2, 'exactly the configured budget of spawn attempts')
+
+    const unchanged = readFileSync(log, 'utf8')
+    await settleMs(2000)
+    assert.equal(readFileSync(log, 'utf8'), unchanged, 'a spent budget must not spawn again')
+  } finally {
+    dispose()
   }
 })
 
