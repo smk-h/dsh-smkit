@@ -77,6 +77,7 @@ export const MCP_LOCALE_ZH: LocaleDict = {
   "cancel": "取消",
   "advanced": "高级",
   "advancedTitle": "高级设置",
+  "backToList": "返回",
   "toolCallTimeout": "工具调用超时（毫秒）",
   "toolCallTimeoutHelp": "只作用于 tools/call；initialize 与 tools/list 仍固定 60 秒。默认 60000（60 秒），保存到 ~/.dsh/mcp-manager.json 后立即生效，不需要重连服务器。",
   "restoreDefault": "恢复默认",

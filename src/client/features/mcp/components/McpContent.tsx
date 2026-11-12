@@ -31,6 +31,7 @@
  */
 
 import { createGlobalMaskRow } from './GlobalMaskRow'
+import { createChevronLeftIcon } from '../../../platform/icons/ChevronLeftIcon'
 import { createXIcon } from '../../../platform/icons/XIcon'
 import { createPlusIcon } from '../icons/PlusIcon'
 import { createSearchIcon } from '../../../platform/icons/SearchIcon'
@@ -96,6 +97,7 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
   const PlusIcon = createPlusIcon(deps)
   const SearchIcon = createSearchIcon(deps)
   const XIcon = createXIcon(deps)
+  const ChevronLeftIcon = createChevronLeftIcon(deps)
   const Settings2Icon = createSettings2Icon(deps)
   const ToolTimeoutForm = createToolTimeoutForm(deps)
   const ReconnectForm = createReconnectForm(deps)
@@ -332,6 +334,18 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
       </button>
     )
 
+    // The way back, on the page rather than only in the shell's title strip:
+    // a sub-view replaces the list in place, so without this the only way to
+    // the list is the breadcrumb portaled into the dialog's header — easy to
+    // miss once the form itself is scrolled. The button names its destination,
+    // so it reads as the same action the breadcrumb's root offers.
+    const backToList = (
+      <button className="smkit-mcp-section-back" type="button" onClick={() => setView('list')}>
+        <ChevronLeftIcon size={14} />
+        <span>{t('backToList')}</span>
+      </button>
+    )
+
     // The sub-view breadcrumb for the shell's title strip: list view is the
     // trail's root and mounts nothing. Portal-rendered because the strip is
     // the shell's chrome, not this section's scroll area; `null` when the
@@ -361,8 +375,9 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     if (view === 'advanced') {
       return (
         <div className="smkit-mcp-section">
-          <div className="smkit-mcp-section-catalog-heading">
+          <div className="smkit-mcp-section-subhead">
             <h3>{t('advancedTitle')}</h3>
+            {backToList}
           </div>
           {headerBreadcrumb}
           <ReconnectForm
@@ -383,8 +398,9 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     if (view === 'add') {
       return (
         <div className="smkit-mcp-section">
-          <div className="smkit-mcp-section-catalog-heading">
+          <div className="smkit-mcp-section-subhead">
             <h3>{t('addServer')}</h3>
+            {backToList}
           </div>
           {headerBreadcrumb}
           <ServerForm
@@ -407,8 +423,9 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     if (view === 'edit-global' && globalEditing) {
       return (
         <div className="smkit-mcp-section">
-          <div className="smkit-mcp-section-catalog-heading">
+          <div className="smkit-mcp-section-subhead">
             <h3>{t('editGlobal')}</h3>
+            {backToList}
           </div>
           {headerBreadcrumb}
           <ServerForm
@@ -432,8 +449,9 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
     if (view === 'edit-ws' && selected && wsEditing) {
       return (
         <div className="smkit-mcp-section">
-          <div className="smkit-mcp-section-catalog-heading">
+          <div className="smkit-mcp-section-subhead">
             <h3>{t('editWorkspace')}</h3>
+            {backToList}
           </div>
           {headerBreadcrumb}
           <div className="smkit-mcp-section-ws-path-hint">{selected}</div>

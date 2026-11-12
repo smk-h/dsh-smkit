@@ -44,6 +44,55 @@
   line-height: 18px;
 }
 
+/* A sub-view's head: the sub-view's own name on the left, the way back at the
+ * right edge — the corner a reader's eye returns to when the form is done, and
+ * the one spot that stays put while the form scrolls. The breadcrumb in the
+ * dialog's title strip does the same job, but a scrolled form scrolls it out
+ * of sight; this one travels with the content. */
+.smkit-mcp-section-subhead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0 2px;
+}
+/* The name takes the slack, so the button keeps its width and its right edge
+ * without an auto margin of its own. */
+.smkit-mcp-section-subhead h3 {
+  flex: 1 1 auto;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 26px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* A quiet, secondary control: it is the way out of a view, not an action on
+ * the data the view edits. Same 12px/18px rhythm as every other small button
+ * here, with the border that says it is pressable. */
+.smkit-mcp-section-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 3px 9px 3px 7px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+.smkit-mcp-section-back:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
 /* The "open config file" icon button beside the scope picker, same 28px
  * circle as the add button so the toolbar reads as one row of round actions.
  * Icon-only on purpose: a label squeezed the search box onto its own line.

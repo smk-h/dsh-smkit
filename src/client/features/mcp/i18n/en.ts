@@ -74,6 +74,7 @@ export const MCP_LOCALE_EN: LocaleDict = {
   "cancel": "Cancel",
   "advanced": "Advanced",
   "advancedTitle": "Advanced settings",
+  "backToList": "Back",
   "toolCallTimeout": "Tool call timeout (ms)",
   "toolCallTimeoutHelp": "Applies to tools/call only; initialize and tools/list keep their fixed 60 seconds. The default is 60000 (60 s); a saved value is written to ~/.dsh/mcp-manager.json and applies immediately, without reconnecting the server.",
   "restoreDefault": "Restore default",
