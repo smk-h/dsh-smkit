@@ -104,7 +104,13 @@ export interface PluginState {
    * next drop without a remount; absent or out-of-range means the default.
    */
   autoReconnect?: boolean
+  /**
+   * Retry budget: -1 retries forever, 0 never retries, N retries N times.
+   * `reconnectAttemptsSemantics` marks which meaning was stored; files written
+   * before it was introduced used 0 for "forever".
+   */
   reconnectMaxAttempts?: number
+  reconnectAttemptsSemantics?: number
   reconnectMaxDelayMs?: number
   healthCheckIntervalMs?: number
   /** Legacy keys (e.g. `language`) are preserved verbatim but never read. */

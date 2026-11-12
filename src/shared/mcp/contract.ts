@@ -121,7 +121,7 @@ export interface WorkspaceView {
 export interface ReconnectSettings {
   /** Rebuild a transport that dropped, instead of leaving it dead. */
   autoReconnect: boolean
-  /** Attempts before giving up; 0 retries for the life of the mount. */
+  /** Retries before giving up: -1 retries forever, 0 never retries, N retries N times. */
   reconnectMaxAttempts: number
   /** Ceiling of the exponential backoff, in milliseconds. */
   reconnectMaxDelayMs: number

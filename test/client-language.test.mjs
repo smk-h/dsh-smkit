@@ -495,7 +495,7 @@ it('posts the reconnect settings, and nulls every field to restore their default
           onDemandToolInjection: false,
           toolCallTimeoutMs: 60_000,
           autoReconnect: true,
-          reconnectMaxAttempts: 0,
+          reconnectMaxAttempts: -1,
           reconnectMaxDelayMs: 30_000,
           healthCheckIntervalMs: 30_000,
         })
@@ -509,7 +509,7 @@ it('posts the reconnect settings, and nulls every field to restore their default
   // values the poll reported.
   const form = app.openForm('ReconnectForm')
   assert.equal(form.node.props.current.autoReconnect, true)
-  assert.equal(form.node.props.current.reconnectMaxAttempts, 0)
+  assert.equal(form.node.props.current.reconnectMaxAttempts, -1)
   assert.equal(form.node.props.current.healthCheckIntervalMs, 30_000)
 
   app.click(

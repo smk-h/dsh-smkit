@@ -46,7 +46,7 @@ export const DEFAULT_TOOL_CALL_TIMEOUT_MS = 60_000
  */
 export const DEFAULT_RECONNECT_SETTINGS: ReconnectSettings = {
   autoReconnect: true,
-  reconnectMaxAttempts: 0,
+  reconnectMaxAttempts: -1,
   reconnectMaxDelayMs: 30_000,
   healthCheckIntervalMs: 30_000,
 }

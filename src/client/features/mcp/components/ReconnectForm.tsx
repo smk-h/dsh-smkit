@@ -28,6 +28,7 @@ export interface ReconnectFormProps {
 }
 
 /** A submittable draft: a non-negative whole number (the host owns the bounds). */
+const SIGNED_INT_RE = /^-?\d+$/
 const NON_NEGATIVE_INT_RE = /^\d+$/
 
 /** Read the four settings out of one host answer, field by field. */
@@ -78,8 +79,10 @@ export function createReconnectForm(
       }, 'reconnect')
 
     const save = (): Promise<void> => {
-      const drafts = [attempts, maxDelay, healthCheck]
-      if (!drafts.every((draft) => NON_NEGATIVE_INT_RE.test(draft.trim()))) {
+      const attemptsValue = Number(attempts.trim())
+      const validAttempts = SIGNED_INT_RE.test(attempts.trim()) && attemptsValue >= -1
+      const validOthers = [maxDelay, healthCheck].every((draft) => NON_NEGATIVE_INT_RE.test(draft.trim()))
+      if (!validAttempts || !validOthers) {
         setError(t('invalidReconnectNumber'))
         return Promise.resolve()
       }

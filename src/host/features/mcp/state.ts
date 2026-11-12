@@ -24,6 +24,7 @@ import {
   MIN_RECONNECT_MAX_ATTEMPTS,
   MIN_RECONNECT_MAX_DELAY_MS,
   MIN_TOOL_CALL_TIMEOUT_MS,
+  RECONNECT_SEMANTICS_VERSION,
   STATE_PATH,
 } from './constants.js'
 import { workspaceTokenKey } from './mcp/naming.js'
@@ -78,13 +79,32 @@ function normalizeBoundedInt(value: unknown, min: number, max: number): number |
   return value
 }
 
-/** Retry attempts before giving up; 0 means "keep trying". */
+/** Retries before giving up: -1 keeps trying, 0 never retries, N retries N times. */
 export function normalizeReconnectMaxAttempts(value: unknown): number | undefined {
   return normalizeBoundedInt(value, MIN_RECONNECT_MAX_ATTEMPTS, MAX_RECONNECT_MAX_ATTEMPTS)
 }
 
 export function effectiveReconnectMaxAttempts(state: PluginState): number {
   return normalizeReconnectMaxAttempts(state.reconnectMaxAttempts) ?? DEFAULT_RECONNECT_MAX_ATTEMPTS
+}
+
+/**
+ * Translate a retry budget written before the semantics change, where `0`
+ * meant "retry forever", and stamp the file with the current version.
+ *
+ * Only a stored `0` in an unstamped file is ambiguous: every other value keeps
+ * its meaning. A file with no stored budget needs no rewrite — the settings
+ * route stamps the version on its next write, so a deliberate new `0` stays
+ * "never retry".
+ *
+ * @returns whether the state changed (the caller then persists it).
+ */
+export function migrateReconnectMaxAttempts(state: PluginState): boolean {
+  if (state.reconnectAttemptsSemantics === RECONNECT_SEMANTICS_VERSION) return false
+  if (state.reconnectMaxAttempts !== 0) return false
+  state.reconnectMaxAttempts = -1
+  state.reconnectAttemptsSemantics = RECONNECT_SEMANTICS_VERSION
+  return true
 }
 
 /** Ceiling of the exponential backoff between retries. */

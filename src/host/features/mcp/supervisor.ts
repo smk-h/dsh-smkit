@@ -216,13 +216,13 @@ export function createSupervisor(deps: SupervisorDeps): Supervisor {
     }
     entry.attempt += 1
     const maxAttempts = effectiveReconnectMaxAttempts(runtime.state)
-    if (maxAttempts > 0 && entry.attempt > maxAttempts) {
+    if (maxAttempts >= 0 && entry.attempt > maxAttempts) {
       mark(entry.ref, 'error', note(`${reason}; gave up after ${maxAttempts} reconnect attempts`))
       forget(entry)
       return
     }
     const delay = backoffDelayMs(entry.attempt, effectiveReconnectMaxDelayMs(runtime.state))
-    const budget = maxAttempts > 0 ? `/${maxAttempts}` : ''
+    const budget = maxAttempts >= 0 ? `/${maxAttempts}` : ''
     mark(
       entry.ref,
       'reconnecting',

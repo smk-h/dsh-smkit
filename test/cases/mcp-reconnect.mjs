@@ -354,7 +354,7 @@ async function main(args) {
           autoReconnect: true,
           healthCheckIntervalMs: 1000,
           reconnectMaxDelayMs: 1000,
-          reconnectMaxAttempts: 0,
+          reconnectMaxAttempts: -1,
         }),
       })
       return { status: response.status, body: await response.json() }

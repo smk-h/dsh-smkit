@@ -18,6 +18,7 @@ import {
   HEALTH_CHECK_ERROR,
   RECONNECT_ATTEMPTS_ERROR,
   RECONNECT_DELAY_ERROR,
+  RECONNECT_SEMANTICS_VERSION,
   STATE_PATH,
   TOOL_CALL_TIMEOUT_ERROR,
 } from '../constants.js'
@@ -181,6 +182,10 @@ export const handleSettings: McpHandler = async (req, res, facts, api) => {
       [...writes.keys()].map((key) => [key, state[key]]),
     )
     for (const [key, write] of writes) setReconnectSetting(state, key, write.value)
+    // Every write from this page carries the current semantics, so a stored 0
+    // means "never retry" and is never mistaken for the legacy "retry forever".
+    const previousSemantics = state.reconnectAttemptsSemantics
+    state.reconnectAttemptsSemantics = RECONNECT_SEMANTICS_VERSION
     try {
       saveState(state)
     } catch (error) {
@@ -188,6 +193,7 @@ export const handleSettings: McpHandler = async (req, res, facts, api) => {
       // 500 for an unwritable state file, and the retry that is about to happen
       // must use the settings that are still on disk.
       for (const [key, value] of before) setReconnectSetting(state, key, value)
+      state.reconnectAttemptsSemantics = previousSemantics
       throw error
     }
     sendJson(res, 200, reconnectSettings(state))

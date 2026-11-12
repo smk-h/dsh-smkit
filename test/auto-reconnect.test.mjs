@@ -350,7 +350,7 @@ it('respawns a stdio child that exits on its own', async () => {
   resetState()
   const { handler, dispose } = makeCtx()
   // No health probe: this case must be caught by the child's own exit.
-  await configure(handler, { healthCheckIntervalMs: 0, reconnectMaxDelayMs: 1000, reconnectMaxAttempts: 0 })
+  await configure(handler, { healthCheckIntervalMs: 0, reconnectMaxDelayMs: 1000, reconnectMaxAttempts: -1 })
   const { log } = await addStdioServer(handler, { name: 'stdio-bridge', dir: scratchHome })
 
   const pids = startedPids(log)
@@ -378,7 +378,7 @@ it('respawns a stdio child that exits on its own', async () => {
 it('keeps a stopped server stopped', async () => {
   resetState()
   const { handler, dispose } = makeCtx()
-  await configure(handler, { healthCheckIntervalMs: 0, reconnectMaxDelayMs: 1000, reconnectMaxAttempts: 0 })
+  await configure(handler, { healthCheckIntervalMs: 0, reconnectMaxDelayMs: 1000, reconnectMaxAttempts: -1 })
   const { id, log } = await addStdioServer(handler, { name: 'stopped-bridge', dir: scratchHome })
 
   process.kill(Number(startedPids(log)[0]), 'SIGKILL')
@@ -408,7 +408,7 @@ it('leaves a first connect that failed alone', async () => {
     await configure(handler, {
       healthCheckIntervalMs: 1000,
       reconnectMaxDelayMs: 1000,
-      reconnectMaxAttempts: 0,
+      reconnectMaxAttempts: -1,
       autoReconnect: true,
     })
     const created = await request(handler, 'POST', '/smkit/api/servers', {
@@ -439,7 +439,7 @@ it('never retries a server that still needs authentication', async () => {
     await configure(handler, {
       healthCheckIntervalMs: 1000,
       reconnectMaxDelayMs: 1000,
-      reconnectMaxAttempts: 0,
+      reconnectMaxAttempts: -1,
       autoReconnect: true,
     })
     // OAuth with no tokens: the browser round trip has not happened yet.
@@ -469,7 +469,7 @@ it('finds a dead-but-alive HTTP session with the health probe and rebuilds it', 
     await configure(handler, {
       healthCheckIntervalMs: 1000,
       reconnectMaxDelayMs: 1000,
-      reconnectMaxAttempts: 0,
+      reconnectMaxAttempts: -1,
       autoReconnect: true,
     })
     const created = await request(handler, 'POST', '/smkit/api/servers', {
@@ -509,7 +509,7 @@ it('keeps a workspace retry alive across its own failures', async () => {
     await configure(handler, {
       healthCheckIntervalMs: 1000,
       reconnectMaxDelayMs: 1000,
-      reconnectMaxAttempts: 0,
+      reconnectMaxAttempts: -1,
       autoReconnect: true,
     })
     // Opening the workspace is what connects its servers.
@@ -566,7 +566,7 @@ it('reaps the transport it replaces when a workspace connection is rebuilt', asy
     await configure(handler, {
       healthCheckIntervalMs: 1000,
       reconnectMaxDelayMs: 1000,
-      reconnectMaxAttempts: 0,
+      reconnectMaxAttempts: -1,
       autoReconnect: true,
     })
     // Opening the workspace is what connects its servers.
@@ -645,6 +645,79 @@ it('gives up once the retry budget is spent', async () => {
   }
 })
 
+it('never retries when the budget is zero', async () => {
+  resetState()
+  const stub = await startHttpStub()
+  const { handler, dispose } = makeCtx()
+  try {
+    await configure(handler, {
+      healthCheckIntervalMs: 1000,
+      reconnectMaxDelayMs: 1000,
+      reconnectMaxAttempts: 0,
+      autoReconnect: true,
+    })
+    const created = await request(handler, 'POST', '/smkit/api/servers', {
+      name: 'no-retry',
+      type: 'http',
+      url: stub.url,
+      authMode: 'none',
+    })
+    assert.equal(created.code, 201)
+    await waitForGlobal(handler, 'no-retry', (row) => row.status === 'connected')
+
+    stub.state.down = true
+    const settled = await waitForGlobal(
+      handler,
+      'no-retry',
+      (row) => row.status === 'error' && row.error.includes('gave up'),
+      10_000,
+    )
+    assert.ok(settled.row.error.includes('gave up after 0 reconnect attempts'), settled.row.error)
+
+    // A zero budget is not a budget to spend: no second request may follow.
+    const knocked = stub.state.lists
+    await settleMs(2000)
+    assert.equal(stub.state.lists, knocked, 'a zero budget must not knock again')
+  } finally {
+    dispose()
+    await stub.close()
+  }
+})
+
+it('translates a legacy zero budget to -1 and keeps a deliberate new zero', async () => {
+  writeFileSync(
+    statePath,
+    JSON.stringify({
+      servers: [],
+      workspaceTokens: {},
+      onDemandToolInjection: false,
+      reconnectMaxAttempts: 0,
+    }),
+  )
+  const first = makeCtx()
+  try {
+    const settings = await request(first.handler, 'GET', '/smkit/api/settings')
+    assert.equal(settings.json.reconnectMaxAttempts, -1, 'a legacy 0 meant retry forever')
+    const migrated = JSON.parse(readFileSync(statePath, 'utf8'))
+    assert.equal(migrated.reconnectMaxAttempts, -1)
+    assert.equal(migrated.reconnectAttemptsSemantics, 2, 'the file must be stamped by the migration')
+
+    const written = await configure(first.handler, { reconnectMaxAttempts: 0 })
+    assert.equal(written.json.reconnectMaxAttempts, 0, 'the page may store a real zero')
+  } finally {
+    first.dispose()
+  }
+
+  // A fresh mount reads the stamped file: 0 now means "never", not "forever".
+  const second = makeCtx()
+  try {
+    const settings = await request(second.handler, 'GET', '/smkit/api/settings')
+    assert.equal(settings.json.reconnectMaxAttempts, 0)
+  } finally {
+    second.dispose()
+  }
+})
+
 /** The report the store must carry after every write above. */
 it('reports the effective settings, defaults included', async () => {
   resetState()
@@ -655,7 +728,7 @@ it('reports the effective settings, defaults included', async () => {
       onDemandToolInjection: false,
       toolCallTimeoutMs: 60_000,
       autoReconnect: true,
-      reconnectMaxAttempts: 0,
+      reconnectMaxAttempts: -1,
       reconnectMaxDelayMs: 30_000,
       healthCheckIntervalMs: 30_000,
     })
@@ -672,7 +745,7 @@ it('reports the effective settings, defaults included', async () => {
 
     // `null` per field restores the built-in default.
     const restored = await configure(handler, { reconnectMaxAttempts: null })
-    assert.equal(restored.json.reconnectMaxAttempts, 0)
+    assert.equal(restored.json.reconnectMaxAttempts, -1)
   } finally {
     dispose()
   }

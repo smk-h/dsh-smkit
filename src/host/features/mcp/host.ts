@@ -31,6 +31,7 @@ import { createSupervisor } from './supervisor.js'
 import {
   loadState,
   migrateLoadedState,
+  migrateReconnectMaxAttempts,
   normalizeHealthCheckIntervalMs,
   normalizeReconnectMaxAttempts,
   normalizeReconnectMaxDelayMs,
@@ -109,9 +110,11 @@ export const mcpFeature: HostFeature = {
     // missing per-server `id` (otherwise every id-addressed API 404s and all
     // live status/errors share one key) and normalize legacy env/header arrays.
     // Persist immediately so the ids stay stable across restarts.
-    if (migrateLoadedState(state)) {
+    let migrated = migrateLoadedState(state)
+    if (migrateReconnectMaxAttempts(state)) migrated = true
+    if (migrated) {
       logger.warn(
-        `${LOG_PREFIX}: migrated legacy state file (assigned missing server ids and/or normalized env/header pairs)`,
+        `${LOG_PREFIX}: migrated legacy state file (server ids, env/header pairs, and/or the reconnect retry budget)`,
       )
       try {
         saveState(state)

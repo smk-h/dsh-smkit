@@ -69,7 +69,7 @@ it('settings omits language, rejects the removed route, and preserves legacy sta
     onDemandToolInjection: false,
     toolCallTimeoutMs: 60_000,
     autoReconnect: true,
-    reconnectMaxAttempts: 0,
+    reconnectMaxAttempts: -1,
     reconnectMaxDelayMs: 30_000,
     healthCheckIntervalMs: 30_000,
   }

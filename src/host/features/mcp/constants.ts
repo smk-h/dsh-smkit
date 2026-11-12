@@ -58,10 +58,18 @@ export const TOOL_CALL_TIMEOUT_ERROR =
  */
 export const DEFAULT_AUTO_RECONNECT = true
 
-/** Retry attempts before giving up; 0 keeps retrying for the life of the mount. */
-export const DEFAULT_RECONNECT_MAX_ATTEMPTS = 0
-export const MIN_RECONNECT_MAX_ATTEMPTS = 0
+/** Retries before giving up: -1 keeps retrying, 0 never retries, N retries N times. */
+export const DEFAULT_RECONNECT_MAX_ATTEMPTS = -1
+export const MIN_RECONNECT_MAX_ATTEMPTS = -1
 export const MAX_RECONNECT_MAX_ATTEMPTS = 100
+
+/**
+ * Semantics version of `reconnectMaxAttempts` as stored in the state file.
+ * Files without the marker were written when 0 meant "retry forever"; the
+ * current version means -1 forever, 0 never. The marker lets the upgrade
+ * translate a legacy 0 exactly once, without rewriting a deliberate new 0.
+ */
+export const RECONNECT_SEMANTICS_VERSION = 2
 
 /** First retry waits this long; every later one doubles, up to the cap below. */
 export const RECONNECT_BASE_DELAY_MS = 1_000
@@ -80,7 +88,7 @@ export const MAX_HEALTH_CHECK_INTERVAL_MS = 600_000
 
 /** Refusals of one reconnect-settings write, shared by the API and tests. */
 export const RECONNECT_ATTEMPTS_ERROR =
-  `reconnectMaxAttempts must be an integer between ${MIN_RECONNECT_MAX_ATTEMPTS} and ${MAX_RECONNECT_MAX_ATTEMPTS} (0 retries forever), or null to restore the default`
+  `reconnectMaxAttempts must be an integer between ${MIN_RECONNECT_MAX_ATTEMPTS} and ${MAX_RECONNECT_MAX_ATTEMPTS} (-1 retries forever, 0 never retries), or null to restore the default`
 export const RECONNECT_DELAY_ERROR =
   `reconnectMaxDelayMs must be an integer between ${MIN_RECONNECT_MAX_DELAY_MS} and ${MAX_RECONNECT_MAX_DELAY_MS} milliseconds, or null to restore the default`
 export const HEALTH_CHECK_ERROR =
