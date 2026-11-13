@@ -18,8 +18,18 @@
   box-sizing: border-box;
   min-width: 0;
   min-height: 0;
-  padding: 10px 0 16px 12px;
+  padding: 10px 0 8px 12px;
   overflow: auto;
+}
+
+/* A flex child shrinks by default. Once the sections together exceeded the
+ * column, the last ones — the raw JSON disclosure and the server notifications —
+ * were squeezed to a sliver and their own text clipped, which is worse than a
+ * scrollbar: content the reader cannot see or reach. Every direct child now
+ * keeps its height, and the column scrolls when the total genuinely does not
+ * fit. The blocks that can grow are capped above, so this is a last resort. */
+.smkit-mcpdebug-detail > * {
+  flex: 0 0 auto;
 }
 
 .smkit-mcpdebug-detail-empty {
@@ -279,7 +289,7 @@
    * the window so it scales, and a hard pixel cap so a tall window does not hand
    * the answer two thirds of the column. */
   box-sizing: border-box;
-  max-height: min(40vh, 340px);
+  max-height: min(34vh, 300px);
   overflow: auto;
   min-width: 0;
 }
@@ -319,7 +329,7 @@
  * under the same ceiling as the content blocks, so opening it never moves the
  * form either. */
 .smkit-mcpdebug-detail-rawblock > .smkit-mcpdebug-detail-text {
-  max-height: min(40vh, 340px);
+  max-height: min(30vh, 260px);
   white-space: pre;
 }
 
@@ -336,8 +346,10 @@
   gap: 4px;
   box-sizing: border-box;
   /* A chatty server pushes frames continuously; the ring below keeps fifty, so
-   * the block gets a ceiling too and scrolls. */
-  max-height: 200px;
+   * the block gets a ceiling too and scrolls. The floor keeps the heading and
+   * one frame on screen even when the column is out of room. */
+  min-height: 44px;
+  max-height: 160px;
   overflow: auto;
   min-width: 0;
 }
