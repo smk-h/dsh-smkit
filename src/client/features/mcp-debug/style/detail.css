@@ -178,17 +178,24 @@
   flex: 0 0 auto;
 }
 
+/* A tinted pill, not a solid fill: the theme's on-fill ink
+ * (`label-primary-foreground`) is defined for the *business* fill, so white on a
+ * solid success green was hard to read in the dark theme. Tinting the state
+ * colour and painting the label in that same colour keeps the badge legible in
+ * both themes without needing an ink token of its own — the rule the settings
+ * page's status badges already follow (`features/mcp/style/pill.css`). */
 .smkit-mcpdebug-detail-badge {
   padding: 0 6px;
   border-radius: 999px;
   font-size: 11px;
   line-height: 16px;
-  color: var(--dsw-alias-label-primary-foreground, #fff);
-  background: var(--dsw-alias-state-success-primary);
+  color: var(--dsw-alias-state-success-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent);
 }
 
 .smkit-mcpdebug-detail-badge[data-smkit-ok='false'] {
-  background: var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-state-error-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent);
 }
 
 .smkit-mcpdebug-detail-duration {
