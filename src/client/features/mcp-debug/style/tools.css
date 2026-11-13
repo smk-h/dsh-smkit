@@ -1,0 +1,197 @@
+/*
+ * The tool column: a search box, the server's tools, and the calls already made.
+ *
+ * The description wraps to two lines and then stops. A tool list where one entry
+ * can claim five lines buries the other thirty, and the full text is one click
+ * away in the answer column — the Inspector draws the same line, for the same
+ * reason.
+ *
+ * The history is a separate scrolling block under the list rather than a second
+ * tab: a reader comparing an answer against the call that produced it wants both
+ * on screen, and the list above is stable enough to lose a little height to it.
+ */
+
+.smkit-mcpdebug-tools {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 12px;
+  border-right: 1px solid var(--dsw-alias-border-l2);
+}
+
+.smkit-mcpdebug-tools-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 6px;
+}
+
+.smkit-mcpdebug-tools-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.smkit-mcpdebug-tools-total {
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-tools-spacer {
+  flex: 1 1 auto;
+}
+
+.smkit-mcpdebug-tools-search {
+  display: block;
+  padding-bottom: 6px;
+}
+
+.smkit-mcpdebug-tools-search-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.smkit-mcpdebug-tools-search-input:focus {
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
+}
+
+.smkit-mcpdebug-tools-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.smkit-mcpdebug-tools-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 2px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.smkit-mcpdebug-tools-row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.smkit-mcpdebug-tools-row[data-smkit-active='true'] {
+  border-color: var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+
+.smkit-mcpdebug-tools-row-name {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  word-break: break-all;
+}
+
+.smkit-mcpdebug-tools-row-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--dsw-alias-label-tertiary);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.smkit-mcpdebug-tools-empty {
+  margin: 8px 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-tools-history {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 40%;
+  padding-top: 6px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+.smkit-mcpdebug-tools-history-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+.smkit-mcpdebug-tools-history-title {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.smkit-mcpdebug-tools-history-list {
+  min-height: 0;
+  overflow: auto;
+}
+
+.smkit-mcpdebug-tools-history-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 6px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.smkit-mcpdebug-tools-history-row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.smkit-mcpdebug-tools-history-seq {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-tools-history-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The verdict is one word; it is tinted rather than badged, because the history
+ * is a list of many and a badge per row would outshout the tool names. */
+.smkit-mcpdebug-tools-history-meta {
+  color: var(--dsw-alias-state-success-primary);
+  white-space: nowrap;
+}
+
+.smkit-mcpdebug-tools-history-row[data-smkit-ok='false'] .smkit-mcpdebug-tools-history-meta {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.smkit-mcpdebug-tools-history-time {
+  grid-column: 2 / 4;
+  color: var(--dsw-alias-label-tertiary);
+}

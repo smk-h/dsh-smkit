@@ -287,6 +287,13 @@ export { normalizeSearchText, stemSearchToken, tokenizeSearchText } from './host
 export { searchToolEntries } from './host/features/mcp/broker/search.js'
 export { brokerCatalog, isMcpToolName, makeBrokerDefinitions } from './host/features/mcp/broker/definitions.js'
 
+export {
+  MAX_DEBUG_NOTIFICATIONS,
+  clearNotifications,
+  notificationsOf,
+  recordNotification,
+  serverInfoOf,
+} from './host/features/mcp/mcp/notifications.js'
 export { createRegistry, setServerAuthStatus } from './host/features/mcp/registry.js'
 export { resolveSetupAgent } from './host/features/mcp/workspace/agents.js'
 export { createWorkspaceScope } from './host/features/mcp/workspace/scope.js'

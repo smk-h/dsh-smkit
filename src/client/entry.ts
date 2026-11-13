@@ -24,6 +24,7 @@ import { inputHistoryFeature } from './features/input-history/client'
 import { lineJumpFeature } from './features/line-jump/client'
 import { markdownOutlineFeature } from './features/markdown-outline/client'
 import { mcpCommandFeature } from './features/mcp-command/client'
+import { mcpDebugFeature } from './features/mcp-debug/client'
 import { openSpecFeature } from './features/openspec/client'
 import { outlineFeature } from './features/outline/client'
 import { selectionQuoteFeature } from './features/selection-quote/client'
@@ -68,6 +69,10 @@ const FEATURES: ClientFeature[] = [
   // The `/mcp` picker: it decorates the HOST command's bare invocation, so it
   // registers after the pages and before the surfaces that decorate the shell.
   mcpCommandFeature,
+  // The debug page: a panel of its own in the main column, opened from the
+  // left rail. It reads the host's state and writes nothing, so its position in
+  // this list only decides where its dictionary lands.
+  mcpDebugFeature,
   openSpecFeature,
   themeCenterFeature,
   tabMenuFeature,

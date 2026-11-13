@@ -18,7 +18,7 @@
 
 ### 2. 项目介绍
 
-dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供十三个功能。各功能的完整说明放在 `docs/` 下，按编号一篇一个功能：
+dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.github.io/deepseek-harness/) 上的 Cordis 插件，基于 MIT 协议开源，目前提供十四个功能。各功能的完整说明放在 `docs/` 下，按编号一篇一个功能：
 
 | 功能 | 说明 | 文档 |
 | --- | --- | --- |
@@ -35,6 +35,7 @@ dsh-smkit 是运行在 [DeepSeek Harness（dsh）](https://deepseek-harness.gith
 | 代码大纲 | 源码预览旁列出函数、类、结构体、枚举与宏（C/C++、TS/JS、shell），点击跳转到行 | [LV510-代码大纲](docs/LV510-代码大纲.md) |
 | 检查更新 | 设置页按一次，比对 npm 上的 latest；有新版本时给出带 profile 与版本的安装命令，可一键复制 | [LV511-检查更新](docs/LV511-检查更新.md) |
 | 命令历史 | 输入框按 `↑` 召回上一条 `/mcp` 命令，`↓` 往下翻；按工作区各存 50 条 | [LV512-命令历史](docs/LV512-命令历史.md) |
+| MCP 调试 | 主面板里像 MCP Inspector 一样调工具：选服务器、选工具、填参数，看原始返回与服务器通知 | [LV513-MCP调试](docs/LV513-MCP调试.md) |
 
 插件是什么形态、如何被 dsh 加载、一个插件包由哪三部分组成，见 [LV010-插件工作原理](docs/LV010-插件工作原理.md)。
 

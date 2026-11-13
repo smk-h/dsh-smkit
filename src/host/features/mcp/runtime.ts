@@ -11,6 +11,7 @@
 
 import type {
   AgentScopeState,
+  DebugNotificationView,
   LiveConnection,
   PluginState,
   ServerStatus,
@@ -53,14 +54,24 @@ export interface Runtime {
    * route, and read by the workspace scope on every re-registration.
    */
   stubAgents: Map<object, boolean>
+  /**
+   * serverId → the newest inbound notifications, oldest first. Read by the
+   * debug page only; written by the transports, which see every frame the
+   * server pushes. Bounded per server (`MAX_DEBUG_NOTIFICATIONS`), because a
+   * chatty server under a long session would otherwise grow this without end.
+   */
+  debugNotifications: Map<string, DebugNotificationView[]>
   /** Monotonic JSON-RPC request id, shared by every transport. */
   nextRpcId(): number
+  /** Monotonic id for one recorded notification, shared by every server. */
+  nextNotificationSeq(): number
   /** Read-or-create a live connection, applying `patch`. */
   setLive(serverId: string, patch: Partial<LiveConnection>): LiveConnection
 }
 
 export function createRuntime(state: PluginState): Runtime {
   let rpcSeq = 1
+  let notificationSeq = 1
   const live = new Map<string, LiveConnection>()
 
   const runtime: Runtime = {
@@ -74,7 +85,9 @@ export function createRuntime(state: PluginState): Runtime {
     brokerRuntimeDispose: null,
     deferDirectTools: false,
     stubAgents: new Map(),
+    debugNotifications: new Map(),
     nextRpcId: () => rpcSeq++,
+    nextNotificationSeq: () => notificationSeq++,
     setLive(serverId, patch) {
       const current = live.get(serverId) ?? {
         sessionId: null,

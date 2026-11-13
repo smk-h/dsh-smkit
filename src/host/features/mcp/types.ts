@@ -10,7 +10,7 @@
 
 export * from '../../platform/types.js'
 
-import type { AuthMode, EnvMap, ServerStatus, ServerType } from '../../../shared/mcp/contract.js'
+import type { AuthMode, EnvMap, ServerInfoView, ServerStatus, ServerType } from '../../../shared/mcp/contract.js'
 import type { AgentLike, ToolDefinition } from '../../platform/types.js'
 
 /*
@@ -20,8 +20,11 @@ import type { AgentLike, ToolDefinition } from '../../platform/types.js'
  */
 export type {
   AuthMode,
+  DebugCallResponse,
+  DebugNotificationView,
   EnvMap,
   ReconnectSettings,
+  ServerInfoView,
   ServerStatus,
   ServerType,
   ServerView,
@@ -167,6 +170,12 @@ export interface McpHandle {
   sessionId: string | null
   transport: StdioTransport | null
   tools: McpToolInfo[]
+  /**
+   * The payload of the server's `initialize` answer (`serverInfo`), kept only
+   * for the debug page: it is the one place a human reads "which build is this
+   * server", and nothing in the agent path uses it.
+   */
+  serverInfo?: ServerInfoView
   closed: boolean
   onNotification: ((message: RpcMessage) => void) | null
   /**
@@ -215,6 +224,8 @@ export interface LiveConnection {
   status: ServerStatus
   error: string
   toolCount: number
+  /** The server's own `initialize` answer, for the debug page. */
+  serverInfo?: ServerInfoView
   tools: Map<string, RegisteredTool>
   handle: McpHandle | null
   transport: StdioTransport | null
@@ -227,6 +238,8 @@ export interface WorkspaceConnection {
   status: ServerStatus
   error: string
   toolCount: number
+  /** The server's own `initialize` answer, for the debug page. */
+  serverInfo?: ServerInfoView
   tools: McpToolInfo[]
   call(name: string, args: unknown): Promise<McpCallResult>
 }

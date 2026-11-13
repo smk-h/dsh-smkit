@@ -1,0 +1,303 @@
+/*
+ * The answer column: parameters, the run row, the result, and what the server
+ * pushed.
+ *
+ * Everything a server wrote is set in the mono face and left un-wrapped only
+ * where it is a one-line field: a tool result is a quote from another program,
+ * and reformatting it is the one thing a reader cannot undo. The `pre` blocks
+ * therefore scroll horizontally rather than wrapping at arbitrary columns.
+ *
+ * The whole column scrolls as one document, unlike its two neighbours: a reader
+ * works top-down here (arguments, then run, then answer), and keeping the
+ * sections in one scroll preserves that order when the answer is long.
+ */
+
+.smkit-mcpdebug-detail {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 0 16px 12px;
+  overflow: auto;
+}
+
+.smkit-mcpdebug-detail-empty {
+  margin: 8px 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-detail-empty-line {
+  margin: 4px 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-detail-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.smkit-mcpdebug-detail-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  word-break: break-all;
+}
+
+.smkit-mcpdebug-detail-kind {
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-detail-desc {
+  margin: 2px 0 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  white-space: pre-wrap;
+}
+
+.smkit-mcpdebug-detail-subhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+.smkit-mcpdebug-detail-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.smkit-mcpdebug-detail-spacer {
+  flex: 1 1 auto;
+}
+
+.smkit-mcpdebug-detail-params {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.smkit-mcpdebug-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.smkit-mcpdebug-detail-field-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.smkit-mcpdebug-detail-field-name {
+  font-family: var(--dsw-font-mono);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.smkit-mcpdebug-detail-field-type {
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-detail-field-req {
+  padding: 0 5px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.smkit-mcpdebug-detail-field-desc {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: pre-wrap;
+}
+
+.smkit-mcpdebug-detail-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 3px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.smkit-mcpdebug-detail-input:focus {
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
+}
+
+.smkit-mcpdebug-detail-textarea,
+.smkit-mcpdebug-detail-raw {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-mono);
+  font-size: 12px;
+  line-height: 18px;
+  resize: vertical;
+}
+
+.smkit-mcpdebug-detail-textarea:focus,
+.smkit-mcpdebug-detail-raw:focus {
+  border-color: var(--dsw-alias-state-business-primary);
+  outline: none;
+}
+
+.smkit-mcpdebug-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+/* The run button leads the row and is the page's one primary action. The
+ * platform rule paints the fill; this only guarantees it does not shrink under
+ * a narrow column. */
+.smkit-mcpdebug-detail-run {
+  flex: 0 0 auto;
+}
+
+.smkit-mcpdebug-detail-badge {
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-primary-foreground, #fff);
+  background: var(--dsw-alias-state-success-primary);
+}
+
+.smkit-mcpdebug-detail-badge[data-smkit-ok='false'] {
+  background: var(--dsw-alias-state-error-primary);
+}
+
+.smkit-mcpdebug-detail-duration {
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-detail-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.smkit-mcpdebug-detail-message {
+  margin: 0;
+  padding: 6px 8px;
+  border-left: 3px solid var(--dsw-alias-state-error-primary);
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.smkit-mcpdebug-detail-message[data-smkit-ok='true'] {
+  border-left-color: var(--dsw-alias-state-business-primary);
+}
+
+.smkit-mcpdebug-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.smkit-mcpdebug-detail-text {
+  margin: 0;
+  padding: 6px 8px;
+  overflow: auto;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  font-family: var(--dsw-font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: pre;
+}
+
+.smkit-mcpdebug-detail-image {
+  max-width: 100%;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+}
+
+.smkit-mcpdebug-detail-rawblock {
+  min-width: 0;
+}
+
+.smkit-mcpdebug-detail-rawsummary {
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.smkit-mcpdebug-detail-notifications {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.smkit-mcpdebug-detail-note {
+  min-width: 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.smkit-mcpdebug-detail-note-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.smkit-mcpdebug-detail-note-seq {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-detail-note-method {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--dsw-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smkit-mcpdebug-detail-note-time {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-detail-note > .smkit-mcpdebug-detail-text,
+.smkit-mcpdebug-detail-note > .smkit-mcpdebug-detail-empty-line {
+  margin: 0 8px 6px;
+}

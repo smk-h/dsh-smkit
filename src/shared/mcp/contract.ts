@@ -61,6 +61,18 @@ export interface ToolView {
   parameters: Record<string, unknown>
 }
 
+/**
+ * What a server answered to `initialize`'s `serverInfo`, when it sent one.
+ *
+ * Both halves are optional because the field itself is optional in the protocol
+ * and a server may fill only one of them; the debug page prints whatever is
+ * there, and nothing when nothing is.
+ */
+export interface ServerInfoView {
+  name?: string
+  version?: string
+}
+
 /** A global-tier server as `GET /servers` reports it. */
 export interface ServerView {
   id: string
@@ -70,6 +82,8 @@ export interface ServerView {
   status: ServerStatus
   /** Registered tool count; the length of `tools`. */
   toolCount: number
+  /** The server's own `initialize` answer; absent until it has connected. */
+  serverInfo?: ServerInfoView
   /** Empty unless the server is connected. */
   tools: ToolView[]
   error: string
@@ -94,6 +108,8 @@ export interface WorkspaceServerView {
   status: ServerStatus
   /** Registered tool count; the length of `tools`. */
   toolCount: number
+  /** The server's own `initialize` answer; absent until it has connected. */
+  serverInfo?: ServerInfoView
   /** Empty unless the server is connected. */
   tools: ToolView[]
   error: string
@@ -133,4 +149,42 @@ export interface SettingsView extends ReconnectSettings {
   onDemandToolInjection: boolean
   /** `tools/call` timeout in force, in milliseconds (the built-in default included). */
   toolCallTimeoutMs: number
+}
+
+/**
+ * One inbound JSON-RPC notification the host recorded for the debug page.
+ *
+ * The page is a reader of traffic it did not cause: `notifications/message`
+ * (server logs), `tools/list_changed`, progress frames — whatever the server
+ * pushed while it was mounted. The host keeps a short per-server ring, so a
+ * panel opened later still shows what arrived while nobody was looking.
+ */
+export interface DebugNotificationView {
+  /** Monotonic per host process; what lets the page append only what is new. */
+  seq: number
+  /** Epoch milliseconds at arrival. */
+  at: number
+  method: string
+  params?: unknown
+  /**
+   * The frame carried parameters too large to keep: `params` is absent and the
+   * page says so rather than showing a truncated blob that looks complete.
+   */
+  truncated?: boolean
+}
+
+/**
+ * What `POST /debug/call` answers.
+ *
+ * Always `ok`-shaped rather than HTTP-failing on a tool error: an MCP server
+ * reports a failed tool as a successful JSON-RPC answer carrying `isError`, and
+ * a debug surface has to show that distinction rather than a status code.
+ */
+export interface DebugCallResponse {
+  ok: boolean
+  durationMs: number
+  /** The raw `tools/call` result, exactly as the server sent it. */
+  result?: unknown
+  /** Why the call failed, when the transport or the server said. */
+  error?: string
 }

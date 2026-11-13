@@ -17,6 +17,7 @@ import { LOG_PREFIX, MCP_CLIENT_INFO, MCP_PROTOCOL_VERSION } from '../constants.
 import { authHeaders } from '../auth/credentials.js'
 import { httpPostJson } from '../../../platform/util/http.js'
 import { errorText } from '../../../platform/util/text.js'
+import { recordNotification, serverInfoOf } from './notifications.js'
 import { parseRpc, parseSseMessages } from './rpc.js'
 import { listAllTools } from './tools.js'
 import type { Runtime } from '../runtime.js'
@@ -144,11 +145,17 @@ export function createHttpTransport(deps: HttpTransportDeps): HttpTransport {
             while ((split = buffer.indexOf('\n\n')) >= 0) {
               const block = buffer.slice(0, split)
               buffer = buffer.slice(split + 2)
-              for (const message of parseSseMessages(`${block}\n\n`)) handle.onNotification?.(message)
+              for (const message of parseSseMessages(`${block}\n\n`)) {
+                recordNotification(runtime, server.id, message)
+                handle.onNotification?.(message)
+              }
             }
           }
           buffer += decoder.decode()
-          for (const message of parseSseMessages(buffer)) handle.onNotification?.(message)
+          for (const message of parseSseMessages(buffer)) {
+            recordNotification(runtime, server.id, message)
+            handle.onNotification?.(message)
+          }
         } catch (error) {
           if (controller.signal.aborted || handle.closed) return
           logger.warn(
@@ -210,6 +217,7 @@ export function createHttpTransport(deps: HttpTransportDeps): HttpTransport {
     }
     const init = parseRpc(resp, initId, handle)
     if (!init || init.error) throw new Error(`initialize failed: ${String(resp.text).slice(0, 200)}`)
+    handle.serverInfo = serverInfoOf(init.result)
     const sessionId = resp.headers?.get?.('mcp-session-id')
     handle.sessionId = sessionId ?? null
     await mcpRpc(server, 'notifications/initialized', undefined, handle, { isNotification: true }).catch(

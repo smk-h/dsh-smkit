@@ -388,6 +388,7 @@ export const SCOPES = [
   ['client/features/local-cache', 'cache'],
   ['client/features/markdown-outline', 'outline'],
   ['client/features/mcp', 'mcp'],
+  ['client/features/mcp-debug', 'mcpdebug'],
   ['client/features/openspec', 'spec'],
   ['client/features/selection-quote', 'quote'],
   ['client/features/session-delete', 'del'],

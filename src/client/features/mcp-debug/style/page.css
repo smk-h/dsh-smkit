@@ -1,0 +1,69 @@
+/*
+ * The page shell: a title row, one line saying what this is, and the three
+ * columns below them filling everything the main column has left.
+ *
+ * The page owns no scrolling of its own — each column scrolls inside itself, so
+ * a long tool list never pushes the parameter form off screen and a long result
+ * never scrolls the server rail away. That is the one layout decision the
+ * Inspector it replaces gets right, and it is the reason this is a page in the
+ * main column rather than a settings tab.
+ */
+
+.smkit-mcpdebug-page {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  padding: 16px 20px 0;
+  color: var(--dsw-alias-label-primary);
+}
+
+.smkit-mcpdebug-page-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.smkit-mcpdebug-page-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.smkit-mcpdebug-page-spacer {
+  flex: 1 1 auto;
+}
+
+.smkit-mcpdebug-page-intro {
+  margin: 2px 0 12px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-page-body {
+  /* Three fixed-ish tracks rather than fractions of the whole: the rail and the
+   * tool list are navigational and want predictable widths, and only the answer
+   * column grows with the window. `min-width: 0` on the tracks is what lets the
+   * long unbroken strings a server returns ellipsize instead of widening the
+   * grid. */
+  display: grid;
+  grid-template-columns: 220px minmax(200px, 1fr) minmax(280px, 1.25fr);
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+@media (max-width: 900px) {
+  /* A narrow window (a floating pane, or a split main column) keeps all three
+   * columns reachable instead of hiding one: they get tighter, not fewer. */
+  .smkit-mcpdebug-page {
+    padding: 12px 12px 0;
+  }
+
+  .smkit-mcpdebug-page-body {
+    grid-template-columns: 180px minmax(160px, 1fr) minmax(220px, 1.2fr);
+  }
+}

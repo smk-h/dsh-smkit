@@ -138,6 +138,7 @@ export function createRegistry(deps: RegistryDeps): Registry {
       conn.handle = handle
       conn.sessionId = handle.sessionId
       conn.transport = handle.transport
+      conn.serverInfo = handle.serverInfo
       registerToolsGlobal(server, conn, handle.tools)
       transports.bindToolsChanged(server, handle, async () => {
         const list = await listAllTools(handle)
@@ -156,6 +157,7 @@ export function createRegistry(deps: RegistryDeps): Registry {
       closeHandleQuietly(conn.handle)
       conn.handle = null
       conn.transport = null
+      delete conn.serverInfo
       clearGlobalTools(server.name)
       conn.status = needsAuth(server) ? 'needs-auth' : 'error'
       conn.error = toErrorMessage(error, MAX_ERROR_LENGTH)
@@ -207,6 +209,9 @@ export function createRegistry(deps: RegistryDeps): Registry {
       tools: conn ? toolViews([...conn.tools.values()].map((entry) => entry.info), server.name) : [],
       error: conn?.error ?? '',
       authMode: type === 'stdio' ? undefined : server.authMode,
+      // What the server called itself at handshake time; only the debug page
+      // reads it, and `undefined` when it never connected (JSON drops it).
+      serverInfo: conn?.serverInfo,
     }
     applyTransportFields(view, server)
     return view

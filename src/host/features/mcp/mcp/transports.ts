@@ -13,6 +13,7 @@
 
 import { MCP_CLIENT_INFO, MCP_PROTOCOL_VERSION } from '../constants.js'
 import { bindToolsChanged, createHttpTransport } from './http-transport.js'
+import { recordNotification, serverInfoOf } from './notifications.js'
 import { listAllTools } from './tools.js'
 import { spawnStdio } from './stdio-transport.js'
 import type { Runtime } from '../runtime.js'
@@ -55,7 +56,13 @@ export function createTransports(deps: TransportsDeps): Transports {
     }
     const transport = spawnStdio(
       server,
-      (message) => handle.onNotification?.(message),
+      (message) => {
+        // Recorded first, forwarded second: the handle's listener is a single
+        // slot the registry replaces (see `bindToolsChanged`), so anything that
+        // read it after the forward would miss the frames it overwrote.
+        recordNotification(runtime, server.id, message)
+        handle.onNotification?.(message)
+      },
       (reason) => {
         // The child exited on its own: mark the handle dead so no later call is
         // answered from a corpse, then hand the drop to whoever watches this
@@ -66,11 +73,12 @@ export function createTransports(deps: TransportsDeps): Transports {
     )
     handle.transport = transport
     try {
-      await transport.request('initialize', {
+      const initialized = await transport.request('initialize', {
         protocolVersion: MCP_PROTOCOL_VERSION,
         capabilities: {},
         clientInfo: MCP_CLIENT_INFO,
       })
+      handle.serverInfo = serverInfoOf(initialized)
       transport.notify('notifications/initialized')
       handle.listTools = (cursor?: string) =>
         transport.request(

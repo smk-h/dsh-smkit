@@ -138,7 +138,9 @@ declare namespace JSX {
   }
 
   interface InputProps extends CommonProps {
-    type?: 'text' | 'search' | 'checkbox' | 'button' | 'range'
+    /** `number` is the debug page's numeric parameter: the browser's own spin
+     * and arrow keys are worth having when the value is a number. */
+    type?: 'text' | 'search' | 'checkbox' | 'button' | 'range' | 'number'
     value?: string | number
     checked?: boolean
     disabled?: boolean
@@ -146,6 +148,25 @@ declare namespace JSX {
     min?: number
     max?: number
     step?: number
+  }
+
+  /**
+   * Multi-line text: the debug page's raw-argument box and the object/array
+   * parameter fields. `spellCheck` is turned off there on purpose — a JSON body
+   * under a red squiggle reads as broken when it is merely English-but-not-a-word.
+   */
+  interface TextareaProps extends CommonProps {
+    value?: string
+    rows?: number
+    placeholder?: string
+    disabled?: boolean
+    spellCheck?: boolean
+  }
+
+  /** An image content block, rendered from a `data:` URL the server supplied. */
+  interface ImgProps extends CommonProps {
+    src?: string
+    alt?: string
   }
 
   interface SelectProps extends CommonProps {
@@ -209,6 +230,14 @@ declare namespace JSX {
     option: OptionProps
     button: ButtonProps
     svg: SvgProps
+    /* The debug page's three columns and its output: a page region is a
+     * `<section>`, the server rail beside it an `<aside>`, and everything a
+     * server sent is printed verbatim in a `<pre>` so its whitespace survives. */
+    section: CommonProps
+    aside: CommonProps
+    pre: CommonProps
+    textarea: TextareaProps
+    img: ImgProps
     /* The debug palette's collapsible groups are native <details>/<summary>:
      * the open/close state is a drawing rule with no request behind it, and
      * the elements bring the fold for free. */

@@ -241,7 +241,7 @@ it('stands its MCP half down when dsh-mcp-manager shares the boot graph', () => 
 
 it('registers a balanced dictionary per namespace, with effect cleanup and every seat', () => {
   const app = mount(async () => response({}))
-  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'tab-menu', 'markdown-outline', 'line-jump', 'selection-quote', 'explorer', 'input-history']) {
+  for (const namespace of ['platform', 'smkit', 'mcp', 'session-delete', 'custom-settings', 'skills', 'local-cache', 'notify', 'openspec', 'theme-center', 'tab-menu', 'markdown-outline', 'line-jump', 'selection-quote', 'explorer', 'input-history', 'mcp-debug']) {
     assert.deepEqual(
       Object.keys(app.dictionaries[namespace].zh).sort(),
       Object.keys(app.dictionaries[namespace].en).sort(),
@@ -294,6 +294,10 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     'smkit: session-manager/dictionaries',
     // The `/mcp` picker's dictionary (search box, group heading, row copy).
     'smkit: mcp-command/dictionaries',
+    // The debug page's dictionary. It sits after the picker's because its seat
+    // takes no service at mount: a panel id in the main column and a rail entry
+    // are declarations the shell reads when it draws its own chrome.
+    'smkit: mcp-debug/dictionaries',
     'smkit: openspec/dictionaries',
     'smkit: theme-center/dictionaries',
     // The right sidebar's tab menu: its dictionary only — the batch rows are

@@ -32,6 +32,7 @@ import type {
   McpHandle,
   McpToolInfo,
   ServerConfig,
+  ServerInfoView,
   ServiceAccessor,
   WorkspaceConnection,
   WorkspaceRuntime,
@@ -182,6 +183,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     closeWorkspaceServer(existing)
     existing.tools = []
     existing.toolCount = 0
+    delete existing.serverInfo
     // `closeWorkspaceServer` drops the transport but touches no status, so
     // without this the settings page would keep reporting the old green
     // "connected" for the whole reopen — which is seconds to a minute when a
@@ -225,6 +227,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     closeWorkspaceServer(conn)
     conn.tools = []
     conn.toolCount = 0
+    delete conn.serverInfo
     conn.status = 'disconnected'
     conn.error = ''
     for (const agent of ws.agents) scope.rebuildAgentWorkspace(agent, wsPath)
@@ -258,6 +261,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       conn.handle = handle
       conn.tools = handle.tools ?? []
       conn.toolCount = conn.tools.length
+      conn.serverInfo = handle.serverInfo
       conn.status = 'connected'
       conn.error = ''
       // Same per-call read as the global tier: the workspace transport is not
@@ -279,6 +283,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     } catch (error) {
       conn.status = 'error'
       conn.error = toErrorMessage(error, MAX_ERROR_LENGTH)
+      delete conn.serverInfo
       logger.warn(`${LOG_PREFIX}: workspace server ${server.name} ${conn.status}: ${conn.error}`)
     }
     return conn
@@ -599,6 +604,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     toolCount: number,
     error: string,
     tools: McpToolInfo[],
+    serverInfo?: ServerInfoView,
   ): WorkspaceServerView {
     const view: WorkspaceServerView = {
       id: server.id,
@@ -610,6 +616,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       toolCount,
       tools: toolViews(tools, server.name),
       error,
+      serverInfo,
     }
     applyTransportFields(view, server)
     return view
@@ -619,7 +626,14 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     return {
       path: ws.rawPath ?? ws.path,
       servers: [...ws.servers.values()].map((conn) =>
-        workspaceServerView(conn.server, conn.status, conn.toolCount, conn.error, conn.tools),
+        workspaceServerView(
+          conn.server,
+          conn.status,
+          conn.toolCount,
+          conn.error,
+          conn.tools,
+          conn.serverInfo,
+        ),
       ),
       exclude: ws.exclude ?? [],
       error: ws.error ?? '',

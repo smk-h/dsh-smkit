@@ -45,6 +45,7 @@ import { createWorkspaceScope } from './workspace/scope.js'
 import { closeHandleQuietly } from './mcp/handle.js'
 import { createTransports } from './mcp/transports.js'
 import { handleCallback } from './api/callback.js'
+import { handleDebug } from './api/debug.js'
 import { handleServers } from './api/servers.js'
 import { handleSettings } from './api/settings.js'
 import { handleWorkspaces } from './api/workspaces.js'
@@ -251,6 +252,9 @@ export const mcpFeature: HostFeature = {
       (req, res, facts) => handleSettings(req, res, facts, api),
       (req, res, facts) => handleWorkspaces(req, res, facts, api),
       (req, res, facts) => handleServers(req, res, facts, api),
+      // Last: the debug page's two routes are namespaced under `/debug`, so the
+      // order only matters in that nothing else may claim those paths.
+      (req, res, facts) => handleDebug(req, res, facts, api),
     ]
     platform.handlers.push(...handlers)
 

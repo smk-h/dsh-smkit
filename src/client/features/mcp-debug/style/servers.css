@@ -1,0 +1,211 @@
+/*
+ * The server rail: grouped rows above, the selected server's transport facts
+ * pinned below.
+ *
+ * A row is a two-line control — name and tool count on the first line, the
+ * host's own status word on the second — because the three facts a reader needs
+ * before clicking ("which server", "how many tools", "is it up") do not fit on
+ * one line inside 220px, and truncating the status is the one of the three that
+ * costs the most.
+ *
+ * The dot is the same traffic light the settings page paints, in the same
+ * palette, driven by the same status strings: two surfaces describing one
+ * connection must not disagree by colour either.
+ */
+
+.smkit-mcpdebug-servers {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  padding-right: 12px;
+  border-right: 1px solid var(--dsw-alias-border-l2);
+}
+
+.smkit-mcpdebug-servers-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 0 6px;
+}
+
+.smkit-mcpdebug-servers-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.smkit-mcpdebug-servers-total {
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-servers-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.smkit-mcpdebug-servers-empty {
+  margin: 8px 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-servers-group {
+  margin-bottom: 6px;
+}
+
+.smkit-mcpdebug-servers-group-name {
+  padding: 6px 4px 2px;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smkit-mcpdebug-servers-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.smkit-mcpdebug-servers-row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.smkit-mcpdebug-servers-row[data-smkit-active='true'] {
+  border-color: var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+
+.smkit-mcpdebug-servers-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-servers-dot[data-smkit-status='connected'] {
+  background: var(--dsw-alias-state-success-primary);
+}
+
+.smkit-mcpdebug-servers-dot[data-smkit-status='connecting'],
+.smkit-mcpdebug-servers-dot[data-smkit-status='reconnecting'],
+.smkit-mcpdebug-servers-dot[data-smkit-status='authorizing'] {
+  background: var(--dsw-alias-state-business-primary);
+}
+
+.smkit-mcpdebug-servers-dot[data-smkit-status='needs-auth'],
+.smkit-mcpdebug-servers-dot[data-smkit-status='configured'] {
+  background: var(--dsw-alias-label-secondary);
+}
+
+.smkit-mcpdebug-servers-dot[data-smkit-status='error'],
+.smkit-mcpdebug-servers-dot[data-smkit-status='conflict'] {
+  background: var(--dsw-alias-state-error-primary);
+}
+
+.smkit-mcpdebug-servers-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smkit-mcpdebug-servers-count {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-servers-state {
+  flex: 0 0 100%;
+  padding-left: 14px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-servers-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 4px 12px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+.smkit-mcpdebug-servers-facts-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.smkit-mcpdebug-servers-type {
+  padding: 0 6px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.smkit-mcpdebug-servers-spacer {
+  flex: 1 1 auto;
+}
+
+.smkit-mcpdebug-servers-identity {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smkit-mcpdebug-servers-fact {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.smkit-mcpdebug-servers-fact-label {
+  flex: 0 0 52px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-mcpdebug-servers-fact-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--dsw-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smkit-mcpdebug-servers-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+}

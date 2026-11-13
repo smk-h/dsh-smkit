@@ -6,7 +6,7 @@
 
 ### 1. 一句话结论
 
-DSH Web 界面整体就是一个 slot（插槽）组装出来的外壳，宿主共暴露约 40 个具名注入点。插件放按钮不走 hack，而是宿主的一等公民能力：在 `package.json` 的 `dsh.client.inject` 里声明需要的 UI 包，再在客户端 `apply()` 里注册对应 slot 即可。本项目 dsh-smkit 用的正是这套机制：往「设置 → MCP」塞页面（`settings.section`），往会话窗口右上角塞「删除会话」按钮（`conversation.session.header.utilities`）。
+DSH Web 界面整体就是一个 slot（插槽）组装出来的外壳，宿主共暴露约 40 个具名注入点。插件放按钮不走 hack，而是宿主的一等公民能力：在 `package.json` 的 `dsh.client.inject` 里声明需要的 UI 包，再在客户端 `apply()` 里注册对应 slot 即可。本项目 dsh-smkit 用的正是这套机制：往「设置 → MCP」塞页面（`settings.section`），往会话窗口右上角塞「删除会话」按钮（`conversation.session.header.utilities`），以及注册一个主面板页加左栏入口（`main` ＋ `sidebar.panellist`，见 [LV513-MCP调试](LV513-MCP调试.md)）。
 
 ### 2. 注入链路
 
