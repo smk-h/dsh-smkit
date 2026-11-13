@@ -146,14 +146,22 @@ export function createMcpDebugPage(
     }, [])
 
     // Flatten both tiers once per render; every column reads the same list.
+    //
+    // Every heading is a *scope* and nothing else, and an empty scope is not
+    // drawn at all — including the global one. A heading with nothing under it
+    // sits directly on top of the next heading, which reads as if that next
+    // heading were its child: a reader saw the global heading, then a
+    // workspace's directory name, then that workspace's server, and took the
+    // middle line for a server in the global tier. The workspace headings carry
+    // their own prefix for the same reason.
     const groups: DebugGroup[] = [
       { label: t('groupGlobal'), path: '', servers: servers.map(fromGlobal) },
       ...workspaces.map((workspace) => ({
-        label: baseName(workspace.path),
+        label: t('groupWorkspace', { name: baseName(workspace.path) }),
         path: workspace.path,
         servers: (workspace.servers ?? []).map((view) => fromWorkspace(view, workspace.path)),
       })),
-    ].filter((group) => group.path === '' || group.servers.length > 0)
+    ].filter((group) => group.servers.length > 0)
 
     const all = groups.flatMap((group) => group.servers)
     // With nothing picked yet the page opens on something rather than on an

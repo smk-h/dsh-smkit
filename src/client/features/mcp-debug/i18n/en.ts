@@ -21,7 +21,7 @@ export const MCP_DEBUG_LOCALE_EN: LocaleDict = {
 
   "serversTitle": "Servers",
   "groupGlobal": "Global",
-  "groupWorkspace": "Workspace",
+  "groupWorkspace": "Workspace · {name}",
   "serversEmpty": "No MCP server yet. Add one in Settings → MCP first.",
   "toolCount": "{count} tools",
   "typeStdio": "stdio",

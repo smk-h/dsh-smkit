@@ -23,7 +23,7 @@ export const MCP_DEBUG_LOCALE_ZH: LocaleDict = {
 
   "serversTitle": "服务器",
   "groupGlobal": "全局",
-  "groupWorkspace": "工作区",
+  "groupWorkspace": "工作区 · {name}",
   "serversEmpty": "还没有 MCP 服务器。先到 设置 → MCP 添加一台。",
   "toolCount": "{count} 个工具",
   "typeStdio": "stdio",

@@ -56,13 +56,19 @@
 }
 
 .smkit-mcpdebug-servers-group {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
+/* A heading names a *scope* and nothing else; the rows under it are indented to
+ * their own left edge (`padding-left` 8px + 1px border) so a scope can never be
+ * mistaken for a server. The workspace headings carry a "workspace · " prefix
+ * from the dictionary for the same reason — see `McpDebugPage`'s note on the
+ * misread that produced it. */
 .smkit-mcpdebug-servers-group-name {
-  padding: 6px 4px 2px;
+  padding: 8px 2px 3px;
   overflow: hidden;
   font-size: 11px;
+  font-weight: 500;
   line-height: 16px;
   color: var(--dsw-alias-label-tertiary);
   text-overflow: ellipsis;
