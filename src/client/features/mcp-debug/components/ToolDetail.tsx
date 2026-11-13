@@ -184,7 +184,7 @@ export function createToolDetail(deps: ClientDeps): (props: ToolDetailProps) => 
           <span className="smkit-mcpdebug-detail-name">{tool.name}</span>
           <span className="smkit-mcpdebug-detail-kind">{t('toolKind')}</span>
         </div>
-        <p className="smkit-mcpdebug-detail-desc">
+        <p className="smkit-mcpdebug-detail-desc" title={tool.description || undefined}>
           {tool.description === '' ? t('noDescription') : tool.description}
         </p>
 

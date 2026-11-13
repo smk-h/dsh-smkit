@@ -55,6 +55,13 @@
 }
 
 .smkit-mcpdebug-detail-desc {
+  /* A tool's description is reference text, and some servers ship five hundred
+   * words of it. Uncapped, it took half the column and pushed the parameters and
+   * the answer out — the two things this page exists for. Five lines, then it
+   * scrolls; nothing is dropped. */
+  box-sizing: border-box;
+  max-height: 96px;
+  overflow: auto;
   margin: 2px 0 8px;
   font-size: 12px;
   line-height: 18px;
@@ -111,9 +118,14 @@
 }
 
 .smkit-mcpdebug-detail-params {
+  /* Same rule for the form: a tool declaring twenty parameters must not push
+   * the answer off the column either. */
   display: flex;
   flex-direction: column;
   gap: 8px;
+  box-sizing: border-box;
+  max-height: min(30vh, 260px);
+  overflow: auto;
 }
 
 .smkit-mcpdebug-detail-field {
@@ -322,6 +334,11 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  box-sizing: border-box;
+  /* A chatty server pushes frames continuously; the ring below keeps fifty, so
+   * the block gets a ceiling too and scrolls. */
+  max-height: 200px;
+  overflow: auto;
   min-width: 0;
 }
 
