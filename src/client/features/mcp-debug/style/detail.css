@@ -259,9 +259,26 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* A tool answer can be a whole device log. The block scrolls inside itself
+   * instead of growing the column: an unbounded block pushed the parameter form
+   * and the run button out of view, which is the opposite of what a debug page
+   * is for — the thing being changed has to stay reachable while reading the
+   * answer it produced. The ceiling is both relative and absolute: a share of
+   * the window so it scales, and a hard pixel cap so a tall window does not hand
+   * the answer two thirds of the column. */
+  box-sizing: border-box;
+  max-height: min(40vh, 340px);
+  overflow: auto;
   min-width: 0;
 }
 
+/* Text wraps, JSON does not.
+ *
+ * A text block is what a server wrote for a human — a report, a log excerpt —
+ * and a line longer than the column turns it into a horizontal scroll hunt. It
+ * keeps its own newlines (`pre-wrap`) and breaks only where the layout has to.
+ * The raw JSON block below stays `pre` (see `detail-json`), because there the
+ * reader is counting characters and indentation is the structure. */
 .smkit-mcpdebug-detail-text {
   margin: 0;
   padding: 6px 8px;
@@ -272,7 +289,8 @@
   font-family: var(--dsw-font-mono);
   font-size: 11px;
   line-height: 16px;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .smkit-mcpdebug-detail-image {
@@ -283,6 +301,14 @@
 
 .smkit-mcpdebug-detail-rawblock {
   min-width: 0;
+}
+
+/* The raw JSON keeps `pre` (exact whitespace) and scrolls in both directions
+ * under the same ceiling as the content blocks, so opening it never moves the
+ * form either. */
+.smkit-mcpdebug-detail-rawblock > .smkit-mcpdebug-detail-text {
+  max-height: min(40vh, 340px);
+  white-space: pre;
 }
 
 .smkit-mcpdebug-detail-rawsummary {
