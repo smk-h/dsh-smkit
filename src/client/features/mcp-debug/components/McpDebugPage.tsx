@@ -359,6 +359,7 @@ export function createMcpDebugPage(
             query={query}
             selectedTool={toolName}
             busy={running}
+            notConnected={selected !== null && selected.status !== 'connected'}
             history={history}
             onQuery={setQuery}
             onSelectTool={pickTool}
@@ -386,6 +387,7 @@ export function createMcpDebugPage(
             outcome={outcome}
             copyState={copyState}
             notifications={notifications}
+            notConnected={selected !== null && selected.status !== 'connected'}
             onMode={switchMode}
             onValue={(name, value) => setValues({ ...values, [name]: value })}
             onRawText={setRawText}

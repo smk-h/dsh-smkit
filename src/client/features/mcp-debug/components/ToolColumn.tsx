@@ -24,6 +24,8 @@ export interface ToolColumnProps {
   selectedTool: string
   /** The poll or a call is in flight. */
   busy: boolean
+  /** The selected server has no live transport, so an empty list needs its own words. */
+  notConnected: boolean
   history: HistoryRow[]
   onQuery(next: string): void
   onSelectTool(name: string): void
@@ -57,6 +59,7 @@ export function createToolColumn(deps: ClientDeps): (props: ToolColumnProps) => 
     query,
     selectedTool,
     busy,
+    notConnected,
     history,
     onQuery,
     onSelectTool,
@@ -64,8 +67,14 @@ export function createToolColumn(deps: ClientDeps): (props: ToolColumnProps) => 
     onPickHistory,
     onClearHistory,
   }: ToolColumnProps): JSX.Element {
+    // "This server lists no tools" and "this server is not connected" are
+    // different facts, and the second one is the one a reader can act on: the
+    // list is empty because there is nothing to ask, not because the server has
+    // no tools. It is also what a click on a dormant server has to say — the row
+    // stays selected instead of bouncing back to a live one.
     let empty = ''
     if (server === null) empty = t('toolsPickServer')
+    else if (notConnected) empty = t('notConnectedHint')
     else if (server.tools.length === 0) empty = t('toolsEmpty')
     else if (tools.length === 0) empty = t('toolSearchEmpty')
 
@@ -74,7 +83,10 @@ export function createToolColumn(deps: ClientDeps): (props: ToolColumnProps) => 
         <div className="smkit-mcpdebug-tools-head">
           <h3 className="smkit-mcpdebug-tools-title">{t('toolsTitle')}</h3>
           <span className="smkit-mcpdebug-tools-total">
-            {t('toolTotal', { count: server === null ? 0 : server.tools.length })}
+            {t(
+              (server === null ? 0 : server.tools.length) === 1 ? 'toolCountOne' : 'toolCount',
+              { count: server === null ? 0 : server.tools.length },
+            )}
           </span>
           <span className="smkit-mcpdebug-tools-spacer" aria-hidden="true" />
           <button

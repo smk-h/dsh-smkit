@@ -675,7 +675,19 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
           path,
           // Never opened in this process, so nothing is registered yet: the row
           // reports the config and an empty tool list.
-          servers: config.servers.map((server) => workspaceServerView(server, 'configured', 0, '', [])),
+          //
+          // The id has to be the deterministic one here too. `readWorkspaceConfig`
+          // mints a fresh random placeholder per read (it is a pre-rescan value,
+          // normally replaced in `rescanWorkspace`), and this branch reads the
+          // file on every poll — so a client that addresses the row by id saw a
+          // different id three seconds after selecting it, treated its own
+          // selection as vanished, and fell back to another server. That is the
+          // "click a server that is not connected and the selection jumps back"
+          // report: the row was there, its id was not stable.
+          servers: config.servers.map((server) => {
+            server.id = workspaceServerId(canonical, server.name)
+            return workspaceServerView(server, 'configured', 0, '', [])
+          }),
           exclude: config.exclude,
           error: config.error,
         })

@@ -36,6 +36,8 @@ export interface ToolDetailProps {
   /** Empty, `copied` or `failed` — the copy button's short-lived answer. */
   copyState: string
   notifications: DebugNotificationView[]
+  /** The selected server has no live transport: nothing here can be run. */
+  notConnected: boolean
   onMode(mode: ParamMode): void
   onValue(name: string, value: string): void
   onRawText(text: string): void
@@ -92,6 +94,7 @@ export function createToolDetail(deps: ClientDeps): (props: ToolDetailProps) => 
     outcome,
     copyState,
     notifications,
+    notConnected,
     onMode,
     onValue,
     onRawText,
@@ -103,7 +106,9 @@ export function createToolDetail(deps: ClientDeps): (props: ToolDetailProps) => 
     if (tool === null) {
       return (
         <section className="smkit-mcpdebug-detail">
-          <p className="smkit-mcpdebug-detail-empty">{t('detailEmpty')}</p>
+          <p className="smkit-mcpdebug-detail-empty">
+            {notConnected ? t('notConnectedHint') : t('detailEmpty')}
+          </p>
         </section>
       )
     }

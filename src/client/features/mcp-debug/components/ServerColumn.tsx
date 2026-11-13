@@ -80,7 +80,9 @@ export function createServerColumn(deps: ClientDeps): (props: ServerColumnProps)
       <aside className="smkit-mcpdebug-servers">
         <div className="smkit-mcpdebug-servers-head">
           <h3 className="smkit-mcpdebug-servers-title">{t('serversTitle')}</h3>
-          <span className="smkit-mcpdebug-servers-total">{t('serverTotal', { count: total })}</span>
+          <span className="smkit-mcpdebug-servers-total">
+            {t(total === 1 ? 'serverTotalOne' : 'serverTotal', { count: total })}
+          </span>
         </div>
         <div className="smkit-mcpdebug-servers-list">
           {total === 0 ? <p className="smkit-mcpdebug-servers-empty">{t('serversEmpty')}</p> : null}
@@ -106,7 +108,9 @@ export function createServerColumn(deps: ClientDeps): (props: ServerColumnProps)
                     {server.name}
                   </span>
                   <span className="smkit-mcpdebug-servers-count">
-                    {t('toolCount', { count: server.tools.length })}
+                    {t(server.tools.length === 1 ? 'toolCountOne' : 'toolCount', {
+                      count: server.tools.length,
+                    })}
                   </span>
                   <span className="smkit-mcpdebug-servers-state">{t(statusKey(server.status))}</span>
                 </button>

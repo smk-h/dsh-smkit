@@ -19,7 +19,7 @@
  * indirectly.
  */
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, it } from 'node:test'
@@ -42,7 +42,7 @@ const {
 after(() => rmSync(scratchHome, { recursive: true, force: true }))
 
 /** Minimal ctx: enough for apply() to mount its route without a real harness. */
-function makeCtx() {
+function makeCtx(services = {}) {
   const routes = []
   const ctx = {
     logger: { info() {}, warn() {}, error() {} },
@@ -53,13 +53,13 @@ function makeCtx() {
       execute: async () => ({ content: [] }),
     },
     webServer: { register: (route) => { routes.push(route); return () => {} } },
-    get: () => undefined,
+    get: (name) => services[name],
     on: () => () => {},
     inject: (names, callback) => {
       if (typeof callback === 'function' && names.includes('webServer')) {
         callback({
           webServer: ctx.webServer,
-          get: () => undefined,
+          get: (name) => services[name],
           effect: (fn) => { const dispose = fn(); return () => { if (typeof dispose === 'function') dispose() } },
         })
       }
@@ -280,4 +280,32 @@ it('reads only the two handshake fields it prints', () => {
   assert.equal(serverInfoOf({ serverInfo: {} }), undefined)
   assert.equal(serverInfoOf({ serverInfo: 'x' }), undefined)
   assert.equal(serverInfoOf(undefined), undefined)
+})
+
+it('keeps the id of a workspace server stable while the workspace is not open', async () => {
+  // A workspace nobody has opened is reported from its on-disk config, and the
+  // page addresses a row by id. An id minted per read made the page lose the
+  // row it had just selected three seconds later — the "click a server that is
+  // not connected and the selection jumps back to the first one" report.
+  const project = join(scratchHome, 'dormant-project')
+  mkdirSync(join(project, '.dsh', 'dshmm'), { recursive: true })
+  writeFileSync(
+    join(project, '.dsh', 'dshmm', 'mcp.json'),
+    JSON.stringify({ mcpServers: { dormant: { type: 'http', url: 'http://127.0.0.1:9/mcp', authMode: 'none' } } }),
+  )
+  const { handler } = makeCtx({ workspaceRegistry: { list: () => [{ path: project }] } })
+
+  const read = async () => {
+    const answered = await request(handler, 'GET', '/smkit/api/workspaces')
+    assert.equal(answered.code, 200)
+    return answered.json.workspaces.flatMap((workspace) => workspace.servers).find((server) => server.name === 'dormant')
+  }
+
+  const first = await read()
+  const second = await read()
+  assert.ok(first, 'the dormant workspace still reports the server it configured')
+  assert.equal(first.status, 'configured')
+  assert.equal(first.toolCount, 0)
+  assert.ok(first.id.startsWith('ws-'), `a workspace row carries a workspace id (${first.id})`)
+  assert.equal(first.id, second.id, 'two reads of one config must answer the same id')
 })

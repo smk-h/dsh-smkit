@@ -56,6 +56,37 @@ const ONE_SERVER = {
 const response = (body, ok = true, status = 200) => ({ ok, status, json: async () => body })
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
+/** Every string under one node, flattened — how a case finds a row by its name. */
+function flatten(node) {
+  if (node === null || node === undefined) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  return (node.children ?? []).map(flatten).join(' ')
+}
+
+/** One workspace whose own server is configured but not connected. */
+const DORMANT_WORKSPACES = {
+  workspaces: [
+    {
+      path: '/proj/dormant',
+      exclude: [],
+      error: '',
+      servers: [
+        {
+          id: 'ws-dormant',
+          name: 'dormant',
+          type: 'http',
+          authMode: 'none',
+          source: 'workspace',
+          status: 'configured',
+          toolCount: 0,
+          tools: [],
+          error: '',
+        },
+      ],
+    },
+  ],
+}
+
 /**
  * Mount the bundle and hand back the one page component, its seats, and a
  * renderer that keeps hook state across passes.
@@ -263,4 +294,46 @@ it('refuses a missing required parameter without talking to the host', async () 
   const after = app.render()
   assert.match(after.text, /Not sent/, 'the pane says the page refused, not the server')
   assert.match(after.text, /"text" is required/)
+})
+
+it('keeps a not-connected server selected and says why it has no tools', async () => {
+  const app = mount(async (path) => {
+    if (path === '/servers') return response(ONE_SERVER)
+    if (path === '/workspaces') return response(DORMANT_WORKSPACES)
+    if (path.startsWith('/debug/notifications')) return response({ notifications: [] })
+    return response({})
+  })
+  app.render()
+  for (const effect of app.effects) effect()
+  await settle()
+
+  const rows = () =>
+    app.render().nodes.filter((node) => String(node.props?.className ?? '').includes('smkit-mcpdebug-servers-row'))
+  const dormant = rows().find((row) => flatten(row).includes('dormant'))
+  assert.ok(dormant, 'the dormant workspace server is listed with the live one')
+
+  dormant.props.onClick()
+  await settle()
+
+  const after = app.render()
+  const picked = after.nodes.find(
+    (node) => String(node.props?.className ?? '').includes('smkit-mcpdebug-servers-row') && flatten(node).includes('dormant'),
+  )
+  assert.equal(picked.props['data-smkit-active'], 'true', 'the clicked row stays selected')
+  assert.equal(
+    after.nodes.filter(
+      (node) =>
+        String(node.props?.className ?? '').includes('smkit-mcpdebug-servers-row') &&
+        flatten(node).includes('stub') &&
+        node.props['data-smkit-active'] === 'true',
+    ).length,
+    0,
+    'the live server is no longer the selected one',
+  )
+  assert.match(after.text, /This server is not connected/, 'the page names the reason instead of listing nothing')
+  assert.equal(
+    after.nodes.filter((node) => String(node.props?.className ?? '').includes('smkit-mcpdebug-tools-row')).length,
+    0,
+    'a server with no transport offers no tools to run',
+  )
 })

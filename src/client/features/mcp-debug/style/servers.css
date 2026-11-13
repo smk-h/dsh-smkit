@@ -155,6 +155,13 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* The facts are the server's own report and can outgrow the rail (a stdio
+   * server with a long environment list). They scroll inside their block rather
+   * than pushing the list out of the column or being cut at the bottom edge. */
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 55%;
+  overflow: auto;
   padding: 8px 4px 12px;
   border-top: 1px solid var(--dsw-alias-border-l2);
 }
@@ -196,7 +203,10 @@
 }
 
 .smkit-mcpdebug-servers-fact-label {
-  flex: 0 0 52px;
+  /* One label column, sized for the longest label the dictionary ships
+   * ("Environment"), so the values line up and no label wraps onto two lines
+   * while its value stays one — the pair is read as one row. */
+  flex: 0 0 76px;
   color: var(--dsw-alias-label-tertiary);
 }
 
