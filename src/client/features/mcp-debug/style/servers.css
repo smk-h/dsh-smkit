@@ -157,10 +157,16 @@
   gap: 4px;
   /* The facts are the server's own report and can outgrow the rail (a stdio
    * server with a long environment list). They scroll inside their block rather
-   * than pushing the list out of the column or being cut at the bottom edge. */
-  flex: 0 1 auto;
+   * than pushing the list out of the column or being cut at the bottom edge.
+   *
+   * The height is the shared dock height (`page.css`), the same number the tool
+   * column's history uses: the two bottom blocks are one band across the page,
+   * and a content-sized one here made the history below look misaligned. */
+  box-sizing: border-box;
+  flex: 0 0 auto;
   min-height: 0;
-  max-height: 55%;
+  height: var(--smkit-mcpdebug-dock-h);
+  max-height: 34%;
   overflow: auto;
   padding: 8px 4px 12px;
   border-top: 1px solid var(--dsw-alias-border-l2);

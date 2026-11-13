@@ -10,6 +10,10 @@
  */
 
 .smkit-mcpdebug-page {
+  /* Height of the docked block at the bottom of the rail and of the tool
+   * column (transport facts / call history). One number, so the two columns
+   * end on the same line instead of looking like two unrelated boxes. */
+  --smkit-mcpdebug-dock-h: 132px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;

@@ -122,10 +122,16 @@
 }
 
 .smkit-mcpdebug-tools-history {
+  /* The rail's facts block and this one share the dock height (`page.css`), so
+   * the two columns end on one line. The list inside scrolls; the block itself
+   * does not grow with the number of calls kept. */
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;
   min-height: 0;
-  max-height: 40%;
+  height: var(--smkit-mcpdebug-dock-h);
+  max-height: 34%;
   padding-top: 6px;
   border-top: 1px solid var(--dsw-alias-border-l2);
 }
@@ -144,6 +150,7 @@
 }
 
 .smkit-mcpdebug-tools-history-list {
+  flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
 }
