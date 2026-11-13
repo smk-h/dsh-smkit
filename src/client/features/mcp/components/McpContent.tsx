@@ -28,6 +28,11 @@
  * Selecting a workspace switches the whole page into that workspace's scope:
  * its own servers on top, and the global servers below with a `hide` checkbox
  * each (the `exclude` mask).
+ *
+ * The two plugin-wide feature switches (the on-demand broker, the debug page)
+ * live in the `advanced` view, not the list: the list is the servers of one
+ * scope, and a switch every scope shares would ride above every scope's list
+ * without belonging to any of them.
  */
 
 import { createGlobalMaskRow } from './GlobalMaskRow'
@@ -418,6 +423,41 @@ export function createMcpContent(deps: ClientDeps): (props: McpContentProps) => 
             {backToList}
           </div>
           {headerBreadcrumb}
+          {/* The two plugin-wide feature switches live here, above the forms:
+           * they are the same kind of setting the advanced view collects —
+           * plugin-level MCP behaviour no single server owns — and instant
+           * switches read better ahead of draft-and-save forms. They are
+           * deliberately NOT in the list view: that page is the servers of one
+           * scope, and a switch that every scope shares would ride above every
+           * scope's list without belonging to any of them. */}
+          <div className="smkit-mcp-section-group-title">{t('featureSwitches')}</div>
+          <div className="smkit-mcp-section-feature">
+            <span className="smkit-mcp-section-feature-text">
+              <span className="smkit-mcp-section-feature-title">{t('onDemand')}</span>
+              <span className="smkit-mcp-section-feature-meta">{t('onDemandHelp')}</span>
+            </span>
+            <Switch
+              on={settings.onDemandToolInjection}
+              text={settings.onDemandToolInjection ? t('on') : t('off')}
+              busy={settingsAction.busy}
+              onToggle={toggleOnDemand}
+              ariaLabel={t('onDemand')}
+            />
+          </div>
+          <div className="smkit-mcp-section-feature">
+            <span className="smkit-mcp-section-feature-text">
+              <span className="smkit-mcp-section-feature-title">{t('debugPage')}</span>
+              <span className="smkit-mcp-section-feature-meta">{t('debugPageHelp')}</span>
+            </span>
+            <Switch
+              on={settings.debugPageEnabled}
+              text={settings.debugPageEnabled ? t('on') : t('off')}
+              busy={settingsAction.busy}
+              onToggle={toggleDebugPage}
+              ariaLabel={t('debugPage')}
+            />
+          </div>
+          {settingsAction.error ? <div className="smkit-ui-field-error">{settingsAction.error}</div> : null}
           <ReconnectForm
             t={t}
             current={settings}
@@ -671,33 +711,6 @@ export function createMcpContent(deps: ClientDeps): (props: McpContentProps) => 
             {addBtn}
           </div>
         </div>
-        <div className="smkit-mcp-section-feature">
-          <span className="smkit-mcp-section-feature-text">
-            <span className="smkit-mcp-section-feature-title">{t('onDemand')}</span>
-            <span className="smkit-mcp-section-feature-meta">{t('onDemandHelp')}</span>
-          </span>
-          <Switch
-            on={settings.onDemandToolInjection}
-            text={settings.onDemandToolInjection ? t('on') : t('off')}
-            busy={settingsAction.busy}
-            onToggle={toggleOnDemand}
-            ariaLabel={t('onDemand')}
-          />
-        </div>
-        <div className="smkit-mcp-section-feature">
-          <span className="smkit-mcp-section-feature-text">
-            <span className="smkit-mcp-section-feature-title">{t('debugPage')}</span>
-            <span className="smkit-mcp-section-feature-meta">{t('debugPageHelp')}</span>
-          </span>
-          <Switch
-            on={settings.debugPageEnabled}
-            text={settings.debugPageEnabled ? t('on') : t('off')}
-            busy={settingsAction.busy}
-            onToggle={toggleDebugPage}
-            ariaLabel={t('debugPage')}
-          />
-        </div>
-        {settingsAction.error ? <div className="smkit-ui-field-error">{settingsAction.error}</div> : null}
         {selectedWs?.error ? <div className="smkit-ui-field-error">{selectedWs.error}</div> : null}
         {selected ? workspaceBranch : globalBranch}
       </div>

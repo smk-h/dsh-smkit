@@ -450,7 +450,9 @@ it('takes both seats away when the settings switch is turned off, and puts them 
   })
   assert.deepEqual(seats(), { main: 1, rail: 1 }, 'on by default')
 
-  // Render the merged settings section and drive its debug-page switch.
+  // Render the merged settings section and drive its debug-page switch. The
+  // switch lives in the Advanced sub-view: the list is one scope's servers,
+  // and a plugin-wide switch belongs to none of them.
   const switchFor = () =>
     app
       .renderSection()
@@ -458,6 +460,16 @@ it('takes both seats away when the settings switch is turned off, and puts them 
   app.renderSection()
   for (const effect of app.effects) effect()
   await settle()
+
+  const advanced = app
+    .renderSection()
+    .nodes.find(
+      (node) =>
+        node.type === 'button' &&
+        String(node.props?.className ?? '').includes('smkit-mcp-section-toolbar-action'),
+    )
+  assert.ok(advanced, 'the toolbar offers the Advanced sub-view')
+  advanced.props.onClick()
 
   const toggle = switchFor()
   assert.ok(toggle, 'the MCP page offers the switch')

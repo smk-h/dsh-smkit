@@ -24,7 +24,7 @@
 
 ### 2. 按需工具代理
 
-「设置 → MCP」页提供「按需 MCP 工具调用」开关（可选）：开启后该 MCP 仅暴露 search、describe、execute 三个 broker 工具，避免几十个工具一次性占满上下文。三个工具各自怎么工作、什么时候注册、开关前后有何差别，见 [LV002-MCP按需工具代理](LV002-MCP按需工具代理.md)。
+「设置 → MCP → 高级」里提供「按需 MCP 工具调用」开关（可选，与「MCP 调试页」并排在「功能开关」组下，不随作用域过滤走）：开启后该 MCP 仅暴露 search、describe、execute 三个 broker 工具，避免几十个工具一次性占满上下文。三个工具各自怎么工作、什么时候注册、开关前后有何差别，见 [LV002-MCP按需工具代理](LV002-MCP按需工具代理.md)。
 
 暴露方式随宿主能力而定：DSH 0.2 不再把工具清单交给 `system-prompt/assemble`，插件改为给每条注册打 `deferLoading` 标记，由宿主决定怎么用——路由声明了 `toolUpdate` 时这些工具延迟加载、不占请求体积；路由没声明（多数 OpenAI 兼容模型就是这种）时宿主会立即下发，插件随即把完整定义换成**同名短桩**（描述一行、参数表留空，完整 schema 用 `mcp_describe_tool` 取），从第二轮起生效。0.1 沿用原来的清单过滤。两条路径都保留工具的可执行性，`mcp_execute_tool` 与 `/mcp call` 走同一套放行。改动这块后用 [`test/cases/LV007-MCP影子桩.md`](../test/cases/LV007-MCP影子桩.md) 复验。
 
