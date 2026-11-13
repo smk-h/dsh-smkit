@@ -12,16 +12,23 @@
  *   page whose two ids disagreed would render a panel nobody could open. This is
  *   the same pair DSH's own pages and the memory-system plugin use.
  *
- * Nothing is registered eagerly against a service the host may not have: both
- * seats are declared by packages in `dsh.client.inject`, and `slots.inject`
- * waits for the declaring registration, so a host without a left rail simply
- * draws neither.
+ * Both are gated (see `gate.ts`): the switch on Settings → MCP decides whether
+ * the page exists at all, and it takes effect **without a restart** — the two
+ * `slots.register` calls are held as disposers and re-run on the change. A slot
+ * declaration (`slots.inject`) is kept for the plugin's lifetime either way,
+ * because that belongs to the shell, not to this switch; only the entries inside
+ * it come and go.
+ *
+ * Nothing here reads the stored value itself: the gate starts from its
+ * `localStorage` mirror (see `gate.ts` for why that is not a request), and the
+ * settings page reports what the host stored on every poll.
  */
 
 import { MCP_DEBUG_LOCALE_EN } from './i18n/en'
 import { MCP_DEBUG_LOCALE_ZH } from './i18n/zh'
 import { createBugIcon } from './icons/BugIcon'
 import { createMcpDebugPage } from './components/McpDebugPage'
+import { debugPageEnabled, onDebugPageChange } from './gate'
 import { MCP_DEBUG_CSS } from './styles'
 import type { ClientContext, ClientDeps, ClientFeature, Translator } from '../../platform/types'
 
@@ -47,23 +54,57 @@ export const mcpDebugFeature: ClientFeature = {
     const Page = createMcpDebugPage(deps, t)
     const BugIcon = createBugIcon(deps)
 
-    ctx.slots.inject('main', () =>
-      ctx.slots.register(
-        { name: 'main', key: MCP_DEBUG_PANEL, locale: 'mcp-debug' },
-        Page,
-      ),
-    )
-    ctx.slots.inject('sidebar.panellist', () =>
-      ctx.slots.register(
-        {
-          name: 'sidebar.panellist',
-          id: MCP_DEBUG_PANEL,
-          order: RAIL_ORDER,
-          label: () => t('panelLabel'),
-          locale: 'mcp-debug',
-        },
-        BugIcon,
-      ),
-    )
+    /** Whether the shell has declared the seat, and what we put in it. */
+    let mainReady = false
+    let railReady = false
+    let stopMain: (() => void) | null = null
+    let stopRail: (() => void) | null = null
+
+    /** Make the entries match the gate. Idempotent, so any caller may run it. */
+    const sync = (): void => {
+      const on = debugPageEnabled()
+      if (on && mainReady && stopMain === null) {
+        stopMain = ctx.slots.register({ name: 'main', key: MCP_DEBUG_PANEL, locale: 'mcp-debug' }, Page)
+      } else if (!on && stopMain !== null) {
+        stopMain()
+        stopMain = null
+      }
+      if (on && railReady && stopRail === null) {
+        stopRail = ctx.slots.register(
+          {
+            name: 'sidebar.panellist',
+            id: MCP_DEBUG_PANEL,
+            order: RAIL_ORDER,
+            label: () => t('panelLabel'),
+            locale: 'mcp-debug',
+          },
+          BugIcon,
+        )
+      } else if (!on && stopRail !== null) {
+        stopRail()
+        stopRail = null
+      }
+    }
+
+    ctx.slots.inject('main', () => {
+      mainReady = true
+      sync()
+      return () => {
+        mainReady = false
+        stopMain?.()
+        stopMain = null
+      }
+    })
+    ctx.slots.inject('sidebar.panellist', () => {
+      railReady = true
+      sync()
+      return () => {
+        railReady = false
+        stopRail?.()
+        stopRail = null
+      }
+    })
+
+    ctx.effect(() => onDebugPageChange(sync), 'smkit: mcp-debug/gate')
   },
 }

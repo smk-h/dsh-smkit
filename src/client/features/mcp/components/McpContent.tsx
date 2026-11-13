@@ -85,7 +85,19 @@ function workspaceName(path: string): string {
   return path.split(/[\\/]+/).filter(Boolean).pop() || path
 }
 
-export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX.Element {
+/**
+ * The page's props: the seat's copy, plus the debug page's switch.
+ *
+ * `onDebugPageChange` is not this feature's business — the page lives in another
+ * feature directory and this one may not import it. The composition layer
+ * (`settings.ts`) owns both sides, so it hands the write's result down as a
+ * callback; the page's own seats follow it inside that feature.
+ */
+export interface McpContentProps extends SectionProps {
+  onDebugPageChange?: (enabled: boolean) => void
+}
+
+export function createMcpContent(deps: ClientDeps): (props: McpContentProps) => JSX.Element {
   const { h, react, api, createPortal } = deps
   const ServerRow = createServerRow(deps)
   const ServerForm = createServerForm(deps)
@@ -102,11 +114,12 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
   const ToolTimeoutForm = createToolTimeoutForm(deps)
   const ReconnectForm = createReconnectForm(deps)
 
-  return function McpContent({ t }: SectionProps): JSX.Element {
+  return function McpContent({ t, onDebugPageChange }: McpContentProps): JSX.Element {
     const [servers, setServers] = react.useState<ServerView[]>([])
     const [workspaces, setWorkspaces] = react.useState<WorkspaceView[]>([])
     const [settings, setSettings] = react.useState<SettingsView>({
       onDemandToolInjection: false,
+      debugPageEnabled: true,
       toolCallTimeoutMs: DEFAULT_TOOL_CALL_TIMEOUT_MS,
       ...DEFAULT_RECONNECT_SETTINGS,
     })
@@ -196,6 +209,8 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             const reported = settingsResult.body
             setSettings({
               onDemandToolInjection: reported.onDemandToolInjection === true,
+              // Absent means on, the same reading the host makes.
+              debugPageEnabled: reported.debugPageEnabled !== false,
               toolCallTimeoutMs:
                 typeof reported.toolCallTimeoutMs === 'number'
                   ? reported.toolCallTimeoutMs
@@ -212,6 +227,10 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
               ),
             })
           }
+          // The debug page's gate follows the stored value on every poll, so a
+          // browser whose own cache never saw the write (a second browser, a
+          // cleared profile) is corrected as soon as this page is opened.
+          if (settingsResult.ok) onDebugPageChange?.(settingsResult.body.debugPageEnabled !== false)
           setPolledAt(requestedAt)
         })
         .catch(() => {})
@@ -305,6 +324,25 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
           return
         }
         return r.body.error || t('toggleFailed', { status: r.status })
+      })
+
+    // The debug page's switch. Its seat lives in another feature directory, so
+    // this route writes the stored value and the layer above reports the result
+    // to that feature through `onDebugPageChange`.
+    const toggleDebugPage = (): Promise<void> =>
+      settingsAction.run(async () => {
+        const enabled = !settings.debugPageEnabled
+        const r = await api('/settings/debug-page', {
+          method: 'POST',
+          body: JSON.stringify({ enabled }),
+        })
+        if (r.ok) {
+          const stored = r.body.debugPageEnabled !== false
+          setSettings({ ...settings, debugPageEnabled: stored })
+          onDebugPageChange?.(stored)
+          return
+        }
+        return r.body.error || t('debugPageFailed', { status: r.status })
       })
 
     // Open the current scope's config file, DSH-settings style: the file
@@ -644,6 +682,19 @@ export function createMcpContent(deps: ClientDeps): (props: SectionProps) => JSX
             busy={settingsAction.busy}
             onToggle={toggleOnDemand}
             ariaLabel={t('onDemand')}
+          />
+        </div>
+        <div className="smkit-mcp-section-feature">
+          <span className="smkit-mcp-section-feature-text">
+            <span className="smkit-mcp-section-feature-title">{t('debugPage')}</span>
+            <span className="smkit-mcp-section-feature-meta">{t('debugPageHelp')}</span>
+          </span>
+          <Switch
+            on={settings.debugPageEnabled}
+            text={settings.debugPageEnabled ? t('on') : t('off')}
+            busy={settingsAction.busy}
+            onToggle={toggleDebugPage}
+            ariaLabel={t('debugPage')}
           />
         </div>
         {settingsAction.error ? <div className="smkit-ui-field-error">{settingsAction.error}</div> : null}

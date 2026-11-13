@@ -28,6 +28,7 @@ import { LOCAL_CACHE_LOCALE_ZH } from './features/local-cache/i18n/zh'
 import { SESSION_MANAGER_LOCALE_EN } from './features/session-manager/i18n/en'
 import { SESSION_MANAGER_LOCALE_ZH } from './features/session-manager/i18n/zh'
 import { createSettingsSection } from './settings/components/SettingsSection'
+import { setDebugPageEnabled } from './features/mcp-debug/gate'
 import { createSettingsShellRestore } from './platform/ui/settings-shell'
 import { upstreamMcpManagerPresent } from './platform/upstream'
 import { MCP_CSS } from './features/mcp/styles'
@@ -153,6 +154,9 @@ export const settingsFeature: ClientFeature = {
       sessionManager: ctx.locale.bind('session-manager'),
     }, {
       hideMcp: upstream,
+      // The MCP page's switch reports here: the debug page's seats live in
+      // another feature directory, and this layer is the one that may know both.
+      onDebugPageChange: setDebugPageEnabled,
       // The shell closes itself when a removal empties the main view; the
       // guard arms before a batch and puts the dialog back on this section
       // after (a no-op while it stayed open, and a stand-down on a host whose

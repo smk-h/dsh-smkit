@@ -93,6 +93,12 @@ export interface SettingsSectionOptions {
    * stay, so the section is still worth opening.
    */
   hideMcp?: boolean
+  /**
+   * Report the MCP page's "debug page" switch to the feature that owns those
+   * seats. The page writes the value; this layer is the only one allowed to
+   * know both halves, so it carries the news across (see `features/mcp-debug`).
+   */
+  onDebugPageChange?: (enabled: boolean) => void
 }
 
 export function createSettingsSection(
@@ -134,7 +140,7 @@ export function createSettingsSection(
     id: 'mcp',
     label: 'tabMcp',
     icon: <CableIcon size={14} />,
-    Panel: (props) => <McpContent {...props} />,
+    Panel: (props) => <McpContent {...props} onDebugPageChange={options.onDebugPageChange} />,
   }
 
   /** The pages, in strip order — the order the settings nav listed them in

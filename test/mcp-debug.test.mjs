@@ -309,3 +309,28 @@ it('keeps the id of a workspace server stable while the workspace is not open', 
   assert.ok(first.id.startsWith('ws-'), `a workspace row carries a workspace id (${first.id})`)
   assert.equal(first.id, second.id, 'two reads of one config must answer the same id')
 })
+
+it('keeps the debug page switch in the profile, on unless it was turned off', async () => {
+  const { handler } = makeCtx()
+  const initial = await request(handler, 'GET', '/smkit/api/settings')
+  assert.equal(initial.code, 200)
+  assert.equal(initial.json.debugPageEnabled, true, 'an untouched profile keeps the page')
+
+  const refused = await request(handler, 'POST', '/smkit/api/settings/debug-page', { enabled: 'no' })
+  assert.equal(refused.code, 400)
+
+  const off = await request(handler, 'POST', '/smkit/api/settings/debug-page', { enabled: false })
+  assert.equal(off.code, 200)
+  assert.equal(off.json.debugPageEnabled, false)
+  assert.equal((await request(handler, 'GET', '/smkit/api/settings')).json.debugPageEnabled, false)
+
+  // A later mount reads the stored choice rather than the default.
+  const remounted = makeCtx()
+  assert.equal(
+    (await request(remounted.handler, 'GET', '/smkit/api/settings')).json.debugPageEnabled,
+    false,
+  )
+
+  const on = await request(handler, 'POST', '/smkit/api/settings/debug-page', { enabled: true })
+  assert.equal(on.json.debugPageEnabled, true)
+})

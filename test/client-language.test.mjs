@@ -336,6 +336,9 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // publishes no `commandUi` service, so the effect resolves to the
     // stand-down disposer — the label is still the registration's own.
     'smkit: mcp/command panel',
+    // The debug page's gate: one subscription, so the switch on the MCP page can
+    // seat or unseat the page without a restart.
+    'smkit: mcp-debug/gate',
     // The theme center's mount-time half: the swap element, the saved mode and
     // theme, and the programmatic API — all before the settings row renders.
     'smkit: theme-center/restore',

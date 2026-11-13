@@ -96,6 +96,12 @@ export interface PluginState {
   workspaceTokens: Record<string, WorkspaceTokenSlot>
   onDemandToolInjection: boolean
   /**
+   * Whether the debug page seats itself in the shell (main panel + rail entry).
+   * Absent means on: the page existed before this switch did, and a stored
+   * `false` is the only thing that takes it away.
+   */
+  debugPageEnabled?: boolean
+  /**
    * Global `tools/call` timeout in milliseconds. Absent — or a value outside the
    * bounds — means the built-in default; `initialize` / `tools/list` never read
    * it (they keep the fixed connect-phase timeout).

@@ -91,19 +91,26 @@ const DORMANT_WORKSPACES = {
  * Mount the bundle and hand back the one page component, its seats, and a
  * renderer that keeps hook state across passes.
  */
-function mount(handler) {
+function mount(handler, options = {}) {
   const dictionaries = {}
+  const storage = new Map()
+  if (options.debugPage === false) storage.set('smkit.mcp-debug.enabled', 'false')
+  if (options.debugPage === true) storage.set('smkit.mcp-debug.enabled', 'true')
   const registrations = []
   const effects = []
   const calls = []
   const states = new Map()
   let hookIndex = 0
+  /* Hooks are keyed by the component that owns them, the way React keys them by
+   * position: the page and the settings section are separate roots here, and a
+   * bare index would let one component read the other's state. */
+  let hookPath = 'root'
   let exported
 
   const react = {
     createElement: (type, props, ...children) => ({ type, props: props ?? {}, children: children.flat(Infinity) }),
     useState: (initial) => {
-      const key = hookIndex++
+      const key = `${hookPath}#${hookIndex++}`
       if (!states.has(key)) states.set(key, typeof initial === 'function' ? initial() : initial)
       return [
         states.get(key),
@@ -128,6 +135,15 @@ function mount(handler) {
     setInterval: () => 1,
     clearInterval: () => {},
     setTimeout: () => 1,
+    localStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => {
+        storage.set(key, String(value))
+      },
+      removeItem: (key) => {
+        storage.delete(key)
+      },
+    },
   })
 
   exported.apply({
@@ -149,8 +165,12 @@ function mount(handler) {
     slots: {
       inject: (_name, setup) => setup(),
       register: (options, component) => {
-        registrations.push({ options, component })
-        return () => {}
+        const entry = { options, component }
+        registrations.push(entry)
+        return () => {
+          const index = registrations.indexOf(entry)
+          if (index >= 0) registrations.splice(index, 1)
+        }
       },
     },
   })
@@ -180,21 +200,58 @@ function mount(handler) {
       nodes.push(node)
       if (typeof node.type === 'function') {
         const saved = hookIndex
+        const savedPath = hookPath
         hookIndex = 0
+        hookPath = node.type.name || 'anon'
         walk(node.type(node.props))
         hookIndex = saved
+        hookPath = savedPath
         return
       }
       for (const child of node.children ?? []) walk(child)
     }
     hookIndex = 0
+    hookPath = 'McpDebugPage'
     walk(page({ t: translate }))
     return { nodes, text: text.join(' ') }
   }
 
   const page = seat('main', 'smkit-mcp-debug')?.component
-  assert.ok(page, 'the feature must seat its page in the main column')
-  return { registrations, seat, render, translate, effects, calls, dictionaries }
+  // A profile whose cache says "off" seats nothing at all, which is the point
+  // of that case; every other case needs the page.
+  if (options.debugPage !== false) assert.ok(page, 'the feature must seat its page in the main column')
+  /** Render the merged settings section, the way the shell does. */
+  const renderSection = () => {
+    const section = registrations.find((entry) => entry.options?.name === 'settings.section')
+    assert.ok(section, 'the settings section is seated')
+    const nodes = []
+    const text = []
+    const walk = (node) => {
+      if (node === null || node === undefined) return
+      if (typeof node === 'string' || typeof node === 'number') {
+        text.push(String(node))
+        return
+      }
+      nodes.push(node)
+      if (typeof node.type === 'function') {
+        const saved = hookIndex
+        const savedPath = hookPath
+        hookIndex = 0
+        hookPath = node.type.name || 'anon'
+        walk(node.type(node.props))
+        hookIndex = saved
+        hookPath = savedPath
+        return
+      }
+      for (const child of node.children ?? []) walk(child)
+    }
+    hookIndex = 0
+    hookPath = 'SettingsSection'
+    walk(section.component({}))
+    return { nodes, text: text.join(' ') }
+  }
+
+  return { registrations, seat, render, renderSection, translate, effects, calls, dictionaries, storage }
 }
 
 /** A stub that answers the three GETs and records the call. */
@@ -354,4 +411,72 @@ it('marks which parameter editor is in force', async () => {
   const box = app.render().nodes.find((node) => node.type === 'textarea')
   assert.ok(box, 'the raw editor is a textarea')
   assert.deepEqual(JSON.parse(box.props.value), {}, 'the box is seeded from the form, which is still empty')
+})
+
+it('seats nothing in a browser whose cache says the page is off', async () => {
+  const app = mount(stubFetch(), { debugPage: false })
+  await settle()
+  assert.equal(app.registrations.filter((entry) => entry.options?.name === 'main').length, 0, 'no page')
+  assert.equal(
+    app.registrations.filter((entry) => entry.options?.name === 'sidebar.panellist').length,
+    0,
+    'no rail entry either',
+  )
+  assert.equal(
+    app.calls.filter((entry) => entry.path === '/settings').length,
+    0,
+    'the gate is answered from storage: mounting must not cost a request',
+  )
+})
+
+it('takes both seats away when the settings switch is turned off, and puts them back', async () => {
+  let stored = true
+  const app = mount(async (path, options) => {
+    if (path === '/settings/debug-page') {
+      stored = JSON.parse(options.body).enabled === true
+      return response({ debugPageEnabled: stored })
+    }
+    if (path === '/settings') {
+      return response({ onDemandToolInjection: false, debugPageEnabled: stored, toolCallTimeoutMs: 60_000 })
+    }
+    if (path === '/servers') return response({ servers: [] })
+    if (path === '/workspaces') return response({ workspaces: [] })
+    return response({})
+  })
+  await settle()
+  const seats = () => ({
+    main: app.registrations.filter((entry) => entry.options?.name === 'main').length,
+    rail: app.registrations.filter((entry) => entry.options?.name === 'sidebar.panellist').length,
+  })
+  assert.deepEqual(seats(), { main: 1, rail: 1 }, 'on by default')
+
+  // Render the merged settings section and drive its debug-page switch.
+  const switchFor = () =>
+    app
+      .renderSection()
+      .nodes.find((node) => node.type === 'button' && node.props['aria-label'] === 'MCP debug page')
+  app.renderSection()
+  for (const effect of app.effects) effect()
+  await settle()
+
+  const toggle = switchFor()
+  assert.ok(toggle, 'the MCP page offers the switch')
+  assert.equal(toggle.props['aria-checked'], true, 'it reports the stored value')
+  toggle.props.onClick()
+  await settle()
+  await settle()
+
+  const written = app.calls.find((entry) => entry.path === '/settings/debug-page')
+  assert.deepEqual(written?.body, { enabled: false }, 'the switch writes the stored value')
+  assert.deepEqual(seats(), { main: 0, rail: 0 }, 'the page and its rail entry are gone without a restart')
+  assert.equal(app.storage.get('smkit.mcp-debug.enabled'), 'false', 'and the next load reads it without a request')
+
+  // And back on.
+  const again = switchFor()
+  assert.ok(again, 'the switch is still there (the settings page is not the debug page)')
+  again.props.onClick()
+  await settle()
+  await settle()
+  assert.deepEqual(seats(), { main: 1, rail: 1 }, 'turning it back on restores both')
+  assert.equal(app.storage.get('smkit.mcp-debug.enabled'), 'true')
 })

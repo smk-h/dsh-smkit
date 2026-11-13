@@ -24,6 +24,7 @@ import {
 } from '../constants.js'
 import {
   effectiveHealthCheckIntervalMs,
+  isDebugPageEnabled,
   effectiveReconnectMaxAttempts,
   effectiveReconnectMaxDelayMs,
   effectiveToolCallTimeoutMs,
@@ -134,6 +135,7 @@ export const handleSettings: McpHandler = async (req, res, facts, api) => {
   if (req.method === 'GET' && rest === '/settings') {
     sendJson(res, 200, {
       onDemandToolInjection: api.runtime.state.onDemandToolInjection,
+      debugPageEnabled: isDebugPageEnabled(api.runtime.state),
       toolCallTimeoutMs: effectiveToolCallTimeoutMs(api.runtime.state),
       ...reconnectSettings(api.runtime.state),
     })
@@ -197,6 +199,28 @@ export const handleSettings: McpHandler = async (req, res, facts, api) => {
       throw error
     }
     sendJson(res, 200, reconnectSettings(state))
+    return true
+  }
+
+  if (req.method === 'POST' && rest === '/settings/debug-page') {
+    const body = await readBody(req)
+    if (typeof body.enabled !== 'boolean') {
+      sendJson(res, 400, { error: 'enabled must be a boolean' })
+      return true
+    }
+    const state = api.runtime.state
+    const previous = state.debugPageEnabled
+    // Storing `true` explicitly (rather than deleting the key) is what lets a
+    // hand-edited file say "on" without relying on the absent default.
+    state.debugPageEnabled = body.enabled
+    try {
+      saveState(state)
+    } catch (error) {
+      if (previous === undefined) delete state.debugPageEnabled
+      else state.debugPageEnabled = previous
+      throw error
+    }
+    sendJson(res, 200, { debugPageEnabled: isDebugPageEnabled(state) })
     return true
   }
 

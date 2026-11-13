@@ -147,6 +147,8 @@ export interface ReconnectSettings {
 
 export interface SettingsView extends ReconnectSettings {
   onDemandToolInjection: boolean
+  /** Whether the MCP debug page is registered in this profile. */
+  debugPageEnabled: boolean
   /** `tools/call` timeout in force, in milliseconds (the built-in default included). */
   toolCallTimeoutMs: number
 }

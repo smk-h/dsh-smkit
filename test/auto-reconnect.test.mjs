@@ -871,6 +871,7 @@ it('reports the effective settings, defaults included', async () => {
     const initial = await request(handler, 'GET', '/smkit/api/settings')
     assert.deepEqual(initial.json, {
       onDemandToolInjection: false,
+      debugPageEnabled: true,
       toolCallTimeoutMs: 60_000,
       autoReconnect: true,
       reconnectMaxAttempts: -1,

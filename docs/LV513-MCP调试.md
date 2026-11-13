@@ -19,6 +19,15 @@
 
 为什么不做成 `设置 → MCP` 的一个标签页：三栏（服务器 / 工具 / 结果）在设置弹窗的宽度里挤不下，而 Inspector 的价值有一半来自「同时看见三栏」。
 
+### 开关
+
+设置 → SMKIT → MCP 页里有一项「MCP 调试页」（与「按需 MCP 工具调用」并排，同一个卡片样式），**默认开启**。关掉后左栏入口与主面板**立即消失，不需要重启**；再打开立即回来。
+
+- 两个座位都由 `slots.register` 注册，句柄留着；开关一翻就 dispose 或重新注册（`slots.inject` 那层保持不动——座位是宿主声明的，不随开关走）；
+- 真值存 `~/.dsh/mcp-manager.json` 的 `debugPageEnabled`，**缺省视为开启**（这一页先于开关存在，不能因为加了开关就把已有用户的入口收掉）；只有 `POST /settings/debug-page`（body `{ enabled }`）写它；
+- 客户端**不为这个开关发请求**：写成功后同时把值镜像进 `localStorage`（键 `smkit.mcp-debug.enabled`），下次加载同步读它决定要不要占座——座位必须在第一帧之前定下来，而给一个多数 profile 都不碰的开关在启动时发一次请求，等于让每个面板都替它付钱；
+- 换了浏览器或清了缓存时镜像会缺失：此时按默认（开启）占座，等打开「设置 → MCP」——那里每轮轮询都会把宿主值回报给网关——就会被纠正。代价只是那次访问之前左栏多一个入口。
+
 ## 三、 三栏各是什么
 
 ### 1. 左栏：服务器
@@ -101,6 +110,7 @@
 | 调一次工具 | `POST /smkit/api/debug/call` | 新增；body `{ id, tool, arguments }` |
 | 读通知 | `GET /smkit/api/debug/notifications?id=<服务器 id>` | 新增 |
 | 清通知 | `POST /smkit/api/debug/notifications/clear` | 新增；body `{ id }` |
+| 读/写页面开关 | `GET /smkit/api/settings`、`POST /smkit/api/settings/debug-page` | 新增写路由；body `{ enabled }` |
 
 `id` 是服务器的**全局唯一 id**（工作区服务器是 `ws-` 开头的确定性 id），因此一个 id 就能定位到全局或任一工作区的服务器，不需要再带作用域。
 

@@ -63,10 +63,12 @@ it('settings omits language, rejects the removed route, and preserves legacy sta
   let handler = makeCtx().routes[0].handler
   const get = () => request(handler, 'GET', '/smkit/api/settings')
   // The payload is exactly the settings this plugin owns: the broker switch, the
-  // global tool-call timeout and the reconnection knobs — never a language of its
-  // own. Absent values arrive as the defaults they stand for.
+  // debug page's switch, the global tool-call timeout and the reconnection knobs —
+  // never a language of its own. Absent values arrive as the defaults they stand for.
   const defaults = {
     onDemandToolInjection: false,
+    // The debug page's switch: on unless the profile stored `false`.
+    debugPageEnabled: true,
     toolCallTimeoutMs: 60_000,
     autoReconnect: true,
     reconnectMaxAttempts: -1,

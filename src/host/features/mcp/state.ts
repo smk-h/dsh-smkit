@@ -68,6 +68,18 @@ export function normalizeToolCallTimeoutMs(value: unknown): number | undefined {
  * built-in default. Read per call, so a saved change reaches the next tool call
  * without reconnecting the server.
  */
+/**
+ * Whether the debug page is registered: on unless the profile stored `false`.
+ *
+ * The switch is read by the browser half, which registers (or does not) the
+ * page's two seats; the host keeps the value so the choice survives a reload.
+ * @param state - the loaded state file.
+ * @returns the effective flag.
+ */
+export function isDebugPageEnabled(state: PluginState): boolean {
+  return state.debugPageEnabled !== false
+}
+
 export function effectiveToolCallTimeoutMs(state: PluginState): number {
   return normalizeToolCallTimeoutMs(state.toolCallTimeoutMs) ?? DEFAULT_TOOL_CALL_TIMEOUT_MS
 }
