@@ -337,3 +337,42 @@ it('keeps a not-connected server selected and says why it has no tools', async (
     'a server with no transport offers no tools to run',
   )
 })
+
+it('marks which parameter editor is in force', async () => {
+  const app = mount(stubFetch())
+  app.render()
+  for (const effect of app.effects) effect()
+  await settle()
+
+  const row = app.render().nodes.find((node) => String(node.props?.className).includes('smkit-mcpdebug-tools-row'))
+  row.props.onClick()
+  await settle()
+
+  const modes = () =>
+    app.render().nodes.filter(
+      (node) => node.type === 'button' && String(node.props?.className ?? '').includes('smkit-ui-button') && node.props['aria-pressed'] !== undefined,
+    )
+  const pressed = () => modes().filter((node) => node.props['aria-pressed'] === true).map((node) => node.props['data-smkit-active'])
+
+  const form = modes().find((node) => flatten(node).trim() === 'Form')
+  const raw = modes().find((node) => flatten(node).trim() === 'JSON')
+  assert.ok(form && raw, 'both editors are offered')
+  assert.equal(form.props['data-smkit-active'], 'true', 'the form is the one in force when a tool is picked')
+  assert.equal(raw.props['data-smkit-active'], undefined)
+  assert.deepEqual(pressed(), ['true'], 'exactly one half is marked pressed')
+
+  raw.props.onClick()
+  await settle()
+  const switched = modes()
+  const rawNow = switched.find((node) => flatten(node).trim() === 'JSON')
+  const formNow = switched.find((node) => flatten(node).trim() === 'Form')
+  assert.equal(rawNow.props['data-smkit-active'], 'true', 'the JSON half is marked instead')
+  assert.equal(formNow.props['data-smkit-active'], undefined)
+  assert.deepEqual(
+    switched.filter((node) => node.props['aria-pressed'] === true).map((node) => flatten(node).trim()),
+    ['JSON'],
+  )
+  const box = app.render().nodes.find((node) => node.type === 'textarea')
+  assert.ok(box, 'the raw editor is a textarea')
+  assert.deepEqual(JSON.parse(box.props.value), {}, 'the box is seeded from the form, which is still empty')
+})

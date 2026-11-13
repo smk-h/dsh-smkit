@@ -191,22 +191,30 @@ export function createToolDetail(deps: ClientDeps): (props: ToolDetailProps) => 
         <div className="smkit-mcpdebug-detail-subhead">
           <span className="smkit-mcpdebug-detail-subtitle">{t('paramsTitle')}</span>
           <span className="smkit-mcpdebug-detail-spacer" aria-hidden="true" />
-          <button
-            className="smkit-ui-button"
-            type="button"
-            data-smkit-active={mode === 'form' ? 'true' : undefined}
-            onClick={() => onMode('form')}
-          >
-            {t('paramsModeForm')}
-          </button>
-          <button
-            className="smkit-ui-button"
-            type="button"
-            data-smkit-active={mode === 'raw' ? 'true' : undefined}
-            onClick={() => onMode('raw')}
-          >
-            {t('paramsModeRaw')}
-          </button>
+          {/* A segmented pair rather than two loose buttons: which editor is in
+              force has to survive the pointer leaving, so the active half is
+              tinted and marked pressed — a hover wash would read as "about to
+              act" instead of "you are here". */}
+          <span className="smkit-mcpdebug-detail-modes" role="group" aria-label={t('paramsTitle')}>
+            <button
+              className="smkit-ui-button"
+              type="button"
+              aria-pressed={mode === 'form'}
+              data-smkit-active={mode === 'form' ? 'true' : undefined}
+              onClick={() => onMode('form')}
+            >
+              {t('paramsModeForm')}
+            </button>
+            <button
+              className="smkit-ui-button"
+              type="button"
+              aria-pressed={mode === 'raw'}
+              data-smkit-active={mode === 'raw' ? 'true' : undefined}
+              onClick={() => onMode('raw')}
+            >
+              {t('paramsModeRaw')}
+            </button>
+          </span>
         </div>
 
         {mode === 'raw' ? (
