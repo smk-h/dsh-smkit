@@ -36,8 +36,28 @@ import type {
   WorkspaceView,
 } from '../types'
 
-/** How often the page re-reads the host's state, the same cadence as the settings page. */
-const REFRESH_MS = 3_000
+/**
+ * How often the page re-reads the host's *state*: the server list with every
+ * tool's full schema, which is the expensive half (37 KB with 39 tools).
+ *
+ * Ten seconds, not three: this panel unmounts whenever you look at something
+ * else, and a remount reads immediately, so the timer only covers "something
+ * changed while I was watching" — a workspace opening, an outside config edit,
+ * a server dropping. Of those, only a drop is even likely here, and a call
+ * exposes it at once. The settings page still polls at three seconds; it is a
+ * different surface with a different reason to be live.
+ */
+const STATE_REFRESH_MS = 10_000
+
+/**
+ * How often the notification ring is read: about 20 bytes when empty.
+ *
+ * Kept at three seconds because it is the one thing here that genuinely arrives
+ * unasked — a chatty server's log and progress frames — and because it costs
+ * nothing to keep up. The two reads are on separate clocks for exactly that
+ * reason: the payloads differ by three orders of magnitude.
+ */
+const NOTIFY_REFRESH_MS = 3_000
 /** How long the copy button keeps its answer. */
 const COPY_FEEDBACK_MS = 2_000
 /** How many past calls the history keeps. */
@@ -180,18 +200,22 @@ export function createMcpDebugPage(
       null
     const selectedKey = selected === null ? '' : selected.id
 
-    // One timer for both polls: they answer adjacent questions ("what is
-    // connected" / "what did it say"), and a second interval would only let the
-    // two columns disagree for up to three seconds.
+    // Two clocks, one per payload size: the state read is 37 KB of schemas, the
+    // ring read is 20 bytes. Waking both at the fast rate would pay for the
+    // expensive one twenty times a minute to stay current about things that
+    // mostly change when the reader does something.
     react.useEffect(() => {
       refreshAll()
-      refreshNotifications(selectedKey)
-      const timer = setInterval(() => {
-        refreshAll()
-        refreshNotifications(selectedKey)
-      }, REFRESH_MS)
+      const timer = setInterval(refreshAll, STATE_REFRESH_MS)
       return () => clearInterval(timer)
-    }, [refreshAll, refreshNotifications, selectedKey])
+    }, [refreshAll])
+
+    react.useEffect(() => {
+      if (selectedKey === '') return undefined
+      refreshNotifications(selectedKey)
+      const timer = setInterval(() => refreshNotifications(selectedKey), NOTIFY_REFRESH_MS)
+      return () => clearInterval(timer)
+    }, [refreshNotifications, selectedKey])
 
     const normalized = query.trim().toLocaleLowerCase()
     const tools: ToolView[] = selected === null
