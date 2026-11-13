@@ -78,7 +78,6 @@ export const MCP_DEBUG_LOCALE_ZH: LocaleDict = {
   "resultEmpty": "还没有调用结果",
   "resultOk": "成功",
   "resultError": "失败",
-  "resultRefused": "未发送",
   "resultDuration": "{ms} ms",
   "resultContent": "内容",
   "resultRaw": "原始 JSON",

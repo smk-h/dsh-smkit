@@ -45,7 +45,6 @@ function clock(at: number): string {
 
 /** The one-word verdict of a history row. */
 function verdict(t: Translator, row: HistoryRow): string {
-  if (row.refusal !== undefined) return t('resultRefused')
   return row.ok ? t('resultOk') : t('resultError')
 }
 

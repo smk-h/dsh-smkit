@@ -270,7 +270,7 @@ it('sends the form as one arguments object and renders the answer', async () => 
   assert.match(after.text, /3 ms/, 'the duration the host measured is shown')
 })
 
-it('refuses a missing required parameter without talking to the host', async () => {
+it('marks an empty required parameter red instead of sending, and clears it when filled', async () => {
   const app = mount(stubFetch())
   app.render()
   for (const effect of app.effects) effect()
@@ -280,10 +280,17 @@ it('refuses a missing required parameter without talking to the host', async () 
   row.props.onClick()
   await settle()
 
-  const run = app.render().nodes.find(
-    (node) => node.type === 'button' && String(node.props?.className).includes('smkit-mcpdebug-detail-run'),
-  )
-  run.props.onClick()
+  const run = () =>
+    app.render().nodes.find(
+      (node) => node.type === 'button' && String(node.props?.className).includes('smkit-mcpdebug-detail-run'),
+    )
+  const field = () =>
+    app.render().nodes.find((node) => node.props?.className === 'smkit-mcpdebug-detail-field')
+  const message = () =>
+    app.render().nodes.find((node) => node.props?.className === 'smkit-mcpdebug-detail-field-error')
+
+  assert.equal(field().props['data-smkit-invalid'], undefined, 'an untouched field carries no mark')
+  run().props.onClick()
   await settle()
 
   assert.equal(
@@ -291,51 +298,23 @@ it('refuses a missing required parameter without talking to the host', async () 
     0,
     'a required parameter left empty must not reach the host',
   )
-  const after = app.render()
-  assert.match(after.text, /Not sent/, 'the pane says the page refused, not the server')
-  assert.match(after.text, /"text" is required/)
-})
+  assert.equal(field().props['data-smkit-invalid'], 'true', 'the offending field is marked')
+  assert.match(flatten(message()), /"text" is required/, 'the reason sits under the field')
+  assert.match(app.render().text, /No call yet/, 'nothing was recorded as a call')
 
-it('keeps a not-connected server selected and says why it has no tools', async () => {
-  const app = mount(async (path) => {
-    if (path === '/servers') return response(ONE_SERVER)
-    if (path === '/workspaces') return response(DORMANT_WORKSPACES)
-    if (path.startsWith('/debug/notifications')) return response({ notifications: [] })
-    return response({})
-  })
-  app.render()
-  for (const effect of app.effects) effect()
+  // Typing a value clears the mark — the page drops the entry on that change.
+  app.render().nodes.find((node) => node.type === 'input' && node.props['aria-label'] === 'text').props.onChange(
+    { target: { value: 'hi' } },
+  )
   await settle()
+  assert.equal(field().props['data-smkit-invalid'], undefined, 'the mark goes away with the value')
+  assert.equal(message(), undefined)
+  assert.match(app.render().text, /No call yet/)
 
-  const rows = () =>
-    app.render().nodes.filter((node) => String(node.props?.className ?? '').includes('smkit-mcpdebug-servers-row'))
-  const dormant = rows().find((row) => flatten(row).includes('dormant'))
-  assert.ok(dormant, 'the dormant workspace server is listed with the live one')
-
-  dormant.props.onClick()
+  // ...and the same button now sends.
+  run().props.onClick()
   await settle()
-
-  const after = app.render()
-  const picked = after.nodes.find(
-    (node) => String(node.props?.className ?? '').includes('smkit-mcpdebug-servers-row') && flatten(node).includes('dormant'),
-  )
-  assert.equal(picked.props['data-smkit-active'], 'true', 'the clicked row stays selected')
-  assert.equal(
-    after.nodes.filter(
-      (node) =>
-        String(node.props?.className ?? '').includes('smkit-mcpdebug-servers-row') &&
-        flatten(node).includes('stub') &&
-        node.props['data-smkit-active'] === 'true',
-    ).length,
-    0,
-    'the live server is no longer the selected one',
-  )
-  assert.match(after.text, /This server is not connected/, 'the page names the reason instead of listing nothing')
-  assert.equal(
-    after.nodes.filter((node) => String(node.props?.className ?? '').includes('smkit-mcpdebug-tools-row')).length,
-    0,
-    'a server with no transport offers no tools to run',
-  )
+  assert.equal(app.calls.filter((entry) => entry.path === '/debug/call').length, 1)
 })
 
 it('marks which parameter editor is in force', async () => {

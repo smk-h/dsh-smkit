@@ -21,7 +21,6 @@ import type {
   ServerType,
   ToolView,
 } from '../../../shared/mcp/contract'
-import type { LocalRefusal } from './schema'
 
 export type {
   DebugCallResponse,
@@ -69,20 +68,18 @@ export interface DebugGroup {
 }
 
 /**
- * What the result pane shows.
+ * What the result pane shows: always an answer the host produced.
  *
- * `refusal` marks an answer the page gave before any request left the browser (a
- * number field that is not a number, a JSON body that does not parse): it is
- * not the server's answer, and the pane says so rather than implying the server
- * was asked. `error` is the opposite — the transport's or the server's own
- * message, shown verbatim in whatever language it came in.
+ * A refusal the page makes itself (a missing required parameter, a number field
+ * that is not a number) never gets here — it is marked on the field that caused
+ * it, and no request leaves the browser. `error` is the transport's or the
+ * server's own message, shown verbatim in whatever language it came in.
  */
 export interface CallOutcome {
   ok: boolean
   durationMs: number
   result?: unknown
   error?: string
-  refusal?: LocalRefusal
 }
 
 /** One past call, kept for the session so a reader can go back to an answer. */

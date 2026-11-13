@@ -215,6 +215,43 @@
   outline: none;
 }
 
+/* A refused field is marked on itself — red edge, red label, and the reason
+ * under the control — instead of being described in the answer pane. The mark
+ * belongs to the value that caused it, and it goes away the moment that value is
+ * edited (the page drops the entry), so nothing has to be "cleared". */
+.smkit-mcpdebug-detail-field[data-smkit-invalid='true'] .smkit-mcpdebug-detail-field-name,
+.smkit-mcpdebug-detail-field[data-smkit-invalid='true'] .smkit-mcpdebug-detail-field-type {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.smkit-mcpdebug-detail-field[data-smkit-invalid='true'] .smkit-mcpdebug-detail-input,
+.smkit-mcpdebug-detail-field[data-smkit-invalid='true'] .smkit-mcpdebug-detail-textarea,
+.smkit-mcpdebug-detail-raw[data-smkit-invalid='true'] {
+  border-color: var(--dsw-alias-state-error-primary);
+}
+
+/* Focus keeps the refused edge readable: the shared focus rule paints the
+ * business colour, which would tell the reader the field is fine again. */
+.smkit-mcpdebug-detail-field[data-smkit-invalid='true'] .smkit-mcpdebug-detail-input:focus,
+.smkit-mcpdebug-detail-field[data-smkit-invalid='true'] .smkit-mcpdebug-detail-textarea:focus,
+.smkit-mcpdebug-detail-raw[data-smkit-invalid='true']:focus {
+  border-color: var(--dsw-alias-state-error-primary);
+}
+
+.smkit-mcpdebug-detail-field-error {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.smkit-mcpdebug-detail-rawfield {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 .smkit-mcpdebug-detail-actions {
   display: flex;
   flex-wrap: wrap;

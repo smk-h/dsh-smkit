@@ -18,7 +18,7 @@
 
 import type { ClientDeps, Translator } from '../../../platform/types'
 import type { CallOutcome, DebugNotificationView, ToolView } from '../types'
-import type { FieldSpec } from '../schema'
+import type { FieldSpec, LocalRefusal } from '../schema'
 
 /** Which editor the parameter pane is in. */
 export type ParamMode = 'form' | 'raw'
@@ -36,6 +36,10 @@ export interface ToolDetailProps {
   /** Empty, `copied` or `failed` — the copy button's short-lived answer. */
   copyState: string
   notifications: DebugNotificationView[]
+  /** Field name → why the last run refused it, marked red on the field itself. */
+  invalid: Record<string, LocalRefusal>
+  /** The raw box's refusal, which has no field to mark. */
+  rawError: LocalRefusal | null
   /** The selected server has no live transport: nothing here can be run. */
   notConnected: boolean
   onMode(mode: ParamMode): void
@@ -94,6 +98,8 @@ export function createToolDetail(deps: ClientDeps): (props: ToolDetailProps) => 
     outcome,
     copyState,
     notifications,
+    invalid,
+    rawError,
     notConnected,
     onMode,
     onValue,
@@ -116,12 +122,14 @@ export function createToolDetail(deps: ClientDeps): (props: ToolDetailProps) => 
     /** The control one declared parameter gets, by its declared type. */
     const control = (field: FieldSpec): JSX.Element => {
       const value = values[field.name] ?? ''
+      const refused = invalid[field.name] !== undefined
       if (field.enumValues !== null) {
         return (
           <select
             className="smkit-mcpdebug-detail-input"
             value={value}
             aria-label={field.name}
+            aria-invalid={refused}
             onChange={(event) => onValue(field.name, event.target.value)}
           >
             <option value="">{t('paramUnset')}</option>
@@ -139,6 +147,7 @@ export function createToolDetail(deps: ClientDeps): (props: ToolDetailProps) => 
             className="smkit-mcpdebug-detail-input"
             value={value}
             aria-label={field.name}
+            aria-invalid={refused}
             onChange={(event) => onValue(field.name, event.target.value)}
           >
             <option value="">{t('paramUnset')}</option>
@@ -155,6 +164,7 @@ export function createToolDetail(deps: ClientDeps): (props: ToolDetailProps) => 
             value={value}
             placeholder={field.type === 'array' ? '[]' : '{}'}
             aria-label={field.name}
+            aria-invalid={refused}
             onChange={(event) => onValue(field.name, event.target.value)}
           />
         )
@@ -165,18 +175,14 @@ export function createToolDetail(deps: ClientDeps): (props: ToolDetailProps) => 
           type={field.type === 'number' || field.type === 'integer' ? 'number' : 'text'}
           value={value}
           aria-label={field.name}
+          aria-invalid={refused}
           onChange={(event) => onValue(field.name, event.target.value)}
         />
       )
     }
 
     const blocks = outcome === null ? [] : contentOf(outcome.result)
-    const resultText =
-      outcome === null
-        ? ''
-        : outcome.refusal !== undefined
-          ? t(outcome.refusal.key, outcome.refusal.values)
-          : (outcome.error ?? '')
+    const resultText = outcome === null ? '' : (outcome.error ?? '')
 
     return (
       <section className="smkit-mcpdebug-detail">
@@ -218,33 +224,52 @@ export function createToolDetail(deps: ClientDeps): (props: ToolDetailProps) => 
         </div>
 
         {mode === 'raw' ? (
-          <textarea
-            className="smkit-mcpdebug-detail-raw"
-            rows={8}
-            value={rawText}
-            spellCheck={false}
-            aria-label={t('paramsModeRaw')}
-            onChange={(event) => onRawText(event.target.value)}
-          />
+          <div className="smkit-mcpdebug-detail-rawfield">
+            <textarea
+              className="smkit-mcpdebug-detail-raw"
+              rows={8}
+              value={rawText}
+              spellCheck={false}
+              aria-label={t('paramsModeRaw')}
+              data-smkit-invalid={rawError === null ? undefined : 'true'}
+              aria-invalid={rawError !== null}
+              onChange={(event) => onRawText(event.target.value)}
+            />
+            {rawError === null ? null : (
+              <div className="smkit-mcpdebug-detail-field-error">
+                {t(rawError.key, rawError.values)}
+              </div>
+            )}
+          </div>
         ) : fields.length === 0 ? (
           <p className="smkit-mcpdebug-detail-empty-line">{t('paramsEmpty')}</p>
         ) : (
           <div className="smkit-mcpdebug-detail-params">
-            {fields.map((field) => (
-              <div className="smkit-mcpdebug-detail-field" key={field.name}>
-                <div className="smkit-mcpdebug-detail-field-head">
-                  <span className="smkit-mcpdebug-detail-field-name">{field.name}</span>
-                  <span className="smkit-mcpdebug-detail-field-type">{field.type}</span>
-                  {field.required ? (
-                    <span className="smkit-mcpdebug-detail-field-req">{t('paramsRequired')}</span>
-                  ) : null}
+            {fields.map((field) => {
+              const why = invalid[field.name]
+              return (
+                <div
+                  className="smkit-mcpdebug-detail-field"
+                  data-smkit-invalid={why === undefined ? undefined : 'true'}
+                  key={field.name}
+                >
+                  <div className="smkit-mcpdebug-detail-field-head">
+                    <span className="smkit-mcpdebug-detail-field-name">{field.name}</span>
+                    <span className="smkit-mcpdebug-detail-field-type">{field.type}</span>
+                    {field.required ? (
+                      <span className="smkit-mcpdebug-detail-field-req">{t('paramsRequired')}</span>
+                    ) : null}
+                  </div>
+                  {field.description === '' ? null : (
+                    <div className="smkit-mcpdebug-detail-field-desc">{field.description}</div>
+                  )}
+                  {control(field)}
+                  {why === undefined ? null : (
+                    <div className="smkit-mcpdebug-detail-field-error">{t(why.key, why.values)}</div>
+                  )}
                 </div>
-                {field.description === '' ? null : (
-                  <div className="smkit-mcpdebug-detail-field-desc">{field.description}</div>
-                )}
-                {control(field)}
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
@@ -275,11 +300,7 @@ export function createToolDetail(deps: ClientDeps): (props: ToolDetailProps) => 
               className="smkit-mcpdebug-detail-badge"
               data-smkit-ok={outcome.ok ? 'true' : 'false'}
             >
-              {outcome.refusal !== undefined
-                ? t('resultRefused')
-                : outcome.ok
-                  ? t('resultOk')
-                  : t('resultError')}
+              {outcome.ok ? t('resultOk') : t('resultError')}
             </span>
           )}
           {outcome === null ? null : (

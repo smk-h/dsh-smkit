@@ -76,7 +76,6 @@ export const MCP_DEBUG_LOCALE_EN: LocaleDict = {
   "resultEmpty": "No call yet",
   "resultOk": "OK",
   "resultError": "Failed",
-  "resultRefused": "Not sent",
   "resultDuration": "{ms} ms",
   "resultContent": "Content",
   "resultRaw": "Raw JSON",

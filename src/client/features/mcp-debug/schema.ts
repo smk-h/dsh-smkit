@@ -44,9 +44,22 @@ export interface LocalRefusal {
   values?: Record<string, unknown>
 }
 
+/** One field the form could not send, and why. */
+export interface InvalidField {
+  name: string
+  refusal: LocalRefusal
+}
+
 /** A value a form can send, and why it cannot when it cannot. */
 export interface PreparedArguments {
   args?: Record<string, unknown>
+  /**
+   * Every field that could not be sent, in schema order — all of them, not the
+   * first: a reader who missed two required parameters should see both marked
+   * at once instead of fixing them one round trip at a time.
+   */
+  invalid?: InvalidField[]
+  /** A refusal about the whole argument bag (the raw JSON box), not one field. */
   refusal?: LocalRefusal
 }
 
@@ -90,11 +103,6 @@ export function fieldsOf(parameters: ToolView['parameters'] | undefined): FieldS
       : [],
   )
   return Object.keys(bag).map((name) => fieldOf(name, bag[name], required))
-}
-
-/** The refusal for one field, named after it. */
-function refusalFor(field: FieldSpec, key: string): PreparedArguments {
-  return { refusal: { key, values: { field: field.name } } }
 }
 
 /** Coerce one typed-in field into the value its schema declares. */
@@ -164,16 +172,23 @@ export function buildArguments(
   values: Record<string, string>,
 ): PreparedArguments {
   const args: Record<string, unknown> = {}
+  const invalid: InvalidField[] = []
   for (const field of fields) {
     const text = values[field.name] ?? ''
     if (text.trim() === '') {
-      if (field.required) return refusalFor(field, 'errRequired')
+      if (field.required) {
+        invalid.push({ name: field.name, refusal: { key: 'errRequired', values: { field: field.name } } })
+      }
       continue
     }
     const coerced = coerce(field, text)
-    if ('refusal' in coerced) return { refusal: coerced.refusal }
+    if ('refusal' in coerced) {
+      invalid.push({ name: field.name, refusal: coerced.refusal })
+      continue
+    }
     args[field.name] = coerced.value
   }
+  if (invalid.length > 0) return { invalid }
   return { args }
 }
 

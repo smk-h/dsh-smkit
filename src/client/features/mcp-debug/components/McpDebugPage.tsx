@@ -23,6 +23,7 @@ import { createToolColumn } from './ToolColumn'
 import { createToolDetail, type ParamMode } from './ToolDetail'
 import { buildArguments, fieldsOf, parseRawArguments, seedArguments } from '../schema'
 import type { ClientDeps, Translator } from '../../../platform/types'
+import type { LocalRefusal } from '../schema'
 import type {
   CallOutcome,
   DebugGroup,
@@ -124,6 +125,10 @@ export function createMcpDebugPage(
     const [outcome, setOutcome] = react.useState<CallOutcome | null>(null)
     const [history, setHistory] = react.useState<HistoryRow[]>([])
     const [copyState, setCopyState] = react.useState('')
+    /** Field name → why the last run refused it; cleared as soon as it is edited. */
+    const [invalid, setInvalid] = react.useState<Record<string, LocalRefusal>>({})
+    /** The raw box's own refusal (it has no fields to mark). */
+    const [rawError, setRawError] = react.useState<LocalRefusal | null>(null)
     const [notifications, setNotifications] = react.useState<DebugNotificationView[]>([])
     const [actionBusy, setActionBusy] = react.useState(false)
 
@@ -224,11 +229,18 @@ export function createMcpDebugPage(
       setMode('form')
       setOutcome(null)
       setCopyState('')
+      setInvalid({})
+      setRawError(null)
     }
 
     /** Switch editors, seeding the other one from what this one holds. */
     const switchMode = (next: ParamMode): void => {
       if (next === mode) return
+      // The marks belong to the editor that made them: the other one shows the
+      // same values, and a red border under a value that is now visible in a
+      // different shape would be a claim the page cannot back.
+      setInvalid({})
+      setRawError(null)
       if (next === 'raw') {
         const prepared = buildArguments(fields, values)
         setRawText(JSON.stringify(prepared.args ?? {}, null, 2))
@@ -248,10 +260,21 @@ export function createMcpDebugPage(
     const run = (): void => {
       if (tool === null || selected === null || running) return
       const prepared = mode === 'raw' ? parseRawArguments(rawText) : buildArguments(fields, values)
-      if (prepared.args === undefined) {
-        remember(tool.name, { ok: false, durationMs: 0, refusal: prepared.refusal })
+      if (prepared.invalid !== undefined) {
+        // Mark every offending field and send nothing: the form is the message,
+        // so the reader fixes it where it is wrong instead of reading a sentence
+        // about it in the answer pane.
+        setInvalid(Object.fromEntries(prepared.invalid.map((entry) => [entry.name, entry.refusal])))
+        setRawError(null)
         return
       }
+      if (prepared.args === undefined) {
+        setInvalid({})
+        setRawError(prepared.refusal ?? null)
+        return
+      }
+      setInvalid({})
+      setRawError(null)
       setRunning(true)
       const startedAt = Date.now()
       api('/debug/call', {
@@ -301,6 +324,8 @@ export function createMcpDebugPage(
       setRawText(seedArguments(fields))
       setOutcome(null)
       setCopyState('')
+      setInvalid({})
+      setRawError(null)
     }
 
     /** Restart or disconnect one server through the settings page's own route. */
@@ -371,7 +396,6 @@ export function createMcpDebugPage(
                 durationMs: row.durationMs,
                 result: row.result,
                 error: row.error,
-                refusal: row.refusal,
               })
             }}
             onClearHistory={() => setHistory([])}
@@ -389,8 +413,19 @@ export function createMcpDebugPage(
             notifications={notifications}
             notConnected={selected !== null && selected.status !== 'connected'}
             onMode={switchMode}
-            onValue={(name, value) => setValues({ ...values, [name]: value })}
-            onRawText={setRawText}
+            invalid={invalid}
+            rawError={rawError}
+            onValue={(name, value) => {
+              setValues({ ...values, [name]: value })
+              if (invalid[name] === undefined) return
+              const next = { ...invalid }
+              delete next[name]
+              setInvalid(next)
+            }}
+            onRawText={(text) => {
+              setRawText(text)
+              if (rawError !== null) setRawError(null)
+            }}
             onRun={run}
             onCopy={copyInput}
             onClearInput={clearInput}
