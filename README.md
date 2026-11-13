@@ -57,6 +57,9 @@ pnpm install        # 装 devDeps（peer 会自动拉下来供类型检查）
 pnpm build          # tsc 编译 src → lib
 pnpm verify         # 离线自检：模块形态 / apply 输出 / 配置层与 manifest 一致性
 pnpm dev            # watch 模式
+
+# 对正在运行的 dsh 打一遍「MCP 调试页」的宿主侧冒烟（真路由、真服务器）
+pnpm smoke:mcp-debug --url "http://127.0.0.1:3080/?token=<启动日志里的 token>"
 ```
 
 ### 2. 安装进 profile

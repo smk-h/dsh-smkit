@@ -47,6 +47,7 @@
     "test:cases:standdown": "node test/cases/mcp-standdown.mjs",
     "test:cases:shadow": "node test/cases/mcp-shadow-stubs.mjs",
     "verify": "node test/verify.mjs",
+    "smoke:mcp-debug": "node scripts/smoke-mcp-debug.mjs",
     "smkit:web:install": "node scripts/dsh-smkit.mjs install --profile web",
     "smkit:web:uninstall": "node scripts/dsh-smkit.mjs uninstall --profile web",
     "smkit:web:debug": "node scripts/dsh-smkit.mjs debug --profile web",
