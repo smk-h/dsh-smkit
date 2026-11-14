@@ -1,0 +1,205 @@
+/*
+ * The page shell: a title row, an intro line, four summary cards, and the
+ * grouped table filling everything the main column has left.
+ *
+ * The table is one grid template stamped on every row (header rows included)
+ * rather than a real <table>: the rows live under per-group collapsible
+ * sections, and a grid lets the columns line up across those sections without
+ * forcing one shared table element around them.
+ *
+ * The page itself scrolls as a whole. Unlike the debug page's three columns,
+ * there is no per-column scroll to keep in sync — a process list reads
+ * top-down, and the summary cards belong to the page, not to a pane.
+ */
+
+.smkit-pm-page {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  padding: 16px 20px 12px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.smkit-pm-page-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.smkit-pm-page-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.smkit-pm-page-meta {
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-pm-page-spacer {
+  flex: 1 1 auto;
+}
+
+.smkit-pm-page-intro {
+  margin: 2px 0 12px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Warming / failure / empty: one muted line, not a modal. A dashboard's
+ * broken state is still a state of the dashboard. */
+.smkit-pm-page-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.smkit-pm-page-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(96px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.smkit-pm-page-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+}
+
+.smkit-pm-page-card-value {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.smkit-pm-page-card-label {
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-pm-page-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  padding-top: 8px;
+}
+
+.smkit-pm-page-group {
+  margin-bottom: 8px;
+}
+
+.smkit-pm-page-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 2px;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.smkit-pm-page-group-toggle {
+  width: 14px;
+  flex: 0 0 14px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-pm-page-group-title {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.smkit-pm-page-group-meta {
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.smkit-pm-page-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.1fr) 72px 64px 88px 76px minmax(160px, 1.6fr);
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 2px 3px 22px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.smkit-pm-page-row-head {
+  padding-left: 22px;
+  color: var(--dsw-alias-label-tertiary);
+  position: sticky;
+  top: 0;
+  background: var(--dsw-alias-fill-primary, transparent);
+}
+
+.smkit-pm-page-cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.smkit-pm-page-cell-name {
+  overflow: hidden;
+}
+
+.smkit-pm-page-cell-pid,
+.smkit-pm-page-cell-cpu,
+.smkit-pm-page-cell-mem,
+.smkit-pm-page-cell-time {
+  text-align: right;
+}
+
+/* The `mcp:<id>` chip rides the name, not the command line: it is an origin,
+ * and the origin is what the reader scans for. */
+.smkit-pm-page-tag {
+  margin-left: 6px;
+  padding: 0 4px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.smkit-pm-page-hint {
+  margin: 4px 0 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+@media (max-width: 900px) {
+  /* A narrow window (a floating pane, a split main column) keeps the identity
+   * columns and drops the command line: the name's `title` still carries it,
+   * and rows stay one line tall instead of wrapping into noise. */
+  .smkit-pm-page {
+    padding: 12px 12px 8px;
+  }
+
+  .smkit-pm-page-row {
+    grid-template-columns: minmax(100px, 1fr) 60px 56px 80px 64px;
+  }
+
+  .smkit-pm-page-cell-cmd {
+    display: none;
+  }
+}

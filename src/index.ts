@@ -21,6 +21,7 @@ import { mcpFeature } from './host/features/mcp/host.js'
 import { notifyFeature } from './host/features/notify/host.js'
 import { openSpecFeature } from './host/features/openspec/host.js'
 import { outlineFeature } from './host/features/outline/host.js'
+import { processMonitorFeature } from './host/features/process-monitor/host.js'
 import { sessionDeleteFeature } from './host/features/session-delete/host.js'
 import { skillsFeature } from './host/features/skills/host.js'
 import { themeCenterFeature } from './host/features/theme-center/host.js'
@@ -49,6 +50,10 @@ const FEATURES: HostFeature[] = [
   explorerOpsFeature,
   outlineFeature,
   updateFeature,
+  // The process monitor rides last: its route is self-contained (one GET the
+  // page polls), and it must never be the feature that decides whether the
+  // plugin mounts.
+  processMonitorFeature,
 ]
 
 export function apply(ctx: PluginContext): void {
@@ -339,3 +344,20 @@ export type { UpdateCheckView } from './shared/update/contract.js'
 export { bootPaintRows, bootPaintScript } from './host/features/theme-center/boot-paint.js'
 export type { BootInjectionRow } from './host/features/theme-center/boot-paint.js'
 export { CANVAS_TOKEN, THEME_CANVAS } from './shared/theme-center/boot.js'
+
+export { clearRegisteredProcesses, registerProcess, registeredProcesses, unregisterProcess } from './host/platform/process-registry.js'
+export type { RegisteredProcess, RegisteredProcessKind } from './host/platform/process-registry.js'
+export { createProcessMonitorHandlers } from './host/features/process-monitor/api.js'
+export type { ProcessMonitorApiDeps } from './host/features/process-monitor/api.js'
+export { buildProcessReport } from './host/features/process-monitor/report.js'
+export type { BuildReportOptions } from './host/features/process-monitor/report.js'
+export type {
+  ProcessSampler,
+  RawProcess,
+  SampleBaseline,
+  SamplerDeps,
+  SamplerReading,
+} from './host/features/process-monitor/sampler.js'
+export { createProcessSampler } from './host/features/process-monitor/sampler.js'
+export { parseCpuTimeToMs, parsePosixOutput } from './host/features/process-monitor/sampler-posix.js'
+export { parseWindowsFrame } from './host/features/process-monitor/sampler-win.js'

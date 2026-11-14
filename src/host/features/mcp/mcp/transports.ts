@@ -16,6 +16,7 @@ import { bindToolsChanged, createHttpTransport } from './http-transport.js'
 import { recordNotification, serverInfoOf } from './notifications.js'
 import { listAllTools } from './tools.js'
 import { spawnStdio } from './stdio-transport.js'
+import { registerProcess, unregisterProcess } from '../../../platform/process-registry.js'
 import type { Runtime } from '../runtime.js'
 import type { LoggerLike, McpCallResult, McpHandle, McpListToolsResult, ServerConfig } from '../types.js'
 
@@ -51,7 +52,11 @@ export function createTransports(deps: TransportsDeps): Transports {
       close() {
         if (handle.closed) return
         handle.closed = true
+        const pid = handle.transport?.pid
         handle.transport?.close()
+        // The process monitor's tag goes with the process it named; a
+        // reconnect will deposit the new child's pid below.
+        if (pid != null) unregisterProcess(pid)
       },
     }
     const transport = spawnStdio(
@@ -68,10 +73,19 @@ export function createTransports(deps: TransportsDeps): Transports {
         // answered from a corpse, then hand the drop to whoever watches this
         // connection (the supervisor decides whether to rebuild it).
         handle.closed = true
+        const pid = handle.transport?.pid
+        if (pid != null) unregisterProcess(pid)
         handle.onExit?.(reason)
       },
     )
     handle.transport = transport
+    // The process monitor's tag: one pid names the whole subtree the server
+    // runs under (Windows puts the real child below the shell wrapper), and
+    // the monitor inherits it down the tree instead of guessing from command
+    // lines.
+    if (transport.pid !== null) {
+      registerProcess({ pid: transport.pid, kind: 'mcp-server', label: server.id })
+    }
     try {
       const initialized = await transport.request('initialize', {
         protocolVersion: MCP_PROTOCOL_VERSION,

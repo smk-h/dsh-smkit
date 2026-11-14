@@ -298,6 +298,10 @@ it('registers a balanced dictionary per namespace, with effect cleanup and every
     // takes no service at mount: a panel id in the main column and a rail entry
     // are declarations the shell reads when it draws its own chrome.
     'smkit: mcp-debug/dictionaries',
+    // The process monitor page: its dictionary only — the page's poll and its
+    // clock belong to the page's own mount, not to the entry (see
+    // `features/process-monitor`).
+    'smkit: process-monitor/dictionaries',
     'smkit: openspec/dictionaries',
     'smkit: theme-center/dictionaries',
     // The right sidebar's tab menu: its dictionary only — the batch rows are

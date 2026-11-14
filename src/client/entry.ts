@@ -26,6 +26,7 @@ import { markdownOutlineFeature } from './features/markdown-outline/client'
 import { mcpCommandFeature } from './features/mcp-command/client'
 import { mcpDebugFeature } from './features/mcp-debug/client'
 import { openSpecFeature } from './features/openspec/client'
+import { processMonitorFeature } from './features/process-monitor/client'
 import { outlineFeature } from './features/outline/client'
 import { selectionQuoteFeature } from './features/selection-quote/client'
 import { sessionDeleteFeature } from './features/session-delete/client'
@@ -73,6 +74,11 @@ const FEATURES: ClientFeature[] = [
   // left rail. It reads the host's state and writes nothing, so its position in
   // this list only decides where its dictionary lands.
   mcpDebugFeature,
+  // The process monitor: the debug page's sibling diagnostic (rail order 41,
+  // right after it), one read-only poll and one page. It needs nothing from
+  // the features around it and gives them nothing, so its list position only
+  // decides its dictionary.
+  processMonitorFeature,
   openSpecFeature,
   themeCenterFeature,
   tabMenuFeature,

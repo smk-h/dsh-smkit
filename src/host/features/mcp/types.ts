@@ -202,6 +202,14 @@ export interface McpHandle {
 
 /** stdio child-process JSON-RPC channel. */
 export interface StdioTransport {
+  /**
+   * The spawned child's pid. On Windows the spawn goes through a shell
+   * (`shell: true`, for the `.cmd` shims), so this is the wrapper's pid and
+   * the server itself sits one level below it; elsewhere it is the server's
+   * own. Null when the spawn never produced a pid at all. Read by the process
+   * monitor to tag which subtree belongs to which MCP server.
+   */
+  readonly pid: number | null
   request(method: string, params?: unknown, timeoutMs?: number): Promise<unknown>
   notify(method: string, params?: unknown): void
   close(): void

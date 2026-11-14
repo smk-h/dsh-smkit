@@ -169,5 +169,5 @@ export function spawnStdio(
     }
   }
 
-  return { request, notify, close }
+  return { pid: child.pid ?? null, request, notify, close }
 }

@@ -390,6 +390,7 @@ export const SCOPES = [
   ['client/features/mcp', 'mcp'],
   ['client/features/mcp-debug', 'mcpdebug'],
   ['client/features/openspec', 'spec'],
+  ['client/features/process-monitor', 'pm'],
   ['client/features/selection-quote', 'quote'],
   ['client/features/session-delete', 'del'],
   ['client/features/session-manager', 'sess'],

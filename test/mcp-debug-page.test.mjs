@@ -416,9 +416,15 @@ it('marks which parameter editor is in force', async () => {
 it('seats nothing in a browser whose cache says the page is off', async () => {
   const app = mount(stubFetch(), { debugPage: false })
   await settle()
-  assert.equal(app.registrations.filter((entry) => entry.options?.name === 'main').length, 0, 'no page')
+  // Scoped to this page's own id: other features seat their own `main` pages
+  // (the process monitor is one), and the gate only ever removes this one.
   assert.equal(
-    app.registrations.filter((entry) => entry.options?.name === 'sidebar.panellist').length,
+    app.registrations.filter((entry) => entry.options?.name === 'main' && entry.options?.key === 'smkit-mcp-debug').length,
+    0,
+    'no page',
+  )
+  assert.equal(
+    app.registrations.filter((entry) => entry.options?.name === 'sidebar.panellist' && entry.options?.id === 'smkit-mcp-debug').length,
     0,
     'no rail entry either',
   )
@@ -445,8 +451,10 @@ it('takes both seats away when the settings switch is turned off, and puts them 
   })
   await settle()
   const seats = () => ({
-    main: app.registrations.filter((entry) => entry.options?.name === 'main').length,
-    rail: app.registrations.filter((entry) => entry.options?.name === 'sidebar.panellist').length,
+    // This page's pair only — other features seat their own (the process
+    // monitor is one) and the switch must not touch those.
+    main: app.registrations.filter((entry) => entry.options?.name === 'main' && entry.options?.key === 'smkit-mcp-debug').length,
+    rail: app.registrations.filter((entry) => entry.options?.name === 'sidebar.panellist' && entry.options?.id === 'smkit-mcp-debug').length,
   })
   assert.deepEqual(seats(), { main: 1, rail: 1 }, 'on by default')
 
