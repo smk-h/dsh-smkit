@@ -113,19 +113,24 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
     // No react-dom in the platform module table: no header breadcrumb.
   }
 
-  // The header control's hover bubble is the shell's own: the web shell seeds
-  // ui-primitives into the same module table (`packages/client/web/src/seed.ts`),
-  // so requiring it hands back the very component DSH's header buttons use —
-  // same theme variables, same animation, and the same viewport fit pass that
-  // keeps a bubble near an edge from being cut off. Porting a copy would mean
-  // re-deriving all three, and guessing at variables an older theme may not
-  // define; a host without the module only loses the bubble (see `ClientDeps`).
+  // The header control's hover bubble and the More-menu's row component are
+  // the shell's own: the web shell seeds ui-primitives into the same module
+  // table (`packages/client/web/src/seed.ts`), so requiring it hands back the
+  // very components DSH's own surfaces use — same theme variables, same
+  // geometry, same focus and hover. Porting copies would mean re-deriving all
+  // of that and guessing at variables an older theme may not define; a host
+  // without the module only loses the styled pieces (see `ClientDeps`).
   let Tooltip: ClientDeps['Tooltip']
+  let MenuItemButton: ClientDeps['MenuItemButton']
   try {
     const primitives = require('@deepseek-ai/dsh-client-ui-primitives')
     if (typeof primitives.Tooltip === 'function') Tooltip = primitives.Tooltip as ClientDeps['Tooltip']
+    if (typeof primitives.MenuItemButton === 'function') {
+      MenuItemButton = primitives.MenuItemButton as ClientDeps['MenuItemButton']
+    }
   } catch {
-    // No ui-primitives in the platform module table: the browser's own bubble.
+    // No ui-primitives in the platform module table: the browser's own bubble
+    // and this plugin's own menu-row styling.
   }
 
   // Styles go in at load time, as they always have: the platform layer's rules

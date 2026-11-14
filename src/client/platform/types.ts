@@ -564,6 +564,14 @@ export interface ClientDeps {
    */
   Tooltip?: (props: HostTooltipProps) => Element
   /**
+   * The shell's menu-row component (`MenuItemButton` from ui-primitives),
+   * resolved alongside `Tooltip`. The process monitor's More-menu row wears
+   * it so the row keeps the shell menu's own geometry, focus and hover.
+   * Optional on purpose: a host whose module table lacks it only loses the
+   * styled row — a plain button of this plugin's own sheet keeps the gesture.
+   */
+  MenuItemButton?: (props: Record<string, unknown>) => Element
+  /**
    * react-dom's `createPortal`, resolved alongside `react` in `entry.ts`: the
    * settings-header breadcrumb portals through it into the shell's title strip.
    * Optional on purpose — an older host whose module table lacks `react-dom`

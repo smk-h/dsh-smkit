@@ -49,6 +49,7 @@ function mount(handler) {
   const intervals = []
   const clears = []
   const fetches = []
+  const layoutCalls = []
   /* Hooks are keyed by the component that owns them, the way React keys them
    * by position. */
   let hookIndex = 0
@@ -122,6 +123,10 @@ function mount(handler) {
         }
       },
     },
+    // The layout service the More-menu row reaches through reflection.
+    reflect: {
+      get: (name) => (name === 'layout' ? { selectPanel: (id) => layoutCalls.push(id) } : undefined),
+    },
   })
 
   const translate = (key, values = {}) => {
@@ -174,7 +179,7 @@ function mount(handler) {
     return cleanups
   }
 
-  return { registrations, seat, render, runEffects, translate, intervals, clears, fetches, dictionaries }
+  return { registrations, seat, render, runEffects, translate, intervals, clears, fetches, dictionaries, layoutCalls }
 }
 
 const sampleFetch = () => async (path) => {
@@ -182,16 +187,29 @@ const sampleFetch = () => async (path) => {
   return response({})
 }
 
-it('seats one page and the rail entry that opens it, under one id', () => {
+it('seats the page in the main column and one row in the More menu — no rail icon', () => {
   const app = mount(sampleFetch())
   const main = app.seat('main', 'smkit-process-monitor')
-  const rail = app.seat('sidebar.panellist', 'smkit-process-monitor')
+  const menuRow = app.seat('sidebar.panellist.actions', 'smkit-process-monitor')
   assert.equal(main.options.locale, 'process-monitor')
-  assert.equal(rail.options.locale, 'process-monitor')
-  assert.equal(rail.options.order, 41, 'right after the debug page in the rail')
-  assert.equal(typeof rail.options.label, 'function')
-  assert.equal(rail.options.label(), 'Processes')
-  assert.equal(typeof rail.component, 'function', 'the rail draws the glyph, not a label')
+  assert.ok(menuRow, 'the More-menu content seat holds the entry')
+  assert.equal(menuRow.options.locale, 'process-monitor')
+  assert.equal(typeof menuRow.component, 'function')
+  assert.equal(app.seat('sidebar.panellist', 'smkit-process-monitor'), undefined, 'no launcher-strip icon of its own')
+})
+
+it('the More-menu row dismisses the menu and switches the panel on select', () => {
+  const app = mount(sampleFetch())
+  const menuRow = app.seat('sidebar.panellist.actions', 'smkit-process-monitor')
+  const dismissed = []
+  // Rendered directly: no hooks, and the plain-button fallback (the harness
+  // has no MenuItemButton) is exactly the path this asserts.
+  const node = menuRow.component({ t: app.translate, onDismiss: () => dismissed.push(true) })
+  assert.equal(String(node.props.className), 'smkit-pm-page-menurow')
+  assert.match(JSON.stringify(node), /Processes/, 'the row is named by the feature dictionary')
+  node.props.onClick()
+  assert.deepEqual(dismissed, [true], 'the menu closes on selection')
+  assert.deepEqual(app.layoutCalls, ['smkit-process-monitor'], 'selectPanel switches to the page key')
 })
 
 it('carries the same key set in both dictionaries', () => {
