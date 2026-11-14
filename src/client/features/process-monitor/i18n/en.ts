@@ -32,9 +32,11 @@ export const PROCESS_MONITOR_LOCALE_EN: LocaleDict = {
   "colMem": "Memory",
   "colCpuTime": "Total CPU",
   "colCmdline": "Command line",
-  "cardTreeCpu": "Subtree CPU",
-  "cardTreeMem": "Subtree memory",
+  "cardTreeCpu": "dsh total CPU",
+  "cardTreeMem": "dsh total memory",
   "cardHostCpu": "Host CPU",
   "cardHostMem": "Host memory",
+  "totalHint": "The host process plus every child it spawned (MCP servers, other plugins' helpers) — the whole dsh tree",
+  "hostHint": "The dsh host process alone, children not included",
   "noValue": "—",
 }

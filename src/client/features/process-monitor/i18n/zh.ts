@@ -35,9 +35,11 @@ export const PROCESS_MONITOR_LOCALE_ZH: LocaleDict = {
   "colMem": "内存",
   "colCpuTime": "累计 CPU",
   "colCmdline": "命令行",
-  "cardTreeCpu": "子树 CPU",
-  "cardTreeMem": "子树内存",
+  "cardTreeCpu": "dsh 总 CPU",
+  "cardTreeMem": "dsh 总内存",
   "cardHostCpu": "宿主 CPU",
   "cardHostMem": "宿主内存",
+  "totalHint": "宿主进程及其全部子进程（MCP 服务器、其他插件子进程等）的合计，即整个 dsh 服务进程树的占用",
+  "hostHint": "仅 dsh 宿主进程本身的占用，不含子进程",
   "noValue": "—",
 }

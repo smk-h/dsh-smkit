@@ -72,6 +72,8 @@ interface KpiCard {
   label: string
   value: string
   kind: 'tree' | 'host'
+  /** The hover line that says what the number counts, so "总" never has to be guessed. */
+  hint: string
 }
 
 export function createProcessMonitorPage(
@@ -198,10 +200,10 @@ export function createProcessMonitorPage(
     const liveKey = warming ? 'liveStarting' : visible ? 'live' : 'paused'
 
     const cards: KpiCard[] = [
-      { key: 'treeCpu', label: t('cardTreeCpu'), value: formatPct(sample?.totals.cpuPct ?? null, dash), kind: 'tree' },
-      { key: 'treeMem', label: t('cardTreeMem'), value: formatBytes(sample?.totals.memBytes ?? 0), kind: 'tree' },
-      { key: 'hostCpu', label: t('cardHostCpu'), value: formatPct(host?.cpuPct ?? null, dash), kind: 'host' },
-      { key: 'hostMem', label: t('cardHostMem'), value: formatBytes(host?.memBytes ?? 0), kind: 'host' },
+      { key: 'treeCpu', label: t('cardTreeCpu'), value: formatPct(sample?.totals.cpuPct ?? null, dash), kind: 'tree', hint: t('totalHint') },
+      { key: 'treeMem', label: t('cardTreeMem'), value: formatBytes(sample?.totals.memBytes ?? 0), kind: 'tree', hint: t('totalHint') },
+      { key: 'hostCpu', label: t('cardHostCpu'), value: formatPct(host?.cpuPct ?? null, dash), kind: 'host', hint: t('hostHint') },
+      { key: 'hostMem', label: t('cardHostMem'), value: formatBytes(host?.memBytes ?? 0), kind: 'host', hint: t('hostHint') },
     ]
     const sparks: Record<string, number[]> = {
       treeCpu: history.treeCpu,
@@ -289,10 +291,10 @@ export function createProcessMonitorPage(
         <div className="smkit-pm-page-kpis">
           {cards.map((card) => {
             const [value, unit] = card.value.split(' ')
-            return h(
-              'div',
-              { className: `smkit-pm-page-kpi smkit-pm-page-kpi-${card.kind}`, key: card.key },
-              h('span', { className: 'smkit-pm-page-kpi-label', key: 'l' }, card.label),
+              return h(
+                'div',
+                { className: `smkit-pm-page-kpi smkit-pm-page-kpi-${card.kind}`, key: card.key, title: card.hint },
+                h('span', { className: 'smkit-pm-page-kpi-label', key: 'l' }, card.label),
               h(
                 'span',
                 { className: 'smkit-pm-page-kpi-value', key: 'v' },
