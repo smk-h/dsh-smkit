@@ -94,8 +94,12 @@ const DORMANT_WORKSPACES = {
 function mount(handler, options = {}) {
   const dictionaries = {}
   const storage = new Map()
-  if (options.debugPage === false) storage.set('smkit.mcp-debug.enabled', 'false')
-  if (options.debugPage === true) storage.set('smkit.mcp-debug.enabled', 'true')
+  // The seats are opt-in: a browser whose mirror was never written seats
+  // nothing. Cases that need the page seed the mirror, `debugPage: false` seeds
+  // it the other way, and `noCache: true` leaves storage untouched on purpose.
+  if (options.noCache !== true) {
+    storage.set('smkit.mcp-debug.enabled', options.debugPage === false ? 'false' : 'true')
+  }
   const registrations = []
   const effects = []
   const calls = []
@@ -217,9 +221,10 @@ function mount(handler, options = {}) {
   }
 
   const page = seat('main', 'smkit-mcp-debug')?.component
-  // A profile whose cache says "off" seats nothing at all, which is the point
-  // of that case; every other case needs the page.
-  if (options.debugPage !== false) assert.ok(page, 'the feature must seat its page in the main column')
+  // A profile whose cache says "off" — or says nothing at all — seats nothing,
+  // which is the point of those cases; every other case needs the page.
+  const expectsPage = options.noCache !== true && options.debugPage !== false
+  if (expectsPage) assert.ok(page, 'the feature must seat its page in the main column')
   /** Render the merged settings section, the way the shell does. */
   const renderSection = () => {
     const section = registrations.find((entry) => entry.options?.name === 'settings.section')
@@ -435,6 +440,31 @@ it('seats nothing in a browser whose cache says the page is off', async () => {
   )
 })
 
+it('seats nothing on a first install, and picks the page up when settings report it on', async () => {
+  let stored = true
+  const app = mount(async (path) => {
+    if (path === '/settings') {
+      return response({ onDemandToolInjection: false, debugPageEnabled: stored, toolCallTimeoutMs: 60_000 })
+    }
+    if (path === '/servers') return response({ servers: [] })
+    if (path === '/workspaces') return response({ workspaces: [] })
+    return response({})
+  }, { noCache: true })
+  await settle()
+  const seats = () => ({
+    main: app.registrations.filter((entry) => entry.options?.name === 'main' && entry.options?.key === 'smkit-mcp-debug').length,
+    rail: app.registrations.filter((entry) => entry.options?.name === 'sidebar.panellist' && entry.options?.id === 'smkit-mcp-debug').length,
+  })
+  assert.deepEqual(seats(), { main: 0, rail: 0 }, 'the page is opt-in: no mirror means no seats')
+
+  // Opening Settings → MCP polls the host, whose answer is the source of truth.
+  app.renderSection()
+  for (const effect of app.effects) effect()
+  await settle()
+  assert.deepEqual(seats(), { main: 1, rail: 1 }, 'a profile that keeps the page gets both seats back')
+  assert.equal(app.storage.get('smkit.mcp-debug.enabled'), 'true', 'and the mirror is written for the next load')
+})
+
 it('takes both seats away when the settings switch is turned off, and puts them back', async () => {
   let stored = true
   const app = mount(async (path, options) => {
@@ -456,7 +486,7 @@ it('takes both seats away when the settings switch is turned off, and puts them 
     main: app.registrations.filter((entry) => entry.options?.name === 'main' && entry.options?.key === 'smkit-mcp-debug').length,
     rail: app.registrations.filter((entry) => entry.options?.name === 'sidebar.panellist' && entry.options?.id === 'smkit-mcp-debug').length,
   })
-  assert.deepEqual(seats(), { main: 1, rail: 1 }, 'on by default')
+  assert.deepEqual(seats(), { main: 1, rail: 1 }, 'the mirror says on, so both seats are there')
 
   // Render the merged settings section and drive its debug-page switch. The
   // switch lives in the Advanced sub-view: the list is one scope's servers,

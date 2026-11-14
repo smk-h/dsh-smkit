@@ -65,21 +65,24 @@ it('settings omits language, rejects the removed route, and preserves legacy sta
   // The payload is exactly the settings this plugin owns: the broker switch, the
   // debug page's switch, the global tool-call timeout and the reconnection knobs —
   // never a language of its own. Absent values arrive as the defaults they stand for.
-  const defaults = {
+  const fresh = {
     onDemandToolInjection: false,
-    // The debug page's switch: on unless the profile stored `false`.
-    debugPageEnabled: true,
+    // The debug page's switch: off on a first install, which has no state file.
+    debugPageEnabled: false,
     toolCallTimeoutMs: 60_000,
     autoReconnect: true,
     reconnectMaxAttempts: -1,
     reconnectMaxDelayMs: 30_000,
     healthCheckIntervalMs: 30_000,
   }
-  assert.deepEqual((await get()).json, defaults)
+  // The same file written before the switch existed: no `debugPageEnabled`, so
+  // its owner keeps the page he always had.
+  const legacy = { ...fresh, debugPageEnabled: true }
+  assert.deepEqual((await get()).json, fresh)
   mkdirSync(join(scratchHome, '.dsh'), { recursive: true })
   writeFileSync(statePath, JSON.stringify({ servers: [], language: 'zh' }))
   handler = makeCtx().routes[0].handler
-  assert.deepEqual((await get()).json, defaults)
+  assert.deepEqual((await get()).json, legacy)
   for (const body of [{ language: 'en' }, { language: 'zh' }, {}, null]) {
     assert.equal((await request(handler, 'POST', '/smkit/api/settings/language', body)).code, 404)
   }
@@ -87,5 +90,5 @@ it('settings omits language, rejects the removed route, and preserves legacy sta
   assert.equal((await request(handler, 'POST', '/smkit/api/settings/on-demand', { enabled: true })).code, 200)
   assert.equal(JSON.parse(readFileSync(statePath, 'utf8')).language, 'zh')
   handler = makeCtx().routes[0].handler
-  assert.deepEqual((await get()).json, { ...defaults, onDemandToolInjection: true })
+  assert.deepEqual((await get()).json, { ...legacy, onDemandToolInjection: true })
 })

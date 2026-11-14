@@ -19,12 +19,13 @@
  * synchronously here. The host's `GET /settings` stays the source of truth: the
  * MCP page reports every poll into {@link setDebugPageEnabled}, which heals a
  * browser that never saw the write (a second browser, or one whose storage was
- * cleared) the moment Settings → MCP is opened there. The one residual case —
- * page stored off, opened in a browser that has no cache — shows the rail entry
- * until that first visit, and the entry is the whole cost.
+ * cleared) the moment Settings → MCP is opened there.
  *
- * Default `true`: the page shipped before the switch did, so an untouched
- * profile keeps it; only a stored `false` takes it away.
+ * Default `false`: the page is opt-in, so a browser that has never been told
+ * seats nothing and the host's `GET /settings` turns it on for the profiles
+ * that want it. The one residual case — page stored on, opened in a browser
+ * that has no cache — keeps both seats away until that first visit, and the
+ * missing entry is the whole cost.
  */
 
 /** Where the mirrored value lives. Not the host's file, and not a setting of its own. */
@@ -44,7 +45,7 @@ function cached(): boolean | null {
   }
 }
 
-let enabled = cached() ?? true
+let enabled = cached() ?? false
 
 /** Registered listeners, re-run whenever the flag flips. */
 const listeners = new Set<() => void>()

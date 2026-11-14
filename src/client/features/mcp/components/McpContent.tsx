@@ -124,7 +124,7 @@ export function createMcpContent(deps: ClientDeps): (props: McpContentProps) => 
     const [workspaces, setWorkspaces] = react.useState<WorkspaceView[]>([])
     const [settings, setSettings] = react.useState<SettingsView>({
       onDemandToolInjection: false,
-      debugPageEnabled: true,
+      debugPageEnabled: false,
       toolCallTimeoutMs: DEFAULT_TOOL_CALL_TIMEOUT_MS,
       ...DEFAULT_RECONNECT_SETTINGS,
     })
@@ -214,8 +214,8 @@ export function createMcpContent(deps: ClientDeps): (props: McpContentProps) => 
             const reported = settingsResult.body
             setSettings({
               onDemandToolInjection: reported.onDemandToolInjection === true,
-              // Absent means on, the same reading the host makes.
-              debugPageEnabled: reported.debugPageEnabled !== false,
+              // The host always answers a boolean, and off is the default.
+              debugPageEnabled: reported.debugPageEnabled === true,
               toolCallTimeoutMs:
                 typeof reported.toolCallTimeoutMs === 'number'
                   ? reported.toolCallTimeoutMs
@@ -235,7 +235,7 @@ export function createMcpContent(deps: ClientDeps): (props: McpContentProps) => 
           // The debug page's gate follows the stored value on every poll, so a
           // browser whose own cache never saw the write (a second browser, a
           // cleared profile) is corrected as soon as this page is opened.
-          if (settingsResult.ok) onDebugPageChange?.(settingsResult.body.debugPageEnabled !== false)
+          if (settingsResult.ok) onDebugPageChange?.(settingsResult.body.debugPageEnabled === true)
           setPolledAt(requestedAt)
         })
         .catch(() => {})
@@ -342,7 +342,7 @@ export function createMcpContent(deps: ClientDeps): (props: McpContentProps) => 
           body: JSON.stringify({ enabled }),
         })
         if (r.ok) {
-          const stored = r.body.debugPageEnabled !== false
+          const stored = r.body.debugPageEnabled === true
           setSettings({ ...settings, debugPageEnabled: stored })
           onDebugPageChange?.(stored)
           return

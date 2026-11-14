@@ -97,8 +97,9 @@ export interface PluginState {
   onDemandToolInjection: boolean
   /**
    * Whether the debug page seats itself in the shell (main panel + rail entry).
-   * Absent means on: the page existed before this switch did, and a stored
-   * `false` is the only thing that takes it away.
+   * A fresh profile stores `false` — the page is opt-in — while an older file
+   * without this key means on: the page existed before the switch did, and its
+   * users keep it.
    */
   debugPageEnabled?: boolean
   /**

@@ -31,7 +31,15 @@ import { workspaceTokenKey } from './mcp/naming.js'
 import { b64url, isRecord, normalizeEnvPairs } from '../../platform/util/text.js'
 import type { PluginState, ServerConfig } from './types.js'
 
-/** Read the state file, falling back to an empty store on any failure. */
+/**
+ * Read the state file, falling back to a fresh store on any failure.
+ *
+ * A profile with no file (or an unreadable one) is a first install, and this
+ * store is seeded with the page off: the debug page is opt-in on a new profile,
+ * so its seats wait for the switch. A file that exists but carries no
+ * `debugPageEnabled` was written before that default changed, and keeps the
+ * page it always had — see {@link isDebugPageEnabled}.
+ */
 export function loadState(): PluginState {
   try {
     const parsed: unknown = JSON.parse(readFileSync(STATE_PATH, 'utf8'))
@@ -40,7 +48,7 @@ export function loadState(): PluginState {
     if (!Array.isArray(state.servers)) state.servers = []
     return state
   } catch {
-    return { servers: [], workspaceTokens: {}, onDemandToolInjection: false }
+    return { servers: [], workspaceTokens: {}, onDemandToolInjection: false, debugPageEnabled: false }
   }
 }
 
@@ -73,6 +81,12 @@ export function normalizeToolCallTimeoutMs(value: unknown): number | undefined {
  *
  * The switch is read by the browser half, which registers (or does not) the
  * page's two seats; the host keeps the value so the choice survives a reload.
+ *
+ * The absent key is deliberately still "on": a store living in memory always
+ * carries the flag (`loadState` seeds `false` for a new profile, and the switch
+ * writes what it chose), so a file without it predates the change of default
+ * and its owner keeps the page instead of losing it on upgrade.
+ *
  * @param state - the loaded state file.
  * @returns the effective flag.
  */

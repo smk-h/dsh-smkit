@@ -310,27 +310,42 @@ it('keeps the id of a workspace server stable while the workspace is not open', 
   assert.equal(first.id, second.id, 'two reads of one config must answer the same id')
 })
 
-it('keeps the debug page switch in the profile, on unless it was turned off', async () => {
+it('keeps the debug page switch in the profile, off until it is turned on', async () => {
   const { handler } = makeCtx()
   const initial = await request(handler, 'GET', '/smkit/api/settings')
   assert.equal(initial.code, 200)
-  assert.equal(initial.json.debugPageEnabled, true, 'an untouched profile keeps the page')
+  assert.equal(initial.json.debugPageEnabled, false, 'a first install starts with the page off')
 
   const refused = await request(handler, 'POST', '/smkit/api/settings/debug-page', { enabled: 'no' })
   assert.equal(refused.code, 400)
 
-  const off = await request(handler, 'POST', '/smkit/api/settings/debug-page', { enabled: false })
-  assert.equal(off.code, 200)
-  assert.equal(off.json.debugPageEnabled, false)
-  assert.equal((await request(handler, 'GET', '/smkit/api/settings')).json.debugPageEnabled, false)
+  const on = await request(handler, 'POST', '/smkit/api/settings/debug-page', { enabled: true })
+  assert.equal(on.code, 200)
+  assert.equal(on.json.debugPageEnabled, true)
+  assert.equal((await request(handler, 'GET', '/smkit/api/settings')).json.debugPageEnabled, true)
 
   // A later mount reads the stored choice rather than the default.
   const remounted = makeCtx()
   assert.equal(
     (await request(remounted.handler, 'GET', '/smkit/api/settings')).json.debugPageEnabled,
-    false,
+    true,
   )
 
-  const on = await request(handler, 'POST', '/smkit/api/settings/debug-page', { enabled: true })
-  assert.equal(on.json.debugPageEnabled, true)
+  const off = await request(handler, 'POST', '/smkit/api/settings/debug-page', { enabled: false })
+  assert.equal(off.json.debugPageEnabled, false)
+  assert.equal((await request(handler, 'GET', '/smkit/api/settings')).json.debugPageEnabled, false)
+})
+
+it('keeps the page an older profile never had a key for', async () => {
+  // A file written before the switch existed: no `debugPageEnabled` at all.
+  writeFileSync(
+    join(scratchHome, '.dsh', 'mcp-manager.json'),
+    JSON.stringify({ servers: [], workspaceTokens: {}, onDemandToolInjection: false }),
+  )
+  const { handler } = makeCtx()
+  assert.equal(
+    (await request(handler, 'GET', '/smkit/api/settings')).json.debugPageEnabled,
+    true,
+    'the page shipped before the switch did, so an absent key cannot take it away',
+  )
 })
