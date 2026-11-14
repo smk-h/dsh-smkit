@@ -22,7 +22,11 @@ export type RegisteredProcessKind =
 export interface RegisteredProcess {
   pid: number
   kind: RegisteredProcessKind
-  /** The thing's own name — for an MCP server, its `server.id`. */
+  /**
+   * The thing's human name — for an MCP server, its configured name (plus
+   * `@<workspace>` on the workspace tier). Not the registry id: the monitor
+   * prints this verbatim, and an id is a hash no reader can pronounce.
+   */
   label: string
   /** When the entry was deposited, for diagnostics. */
   at: number

@@ -11,6 +11,8 @@
  * is found by the supervisor's health probe instead.
  */
 
+import { basename } from 'node:path'
+
 import { MCP_CLIENT_INFO, MCP_PROTOCOL_VERSION } from '../constants.js'
 import { bindToolsChanged, createHttpTransport } from './http-transport.js'
 import { recordNotification, serverInfoOf } from './notifications.js'
@@ -82,9 +84,18 @@ export function createTransports(deps: TransportsDeps): Transports {
     // The process monitor's tag: one pid names the whole subtree the server
     // runs under (Windows puts the real child below the shell wrapper), and
     // the monitor inherits it down the tree instead of guessing from command
-    // lines.
+    // lines. The label is the configured server *name*, not the id — an id is
+    // a hash by construction (`ws-<sha256>` for workspace tier, opaque base64
+    // for global tier), and a row the reader cannot pronounce is a row they
+    // cannot match against the /mcp picker. A workspace-tier server carries
+    // the workspace's directory name too: the same server name in two
+    // workspaces is two servers, and this is the one place to say so.
     if (transport.pid !== null) {
-      registerProcess({ pid: transport.pid, kind: 'mcp-server', label: server.id })
+      const label =
+        server.wsPath !== undefined && server.wsPath !== ''
+          ? `${server.name}@${basename(server.wsPath)}`
+          : server.name
+      registerProcess({ pid: transport.pid, kind: 'mcp-server', label })
     }
     try {
       const initialized = await transport.request('initialize', {

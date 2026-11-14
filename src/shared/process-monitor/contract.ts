@@ -41,11 +41,15 @@ export interface ProcessEntryView {
   cmdline: string
   kind: ProcessEntryKind
   /**
-   * The MCP server id this subtree belongs to. Present on the registered
-   * wrapper itself and inherited by its descendants (an `npx` shim's node
-   * child is the server, not the shim).
+   * The MCP server this subtree belongs to, by its label: the configured
+   * server name, plus `@<workspace directory>` on the workspace tier, where
+   * the same name can exist in two workspaces at once. Present on the
+   * registered wrapper itself and inherited by its descendants (an `npx`
+   * shim's node child is the server, not the shim). Deliberately not the
+   * registry id — that is a hash by construction, and a row the reader
+   * cannot pronounce cannot be matched against the /mcp picker.
    */
-  mcpServerId?: string
+  mcpServer?: string
   /** Percent of the machine's whole capacity, or null until two samples exist. */
   cpuPct: number | null
   /** Resident set / working set, in bytes. */

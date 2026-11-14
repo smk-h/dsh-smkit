@@ -177,6 +177,7 @@ export function createPlugin(): { apply(ctx: ClientContext): void; inject: strin
         platformT: ctx.locale.bind('platform'),
         createPortal,
         Tooltip,
+        MenuItemButton,
       }
       for (const feature of features) {
         for (const dictionary of [feature.locale, ...(feature.extraLocales ?? [])]) {

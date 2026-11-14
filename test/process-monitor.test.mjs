@@ -167,7 +167,7 @@ it('reads the process registry per request, so MCP tagging is live', async () =>
     const after = await call(handlers, 'GET', '/process-monitor/sample')
     const tagged = after.json.entries.find((entry) => entry.pid === 77)
     assert.equal(tagged.kind, 'mcp')
-    assert.equal(tagged.mcpServerId, 'srv')
+    assert.equal(tagged.mcpServer, 'srv')
   } finally {
     clearRegisteredProcesses()
     // And the next read sees the withdrawal — the registry is read per call.

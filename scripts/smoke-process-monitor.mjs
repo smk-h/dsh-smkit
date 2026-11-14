@@ -166,13 +166,13 @@ async function main() {
   if (mcpRows.length === 0) {
     console.log('SKIP  MCP rows are tagged              — 这个 host 当前没有已注册的 stdio 服务器')
   } else {
-    const tagged = mcpRows.every((entry) => typeof entry.mcpServerId === 'string' && entry.mcpServerId !== '')
+    const tagged = mcpRows.every((entry) => typeof entry.mcpServer === 'string' && entry.mcpServer !== '')
     report(
       'MCP rows carry their server id',
       tagged,
       mcpRows
         .slice(0, 3)
-        .map((entry) => entry.mcpServerId)
+        .map((entry) => entry.mcpServer)
         .join(', '),
     )
   }

@@ -204,7 +204,7 @@ export function buildProcessReport(
         name: nameOf(row),
         cmdline: trimCmdline(row.cmdline, maxCmdline),
         kind,
-        ...(inherited !== null && row.pid !== hostPid ? { mcpServerId: inherited } : {}),
+        ...(inherited !== null && row.pid !== hostPid ? { mcpServer: inherited } : {}),
         cpuPct,
         memBytes: row.memBytes,
         cpuMs: Math.round(row.cpuMs),

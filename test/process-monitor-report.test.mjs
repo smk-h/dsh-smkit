@@ -149,12 +149,12 @@ it('groups the host, tagged MCP subtrees, and everything else', () => {
     })
     const byPid = new Map(report.entries.map((entry) => [entry.pid, entry]))
     assert.equal(byPid.get(10).kind, 'host')
-    assert.equal(byPid.get(10).mcpServerId, undefined)
+    assert.equal(byPid.get(10).mcpServer, undefined)
     assert.equal(byPid.get(20).kind, 'mcp')
-    assert.equal(byPid.get(20).mcpServerId, 'srv')
+    assert.equal(byPid.get(20).mcpServer, 'srv')
     // Inheritance: the wrapper's child is the actual server.
     assert.equal(byPid.get(21).kind, 'mcp')
-    assert.equal(byPid.get(21).mcpServerId, 'srv')
+    assert.equal(byPid.get(21).mcpServer, 'srv')
     assert.equal(byPid.get(30).kind, 'other')
     // Ordering: host, then mcp, then other.
     assert.deepEqual(

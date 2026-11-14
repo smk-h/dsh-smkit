@@ -20,7 +20,7 @@ export function createProcessMonitorMenuEntry(
   openPanel: () => void,
   Icon: IconFactory,
 ): (props: { t?: Translator; onDismiss?: () => void }) => JSX.Element {
-  const { h, menuItemButton } = deps
+  const { h, MenuItemButton: menuItemButton } = deps
 
   return function ProcessMonitorMenuEntry(props: { t?: Translator; onDismiss?: () => void }): JSX.Element {
     // `t` and `onDismiss` arrive from the menu's owner at render time; the

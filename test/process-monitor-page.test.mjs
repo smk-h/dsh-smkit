@@ -29,8 +29,8 @@ const SAMPLE = {
   cores: 8,
   entries: [
     { pid: 4321, ppid: 100, name: 'node.exe', cmdline: 'dsh main', kind: 'host', cpuPct: 0.5, memBytes: 512 * 1024 * 1024, cpuMs: 74_000 },
-    { pid: 5100, ppid: 4321, name: 'cmd.exe', cmdline: 'cmd /c npx srv.js', kind: 'mcp', mcpServerId: 'srv', cpuPct: 0.2, memBytes: 32 * 1024 * 1024, cpuMs: 12_000 },
-    { pid: 5101, ppid: 5100, name: 'node.exe', cmdline: 'node srv.js', kind: 'mcp', mcpServerId: 'srv', cpuPct: 1.3, memBytes: 210 * 1024 * 1024, cpuMs: 48_000 },
+    { pid: 5100, ppid: 4321, name: 'cmd.exe', cmdline: 'cmd /c npx srv.js', kind: 'mcp', mcpServer: 'srv', cpuPct: 0.2, memBytes: 32 * 1024 * 1024, cpuMs: 12_000 },
+    { pid: 5101, ppid: 5100, name: 'node.exe', cmdline: 'node srv.js', kind: 'mcp', mcpServer: 'srv', cpuPct: 1.3, memBytes: 210 * 1024 * 1024, cpuMs: 48_000 },
     { pid: 5200, ppid: 4321, name: 'git.exe', cmdline: 'git status', kind: 'other', cpuPct: null, memBytes: 12 * 1024 * 1024, cpuMs: 300 },
   ],
   totals: { cpuPct: 2, memBytes: 766 * 1024 * 1024, count: 4 },
@@ -227,7 +227,9 @@ it('paints the summary cards, the groups and every column of one sample', async 
 
   const { text } = app.render()
   assert.match(text, /Process resources/)
-  assert.match(text, /4 processes/, 'the count comes from the totals')
+  assert.match(text, /Live/, 'the header carries the sampling pulse badge')
+  assert.match(text, /4 processes · 1 s\/sample · 8-core normalized/, 'the meta line carries count and cadence')
+  assert.doesNotMatch(text, /Subtree CPU mix/, 'the composition card is gone; the KPI cards are the overview band')
   assert.match(text, /Host process/)
   assert.match(text, /MCP servers/)
   assert.match(text, /Other children/)
@@ -245,7 +247,7 @@ it('paints the summary cards, the groups and every column of one sample', async 
   // One read per render cycle: the poll, and nothing else.
   assert.deepEqual(app.fetches.filter((path) => path === '/process-monitor/sample').length, 1)
   // The meter's own footprint is disclosed under the table, not hidden.
-  assert.match(text, /sampler costs a further 0\.5% · 96 MB \(2 processes, not counted above\)/)
+  assert.match(text, /sampler costs a further\s+0\.5% · 96 MB\s+\(2 processes, not counted above\)/)
 })
 
 it('polls once per second while mounted and clears the clock on unmount', async () => {

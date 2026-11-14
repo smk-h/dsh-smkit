@@ -262,7 +262,7 @@ function printTable(report, round, intervalMs) {
       measured += 1
     }
     memSum += entry.memBytes
-    const tag = entry.mcpServerId === undefined ? '' : ` [mcp:${entry.mcpServerId}]`
+    const tag = entry.mcpServer === undefined ? '' : ` [mcp:${entry.mcpServer}]`
     lines.push(
       shorten(entry.name, COLUMNS.name).padEnd(COLUMNS.name) +
         String(entry.pid).padStart(COLUMNS.pid) +

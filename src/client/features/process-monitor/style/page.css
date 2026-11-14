@@ -1,197 +1,452 @@
 /*
- * The page shell: a title row, an intro line, four summary cards, and the
- * grouped table filling everything the main column has left.
+ * The page shell, dressed as the reviewed design: a header with a live pulse,
+ * an overview band of four KPI sparkline cards, card-style groups with
+ * colored dots, rows with CPU heat bars, and a dashed meter footnote.
  *
- * The table is one grid template stamped on every row (header rows included)
- * rather than a real <table>: the rows live under per-group collapsible
- * sections, and a grid lets the columns line up across those sections without
- * forcing one shared table element around them.
- *
- * The page itself scrolls as a whole. Unlike the debug page's three columns,
- * there is no per-column scroll to keep in sync — a process list reads
- * top-down, and the summary cards belong to the page, not to a pane.
+ * The page's own palette lives in --smkit-pm-* properties so the namespace
+ * guard owns them; light values are the defaults and the dark half rides the
+ * shell's day/night flag (body[data-ds-dark-theme]), which is the one
+ * authority on which half is in force. Neutral surfaces and text borrow the
+ * shell's own --dsw-alias-* tokens so they follow every theme, not just ours:
+ * cards are the shell's nested-surface rung (--dsw-alias-bg-layer-2 — flat
+ * white in the light palette, one step up from the canvas in the dark one),
+ * and the quieter bands (group headers, bar tracks) are a veil of the border
+ * rung, which is darker than the surface in light and lighter in dark without
+ * either half being named. A theme of the center (One Dark Pro) restacks
+ * those alias tokens itself; only the page's own data-viz ramp needs saying
+ * for it, in the block below the dark one.
  */
 
 .smkit-pm-page {
+  --smkit-pm-accent: #3a6df0;
+  --smkit-pm-mcp: #7b5ce0;
+  --smkit-pm-other: #2ea184;
+  --smkit-pm-warn: #b97f2e;
+  --smkit-pm-danger: #cc4d4d;
+  --smkit-pm-panel: var(--dsw-alias-bg-layer-2);
+  --smkit-pm-panel-2: color-mix(in srgb, var(--dsw-alias-border-l2) 45%, transparent);
+  --smkit-pm-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   display: flex;
   flex-direction: column;
+  gap: 14px;
   box-sizing: border-box;
   height: 100%;
   min-height: 0;
-  padding: 16px 20px 12px;
+  padding: 20px 20px 14px;
+  overflow-y: auto;
   color: var(--dsw-alias-label-primary);
 }
+
+body[data-ds-dark-theme] .smkit-pm-page {
+  --smkit-pm-accent: #5b8cff;
+  --smkit-pm-mcp: #9a7bff;
+  --smkit-pm-other: #5cc8a8;
+  --smkit-pm-warn: #e0a24a;
+  --smkit-pm-danger: #e06a6a;
+}
+
+/*
+ * One Dark Pro (the theme center's token-layer theme) repainted every alias
+ * token the neutrals above already ride, so its surfaces, ink and rules come
+ * along by themselves — cards land on its panel tone `#21252b` over its
+ * canvas `#282c34`, the arrangement the palette itself has between sidebar
+ * and editor. What it cannot supply is this page's data-viz ramp: the five
+ * hues are ours, so here they take the palette's own vocabulary — the syntax
+ * ramp it colors content with (link blue, keyword purple, string green,
+ * yellow, red) rather than the muted badge blue, because bars and dots are
+ * content on a canvas, not chrome. Scoped on the body attribute the theme
+ * center publishes (`data-smkit-theme`, see its apply.ts), the same scoping
+ * its own structural sheets use; it sits after the dark block on purpose —
+ * the theme pins the dark half, both rules match, and the later one wins.
+ */
+body[data-smkit-theme='one-dark-pro'] .smkit-pm-page {
+  --smkit-pm-accent: #61afef;
+  --smkit-pm-mcp: #c678dd;
+  --smkit-pm-other: #98c379;
+  --smkit-pm-warn: #e5c07b;
+  --smkit-pm-danger: #e06c75;
+}
+
+/* ── Header: title, live pulse, cadence meta, refresh ──────────────────── */
 
 .smkit-pm-page-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
 .smkit-pm-page-title {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
   line-height: 22px;
 }
 
-.smkit-pm-page-meta {
+.smkit-pm-page-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  color: var(--dsw-alias-label-secondary);
   font-size: 12px;
+  line-height: 18px;
+}
+
+.smkit-pm-page-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--smkit-pm-other);
+  animation: smkit-pm-pulse 1.6s ease-out infinite;
+}
+
+@keyframes smkit-pm-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--smkit-pm-other) 55%, transparent);
+  }
+
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.smkit-pm-page-head-meta {
   color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
 }
 
 .smkit-pm-page-spacer {
   flex: 1 1 auto;
 }
 
-.smkit-pm-page-intro {
-  margin: 2px 0 12px;
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--dsw-alias-label-tertiary);
-}
-
 /* Warming / failure / empty: one muted line, not a modal. A dashboard's
  * broken state is still a state of the dashboard. */
 .smkit-pm-page-note {
-  margin: 0 0 12px;
+  margin: 0;
+  flex: 0 0 auto;
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-secondary);
 }
 
-.smkit-pm-page-cards {
+/* ── Overview band: the four KPI sparkline cards ───────────────────────── */
+
+.smkit-pm-page-kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(96px, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 12px;
+  flex: 0 0 auto;
 }
 
-.smkit-pm-page-card {
+.smkit-pm-page-dot-host {
+  background: var(--smkit-pm-accent);
+}
+
+.smkit-pm-page-dot-mcp {
+  background: var(--smkit-pm-mcp);
+}
+
+.smkit-pm-page-dot-other {
+  background: var(--smkit-pm-other);
+}
+
+.smkit-pm-page-kpi {
+  position: relative;
+  overflow: hidden;
+  background: var(--smkit-pm-panel);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 6px;
+  gap: 3px;
 }
 
-.smkit-pm-page-card-value {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
-  font-variant-numeric: tabular-nums;
-}
-
-.smkit-pm-page-card-label {
+.smkit-pm-page-kpi-label {
   font-size: 12px;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.smkit-pm-page-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  border-top: 1px solid var(--dsw-alias-border-l2);
-  padding-top: 8px;
+.smkit-pm-page-kpi-value {
+  font-size: 21px;
+  font-weight: 650;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.smkit-pm-page-kpi-value small,
+.smkit-pm-page-mem small {
+  margin-left: 3px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.smkit-pm-page-kpi-host .smkit-pm-page-kpi-value {
+  color: var(--smkit-pm-accent);
+}
+
+.smkit-pm-page-spark {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+}
+
+.smkit-pm-page-spark-host {
+  color: var(--smkit-pm-accent);
+}
+
+.smkit-pm-page-spark-tree {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* ── Groups: cards with a colored dot, a count chip, an aggregate ──────── */
+
+.smkit-pm-page-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 0 0 auto;
 }
 
 .smkit-pm-page-group {
-  margin-bottom: 8px;
+  background: var(--smkit-pm-panel);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .smkit-pm-page-group-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
-  padding: 4px 2px;
-  background: none;
+  padding: 10px 14px;
   border: none;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  background: var(--smkit-pm-panel-2);
   color: inherit;
-  cursor: pointer;
   font: inherit;
   text-align: left;
+  cursor: pointer;
 }
 
-.smkit-pm-page-group-toggle {
-  width: 14px;
-  flex: 0 0 14px;
-  color: var(--dsw-alias-label-tertiary);
+.smkit-pm-page-group-name {
+  font-weight: 650;
+  font-size: 13px;
 }
 
-.smkit-pm-page-group-title {
+.smkit-pm-page-group-count {
   font-size: 12px;
-  font-weight: 600;
+  color: var(--dsw-alias-label-tertiary);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  padding: 0 7px;
   line-height: 18px;
 }
 
-.smkit-pm-page-group-meta {
+.smkit-pm-page-group-agg {
+  margin-left: auto;
   font-size: 12px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-label-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+.smkit-pm-page-chev {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 10px;
+}
+
+/* ── Rows: one grid template stamped on header and rows alike ──────────── */
+
+.smkit-pm-page-cols,
+.smkit-pm-page-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.5fr) 64px minmax(128px, 1fr) 92px 70px minmax(160px, 1.4fr);
+  gap: 10px;
+  align-items: center;
+  padding: 7px 14px;
+}
+
+.smkit-pm-page-cols {
+  padding-top: 9px;
+  padding-bottom: 5px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
+
+.smkit-pm-page-cols :nth-child(2),
+.smkit-pm-page-cols :nth-child(5) {
+  text-align: right;
+}
+
+.smkit-pm-page-cols :nth-child(3),
+.smkit-pm-page-cols :nth-child(4) {
+  text-align: right;
 }
 
 .smkit-pm-page-row {
-  display: grid;
-  grid-template-columns: minmax(140px, 1.1fr) 72px 64px 88px 76px minmax(160px, 1.6fr);
-  gap: 8px;
-  align-items: baseline;
-  padding: 3px 2px 3px 22px;
-  font-size: 12px;
-  line-height: 18px;
+  border-top: 1px solid color-mix(in srgb, var(--dsw-alias-border-l2) 55%, transparent);
 }
 
-.smkit-pm-page-row-head {
-  padding-left: 22px;
-  color: var(--dsw-alias-label-tertiary);
-  position: sticky;
-  top: 0;
-  background: var(--dsw-alias-fill-primary, transparent);
+.smkit-pm-page-row:hover {
+  background: color-mix(in srgb, var(--smkit-pm-accent) 6%, transparent);
 }
 
-.smkit-pm-page-cell {
+.smkit-pm-page-group-host .smkit-pm-page-row {
+  background: color-mix(in srgb, var(--smkit-pm-accent) 7%, transparent);
+}
+
+.smkit-pm-page-group-host .smkit-pm-page-row:hover {
+  background: color-mix(in srgb, var(--smkit-pm-accent) 10%, transparent);
+}
+
+.smkit-pm-page-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   min-width: 0;
+}
+
+.smkit-pm-page-name-text {
+  font-weight: 600;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.smkit-pm-page-cell-name {
-  overflow: hidden;
-}
-
-.smkit-pm-page-cell-pid,
-.smkit-pm-page-cell-cpu,
-.smkit-pm-page-cell-mem,
-.smkit-pm-page-cell-time {
-  text-align: right;
 }
 
 /* The `mcp:<id>` chip rides the name, not the command line: it is an origin,
  * and the origin is what the reader scans for. */
 .smkit-pm-page-tag {
-  margin-left: 6px;
-  padding: 0 4px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
+  color: var(--smkit-pm-mcp);
+  background: color-mix(in srgb, var(--smkit-pm-mcp) 14%, transparent);
+  border-radius: 5px;
+  padding: 0 5px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.smkit-pm-page-pid {
+  font-family: var(--smkit-pm-mono);
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* CPU cell: heat bar + value. The bar is honest (proportional, 0.75% floor
+ * so a live-but-tiny process still shows a sliver); the color bands make the
+ * one busy process findable without reading any number. */
+.smkit-pm-page-cpu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.smkit-pm-page-cpu-track {
+  width: 72px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--smkit-pm-panel-2);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.smkit-pm-page-cpu-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--smkit-pm-accent), color-mix(in srgb, var(--smkit-pm-accent) 55%, var(--smkit-pm-mcp)));
+}
+
+.smkit-pm-page-row[data-smkit-heat='mid'] .smkit-pm-page-cpu-fill {
+  background: var(--smkit-pm-warn);
+}
+
+.smkit-pm-page-row[data-smkit-heat='high'] .smkit-pm-page-cpu-fill {
+  background: var(--smkit-pm-danger);
+}
+
+.smkit-pm-page-cpu b {
+  width: 44px;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.smkit-pm-page-cpu-none {
+  color: var(--dsw-alias-label-tertiary);
+  font-weight: 400;
+}
+
+.smkit-pm-page-mem {
+  text-align: right;
   color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.smkit-pm-page-time {
+  font-family: var(--smkit-pm-mono);
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  text-align: right;
+}
+
+.smkit-pm-page-cmd {
+  font-family: var(--smkit-pm-mono);
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .smkit-pm-page-hint {
-  margin: 4px 0 8px;
+  margin: 0;
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* The More-menu row's fallback shape, worn only on a host whose module table
- * has no ui-primitives: the shell's own MenuItemButton covers this row
- * everywhere else. The numbers below are the shell menu row's own
- * (`Menu.module.css` `.item`): same cell, same text metrics, same hover/focus
- * fill — so the row reads as one more row of that menu, not a guest. */
+/* ── The meter's own footprint, disclosed as a dashed footnote strip ───── */
+
+.smkit-pm-page-meter {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 9px 14px;
+  border: 1px dashed var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.smkit-pm-page-meter b {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+}
+
+.smkit-pm-page-meter-icon {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* ── The More-menu row's fallback shape (see the entry component) ──────── */
+
 .smkit-pm-page-menurow {
   display: flex;
   align-items: center;
@@ -228,19 +483,24 @@
   white-space: nowrap;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 980px) {
   /* A narrow window (a floating pane, a split main column) keeps the identity
    * columns and drops the command line: the name's `title` still carries it,
    * and rows stay one line tall instead of wrapping into noise. */
   .smkit-pm-page {
-    padding: 12px 12px 8px;
+    padding: 14px 12px 10px;
   }
 
+  .smkit-pm-page-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .smkit-pm-page-cols,
   .smkit-pm-page-row {
-    grid-template-columns: minmax(100px, 1fr) 60px 56px 80px 64px;
+    grid-template-columns: minmax(150px, 1fr) 60px minmax(110px, 1fr) 80px 64px;
   }
 
-  .smkit-pm-page-cell-cmd {
+  .smkit-pm-page-cmd {
     display: none;
   }
 }
