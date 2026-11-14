@@ -72,7 +72,7 @@ interface KpiCard {
   label: string
   value: string
   kind: 'tree' | 'host'
-  /** The hover line that says what the number counts, so "总" never has to be guessed. */
+  /** The hover line that says what the number counts, so the total never has to be guessed. */
   hint: string
 }
 
