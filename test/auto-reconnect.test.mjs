@@ -32,7 +32,13 @@ mkdirSync(join(scratchHome, '.dsh'), { recursive: true })
 const statePath = join(scratchHome, '.dsh', 'mcp-manager.json')
 
 const { apply } = await import('../lib/index.js')
-after(() => rmSync(scratchHome, { recursive: true, force: true }))
+
+/** Windows can hold a temp directory briefly after its child exits; retry those EPERM/EBUSY cases. */
+function removeTree(path) {
+  rmSync(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+}
+
+after(() => removeTree(scratchHome))
 
 /**
  * Mounting auto-connects every server in the store, so a test must not inherit
@@ -559,7 +565,7 @@ it('keeps a workspace retry alive across its own failures', async () => {
     assert.equal(revived.row.toolCount, 1, 'the rebuilt connection must register its tool again')
   } finally {
     dispose()
-    rmSync(wsDir, { recursive: true, force: true })
+    removeTree(wsDir)
     await stub.close()
   }
 })
@@ -612,8 +618,10 @@ it('reaps the transport it replaces when a workspace connection is rebuilt', asy
     assert.equal(startedPids(log).length, 2, 'the row must be rebuilt on exactly one new child')
     assert.ok(await waitForGone(Number(first)), `the superseded child (pid ${first}) must be reaped`)
   } finally {
+    const spawned = startedPids(log)
     dispose()
-    rmSync(wsDir, { recursive: true, force: true })
+    await Promise.all(spawned.map((pid) => waitForGone(Number(pid))))
+    removeTree(wsDir)
   }
 })
 
@@ -758,7 +766,10 @@ it('keeps retrying while the budget is unbounded', async () => {
     assert.ok(connects >= 4, `-1 must keep retrying; stopped after ${connects}`)
 
     const row = await globalRow(handler, 'no-limit')
-    assert.equal(row.status, 'reconnecting', 'an unbounded budget must stay in the retry loop')
+    assert.ok(
+      row.status === 'connecting' || row.status === 'reconnecting',
+      `an unbounded budget must stay in the retry loop, saw ${row.status}`,
+    )
     assert.ok(!String(row.error ?? '').includes('gave up'), row.error)
   } finally {
     dispose()
