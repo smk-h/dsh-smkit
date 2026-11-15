@@ -43,6 +43,7 @@ const KIND_LABEL: Record<ProcessEntryKind, string> = {
   host: 'groupHost',
   mcp: 'groupMcp',
   other: 'groupOther',
+  app: 'groupApp',
 }
 
 /** `0.5` → "0.5%", null → "—" (the first sample after a gap has no window). */
@@ -55,6 +56,14 @@ function formatBytes(bytes: number): string {
   const mb = bytes / (1024 * 1024)
   if (mb < 1024) return `${mb.toFixed(mb < 10 ? 1 : 0)} MB`
   return `${(mb / 1024).toFixed(1)} GB`
+}
+
+/**
+ * The memory figure to print: the dedicated working set where the OS reports
+ * one (Windows — Task Manager's own column), the plain working set otherwise.
+ */
+function memoryOf(row: { memBytes: number; memPrivateBytes?: number }): number {
+  return row.memPrivateBytes ?? row.memBytes
 }
 
 function formatCpuMs(ms: number): string {
@@ -153,9 +162,9 @@ export function createProcessMonitorPage(
             const host = (next.entries ?? []).find((entry) => entry.kind === 'host')
             setHistory((prev) => ({
               treeCpu: [...prev.treeCpu, next.totals.cpuPct].slice(-HISTORY_CAP),
-              treeMem: [...prev.treeMem, next.totals.memBytes / (1024 * 1024)].slice(-HISTORY_CAP),
+              treeMem: [...prev.treeMem, memoryOf(next.totals) / (1024 * 1024)].slice(-HISTORY_CAP),
               hostCpu: [...prev.hostCpu, host?.cpuPct ?? 0].slice(-HISTORY_CAP),
-              hostMem: [...prev.hostMem, (host?.memBytes ?? 0) / (1024 * 1024)].slice(-HISTORY_CAP),
+              hostMem: [...prev.hostMem, (host === null || host === undefined ? 0 : memoryOf(host)) / (1024 * 1024)].slice(-HISTORY_CAP),
             }))
           }
         })
@@ -177,11 +186,21 @@ export function createProcessMonitorPage(
     const entries = sample?.entries ?? []
     const host = entries.find((entry) => entry.kind === 'host') ?? null
     const hasMcpGroup = entries.some((entry) => entry.kind === 'mcp')
-    const groups = GROUP_ORDER.map((kind) => ({
-      id: kind,
-      label: t(KIND_LABEL[kind]),
-      rows: entries.filter((entry) => entry.kind === kind),
-    })).filter((group) => group.rows.length > 0)
+    // The application group is a *different scope*, not a fourth kind of
+    // child: its rows are the GUI processes Windows Task Manager folds into
+    // the app's one line (main process, renderer, GPU) and the dsh tree by
+    // definition cannot contain. It renders last, with the same columns.
+    const app = sample?.app ?? null
+    const groups = [
+      ...GROUP_ORDER.map((kind) => ({
+        id: kind,
+        label: t(KIND_LABEL[kind]),
+        rows: entries.filter((entry) => entry.kind === kind),
+      })),
+      ...(app !== null && app.entries.length > 0
+        ? [{ id: 'app', label: t('groupApp'), rows: app.entries }]
+        : []),
+    ].filter((group) => group.rows.length > 0)
 
     const groupMeta = (rows: ProcessEntryView[]): string => {
       const counted = rows.filter((row) => row.cpuPct !== null)
@@ -201,9 +220,21 @@ export function createProcessMonitorPage(
 
     const cards: KpiCard[] = [
       { key: 'treeCpu', label: t('cardTreeCpu'), value: formatPct(sample?.totals.cpuPct ?? null, dash), kind: 'tree', hint: t('totalHint') },
-      { key: 'treeMem', label: t('cardTreeMem'), value: formatBytes(sample?.totals.memBytes ?? 0), kind: 'tree', hint: t('totalHint') },
+      {
+        key: 'treeMem',
+        label: t('cardTreeMem'),
+        value: formatBytes(sample === null ? 0 : memoryOf(sample.totals)),
+        kind: 'tree',
+        hint: `${t('totalHint')} ${t('memHint')}`,
+      },
       { key: 'hostCpu', label: t('cardHostCpu'), value: formatPct(host?.cpuPct ?? null, dash), kind: 'host', hint: t('hostHint') },
-      { key: 'hostMem', label: t('cardHostMem'), value: formatBytes(host?.memBytes ?? 0), kind: 'host', hint: t('hostHint') },
+      {
+        key: 'hostMem',
+        label: t('cardHostMem'),
+        value: formatBytes(host === null ? 0 : memoryOf(host)),
+        kind: 'host',
+        hint: `${t('hostHint')} ${t('memHint')}`,
+      },
     ]
     const sparks: Record<string, number[]> = {
       treeCpu: history.treeCpu,
@@ -227,7 +258,9 @@ export function createProcessMonitorPage(
       const pct = entry.cpuPct
       const heat = pct === null ? 'none' : pct >= HEAT_HIGH ? 'high' : pct >= HEAT_MID ? 'mid' : 'low'
       const width = pct === null || pct <= 0 ? '0%' : `${Math.min(100, Math.max(0.75, pct))}%`
-      const [value, unit] = formatBytes(entry.memBytes).split(' ')
+      const [value, unit] = formatBytes(memoryOf(entry)).split(' ')
+      const memTitle =
+        entry.memPrivateBytes === undefined ? undefined : t('memWsTitle', { mem: formatBytes(entry.memBytes) })
       return h(
         'div',
         { className: 'smkit-pm-page-row', key: entry.pid, 'data-smkit-heat': heat },
@@ -246,7 +279,12 @@ export function createProcessMonitorPage(
           h('span', { className: 'smkit-pm-page-cpu-track', key: 't' }, h('i', { className: 'smkit-pm-page-cpu-fill', style: { width }, key: 'f' })),
           h('b', { className: pct === null ? 'smkit-pm-page-cpu-none' : '', key: 'v' }, formatPct(pct, dash)),
         ),
-        h('span', { className: 'smkit-pm-page-mem', key: 'mem' }, value, unit !== undefined ? h('small', { key: 'u' }, unit) : null),
+        h(
+          'span',
+          { className: 'smkit-pm-page-mem', title: memTitle, key: 'mem' },
+          value,
+          unit !== undefined ? h('small', { key: 'u' }, unit) : null,
+        ),
         h('span', { className: 'smkit-pm-page-time', key: 'time' }, formatCpuMs(entry.cpuMs)),
         h(
           'span',
@@ -326,6 +364,29 @@ export function createProcessMonitorPage(
           {notice === null && !hasMcpGroup ? (
             <p className="smkit-pm-page-hint">{t('emptyMcpHint')}</p>
           ) : null}
+          {/* The reconciliation line: the number a reader takes to Task
+           * Manager, labelled with the scope it counts and the memory metric
+           * it does *not* share with that tool. */}
+          {app !== null ? (
+            <p className="smkit-pm-page-app" title={t('appScopeHint')}>
+              {h('b', { key: 'label' }, t('appScopeLabel'))}
+              <span>
+                {app.totals.memPrivateBytes === undefined
+                  ? t('appScopeValueWs', {
+                      count: app.totals.count,
+                      cpu: formatPct(app.totals.cpuPct, dash),
+                      mem: formatBytes(app.totals.memBytes),
+                    })
+                  : t('appScopeValue', {
+                      count: app.totals.count,
+                      cpu: formatPct(app.totals.cpuPct, dash),
+                      mem: formatBytes(app.totals.memPrivateBytes),
+                      ws: formatBytes(app.totals.memBytes),
+                    })}
+              </span>
+              <span>{t('appScopeSuffix')}</span>
+            </p>
+          ) : null}
           {sample?.meter != null ? (
             <p className="smkit-pm-page-meter">
               <MeterIcon size={14} className="smkit-pm-page-meter-icon" />
@@ -333,7 +394,7 @@ export function createProcessMonitorPage(
               {h(
                 'b',
                 { key: 'v' },
-                `${formatPct(sample.meter.cpuPct, dash)} · ${formatBytes(sample.meter.memBytes)}`,
+                `${formatPct(sample.meter.cpuPct, dash)} · ${formatBytes(memoryOf(sample.meter))}`,
               )}
               {t('meterNoteSuffix', { count: sample.meter.count })}
             </p>

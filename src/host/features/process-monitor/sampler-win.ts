@@ -34,10 +34,24 @@ const PS_FIELDS =
   'ProcessId,ParentProcessId,Name,CommandLine,WorkingSetSize,KernelModeTime,UserModeTime'
 /** UTF-8 on the pipe, or a Chinese command line arrives in the OEM codepage. */
 const PS_BOOT = '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;'
-const PS_QUERY = `Get-CimInstance -ClassName Win32_Process -Property ${PS_FIELDS} | Select-Object ${PS_FIELDS} | ConvertTo-Json -Compress`
-const PS_ONESHOT_SCRIPT = `${PS_BOOT} ${PS_QUERY}`
+/**
+ * The dedicated working set, merged onto each row as `PrivateWS`.
+ *
+ * It lives in the performance-counter class rather than `Win32_Process`, and
+ * that class costs about as much again as the main query — 0.2~0.3 s warm,
+ * 1.3 s cold. Memory moves slowly, so the sweep runs every other frame and
+ * the map is carried into the frames it skips; a per-frame sweep would buy
+ * nothing and cost the page's own footprint another half percentage point.
+ */
+const PS_PRIVATE_EVERY = 2
+const PS_PRIVATE_SWEEP =
+  '$next=@{}; foreach($q in (Get-CimInstance -ClassName Win32_PerfRawData_PerfProc_Process -ErrorAction SilentlyContinue)){ $next[[int]$q.IDProcess]=[int64]$q.WorkingSetPrivate }; $priv=$next'
+const PS_QUERY =
+  `Get-CimInstance -ClassName Win32_Process -Property ${PS_FIELDS} | ` +
+  `Select-Object ${PS_FIELDS},@{n='PrivateWS';e={$priv[[int]$_.ProcessId]}} | ConvertTo-Json -Compress`
+const PS_ONESHOT_SCRIPT = `${PS_BOOT} $priv=@{}; ${PS_PRIVATE_SWEEP}; ${PS_QUERY}`
 /** One frame per sample interval, minus the query's own cost. */
-const PS_STREAM_SCRIPT = `${PS_BOOT} while($true){ ${PS_QUERY}; Start-Sleep -Milliseconds ${SAMPLE_INTERVAL_MS - 50} }`
+const PS_STREAM_SCRIPT = `${PS_BOOT} $priv=@{}; $n=0; while($true){ if($n % ${PS_PRIVATE_EVERY} -eq 0){ ${PS_PRIVATE_SWEEP} }; ${PS_QUERY}; $n++; Start-Sleep -Milliseconds ${SAMPLE_INTERVAL_MS - 50} }`
 
 /** A frame older than this is not worth answering a read with. */
 const STALE_FRAME_MS = 2_000
@@ -60,6 +74,8 @@ interface Win32ProcessRow {
   WorkingSetSize?: unknown
   KernelModeTime?: unknown
   UserModeTime?: unknown
+  /** Merged from the performance-counter sweep; null on a frame that skipped it. */
+  PrivateWS?: unknown
 }
 
 /**
@@ -83,6 +99,7 @@ export function parseWindowsFrame(line: string): RawProcess[] | null {
     if (!Number.isInteger(pid) || !Number.isInteger(ppid)) continue
     const memBytes = Number(row.WorkingSetSize)
     const cpuMs = (Number(row.KernelModeTime) + Number(row.UserModeTime)) / 1e4
+    const privateBytes = Number(row.PrivateWS)
     out.push({
       pid,
       ppid,
@@ -90,6 +107,10 @@ export function parseWindowsFrame(line: string): RawProcess[] | null {
       cmdline: typeof row.CommandLine === 'string' ? row.CommandLine : '',
       memBytes: Number.isFinite(memBytes) ? Math.max(0, memBytes) : 0,
       cpuMs: Number.isFinite(cpuMs) ? cpuMs : 0,
+      // A pid the sweep did not see (null) or reported as zero is "unknown",
+      // not "zero bytes": readers fall back to the working set rather than
+      // print a number that says nothing.
+      ...(Number.isFinite(privateBytes) && privateBytes > 0 ? { privateBytes } : {}),
     })
   }
   return out

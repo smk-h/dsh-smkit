@@ -27,6 +27,18 @@ export interface RawProcess {
   cmdline: string
   /** Resident set / working set, bytes. */
   memBytes: number
+  /**
+   * Dedicated (private) working set in bytes, where the OS reports it.
+   *
+   * This is the metric Task Manager's memory column shows, and the only one
+   * that can be summed across a process group without double-counting shared
+   * pages — five Chromium processes share a few hundred megabytes of image and
+   * code pages, so summing `memBytes` over them overstates the footprint by
+   * most of that. Windows answers it through the performance-counter class;
+   * POSIX has no zero-dependency equivalent (`ps` reports RSS only), so the
+   * field is simply absent there and every reader falls back to `memBytes`.
+   */
+  privateBytes?: number
   /** Lifetime CPU total (kernel + user), milliseconds. */
   cpuMs: number
 }

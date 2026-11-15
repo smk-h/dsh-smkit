@@ -40,8 +40,8 @@ after(() => {
 })
 
 /** One normalized OS row; every field the builder reads, nothing more. */
-function row(pid, ppid, { cpuMs = 0, memBytes = 1024, name = '', cmdline = 'node server.js' } = {}) {
-  return { pid, ppid, name, cmdline, memBytes, cpuMs }
+function row(pid, ppid, { cpuMs = 0, memBytes = 1024, privateBytes, name = '', cmdline = 'node server.js' } = {}) {
+  return { pid, ppid, name, cmdline, memBytes, cpuMs, ...(privateBytes === undefined ? {} : { privateBytes }) }
 }
 
 const OPTIONS = {
@@ -169,7 +169,7 @@ it('groups the host, tagged MCP subtrees, and everything else', () => {
 it('excludes the sampler subtree from the rows and reports it as the meter footprint', () => {
   const raw = [
     row(10, 1, { cpuMs: 100 }),
-    row(40, 10, { name: 'powershell.exe', cpuMs: 1_000, memBytes: 100 * 1024 * 1024 }),
+    row(40, 10, { name: 'powershell.exe', cpuMs: 1_000, memBytes: 100 * 1024 * 1024, privateBytes: 60 * 1024 * 1024 }),
     row(41, 40, { name: 'conhost.exe', cpuMs: 0 }),
   ]
   const report = buildProcessReport(
@@ -192,6 +192,8 @@ it('excludes the sampler subtree from the rows and reports it as the meter footp
   assert.equal(report.meter.count, 2)
   assert.equal(report.meter.cpuPct, 25)
   assert.equal(report.meter.memBytes, 100 * 1024 * 1024 + 1024)
+  // conhost报告不了专用值，所以足迹的专用合计只算 powershell 这一行。
+  assert.equal(report.meter.memPrivateBytes, 60 * 1024 * 1024)
 })
 
 it('a null meter when nothing is excluded; a null meter CPU before a window exists', () => {
@@ -237,6 +239,115 @@ it('trims command lines and falls back to a name from the first token', () => {
   assert.equal(host.name, 'node')
   assert.ok(host.cmdline.length <= 200, `trimmed to ${host.cmdline.length}`)
   assert.ok(host.cmdline.endsWith('…'))
+})
+
+it('measures the application group beside the subtree, the way Task Manager folds it', () => {
+  // The desktop shape: a GUI main process, the dsh host one hop below it (same
+  // exe), a renderer beside the host (same exe), and a GPU process the app
+  // runs (different exe — not part of the group Task Manager counts).
+  const base = (pid, ppid, name, memBytes) => row(pid, ppid, { name, memBytes, cpuMs: 0 })
+  const raw = [
+    row(100, 1, { name: 'app.exe', memBytes: 1_000, privateBytes: 600, cpuMs: 1_000 }),
+    row(10, 100, { name: 'app.exe', memBytes: 500, privateBytes: 300, cpuMs: 100 }),
+    row(11, 100, { name: 'app.exe', memBytes: 2_000, privateBytes: 1_200, cpuMs: 900 }),
+    row(12, 100, { name: 'gpu.exe', memBytes: 4_000, privateBytes: 3_000, cpuMs: 900 }),
+    row(20, 10, { name: 'node.exe', memBytes: 300, privateBytes: 200, cpuMs: 200 }),
+  ]
+  const report = buildProcessReport(
+    raw,
+    baselineOf(
+      [
+        base(100, 1, 'app.exe', 1_000),
+        base(10, 100, 'app.exe', 500),
+        base(11, 100, 'app.exe', 2_000),
+        base(12, 100, 'gpu.exe', 4_000),
+        base(20, 10, 'node.exe', 300),
+      ],
+      10_000,
+    ),
+    { ...OPTIONS, sampledAt: 11_000 },
+  )
+
+  // The table is still the subtree, and its totals still ignore the app group.
+  assert.deepEqual(
+    report.entries.map((entry) => entry.pid),
+    [10, 20],
+  )
+  assert.equal(report.totals.count, 2)
+  assert.equal(report.totals.memBytes, 800)
+
+  // The app group is the same-executable chain: main + host + renderer. The
+  // GPU process (different exe) is not in it, and neither is the MCP server.
+  assert.notEqual(report.app, null)
+  assert.equal(report.app.rootPid, 100)
+  assert.equal(report.app.rootName, 'app.exe')
+  assert.deepEqual(
+    report.app.entries.map((entry) => entry.pid),
+    [100, 11],
+    'host-less rows, ordered by CPU desc',
+  )
+  assert.ok(report.app.entries.every((entry) => entry.kind === 'app'))
+  assert.ok(report.app.entries.every((entry) => entry.mcpServer === undefined))
+  assert.equal(report.app.totals.count, 3)
+  assert.equal(report.app.totals.memBytes, 3_500)
+  // The group's dedicated total: main + host + renderer, GPU and node left out.
+  assert.equal(report.app.totals.memPrivateBytes, 2_100)
+  // 1000 ms (25%) + 100 ms (2.5%) + 900 ms (22.5%) on 4 cores over 1 s.
+  assert.equal(report.app.totals.cpuPct, 50)
+})
+
+it('no application group when the host already tops its executable chain', () => {
+  const report = buildProcessReport([row(10, 1, { name: 'node' }), row(1, 0, { name: 'bash' })], null, OPTIONS)
+  assert.equal(report.app, null, 'climbing stops at a different executable, so the subtree is the application')
+})
+
+it('refuses to call a same-executable parent chain an application', () => {
+  // npm's node launching the host's node: the chain climbs, but everything
+  // else in it is the host's own subtree — there is no parallel branch, so
+  // this is a launcher, not an app.
+  const report = buildProcessReport(
+    [
+      row(100, 1, { name: 'node.exe' }),
+      row(10, 100, { name: 'node.exe' }),
+      row(20, 10, { name: 'node.exe' }),
+    ],
+    null,
+    OPTIONS,
+  )
+  assert.equal(report.app, null)
+})
+
+it('app rows obey the same null-window rule as subtree rows', () => {
+  const report = buildProcessReport(
+    [
+      row(100, 1, { name: 'app.exe' }),
+      row(10, 100, { name: 'app.exe' }),
+      row(11, 100, { name: 'app.exe' }),
+    ],
+    null,
+    OPTIONS,
+  )
+  assert.notEqual(report.app, null)
+  assert.ok(report.app.entries.every((entry) => entry.cpuPct === null), 'no baseline means no window')
+  assert.equal(report.app.totals.cpuPct, 0, 'a total without a window is zero, never null')
+})
+
+it('sums the dedicated working set beside the working set, when the OS reports it', () => {
+  const report = buildProcessReport(
+    [
+      row(10, 1, { memBytes: 1_000, privateBytes: 600 }),
+      row(11, 10, { memBytes: 2_000, privateBytes: 1_200 }),
+    ],
+    null,
+    OPTIONS,
+  )
+  assert.equal(report.entries[0].memPrivateBytes, 600, 'each row carries its own dedicated figure')
+  assert.equal(report.totals.memBytes, 3_000, 'the working set still sums the plain field')
+  assert.equal(report.totals.memPrivateBytes, 1_800)
+
+  const plain = buildProcessReport([row(10, 1), row(11, 10)], null, OPTIONS)
+  assert.equal(plain.totals.memPrivateBytes, undefined, 'no private readings means no private total')
+  assert.equal(plain.totals.memBytes, 2_048, 'and the working set is still there')
 })
 
 it('totals add up over the entries the page can see', () => {

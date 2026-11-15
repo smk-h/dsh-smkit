@@ -200,6 +200,16 @@ it('parses a Windows frame: 100 ns CPU units, JSON line, single row or array', (
   assert.equal(parseWindowsFrame('[]').length, 0)
 })
 
+it('carries the dedicated working set only when the sweep saw the pid', () => {
+  const frame = parseWindowsFrame(
+    `[{"ProcessId":1,"ParentProcessId":0,"Name":"a.exe","CommandLine":"a","WorkingSetSize":1000,"KernelModeTime":0,"UserModeTime":0,"PrivateWS":700},{"ProcessId":2,"ParentProcessId":1,"Name":"b.exe","CommandLine":"b","WorkingSetSize":1000,"KernelModeTime":0,"UserModeTime":0,"PrivateWS":null},{"ProcessId":3,"ParentProcessId":1,"Name":"c.exe","CommandLine":"c","WorkingSetSize":1000,"KernelModeTime":0,"UserModeTime":0,"PrivateWS":0}]`,
+  )
+  assert.equal(frame[0].privateBytes, 700)
+  assert.equal(frame[1].privateBytes, undefined, 'a skipped sweep is unknown, not zero')
+  assert.equal(frame[2].privateBytes, undefined, 'a zero reading is unknown too')
+  assert.equal(frame[0].memBytes, 1000, 'the working set is always there')
+})
+
 it('parses a POSIX table positionally, with spaces inside args', () => {
   const table = [
     '   10      1  1024  1:02.33 /usr/bin/node /home/me/项目/server.js --flag with space',

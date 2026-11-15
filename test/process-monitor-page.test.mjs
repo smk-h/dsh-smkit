@@ -34,6 +34,7 @@ const SAMPLE = {
     { pid: 5200, ppid: 4321, name: 'git.exe', cmdline: 'git status', kind: 'other', cpuPct: null, memBytes: 12 * 1024 * 1024, cpuMs: 300 },
   ],
   totals: { cpuPct: 2, memBytes: 766 * 1024 * 1024, count: 4 },
+  app: null,
   meter: { cpuPct: 0.5, memBytes: 96 * 1024 * 1024, count: 2 },
 }
 
@@ -286,6 +287,71 @@ it('collapses a group by its header without losing the others', async () => {
   assert.doesNotMatch(collapsed.text, /dsh main/, 'the collapsed group hides its rows')
   assert.match(collapsed.text, /MCP servers/, 'the other groups stay')
   assert.match(collapsed.text, /cmd\.exe/)
+})
+
+it('paints the application scope as its own group and reconciliation line', async () => {
+  const withApp = async (path) => {
+    if (path !== '/process-monitor/sample') return response({})
+    return response({
+      ...SAMPLE,
+      app: {
+        rootPid: 100,
+        rootName: 'node.exe',
+        entries: [
+          // The GUI main process, the renderer drawing this page, and the GPU
+          // process: siblings of the host, unreachable by a subtree walk.
+          { pid: 4300, ppid: 100, name: 'node.exe', cmdline: 'dsh --type=renderer', kind: 'app', cpuPct: 1.5, memBytes: 300 * 1024 * 1024, cpuMs: 9_000 },
+        ],
+        totals: { cpuPct: 2.6, memBytes: 1_066 * 1024 * 1024, count: 5 },
+      },
+    })
+  }
+  const app = mount(withApp)
+  app.render()
+  app.runEffects()
+  await settle()
+
+  const { text } = app.render()
+  // The extra group is last, labelled as another scope.
+  assert.match(text, /Application processes/)
+  assert.match(text, /dsh --type=renderer/)
+  // The reconciliation line names the scope, its numbers and the difference in
+  // memory metric, so nobody has to guess why it differs from Task Manager.
+  assert.match(text, /Whole application \(GUI included\)/)
+  assert.match(text, /5 processes · 2\.6% · 1\.0 GB/, 'the app count includes the host the subtree already counts')
+  assert.match(text, /Task Manager/)
+  // The dsh totals are untouched by the app group.
+  assert.match(text, /766 MB/)
+  assert.match(text, /4 processes · 1 s\/sample/, 'the header meta still counts the subtree')
+})
+
+it('prints the dedicated working set and keeps the working set one hover away', async () => {
+  const withPrivate = async (path) => {
+    if (path !== '/process-monitor/sample') return response({})
+    return response({
+      ...SAMPLE,
+      entries: [
+        { ...SAMPLE.entries[0], memBytes: 512 * 1024 * 1024, memPrivateBytes: 300 * 1024 * 1024 },
+        ...SAMPLE.entries.slice(1),
+      ],
+      totals: { ...SAMPLE.totals, memBytes: 766 * 1024 * 1024, memPrivateBytes: 500 * 1024 * 1024 },
+    })
+  }
+  const app = mount(withPrivate)
+  app.render()
+  app.runEffects()
+  await settle()
+
+  const { text, nodes } = app.render()
+  assert.match(text, /500 MB/, 'the dsh total card prints the dedicated sum, the figure Task Manager shows')
+  assert.match(text, /300 MB/, 'so does the host card')
+  const titled = nodes.filter(
+    (node) => String(node.props?.className) === 'smkit-pm-page-mem' && node.props?.title !== undefined,
+  )
+  assert.ok(
+    titled.some((node) => /Working set 512 MB/.test(String(node.props.title))),
+    'the working set stays available on the memory cell',
+  )
 })
 
 it('shows the warming line while the sampler starts, with no table', async () => {

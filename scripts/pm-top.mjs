@@ -59,7 +59,7 @@ const FIRST_FRAME_TIMEOUT_MS = 15_000
  * 列宽（沿用被本脚本取代的 ps1 版表头，方便新旧输出并排贴）。
  * `COMMAND` 不参与对齐（它总是最后一项）。
  */
-const COLUMNS = { name: 24, pid: 8, cpu: 7, mem: 10, total: 8, cmd: 64 }
+const COLUMNS = { name: 24, pid: 8, cpu: 7, mem: 9, priv: 10, total: 8, cmd: 64 }
 
 /* ------------------------------------------------------------------ args */
 
@@ -238,7 +238,8 @@ function shorten(text, max) {
  *
  * TOTAL 的 CPU 与页面卡片有一处**故意不同**：页面把"全部行都没有窗口"渲染成
  * `0.0%`，这里渲染成 `-`——一行百分比都没有时，`0.0%` 是在断言一个没人测过的
- * 值。ws 汇总照旧（工作集求和，含共享页，与页面一致）。
+ * 值。内存两列并列：`WS` 是工作集（含共享页，页面悬停里那个数），`PRIV` 是
+ * 专用工作集（页面主数字、任务管理器那一列）；非 Windows 上 PRIV 恒为 `-`。
  */
 function printTable(report, round, intervalMs) {
   if (process.stdout.isTTY === true) process.stdout.write('\u001b[2J\u001b[H')
@@ -249,6 +250,7 @@ function printTable(report, round, intervalMs) {
     'PID'.padStart(COLUMNS.pid) +
     'CPU%'.padStart(COLUMNS.cpu) +
     'WS(MB)'.padStart(COLUMNS.mem) +
+    'PRIV(MB)'.padStart(COLUMNS.priv) +
     'TOTAL'.padStart(COLUMNS.total) +
     '  COMMAND'
 
@@ -268,6 +270,7 @@ function printTable(report, round, intervalMs) {
         String(entry.pid).padStart(COLUMNS.pid) +
         formatPct(entry.cpuPct).padStart(COLUMNS.cpu) +
         formatMb(entry.memBytes).padStart(COLUMNS.mem) +
+        (entry.memPrivateBytes === undefined ? '-' : formatMb(entry.memPrivateBytes)).padStart(COLUMNS.priv) +
         formatCpuTime(entry.cpuMs).padStart(COLUMNS.total) +
         `  ${shorten(entry.cmdline, COLUMNS.cmd)}${tag}`,
     )
@@ -277,7 +280,8 @@ function printTable(report, round, intervalMs) {
     `TOTAL (${report.entries.length})`.padEnd(COLUMNS.name) +
       ''.padStart(COLUMNS.pid) +
       cpuTotal.padStart(COLUMNS.cpu) +
-      formatMb(memSum).padStart(COLUMNS.mem),
+      formatMb(report.totals.memBytes).padStart(COLUMNS.mem) +
+      (report.totals.memPrivateBytes === undefined ? '-' : formatMb(report.totals.memPrivateBytes)).padStart(COLUMNS.priv),
   )
   process.stdout.write(`${lines.join('\n')}\n`)
 }
@@ -295,6 +299,9 @@ function printJson(report, round) {
     platform: report.platform,
     entries: report.entries,
     totals: report.totals,
+    // 同一可执行文件的应用组（桌面端即 Electron 的 GUI 进程）：不在子树里，
+    // 但正是任务管理器「应用」行统计的那个集合。
+    app: report.app ?? null,
     // 采样器自身的足迹（被排除的那部分）：外部视角下通常为 null——pm-top 自己的
     // 采样器不在宿主子树里；插件页面的回答里非空。
     meter: report.meter ?? null,

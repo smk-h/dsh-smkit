@@ -49,6 +49,7 @@ function emptyReport(
     ...extras,
     entries: [],
     totals: { cpuPct: 0, memBytes: 0, count: 0 },
+    app: null,
     meter: null,
   }
 }

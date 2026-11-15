@@ -21,6 +21,7 @@
   --smkit-pm-accent: #3a6df0;
   --smkit-pm-mcp: #7b5ce0;
   --smkit-pm-other: #2ea184;
+  --smkit-pm-app: #6b7280;
   --smkit-pm-warn: #b97f2e;
   --smkit-pm-danger: #cc4d4d;
   --smkit-pm-panel: var(--dsw-alias-bg-layer-2);
@@ -41,6 +42,7 @@ body[data-ds-dark-theme] .smkit-pm-page {
   --smkit-pm-accent: #5b8cff;
   --smkit-pm-mcp: #9a7bff;
   --smkit-pm-other: #5cc8a8;
+  --smkit-pm-app: #98a2b3;
   --smkit-pm-warn: #e0a24a;
   --smkit-pm-danger: #e06a6a;
 }
@@ -63,6 +65,7 @@ body[data-smkit-theme='one-dark-pro'] .smkit-pm-page {
   --smkit-pm-accent: #61afef;
   --smkit-pm-mcp: #c678dd;
   --smkit-pm-other: #98c379;
+  --smkit-pm-app: #abb2bf;
   --smkit-pm-warn: #e5c07b;
   --smkit-pm-danger: #e06c75;
 }
@@ -156,6 +159,12 @@ body[data-smkit-theme='one-dark-pro'] .smkit-pm-page {
 
 .smkit-pm-page-dot-other {
   background: var(--smkit-pm-other);
+}
+
+/* The application group is deliberately off-ramp: a neutral dot says "not
+ * part of dsh", which is exactly what these rows are. */
+.smkit-pm-page-dot-app {
+  background: var(--smkit-pm-app);
 }
 
 .smkit-pm-page-kpi {
@@ -419,6 +428,31 @@ body[data-smkit-theme='one-dark-pro'] .smkit-pm-page {
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
+}
+
+/* ── The whole-application line: the number to take to Task Manager ────── */
+
+.smkit-pm-page-app {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 9px;
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.smkit-pm-page-app b {
+  color: var(--dsw-alias-label-secondary);
+  font-weight: 600;
+}
+
+.smkit-pm-page-app span:first-of-type {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
 }
 
 /* ── The meter's own footprint, disclosed as a dashed footnote strip ───── */
