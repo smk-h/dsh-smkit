@@ -36,14 +36,93 @@ const HISTORY_CAP = 60
 const HEAT_MID = 5
 const HEAT_HIGH = 25
 
-/** The groups, in display order; the host first, unknown children last. */
-const GROUP_ORDER: ProcessEntryKind[] = ['host', 'mcp', 'other']
-
+/** Kind → the label its row dot carries (the old group names, now per row). */
 const KIND_LABEL: Record<ProcessEntryKind, string> = {
   host: 'groupHost',
   mcp: 'groupMcp',
   other: 'groupOther',
   app: 'groupApp',
+}
+
+/** How deep a ppid chain is still a tree: the same guard the report keeps. */
+const MAX_TREE_DEPTH = 12
+
+/** One rendered line: the process, its indent, and how many children hang off it. */
+interface TreeRow {
+  entry: ProcessEntryView
+  depth: number
+  children: number
+}
+
+/** Sibling order: CPU desc, then memory desc, then pid — nulls last. */
+function compareRows(a: ProcessEntryView, b: ProcessEntryView): number {
+  const aCpu = a.cpuPct ?? -1
+  const bCpu = b.cpuPct ?? -1
+  if (aCpu !== bCpu) return bCpu - aCpu
+  if (a.memBytes !== b.memBytes) return b.memBytes - a.memBytes
+  return a.pid - b.pid
+}
+
+/**
+ * Flatten the pid/ppid edges of both scopes into one table order: depth-first,
+ * parent before child, a collapsed pid not descending.
+ *
+ * The two scopes arrive as two lists — the host's subtree and the application
+ * group — but they are one process tree, so they are joined here rather than
+ * shown in separate tables: the app's GUI main process is the host's parent,
+ * its renderer is the host's sibling, and a reader who has to reconstruct that
+ * from three flat blocks is looking at exactly the confusion a tree removes.
+ * A row whose parent is not in either list is a root; so is a row left
+ * unreachable by a pid loop, which must not silently disappear.
+ */
+function flattenTree(rows: ProcessEntryView[], collapsed: Record<string, boolean>): TreeRow[] {
+  const byPid = new Map(rows.map((row) => [row.pid, row]))
+  const childrenOf = new Map<number, ProcessEntryView[]>()
+  const roots: ProcessEntryView[] = []
+  for (const row of rows) {
+    const parent = row.pid === row.ppid ? undefined : byPid.get(row.ppid)
+    if (parent === undefined) {
+      roots.push(row)
+      continue
+    }
+    const siblings = childrenOf.get(row.ppid)
+    if (siblings === undefined) childrenOf.set(row.ppid, [row])
+    else siblings.push(row)
+  }
+
+  // Reachability first, collapse second. A pid loop (A's parent is B and B's
+  // is A) leaves rows no root can reach, and those must still be shown — but a
+  // collapsed branch is hidden *on purpose* and must not be mistaken for one,
+  // so "which rows exist" is answered before any twisty is consulted.
+  const reachable = new Set<number>()
+  const mark = (list: ProcessEntryView[], depth: number): void => {
+    for (const row of list) {
+      if (reachable.has(row.pid) || depth > MAX_TREE_DEPTH) continue
+      reachable.add(row.pid)
+      mark(childrenOf.get(row.pid) ?? [], depth + 1)
+    }
+  }
+  mark(roots, 0)
+  for (const row of rows) {
+    if (reachable.has(row.pid)) continue
+    roots.push(row)
+    mark([row], 0)
+  }
+
+  const out: TreeRow[] = []
+  const shown = new Set<number>()
+  const walk = (list: ProcessEntryView[], depth: number): void => {
+    list.sort(compareRows)
+    for (const row of list) {
+      if (shown.has(row.pid) || depth > MAX_TREE_DEPTH) continue
+      shown.add(row.pid)
+      const kids = childrenOf.get(row.pid) ?? []
+      out.push({ entry: row, depth, children: kids.length })
+      if (kids.length > 0 && collapsed[row.pid] !== true) walk(kids, depth + 1)
+    }
+  }
+  walk(roots, 0)
+  return out
 }
 
 /** `0.5` → "0.5%", null → "—" (the first sample after a gap has no window). */
@@ -188,31 +267,17 @@ export function createProcessMonitorPage(
     const hasMcpGroup = entries.some((entry) => entry.kind === 'mcp')
     // The application group is a *different scope*, not a fourth kind of
     // child: its rows are the GUI processes Windows Task Manager folds into
-    // the app's one line (main process, renderer, GPU) and the dsh tree by
-    // definition cannot contain. It renders last, with the same columns.
+    // the app's one line. They share the table with the subtree because they
+    // share the tree — see `flattenTree`.
     const app = sample?.app ?? null
-    const groups = [
-      ...GROUP_ORDER.map((kind) => ({
-        id: kind,
-        label: t(KIND_LABEL[kind]),
-        rows: entries.filter((entry) => entry.kind === kind),
-      })),
-      ...(app !== null && app.entries.length > 0
-        ? [{ id: 'app', label: t('groupApp'), rows: app.entries }]
-        : []),
-    ].filter((group) => group.rows.length > 0)
+    // Every row the sample carries — the subtree plus the app group, which by
+    // construction share no pid. The header counts this, not the rendered
+    // lines: collapsing a branch hides rows, it does not stop sampling them.
+    const rows = [...entries, ...(app?.entries ?? [])]
+    const tree = flattenTree(rows, collapsed)
 
-    const groupMeta = (rows: ProcessEntryView[]): string => {
-      const counted = rows.filter((row) => row.cpuPct !== null)
-      if (counted.length === 0) return formatBytes(rows.reduce((sum, row) => sum + row.memBytes, 0))
-      const sum = counted.reduce((total, row) => total + (row.cpuPct ?? 0), 0)
-      return `${formatPct(Math.round(sum * 10) / 10, dash)} · ${formatBytes(
-        rows.reduce((total, row) => total + row.memBytes, 0),
-      )}`
-    }
-
-    const toggle = (id: string): void => {
-      setCollapsed({ ...collapsed, [id]: !collapsed[id] })
+    const toggle = (pid: number): void => {
+      setCollapsed({ ...collapsed, [pid]: !collapsed[pid] })
     }
 
     const warming = sample?.warmingUp === true
@@ -254,19 +319,48 @@ export function createProcessMonitorPage(
               ? t('empty')
               : null
 
-    const row = (entry: ProcessEntryView): JSX.Element => {
+    const row = ({ entry, depth, children }: TreeRow): JSX.Element => {
       const pct = entry.cpuPct
       const heat = pct === null ? 'none' : pct >= HEAT_HIGH ? 'high' : pct >= HEAT_MID ? 'mid' : 'low'
       const width = pct === null || pct <= 0 ? '0%' : `${Math.min(100, Math.max(0.75, pct))}%`
       const [value, unit] = formatBytes(memoryOf(entry)).split(' ')
       const memTitle =
         entry.memPrivateBytes === undefined ? undefined : t('memWsTitle', { mem: formatBytes(entry.memBytes) })
+      const open = collapsed[entry.pid] !== true
       return h(
         'div',
-        { className: 'smkit-pm-page-row', key: entry.pid, 'data-smkit-heat': heat },
+        {
+          className: 'smkit-pm-page-row',
+          key: entry.pid,
+          'data-smkit-heat': heat,
+          'data-smkit-kind': entry.kind,
+        },
         h(
           'span',
-          { className: 'smkit-pm-page-name', title: entry.cmdline },
+          { className: 'smkit-pm-page-name', title: entry.cmdline, style: { paddingLeft: `${depth * 14}px` } },
+          children > 0
+            ? h(
+                'button',
+                {
+                  className: 'smkit-pm-page-twist',
+                  key: 'twist',
+                  type: 'button',
+                  title: t(open ? 'collapseChildren' : 'expandChildren', { count: children }),
+                  'aria-expanded': open,
+                  onClick: () => toggle(entry.pid),
+                },
+                open ? '▾' : '▸',
+              )
+            : h('span', {
+                className: 'smkit-pm-page-twist smkit-pm-page-twist-leaf',
+                key: 'twist',
+                'aria-hidden': 'true',
+              }),
+          h('i', {
+            className: `smkit-pm-page-kind smkit-pm-page-dot-${entry.kind}`,
+            key: 'kind',
+            title: t(KIND_LABEL[entry.kind]),
+          }),
           h('b', { className: 'smkit-pm-page-name-text', key: 'n' }, entry.name),
           entry.mcpServer !== undefined
             ? h('span', { className: 'smkit-pm-page-tag', key: 'tag' }, `mcp:${entry.mcpServer}`)
@@ -314,7 +408,7 @@ export function createProcessMonitorPage(
             {t(liveKey)}
           </span>
           <span className="smkit-pm-page-head-meta">
-            {t('metaLine', { count: sample?.totals.count ?? 0, cores: sample?.cores ?? 0 })}
+            {t('metaLine', { count: rows.length, cores: sample?.cores ?? 0 })}
           </span>
           <span className="smkit-pm-page-spacer" aria-hidden="true" />
           <button className="smkit-ui-button" type="button" onClick={refresh}>
@@ -324,8 +418,8 @@ export function createProcessMonitorPage(
         {notice !== null ? <p className="smkit-pm-page-note">{notice}</p> : null}
         {/* The overview band is the four KPI cards alone: the composition
          * stacked bar this band opened with was cut after review — a mix of
-         * three shares the reader cannot act on said less than the cards and
-         * the group headers already do. */}
+         * three shares the reader cannot act on said less than the cards
+         * already do. */}
         <div className="smkit-pm-page-kpis">
           {cards.map((card) => {
             const [value, unit] = card.value.split(' ')
@@ -343,63 +437,50 @@ export function createProcessMonitorPage(
             )
           })}
         </div>
-        <div className="smkit-pm-page-groups">
-          {groups.map((group) => (
-            <section className={`smkit-pm-page-group smkit-pm-page-group-${group.id}`} key={group.id}>
-              <button className="smkit-pm-page-group-head" type="button" onClick={() => toggle(group.id)}>
-                <i className={`smkit-pm-page-group-dot smkit-pm-page-dot-${group.id}`} />
-                <span className="smkit-pm-page-group-name">{group.label}</span>
-                <span className="smkit-pm-page-group-count">{group.rows.length}</span>
-                <span className="smkit-pm-page-group-agg">{groupMeta(group.rows)}</span>
-                <span className="smkit-pm-page-chev">{collapsed[group.id] ? '▸' : '▾'}</span>
-              </button>
-              {collapsed[group.id] ? null : (
-                <div className="smkit-pm-page-table" key="table">
-                  {cols}
-                  {group.rows.map(row)}
-                </div>
-              )}
-            </section>
-          ))}
-          {notice === null && !hasMcpGroup ? (
-            <p className="smkit-pm-page-hint">{t('emptyMcpHint')}</p>
-          ) : null}
-          {/* The reconciliation line: the number a reader takes to Task
-           * Manager, labelled with the scope it counts and the memory metric
-           * it does *not* share with that tool. */}
-          {app !== null ? (
-            <p className="smkit-pm-page-app" title={t('appScopeHint')}>
-              {h('b', { key: 'label' }, t('appScopeLabel'))}
-              <span>
-                {app.totals.memPrivateBytes === undefined
-                  ? t('appScopeValueWs', {
-                      count: app.totals.count,
-                      cpu: formatPct(app.totals.cpuPct, dash),
-                      mem: formatBytes(app.totals.memBytes),
-                    })
-                  : t('appScopeValue', {
-                      count: app.totals.count,
-                      cpu: formatPct(app.totals.cpuPct, dash),
-                      mem: formatBytes(app.totals.memPrivateBytes),
-                      ws: formatBytes(app.totals.memBytes),
-                    })}
-              </span>
-              <span>{t('appScopeSuffix')}</span>
-            </p>
-          ) : null}
-          {sample?.meter != null ? (
-            <p className="smkit-pm-page-meter">
-              <MeterIcon size={14} className="smkit-pm-page-meter-icon" />
-              {t('meterNotePrefix')}{' '}
-              {h(
-                'b',
-                { key: 'v' },
-                `${formatPct(sample.meter.cpuPct, dash)} · ${formatBytes(memoryOf(sample.meter))}`,
-              )}
-              {t('meterNoteSuffix', { count: sample.meter.count })}
-            </p>
-          ) : null}
-        </div>
+        {tree.length > 0 ? (
+          <div className="smkit-pm-page-table">
+            {cols}
+            {tree.map(row)}
+          </div>
+        ) : null}
+        {notice === null && !hasMcpGroup ? (
+          <p className="smkit-pm-page-hint">{t('emptyMcpHint')}</p>
+        ) : null}
+        {/* The reconciliation line: the number a reader takes to Task
+         * Manager, labelled with the scope it counts and the memory metric
+         * it does *not* share with that tool. */}
+        {app !== null ? (
+          <p className="smkit-pm-page-app" title={t('appScopeHint')}>
+            {h('b', { key: 'label' }, t('appScopeLabel'))}
+            <span>
+              {app.totals.memPrivateBytes === undefined
+                ? t('appScopeValueWs', {
+                    count: app.totals.count,
+                    cpu: formatPct(app.totals.cpuPct, dash),
+                    mem: formatBytes(app.totals.memBytes),
+                  })
+                : t('appScopeValue', {
+                    count: app.totals.count,
+                    cpu: formatPct(app.totals.cpuPct, dash),
+                    mem: formatBytes(app.totals.memPrivateBytes),
+                    ws: formatBytes(app.totals.memBytes),
+                  })}
+            </span>
+            <span>{t('appScopeSuffix')}</span>
+          </p>
+        ) : null}
+        {sample?.meter != null ? (
+          <p className="smkit-pm-page-meter">
+            <MeterIcon size={14} className="smkit-pm-page-meter-icon" />
+            {t('meterNotePrefix')}{' '}
+            {h(
+              'b',
+              { key: 'v' },
+              `${formatPct(sample.meter.cpuPct, dash)} · ${formatBytes(memoryOf(sample.meter))}`,
+            )}
+            {t('meterNoteSuffix', { count: sample.meter.count })}
+          </p>
+        ) : null}
       </div>
     )
   }

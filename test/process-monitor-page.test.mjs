@@ -220,20 +220,17 @@ it('carries the same key set in both dictionaries', () => {
   assert.deepEqual(Object.keys(table.zh).sort(), Object.keys(table.en).sort())
 })
 
-it('paints the summary cards, the groups and every column of one sample', async () => {
+it('paints the summary cards, the tree and every column of one sample', async () => {
   const app = mount(sampleFetch())
   app.render()
   app.runEffects()
   await settle()
 
-  const { text } = app.render()
+  const { nodes, text } = app.render()
   assert.match(text, /Process resources/)
   assert.match(text, /Live/, 'the header carries the sampling pulse badge')
   assert.match(text, /4 processes · 1 s\/sample · 8-core normalized/, 'the meta line carries count and cadence')
   assert.doesNotMatch(text, /Subtree CPU mix/, 'the composition card is gone; the KPI cards are the overview band')
-  assert.match(text, /Host process/)
-  assert.match(text, /MCP servers/)
-  assert.match(text, /Other children/)
   // Cards: subtree totals and the host's own numbers.
   assert.match(text, /766 MB/)
   assert.match(text, /512 MB/)
@@ -245,6 +242,26 @@ it('paints the summary cards, the groups and every column of one sample', async 
   // Human totals: 74000 ms of CPU reads as a minute split, not raw ms.
   assert.match(text, /1m14s/)
   assert.match(text, /git status/, 'the command line column carries the row it explains')
+
+  // The tree: the host, then its children by CPU desc (cmd before the idle
+  // git), and the server indented one level deeper under the wrapper.
+  const cells = (className) =>
+    nodes.filter((node) => String(node.props?.className) === className)
+  assert.deepEqual(
+    cells('smkit-pm-page-pid').map((node) => node.children[0]),
+    [4321, 5100, 5101, 5200],
+  )
+  assert.deepEqual(
+    cells('smkit-pm-page-name').map((node) => node.props.style?.paddingLeft),
+    ['0px', '14px', '28px', '14px'],
+    'one indent step per ppid hop',
+  )
+  assert.equal(
+    nodes.filter((node) => node.type === 'button' && String(node.props?.className) === 'smkit-pm-page-twist').length,
+    2,
+    'only the two rows with children are expandable',
+  )
+
   // One read per render cycle: the poll, and nothing else.
   assert.deepEqual(app.fetches.filter((path) => path === '/process-monitor/sample').length, 1)
   // The meter's own footprint is disclosed under the table, not hidden.
@@ -266,30 +283,33 @@ it('polls once per second while mounted and clears the clock on unmount', async 
   assert.ok(app.clears.includes(app.intervals[0] ? 1000 + 1 : -1), 'the poll clock is the thing that got cleared')
 })
 
-it('collapses a group by its header without losing the others', async () => {
+it('collapses a process subtree by its twisty, leaving the rest of the tree', async () => {
   const app = mount(sampleFetch())
   app.render()
   app.runEffects()
   await settle()
 
-  const head = app
+  const twisty = app
     .render()
-    .nodes.find(
-      (node) =>
-        node.type === 'button' && String(node.props?.className).includes('smkit-pm-page-group-head'),
-    )
-  assert.ok(head, 'a group renders a clickable header')
+    .nodes.find((node) => node.type === 'button' && String(node.props?.className) === 'smkit-pm-page-twist')
+  assert.ok(twisty, 'the host row can be expanded and collapsed')
 
-  // Group order is stable, so the first header is the host group; toggle it.
-  head.props.onClick()
+  twisty.props.onClick()
   await settle()
   const collapsed = app.render()
-  assert.doesNotMatch(collapsed.text, /dsh main/, 'the collapsed group hides its rows')
-  assert.match(collapsed.text, /MCP servers/, 'the other groups stay')
-  assert.match(collapsed.text, /cmd\.exe/)
+  const pids = collapsed.nodes
+    .filter((node) => String(node.props?.className) === 'smkit-pm-page-pid')
+    .map((node) => node.children[0])
+  assert.deepEqual(pids, [4321], 'collapsing the host takes its whole branch with it')
+  assert.match(collapsed.text, /dsh main/, 'the collapsed row itself stays')
+  assert.match(
+    collapsed.text,
+    /4 processes · 1 s\/sample/,
+    'the header keeps counting what was sampled, not what the fold left visible',
+  )
 })
 
-it('paints the application scope as its own group and reconciliation line', async () => {
+it('joins the application group into the same tree and keeps the reconciliation line', async () => {
   const withApp = async (path) => {
     if (path !== '/process-monitor/sample') return response({})
     return response({
@@ -298,8 +318,9 @@ it('paints the application scope as its own group and reconciliation line', asyn
         rootPid: 100,
         rootName: 'node.exe',
         entries: [
-          // The GUI main process, the renderer drawing this page, and the GPU
-          // process: siblings of the host, unreachable by a subtree walk.
+          // The GUI main process (the host's parent) and the renderer drawing
+          // this page: same tree, different scope.
+          { pid: 100, ppid: 5, name: 'node.exe', cmdline: 'dsh --app-main', kind: 'app', cpuPct: 0.1, memBytes: 40 * 1024 * 1024, cpuMs: 4_000 },
           { pid: 4300, ppid: 100, name: 'node.exe', cmdline: 'dsh --type=renderer', kind: 'app', cpuPct: 1.5, memBytes: 300 * 1024 * 1024, cpuMs: 9_000 },
         ],
         totals: { cpuPct: 2.6, memBytes: 1_066 * 1024 * 1024, count: 5 },
@@ -311,18 +332,26 @@ it('paints the application scope as its own group and reconciliation line', asyn
   app.runEffects()
   await settle()
 
-  const { text } = app.render()
-  // The extra group is last, labelled as another scope.
-  assert.match(text, /Application processes/)
-  assert.match(text, /dsh --type=renderer/)
-  // The reconciliation line names the scope, its numbers and the difference in
-  // memory metric, so nobody has to guess why it differs from Task Manager.
+  const { nodes, text } = app.render()
+  // One tree: the app root on top, the host and the renderer below it, the MCP
+  // wrapper one hop further down — no separate group card.
+  const pids = nodes
+    .filter((node) => String(node.props?.className) === 'smkit-pm-page-pid')
+    .map((node) => node.children[0])
+  assert.deepEqual(pids, [100, 4300, 4321, 5100, 5101, 5200])
+  const indents = nodes
+    .filter((node) => String(node.props?.className) === 'smkit-pm-page-name')
+    .map((node) => node.props.style?.paddingLeft)
+  assert.deepEqual(indents, ['0px', '14px', '14px', '28px', '42px', '28px'])
+  assert.doesNotMatch(text, /Application processes/, 'the scope is the tree, not a separate card')
+
+  // The reconciliation line keeps naming scope, numbers and the memory metric.
   assert.match(text, /Whole application \(GUI included\)/)
   assert.match(text, /5 processes · 2\.6% · 1\.0 GB/, 'the app count includes the host the subtree already counts')
   assert.match(text, /Task Manager/)
   // The dsh totals are untouched by the app group.
   assert.match(text, /766 MB/)
-  assert.match(text, /4 processes · 1 s\/sample/, 'the header meta still counts the subtree')
+  assert.match(text, /6 processes · 1 s\/sample/, 'the header counts the rows on screen')
 })
 
 it('prints the dedicated working set and keeps the working set one hover away', async () => {

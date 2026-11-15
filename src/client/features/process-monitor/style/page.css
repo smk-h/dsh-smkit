@@ -217,61 +217,50 @@ body[data-smkit-theme='one-dark-pro'] .smkit-pm-page {
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* ── Groups: cards with a colored dot, a count chip, an aggregate ──────── */
+/* ── The tree: one card, one column template, a twisty per parent row ──── */
 
-.smkit-pm-page-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex: 0 0 auto;
-}
-
-.smkit-pm-page-group {
+.smkit-pm-page-table {
   background: var(--smkit-pm-panel);
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 12px;
   overflow: hidden;
+  flex: 0 0 auto;
 }
 
-.smkit-pm-page-group-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 14px;
-  border: none;
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
-  background: var(--smkit-pm-panel-2);
-  color: inherit;
+/* The expander sits in the name cell, before the kind dot. A leaf keeps an
+ * empty box of the same width so the dots of one depth still line up. */
+.smkit-pm-page-twist {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--dsw-alias-label-tertiary);
   font: inherit;
-  text-align: left;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
   cursor: pointer;
 }
 
-.smkit-pm-page-group-name {
-  font-weight: 650;
-  font-size: 13px;
+.smkit-pm-page-twist:hover {
+  background: var(--smkit-pm-panel-2);
+  color: var(--dsw-alias-label-primary);
 }
 
-.smkit-pm-page-group-count {
-  font-size: 12px;
-  color: var(--dsw-alias-label-tertiary);
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 999px;
-  padding: 0 7px;
-  line-height: 18px;
+.smkit-pm-page-twist-leaf {
+  cursor: default;
 }
 
-.smkit-pm-page-group-agg {
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--dsw-alias-label-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.smkit-pm-page-chev {
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 10px;
+/* The kind's color, now a per-row dot instead of a group header: the tree
+ * order carries the grouping, the dot only has to say "which part of it". */
+.smkit-pm-page-kind {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
 }
 
 /* ── Rows: one grid template stamped on header and rows alike ──────────── */
@@ -310,11 +299,12 @@ body[data-smkit-theme='one-dark-pro'] .smkit-pm-page {
   background: color-mix(in srgb, var(--smkit-pm-accent) 6%, transparent);
 }
 
-.smkit-pm-page-group-host .smkit-pm-page-row {
+/* The host is one row of the tree now, so its emphasis rides the row. */
+.smkit-pm-page-row[data-smkit-kind='host'] {
   background: color-mix(in srgb, var(--smkit-pm-accent) 7%, transparent);
 }
 
-.smkit-pm-page-group-host .smkit-pm-page-row:hover {
+.smkit-pm-page-row[data-smkit-kind='host']:hover {
   background: color-mix(in srgb, var(--smkit-pm-accent) 10%, transparent);
 }
 
